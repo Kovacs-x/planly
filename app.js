@@ -21,9 +21,6 @@ function completedSection(tasks,key){
   const open=!!completedOpen[key];
   return `<section class="section completedSection"><button class="completedToggle" data-completed-key="${esc(key)}" aria-expanded="${open}"><span>Completed</span><span class="muted">${tasks.length} ${open?'⌃':'⌄'}</span></button>${open?`<div class="completedList">${sortTasks(tasks).map(taskHtml).join('')}</div>`:''}</section>`
 }
-function bindCompletedToggles(){
-  $$('.completedToggle').forEach(b=>b.onclick=()=>{completedOpen[b.dataset.completedKey]=!completedOpen[b.dataset.completedKey];render()})
-}
 function isOverdue(t){return !!t.date && !t.completed && t.date<localKey(new Date())}
 function priorityRank(p){return p==='high'?0:p==='normal'?1:2}
 function sortTasks(arr){return [...arr].sort((a,b)=>{
@@ -90,28 +87,61 @@ function monthStart(key){const d=parseKey(key);d.setDate(1);return localKey(d)}
 function shiftMonth(key,n){const d=parseKey(key);d.setDate(1);d.setMonth(d.getMonth()+n);return localKey(d)}
 function monthView(){const first=monthStart(state.monthAnchor),d=parseKey(first),year=d.getFullYear(),month=d.getMonth();setHeader(new Intl.DateTimeFormat(undefined,{month:'long'}).format(d),String(year));const offset=(d.getDay()+6)%7;const days=new Date(year,month+1,0).getDate();let cal='<div class="calendar">'+['M','T','W','T','F','S','S'].map(x=>`<div class="dow">${x}</div>`).join('');for(let i=0;i<offset;i++)cal+='<div></div>';for(let day=1;day<=days;day++){const k=localKey(new Date(year,month,day,12)),c=state.tasks.filter(t=>t.date===k).length;cal+=`<button class="day ${c?'has':''} ${state.selectedDate===k?'selected':''}" data-date="${k}">${day}${c?`<span style="font-size:9px;margin-left:2px">•</span>`:''}</button>`}cal+='</div>';const dayTasks=state.tasks.filter(t=>t.date===state.selectedDate),active=sortTasks(dayTasks.filter(t=>!t.completed)),completed=sortTasks(dayTasks.filter(t=>t.completed));$('#view').innerHTML=`<div class="toolbar"><button id="prevMonth">‹</button><button id="todayMonth">Today</button><button id="nextMonth">›</button></div>${cal}<section class="section"><div class="sectionHead"><h2>${fmt(state.selectedDate,{weekday:'long',day:'numeric',month:'long'})}</h2></div>${active.length?active.map(taskHtml).join(''):`<div class="empty">No active tasks for this date.</div>`}</section>${completedSection(completed,'month:'+state.selectedDate)}`;$('#prevMonth').onclick=()=>{state.monthAnchor=shiftMonth(first,-1);state.selectedDate=state.monthAnchor;render()};$('#nextMonth').onclick=()=>{state.monthAnchor=shiftMonth(first,1);state.selectedDate=state.monthAnchor;render()};$('#todayMonth').onclick=()=>{state.monthAnchor=localKey(new Date());state.selectedDate=localKey(new Date());render()};$$('.day[data-date]').forEach(b=>b.onclick=()=>{state.selectedDate=b.dataset.date;render()})}
 function inboxView(){setHeader('Inbox','Undated tasks');const arr=visibleTasks(state.tasks.filter(t=>!t.date));$('#view').innerHTML=`<section class="section">${arr.length?arr.map(taskHtml).join(''):`<div class="empty">Quick thoughts and undated tasks will appear here.</div>`}</section>`}
-function settingsView(){setHeader('Settings','Planly preferences');$('#view').innerHTML=`<div class="settingsCard"><h3>Appearance</h3><select id="themeSetting" class="select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div><div class="settingsCard"><h3>Task defaults</h3><label class="muted" style="font-size:13px">Default category</label><select id="defaultCat" class="select" style="margin-top:6px"><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select><label style="display:flex;align-items:center;gap:10px;margin-top:14px"><input id="showCompleted" type="checkbox"> Show completed tasks</label></div><div class="settingsCard"><h3>Data</h3><button id="exportBtn" class="primary">Export backup</button><button id="importBtn" class="primary" style="margin-top:8px;background:transparent;color:var(--text);border:1px solid var(--line)">Import backup</button><button id="clearBtn" class="primary" style="margin-top:8px;background:transparent;color:var(--danger);border:1px solid var(--line)">Clear all data</button></div><div class="settingsCard"><h3>Install on iPhone</h3><div class="muted" style="font-size:14px;line-height:1.5">Open Planly in Safari, tap Share, then Add to Home Screen. Once installed it opens like an app.</div></div><div class="settingsCard"><h3>About Planly</h3><div class="muted" style="font-size:14px">Private local-first planner. Your tasks stay on this device unless you export them.</div></div>`;$('#themeSetting').value=state.theme;$('#defaultCat').value=state.defaultCategory;$('#showCompleted').checked=state.showCompleted;$('#themeSetting').onchange=e=>{state.theme=e.target.value;save();applyTheme()};$('#defaultCat').onchange=e=>{state.defaultCategory=e.target.value;save()};$('#showCompleted').onchange=e=>{state.showCompleted=e.target.checked;save()};$('#exportBtn').onclick=exportData;$('#importBtn').onclick=()=>$('#importFile').click();$('#clearBtn').onclick=()=>{if(confirm('Delete all Planly tasks and settings?')){localStorage.removeItem(STORE);location.reload()}}}
-function render(){ $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab)); $('#addBtn').style.display=state.tab==='settings'?'none':'block'; if(state.tab==='today')todayView();else if(state.tab==='week')weekView();else if(state.tab==='month')monthView();else if(state.tab==='inbox')inboxView();else settingsView(); bindTaskActions(); bindCompletedToggles() }
-function bindTaskActions(){ $$('.task').forEach(el=>{
-  el.querySelector('[data-action="toggle"]').onclick=()=>{
-    const t=state.tasks.find(x=>x.id===el.dataset.id);
-    if(t){
-      const wasCompleted=t.completed;
-      t.completed=!t.completed;
-      t.updatedAt=Date.now();
-      if(!wasCompleted&&t.completed)createNextRecurring(t);
-      save();render();
+function settingsView(){setHeader('Settings','Planly preferences');$('#view').innerHTML=`<div class="settingsCard"><h3>Appearance</h3><select id="themeSetting" class="select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div><div class="settingsCard"><h3>Task defaults</h3><label class="muted" style="font-size:13px">Default category</label><select id="defaultCat" class="select" style="margin-top:6px"><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select><label style="display:flex;align-items:center;gap:10px;margin-top:14px"><input id="showCompleted" type="checkbox"> Show completed tasks</label></div><div class="settingsCard"><h3>Data</h3><button id="exportBtn" class="primary">Export backup</button><button id="importBtn" class="primary" style="margin-top:8px;background:transparent;color:var(--text);border:1px solid var(--line)">Import backup</button><button id="clearBtn" class="primary" style="margin-top:8px;background:transparent;color:var(--danger);border:1px solid var(--line)">Clear all data</button></div><div class="settingsCard"><h3>Install on iPhone</h3><div class="muted" style="font-size:14px;line-height:1.5">Open Planly in Safari, tap Share, then Add to Home Screen. Once installed it opens like an app.</div></div><div class="settingsCard"><h3>About Planly</h3><div class="muted" style="font-size:14px">Private local-first planner. Your tasks stay on this device unless you export them.</div><div class="muted" style="font-size:12px;margin-top:8px">Planly 1.2.4</div></div>`;$('#themeSetting').value=state.theme;$('#defaultCat').value=state.defaultCategory;$('#showCompleted').checked=state.showCompleted;$('#themeSetting').onchange=e=>{state.theme=e.target.value;save();applyTheme()};$('#defaultCat').onchange=e=>{state.defaultCategory=e.target.value;save()};$('#showCompleted').onchange=e=>{state.showCompleted=e.target.checked;save()};$('#exportBtn').onclick=exportData;$('#importBtn').onclick=()=>$('#importFile').click();$('#clearBtn').onclick=()=>{if(confirm('Delete all Planly tasks and settings?')){localStorage.removeItem(STORE);location.reload()}}}
+function render(){ $('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab)); $('#addBtn').style.display=state.tab==='settings'?'none':'block'; if(state.tab==='today')todayView();else if(state.tab==='week')weekView();else if(state.tab==='month')monthView();else if(state.tab==='inbox')inboxView();else settingsView() }
+function handleViewClick(e){
+  const completedToggle=e.target.closest('.completedToggle');
+  if(completedToggle){
+    const key=completedToggle.dataset.completedKey;
+    completedOpen[key]=!completedOpen[key];
+    render();
+    return;
+  }
+
+  const taskEl=e.target.closest('.task');
+  if(!taskEl)return;
+  const actionEl=e.target.closest('[data-action]');
+  if(!actionEl)return;
+
+  const t=state.tasks.find(x=>x.id===taskEl.dataset.id);
+  if(!t)return;
+
+  const action=actionEl.dataset.action;
+  if(action==='toggle'){
+    const wasCompleted=t.completed;
+    t.completed=!t.completed;
+    t.updatedAt=Date.now();
+    if(!wasCompleted&&t.completed)createNextRecurring(t);
+    save();
+    render();
+    return;
+  }
+
+  if(action==='pin'){
+    if(!t.pinned&&state.tasks.filter(x=>x.date===t.date&&x.pinned&&!x.completed).length>=3){
+      alert('Top 3 is full for that day.');
+      return;
     }
-  };
-  el.querySelector('[data-action="pin"]').onclick=()=>{
-    const t=state.tasks.find(x=>x.id===el.dataset.id);if(!t)return;
-    if(!t.pinned&&state.tasks.filter(x=>x.date===t.date&&x.pinned&&!x.completed).length>=3){alert('Top 3 is full for that day.');return}
-    t.pinned=!t.pinned;t.updatedAt=Date.now();save();render()
-  };
-  const move=el.querySelector('[data-action="today"]');
-  if(move)move.onclick=()=>{const t=state.tasks.find(x=>x.id===el.dataset.id);if(t){t.date=localKey(new Date());t.updatedAt=Date.now();save();render()}};
-  el.querySelector('[data-action="edit"]').onclick=()=>openSheet(state.tasks.find(x=>x.id===el.dataset.id))
-}) }
+    t.pinned=!t.pinned;
+    t.updatedAt=Date.now();
+    save();
+    render();
+    return;
+  }
+
+  if(action==='today'){
+    t.date=localKey(new Date());
+    t.updatedAt=Date.now();
+    save();
+    render();
+    return;
+  }
+
+  if(action==='edit'){
+    openSheet(t);
+  }
+}
+
 function setQuick(q){$$$('#quickDates .chip').forEach(c=>c.classList.toggle('active',c.dataset.q===q));const today=localKey(new Date());if(q==='today')$('#taskDate').value=today;else if(q==='tomorrow')$('#taskDate').value=addDays(today,1);else if(q==='nextweek')$('#taskDate').value=addDays(startMonday(today),7);else if(q==='none')$('#taskDate').value=''}
 function openSheet(task){$('#sheetWrap').classList.add('open');$('#sheetWrap').setAttribute('aria-hidden','false');$('#taskId').value=task?.id||'';$('#taskTitle').value=task?.title||'';$('#taskDate').value=task?.date??(state.tab==='inbox'?'':localKey(new Date()));$('#taskTime').value=task?.time||'';$('#taskPriority').value=task?.priority||'normal';$('#taskCategory').value=task?.category||state.defaultCategory;$('#taskRepeat').value=task?.recurrence||'none';$('#taskReminder').value=task?.reminder||'none';$('#taskNotes').value=task?.notes||'';$('#deleteTask').style.display=task?'block':'none';$$('#quickDates .chip').forEach(c=>c.classList.remove('active'));setTimeout(()=>$('#taskTitle').focus(),100)}
 function closeSheet(){ $('#sheetWrap').classList.remove('open');$('#sheetWrap').setAttribute('aria-hidden','true') }
@@ -119,6 +149,6 @@ function exportData(){const blob=new Blob([JSON.stringify({version:1,exportedAt:
 $('#importFile').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.tasks))throw new Error();if(confirm(`Import ${d.tasks.length} tasks and replace current data?`)){state.tasks=d.tasks;state.theme=d.settings?.theme||state.theme;state.showCompleted=d.settings?.showCompleted!==false;state.defaultCategory=d.settings?.defaultCategory||state.defaultCategory;save();applyTheme();render()}}catch{alert('That backup file is not valid.')}e.target.value=''})
 $('#taskForm').addEventListener('submit',e=>{e.preventDefault();const id=$('#taskId').value,now=Date.now();const data={title:$('#taskTitle').value.trim(),date:$('#taskDate').value||'',time:$('#taskTime').value||'',priority:$('#taskPriority').value,category:$('#taskCategory').value,recurrence:$('#taskRepeat').value,reminder:$('#taskReminder').value,notes:$('#taskNotes').value.trim(),updatedAt:now};if(!data.title)return;let t=id?state.tasks.find(x=>x.id===id):null;if(t)Object.assign(t,data);else state.tasks.push({id:uid(),...data,completed:false,pinned:false,createdAt:now});save();closeSheet();render()})
 $('#deleteTask').onclick=()=>{const id=$('#taskId').value;if(id&&confirm('Delete this task?')){state.tasks=state.tasks.filter(t=>t.id!==id);save();closeSheet();render()}}
-$('#sheetWrap').addEventListener('click',e=>{if(e.target===$('#sheetWrap'))closeSheet()});$$('#quickDates .chip').forEach(c=>c.onclick=()=>setQuick(c.dataset.q));$('#addBtn').onclick=()=>openSheet();$$('.nav button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;if(state.tab==='today')state.selectedDate=localKey(new Date());render()});$('#themeToggle').onclick=()=>{state.theme=(document.documentElement.dataset.theme==='dark')?'light':'dark';save();applyTheme()};
+$('#sheetWrap').addEventListener('click',e=>{if(e.target===$('#sheetWrap'))closeSheet()});$('#view').addEventListener('click',handleViewClick);$$('#quickDates .chip').forEach(c=>c.onclick=()=>setQuick(c.dataset.q));$('#addBtn').onclick=()=>openSheet();$$('.nav button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;if(state.tab==='today')state.selectedDate=localKey(new Date());render()});$('#themeToggle').onclick=()=>{state.theme=(document.documentElement.dataset.theme==='dark')?'light':'dark';save();applyTheme()};
 load();applyTheme();if(!isStandalone())$('#installHelp').hidden=false;if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});render();
 })();
