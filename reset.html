@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Refresh Planly</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:#f7f7f9;color:#111827;margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}
+.card{max-width:420px;background:white;border:1px solid #e5e7eb;border-radius:22px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.06);text-align:center}
+h1{margin:0 0 10px;font-size:26px}.muted{color:#6b7280;line-height:1.5}button{margin-top:18px;width:100%;min-height:50px;border:0;border-radius:15px;background:#111827;color:white;font:inherit;font-weight:700}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>Refreshing Planly</h1>
+<p id="status" class="muted">Clearing old app files. Your saved tasks will not be deleted.</p>
+<button id="retry" hidden>Open Planly</button>
+</div>
+<script>
+(async()=>{
+  const status=document.getElementById('status');
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    status.textContent='Old cached app files cleared. Opening the latest Planly…';
+    setTimeout(()=>location.replace('./?fresh='+Date.now()),700);
+  }catch(e){
+    status.textContent='Cache reset finished with a warning. Tap below to open Planly.';
+    document.getElementById('retry').hidden=false;
+  }
+})();
+document.getElementById('retry').onclick=()=>location.replace('./?fresh='+Date.now());
+</script>
+</body>
+</html>
