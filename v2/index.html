@@ -49,9 +49,11 @@
   <div class="row2"><div class="field"><label>Priority</label><select id="taskPriority" class="select"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></div><div class="field"><label>Category</label><select id="taskCategory" class="select"><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select></div></div>
   <div class="row2"><div class="field"><label>Repeat</label><select id="taskRepeat" class="select"><option value="none">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div><div class="field"><label>Reminder</label><select id="taskReminder" class="select"><option value="none">None</option><option value="at-time">At task time</option></select></div></div>
   <div class="field"><label>Notes</label><textarea id="taskNotes" class="textarea" maxlength="500" placeholder="Optional details"></textarea></div>
+  <label style="display:flex;align-items:flex-start;gap:10px;margin:4px 0 14px"><input id="taskCalendar" type="checkbox" style="margin-top:3px"><span><strong>Add to Google Calendar</strong><span class="muted" style="display:block;font-size:12px;margin-top:3px">Syncs only to your private Planly calendar.</span></span></label>
   <div class="row2"><button type="button" id="deleteTask" class="primary" style="background:transparent;color:var(--danger);border:1px solid var(--line);display:none">Delete</button><button type="submit" class="primary">Save task</button></div>
 </form></div></div>
 <input id="importFile" type="file" accept="application/json" hidden>
-<script src="./app.js?v=2.0.1"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./app-v2.1.0.js"></script>
 </body>
 </html>
