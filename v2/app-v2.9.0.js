@@ -35,7 +35,7 @@ function calendarSyncHtml(t){
   return `<span class="pill syncPill ${t.calendarSync==='error'?'error':'pending'}">${label}</span><button class="syncRetry" data-action="retry-sync">Retry</button>`;
 }
 function durationLabel(minutes){
-  const n=Number(minutes||30);
+  const n=Number(minutes===undefined||minutes===null?30:minutes);
   if(n<60)return n+'m';
   if(n%60===0)return (n/60)+'h';
   return Math.floor(n/60)+'h '+(n%60)+'m';
