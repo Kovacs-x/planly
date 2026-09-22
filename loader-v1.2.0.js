@@ -1,0 +1,1 @@
+(()=>{const s=document.createElement('script');s.src='./app.js?v=1.2.0';s.defer=true;document.head.appendChild(s);})();
