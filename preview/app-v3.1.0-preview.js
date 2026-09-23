@@ -1145,8 +1145,17 @@ async function loadPlanlyCalendarSources(){
 }
 function planlyCalendarSourcesHtml(){
   if(!planlySession?.user)return '<div class="muted settingsHelp">Sign in to Planly to add secure external calendars.</div>';
-  const rows=planlyCalendarSources.length?planlyCalendarSources.map(s=>'<div class="calendarStatusRow"><span class="statusDot '+(s.enabled?'connected':'offline')+'"></span><strong>'+esc(s.name)+'</strong><span class="muted">'+esc(s.source_type==='ical'?'iCalendar · Read only':s.source_type)+'</span></div>').join(''):'<div class="muted settingsHelp">No external calendars connected yet.</div>';
+  const rows=planlyCalendarSources.length?planlyCalendarSources.map(s=>{const synced=s.last_synced_at?'Updated '+new Intl.DateTimeFormat(undefined,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(s.last_synced_at)):'Not imported yet';return '<div class="calendarStatusRow"><span class="statusDot '+(s.enabled?'connected':'offline')+'"></span><strong>'+esc(s.name)+'</strong><span class="muted">'+esc((s.source_type==='ical'?'iCalendar · Read only':s.source_type)+' · '+synced)+'</span><button type="button" class="secondaryBtn" data-planly-calendar-refresh="'+esc(s.id)+'">Refresh</button></div>'}).join(''):'<div class="muted settingsHelp">No external calendars connected yet.</div>';
   return rows+'<details class="advancedSettings" id="addCalendarDetails"><summary>+ Add calendar</summary><div class="field"><label>Calendar name</label><input id="planlyCalendarName" class="input" value="Wife — NHS Rota" autocomplete="off"></div><div class="field"><label>iCalendar subscription link</label><input id="planlyCalendarUrl" class="input" type="url" inputmode="url" placeholder="webcal://… or https://…" autocomplete="off"></div><div class="muted settingsHelp">The private subscription link is sent directly to Planly’s authenticated server function and encrypted in Supabase Vault. It is not saved in localStorage.</div><button id="planlyAddCalendarBtn" class="primary">Add calendar</button></details>';
+}
+async function refreshPlanlyCalendarSource(sourceId,btn){
+  if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');
+  const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}
+  try{
+    const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-refresh',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({sourceId})});
+    const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');
+    await loadPlanlyCalendarSources();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body;
+  }finally{if(btn){btn.disabled=false;btn.textContent=original}}
 }
 async function addPlanlyCalendarSource(){
   if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');
@@ -1174,6 +1183,7 @@ function settingsView(){
   <div class="settingsCard"><h3>About Planly</h3><div class="muted settingsHelp">Private local-first planner. Your tasks stay on this device unless you export or sync them.</div><div class="muted" style="font-size:12px;margin-top:8px">Planly 3.1.0 Preview</div></div>`;
   if($('#planlySignInBtn'))$('#planlySignInBtn').onclick=()=>planlySignIn().then(()=>loadPlanlyCalendarSources()).catch(err=>alert(err.message));
   if($('#planlyAddCalendarBtn'))$('#planlyAddCalendarBtn').onclick=()=>addPlanlyCalendarSource().catch(err=>{alert(err.message);render()});
+  $('[data-planly-calendar-refresh]').forEach(btn=>btn.onclick=()=>refreshPlanlyCalendarSource(btn.dataset.planlyCalendarRefresh,btn).catch(err=>alert(err.message)));
   if($('#planlySignUpBtn'))$('#planlySignUpBtn').onclick=()=>planlySignUp().catch(err=>alert(err.message));
   if($('#planlySignOutBtn'))$('#planlySignOutBtn').onclick=()=>planlySignOut().catch(err=>alert(err.message));
   $('#themeSetting').value=state.theme;
