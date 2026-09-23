@@ -1,5 +1,5 @@
-const CACHE='planly-v2-clean-22';
-const ASSETS=['./','./index.html','./app-v3.0.2.js','./manifest.webmanifest','../icon-192.png','../icon-512.png'];
+const CACHE='planly-v2-clean-23';
+const ASSETS=['./','./index.html','./app-v3.0.3.js','./manifest.webmanifest','../icon-192.png','../icon-512.png'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(
