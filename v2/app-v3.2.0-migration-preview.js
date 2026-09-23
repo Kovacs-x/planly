@@ -1154,7 +1154,7 @@ async function loadVerifiedCloudPreview(){
   assertUniqueLocalIds(tasks,'Cloud tasks');assertUniqueLocalIds(projects,'Cloud projects');rememberCloudVersions(taskRows,projectRows);
   state.tasks=tasks;state.projects=projects;
   const p=prefsRes.data;if(p){state.defaultCategory=p.default_category||'Personal';state.defaultDuration=Number(p.default_duration||30);state.autoCompleteParentSubtasks=!!p.auto_complete_parent_subtasks;state.planningStart=p.planning_start||'08:00';state.planningEnd=p.planning_end||'23:00'}
-  planlyCloudReadOnly=true;setPlanlyCloudLocalStatus({state:'cloud-loaded',taskCount:tasks.length,projectCount:projects.length,loadedAt:new Date().toISOString()});return true;
+  const previousStatus=planlyCloudLocalStatus();planlyCloudReadOnly=previousStatus.state!=='cloud-write-test';setPlanlyCloudLocalStatus({state:planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',taskCount:tasks.length,projectCount:projects.length,loadedAt:new Date().toISOString()});return true;
 }
 async function planlySignIn(){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
