@@ -180,48 +180,35 @@ async function refreshSource(sourceId: string, userId: string, auth: string) {
     return json({ error: 'Calendar feed is invalid.' }, 502)
   }
 
-  const events = parseEvents(ics).map((event) => ({
-    ...event,
-    source_id: sourceId,
-    owner_id: userId,
-  }))
+  const rawEventCount = (unfold(ics).match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/gi) || []).length
+  const events = parseEvents(ics)
 
-  // First-pass 3.1 importer. Atomic replacement/TZID/RRULE hardening remains a pre-production gate.
-  const deleteRes = await serviceFetch(
-    '/rest/v1/external_calendar_events?source_id=eq.' + encodeURIComponent(sourceId),
-    { method: 'DELETE', headers: { Prefer: 'return=minimal' } },
-  )
-  if (!deleteRes.ok) {
-    return json({ error: 'Could not replace previous calendar events.' }, 500)
+  if (rawEventCount > 0 && events.length === 0) {
+    return json({ error: 'Calendar events were found but could not be parsed safely.' }, 502)
   }
 
-  if (events.length) {
-    const insertRes = await serviceFetch(
-      '/rest/v1/external_calendar_events?on_conflict=source_id,external_uid',
-      {
-        method: 'POST',
-        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-        body: JSON.stringify(events),
-      },
-    )
-    if (!insertRes.ok) return json({ error: 'Calendar events could not be saved.' }, 500)
-  }
-
-  const updateRes = await serviceFetch(
-    '/rest/v1/calendar_sources?id=eq.' + encodeURIComponent(sourceId),
+  const replaceRes = await serviceFetch(
+    '/rest/v1/rpc/replace_external_calendar_events',
     {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
+      method: 'POST',
       body: JSON.stringify({
-        status: 'connected',
-        error: null,
-        last_synced_at: new Date().toISOString(),
+        p_source_id: sourceId,
+        p_owner_id: userId,
+        p_events: events,
       }),
     },
   )
-  if (!updateRes.ok) return json({ error: 'Calendar source status could not be updated.' }, 500)
 
-  return json({ ok: true, sourceId, eventCount: events.length })
+  const replacedCount = await replaceRes.json().catch(() => null)
+  if (!replaceRes.ok) {
+    return json({ error: 'Calendar refresh could not be committed safely.' }, 500)
+  }
+
+  return json({
+    ok: true,
+    sourceId,
+    eventCount: Number(replacedCount ?? events.length),
+  })
 }
 
 Deno.serve(async (req) => {
