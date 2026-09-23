@@ -1129,7 +1129,7 @@ async function planlySignIn(){
 async function planlySignUp(){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
   const email=$('#planlyAuthEmail')?.value.trim(),password=$('#planlyAuthPassword')?.value||'';if(!email||password.length<8)throw new Error('Enter your email and a password of at least 8 characters.');
-  const {data,error}=await planlySupabase.auth.signUp({email,password,options:{emailRedirectTo:'https://kovacs-x.github.io/planly/v2/'}});if(error)throw error;planlySession=data.session||null;showToast(data.session?'Planly account created':'Check your email to confirm your Planly account');render();
+  const {data,error}=await planlySupabase.auth.signUp({email,password,options:{emailRedirectTo:'https://kovacs-x.github.io/planly/preview/'}});if(error)throw error;planlySession=data.session||null;showToast(data.session?'Planly account created':'Check your email to confirm your Planly account');render();
 }
 async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupabase.auth.signOut();planlySession=null;showToast('Signed out of Planly');render()}
 async function startPlanlyAuth(){
