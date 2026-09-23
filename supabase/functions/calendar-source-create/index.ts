@@ -76,65 +76,211 @@ function isDateOnly(value: string) {
   return /^\d{8}$/.test(value)
 }
 
-function parseIcsDate(value: string) {
+type IcsDateParts = {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  second: number
+}
+
+function parseIcsParts(value: string): IcsDateParts | null {
+  const m = value.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?)?(Z)?$/)
+  if (!m) return null
+
+  return {
+    year: Number(m[1]),
+    month: Number(m[2]),
+    day: Number(m[3]),
+    hour: Number(m[4] || 0),
+    minute: Number(m[5] || 0),
+    second: Number(m[6] || 0),
+  }
+}
+
+function dateKey(parts: IcsDateParts) {
+  return [
+    String(parts.year).padStart(4, '0'),
+    String(parts.month).padStart(2, '0'),
+    String(parts.day).padStart(2, '0'),
+  ].join('-')
+}
+
+function parameterValue(params: string, name: string) {
+  const match = params.match(new RegExp('(?:^|;)' + name + '=([^;:]*)', 'i'))
+  return match ? match[1].replace(/^"|"$/g, '').trim() : ''
+}
+
+function validTimeZone(value: string) {
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: value }).format(new Date())
+    return true
+  } catch {
+    return false
+  }
+}
+
+function partsInTimeZone(date: Date, timeZone: string): IcsDateParts {
+  const values: Record<string, string> = {}
+
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date).forEach((part) => {
+    if (part.type !== 'literal') values[part.type] = part.value
+  })
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second),
+  }
+}
+
+function zonedLocalToUtc(parts: IcsDateParts, timeZone: string) {
+  const wanted = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  )
+
+  let guess = wanted
+
+  for (let i = 0; i < 4; i += 1) {
+    const seen = partsInTimeZone(new Date(guess), timeZone)
+    const seenAsUtc = Date.UTC(
+      seen.year,
+      seen.month - 1,
+      seen.day,
+      seen.hour,
+      seen.minute,
+      seen.second,
+    )
+    const delta = wanted - seenAsUtc
+    guess += delta
+    if (delta === 0) break
+  }
+
+  return new Date(guess).toISOString()
+}
+
+function dateKeyInTimeZone(iso: string, timeZone: string) {
+  return dateKey(partsInTimeZone(new Date(iso), timeZone))
+}
+
+function calendarTimeZone(text: string) {
+  const raw = property(text, 'X-WR-TIMEZONE').trim()
+  return raw && validTimeZone(raw) ? raw : 'Europe/London'
+}
+
+function parseIcsDate(value: string, params = '', defaultTimeZone = 'Europe/London') {
+  const parts = parseIcsParts(value)
+  if (!parts) return null
+
   if (isDateOnly(value)) {
     return {
-      iso: value.slice(0, 4) + '-' + value.slice(4, 6) + '-' + value.slice(6, 8),
+      iso: dateKey(parts),
+      localDate: dateKey(parts),
       allDay: true,
     }
   }
 
-  const m = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/)
-  if (!m) return null
+  const explicitTz = parameterValue(params, 'TZID')
+  const timeZone = explicitTz && validTimeZone(explicitTz)
+    ? explicitTz
+    : defaultTimeZone
+
+  if (value.endsWith('Z')) {
+    const iso = new Date(Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    )).toISOString()
+
+    return {
+      iso,
+      localDate: dateKeyInTimeZone(iso, timeZone),
+      allDay: false,
+    }
+  }
+
+  const iso = zonedLocalToUtc(parts, timeZone)
 
   return {
-    iso: `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6] || '00'}${m[7] ? 'Z' : ''}`,
+    iso,
+    localDate: dateKey(parts),
     allDay: false,
+  }
+}
+
+function recurrenceDiagnostics(text: string) {
+  const clean = unfold(text)
+  const tzids = new Set<string>()
+
+  for (const match of clean.matchAll(/;TZID=([^:;\r\n]+)/gi)) {
+    const value = String(match[1] || '').replace(/^"|"$/g, '').trim()
+    if (value) tzids.add(value)
+  }
+
+  return {
+    rruleCount: (clean.match(/^RRULE:/gmi) || []).length,
+    exdateCount: (clean.match(/^EXDATE(?:;[^:]*)?:/gmi) || []).length,
+    recurrenceIdCount: (clean.match(/^RECURRENCE-ID(?:;[^:]*)?:/gmi) || []).length,
+    cancelledCount: (clean.match(/^STATUS:CANCELLED$/gmi) || []).length,
+    timeZones: [...tzids],
   }
 }
 
 function parseEvents(text: string) {
   const clean = unfold(text)
   const out: Record<string, unknown>[] = []
+  const defaultTimeZone = calendarTimeZone(clean)
 
   for (const block of clean.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/gi) || []) {
     if (/^STATUS:CANCELLED$/mi.test(block)) continue
 
     const uid = property(block, 'UID')
+    const recurrenceId = rawProperty(block, 'RECURRENCE-ID')
+    const externalUid = recurrenceId?.value
+      ? uid + '::' + recurrenceId.value
+      : uid
+
     const sr = rawProperty(block, 'DTSTART')
     if (!uid || !sr) continue
 
     const er = rawProperty(block, 'DTEND')
-    const s = parseIcsDate(sr.value)
-    const e = er ? parseIcsDate(er.value) : null
+    const s = parseIcsDate(sr.value, sr.params, defaultTimeZone)
+    const e = er ? parseIcsDate(er.value, er.params, defaultTimeZone) : null
     if (!s) continue
 
     const allDay = s.allDay
-    let startsAt: string | null = null
-    let endsAt: string | null = null
-    let startDate: string | null = null
-    let endDate: string | null = null
-
-    if (allDay) {
-      startDate = s.iso
-      endDate = e?.iso || s.iso
-    } else {
-      startsAt = s.iso
-      endsAt = e?.iso || s.iso
-      startDate = s.iso.slice(0, 10)
-      endDate = (e?.iso || s.iso).slice(0, 10)
-    }
 
     out.push({
-      external_uid: uid,
+      external_uid: externalUid,
       title: property(block, 'SUMMARY') || 'Busy',
       description: property(block, 'DESCRIPTION') || null,
       location: property(block, 'LOCATION') || null,
-      starts_at: startsAt,
-      ends_at: endsAt,
+      starts_at: allDay ? null : s.iso,
+      ends_at: allDay ? null : (e?.iso || s.iso),
       is_all_day: allDay,
-      start_date: startDate,
-      end_date: endDate,
+      start_date: s.localDate,
+      end_date: e?.localDate || s.localDate,
       source_updated_at: new Date().toISOString(),
     })
   }
@@ -181,6 +327,18 @@ async function refreshSource(sourceId: string, userId: string, auth: string) {
   }
 
   const rawEventCount = (unfold(ics).match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/gi) || []).length
+  const recurrence = recurrenceDiagnostics(ics)
+
+  // Do not silently import an incomplete recurring calendar. The existing
+  // cached rota remains intact because replacement is atomic and happens later.
+  if (recurrence.rruleCount > 0) {
+    return json({
+      error: 'Recurring calendar rules were detected and need explicit expansion before this refresh can safely replace the cached rota.',
+      code: 'ICAL_RRULE_REQUIRES_EXPANSION',
+      diagnostics: recurrence,
+    }, 422)
+  }
+
   const events = parseEvents(ics)
 
   if (rawEventCount > 0 && events.length === 0) {
@@ -208,6 +366,7 @@ async function refreshSource(sourceId: string, userId: string, auth: string) {
     ok: true,
     sourceId,
     eventCount: Number(replacedCount ?? events.length),
+    diagnostics: recurrence,
   })
 }
 
