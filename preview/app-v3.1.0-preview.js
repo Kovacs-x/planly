@@ -704,8 +704,9 @@ function rescheduleTaskWithUndo(t,newDate,message){
 }
 function deleteTaskWithUndo(t){
   if(!t)return;
-  const before=cloneTasks(),eventId=t.googleEventId||'';state.tasks=state.tasks.filter(x=>x.id!==t.id);save();render();
-  showUndoToast('Task deleted',()=>restoreTaskSnapshot(before),()=>{if(eventId)queueGoogleDelete(eventId);if(googleConnected())processPendingDeletes().catch(()=>{})});
+  const before=cloneTasks(),isRecurringGoogle=!!(t.googleEventId&&t.recurrence&&t.recurrence!=='none'),eventId=isRecurringGoogle?'':(t.googleEventId||'');
+  state.tasks=state.tasks.filter(x=>x.id!==t.id);save();render();
+  showUndoToast(isRecurringGoogle?'Task removed from Planly · Google series unchanged':'Task deleted',()=>restoreTaskSnapshot(before),()=>{if(eventId)queueGoogleDelete(eventId);if(googleConnected())processPendingDeletes().catch(()=>{})});
 }
 function waitForGoogleIdentity(timeout=8000){
   return new Promise((resolve,reject)=>{
@@ -1798,7 +1799,7 @@ $('#taskForm').addEventListener('submit',async e=>{
   if(t){
     Object.assign(t,data);
     if(data.addToCalendar)t.calendarSync='pending';
-    else{if(wasCalendar&&oldEventId)queueGoogleDelete(oldEventId);t.googleEventId='';t.calendarSync=''}
+    else{if(wasCalendar&&oldEventId&&(!t.recurrence||t.recurrence==='none'))queueGoogleDelete(oldEventId);t.googleEventId='';t.calendarSync=''}
   }else{
     t={id:uid(),...data,occurrenceNumber:data.recurrence!=='none'?1:undefined,completed:false,pinned:false,googleEventId:'',calendarSync:data.addToCalendar?'pending':'',createdAt:now};
     state.tasks.push(t);
