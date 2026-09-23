@@ -658,7 +658,7 @@ function createNextRecurring(t){
   });
 }
 
-function getGoogleClientId(){return localStorage.getItem(GOOGLE_CLIENT_ID_KEY)||''}
+function getGoogleClientId(){return String(window.PLANLY_GOOGLE_CLIENT_ID||localStorage.getItem(GOOGLE_CLIENT_ID_KEY)||'').trim()}
 function setGoogleClientId(v){const id=(v||'').trim();if(id)localStorage.setItem(GOOGLE_CLIENT_ID_KEY,id);else localStorage.removeItem(GOOGLE_CLIENT_ID_KEY)}
 function getGoogleAuth(){try{return JSON.parse(localStorage.getItem(GOOGLE_AUTH_KEY)||'{}')}catch{return {}}}
 function saveGoogleAuth(auth){localStorage.setItem(GOOGLE_AUTH_KEY,JSON.stringify(auth))}
