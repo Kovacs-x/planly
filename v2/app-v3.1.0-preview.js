@@ -1188,10 +1188,10 @@ function settingsView(){
   <div class="settingsCard"><h3>About Planly</h3><div class="muted settingsHelp">Private local-first planner. Your tasks stay on this device unless you export or sync them.</div><div class="muted" style="font-size:12px;margin-top:8px">Planly 3.1.0 Preview</div></div>`;
   if($('#planlySignInBtn'))$('#planlySignInBtn').onclick=()=>planlySignIn().then(()=>loadPlanlyCalendarData()).catch(err=>alert(err.message));
   if($('#planlyAddCalendarBtn'))$('#planlyAddCalendarBtn').onclick=()=>addPlanlyCalendarSource().catch(err=>{alert(err.message);render()});
-  $('[data-planly-calendar-refresh]').forEach(btn=>btn.onclick=()=>refreshPlanlyCalendarSource(btn.dataset.planlyCalendarRefresh,btn).catch(err=>alert(err.message)));
-  $('[data-planly-calendar-toggle]').forEach(input=>input.onchange=()=>updatePlanlyCalendarSource(input.dataset.sourceId,{[input.dataset.planlyCalendarToggle]:input.checked}).catch(err=>{alert(err.message);render()}));
-  $('[data-planly-calendar-colour]').forEach(input=>input.onchange=()=>updatePlanlyCalendarSource(input.dataset.planlyCalendarColour,{colour:input.value}).catch(err=>{alert(err.message);render()}));
-  $('[data-planly-calendar-remove]').forEach(btn=>btn.onclick=()=>removePlanlyCalendarSource(btn.dataset.planlyCalendarRemove,Number(btn.dataset.eventCount||0)).catch(err=>alert(err.message)));
+  $$('[data-planly-calendar-refresh]').forEach(btn=>btn.onclick=()=>refreshPlanlyCalendarSource(btn.dataset.planlyCalendarRefresh,btn).catch(err=>alert(err.message)));
+  $$('[data-planly-calendar-toggle]').forEach(input=>input.onchange=()=>updatePlanlyCalendarSource(input.dataset.sourceId,{[input.dataset.planlyCalendarToggle]:input.checked}).catch(err=>{alert(err.message);render()}));
+  $$('[data-planly-calendar-colour]').forEach(input=>input.onchange=()=>updatePlanlyCalendarSource(input.dataset.planlyCalendarColour,{colour:input.value}).catch(err=>{alert(err.message);render()}));
+  $$('[data-planly-calendar-remove]').forEach(btn=>btn.onclick=()=>removePlanlyCalendarSource(btn.dataset.planlyCalendarRemove,Number(btn.dataset.eventCount||0)).catch(err=>alert(err.message)));
   if($('#planlySignUpBtn'))$('#planlySignUpBtn').onclick=()=>planlySignUp().catch(err=>alert(err.message));
   if($('#planlySignOutBtn'))$('#planlySignOutBtn').onclick=()=>planlySignOut().catch(err=>alert(err.message));
   $('#themeSetting').value=state.theme;
