@@ -1134,22 +1134,43 @@ async function planlySignUp(){
 async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupabase.auth.signOut();planlySession=null;showToast('Signed out of Planly');render()}
 async function startPlanlyAuth(){
   if(!initPlanlySupabase())return;
-  try{await refreshPlanlySession()}catch{}
-  planlySupabase.auth.onAuthStateChange((_event,session)=>{planlySession=session;if(state?.view==='settings')setTimeout(()=>render(),0)});
+  try{await refreshPlanlySession();await loadPlanlyCalendarSources()}catch{}
+  planlySupabase.auth.onAuthStateChange((_event,session)=>{planlySession=session;if(session)loadPlanlyCalendarSources().catch(()=>{});else planlyCalendarSources=[];if(state?.view==='settings')setTimeout(()=>render(),0)});
+}
+let planlyCalendarSources=[];
+async function loadPlanlyCalendarSources(){
+  if(!planlySession?.user||!initPlanlySupabase()){planlyCalendarSources=[];return []}
+  const {data,error}=await planlySupabase.from('calendar_sources').select('id,name,source_type,colour,is_read_only,show_today,show_month,show_timeline,enabled,status,last_synced_at').order('created_at',{ascending:true});
+  if(error)throw error;planlyCalendarSources=data||[];return planlyCalendarSources;
+}
+function planlyCalendarSourcesHtml(){
+  if(!planlySession?.user)return '<div class="muted settingsHelp">Sign in to Planly to add secure external calendars.</div>';
+  const rows=planlyCalendarSources.length?planlyCalendarSources.map(s=>'<div class="calendarStatusRow"><span class="statusDot '+(s.enabled?'connected':'offline')+'"></span><strong>'+esc(s.name)+'</strong><span class="muted">'+esc(s.source_type==='ical'?'iCalendar · Read only':s.source_type)+'</span></div>').join(''):'<div class="muted settingsHelp">No external calendars connected yet.</div>';
+  return rows+'<details class="advancedSettings" id="addCalendarDetails"><summary>+ Add calendar</summary><div class="field"><label>Calendar name</label><input id="planlyCalendarName" class="input" value="Wife — NHS Rota" autocomplete="off"></div><div class="field"><label>iCalendar subscription link</label><input id="planlyCalendarUrl" class="input" type="url" inputmode="url" placeholder="webcal://… or https://…" autocomplete="off"></div><div class="muted settingsHelp">The private subscription link is sent directly to Planly’s authenticated server function and encrypted in Supabase Vault. It is not saved in localStorage.</div><button id="planlyAddCalendarBtn" class="primary">Add calendar</button></details>';
+}
+async function addPlanlyCalendarSource(){
+  if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');
+  const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');
+  const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}
+  try{
+    const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});
+    const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');
+    if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarSources();showToast('Calendar connected securely');render();
+  }finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}
 }
 function settingsView(){
   setHeader('Settings','Planly preferences');
   const googleStatus=googleStatusText(),googleId=getGoogleClientId();
   const pendingCount=state.tasks.filter(t=>t.addToCalendar&&t.date&&t.calendarSync!=='synced').length+getDeleteQueue().length;
   $('#view').innerHTML=`
-  <div class="settingsCard"><h3>Planly Account</h3>${planlyAccountHtml()}</div>\n  <div class="settingsCard"><h3>Appearance</h3><select id="themeSetting" class="select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+  <div class="settingsCard"><h3>Planly Account</h3>${planlyAccountHtml()}</div>\n  <div class="settingsCard"><h3>Calendars</h3>${planlyCalendarSourcesHtml()}</div>\n  <div class="settingsCard"><h3>Appearance</h3><select id="themeSetting" class="select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
   <div class="settingsCard"><h3>Task defaults</h3><label class="muted" style="font-size:13px">Default category</label><select id="defaultCat" class="select" style="margin-top:6px"><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select><label class="muted smallLabel">Default duration for timed tasks</label><select id="defaultDuration" class="select"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">1 hour</option><option value="90">1 hour 30 minutes</option><option value="120">2 hours</option></select><label class="settingToggle"><input id="showCompleted" type="checkbox"><span>Show completed tasks</span></label><label class="settingToggle"><input id="autoCompleteParentSubtasks" type="checkbox"><span><strong>Complete task when checklist finishes</strong><small>When the final subtask is checked, complete the parent task automatically. You can still Undo it.</small></span></label></div>
   <div class="settingsCard"><h3>Time planning</h3><div class="row2"><div class="field"><label>Planning day starts</label><input id="planningStart" type="time" step="900" class="input"></div><div class="field"><label>Planning day ends</label><input id="planningEnd" type="time" step="900" class="input"></div></div><div class="muted settingsHelp">The Timeline uses these hours to calculate free time. Tasks outside the range are still shown.</div></div>
   <div class="settingsCard"><h3>Google Calendar</h3><div class="calendarStatusRow"><span class="statusDot ${googleConnected()?'connected':'offline'}"></span><strong>${esc(googleStatus)}</strong>${pendingCount?`<span class="muted">${pendingCount} pending</span>`:''}</div><div class="muted settingsHelp">Sync destination: your private <strong>Planly</strong> Google calendar. Planly refreshes Google access when you save a Calendar task when possible. Outlook is never modified.</div><label class="settingToggle"><input id="autoCalendarTimed" type="checkbox"><span><strong>Automatically sync timed tasks</strong><small>When a new task has a time, turn on “Add to Google Calendar” automatically.</small></span></label><details class="advancedSettings"><summary>Connection settings</summary><label class="muted smallLabel">Google OAuth client ID</label><input id="googleClientId" class="input" value="${esc(googleId)}" placeholder="...apps.googleusercontent.com" autocomplete="off"></details><button id="googleConnectBtn" class="primary">${googleConnected()?'Reconnect Google':'Connect Google Calendar'}</button><button id="googleSyncBtn" class="secondaryBtn">Sync pending items${pendingCount?` (${pendingCount})`:''}</button>${googleConnected()?'<button id="googleDisconnectBtn" class="dangerBtn">Disconnect Google</button>':''}</div>
   <div class="settingsCard"><h3>Data</h3><button id="exportBtn" class="primary">Export backup</button><button id="importBtn" class="secondaryBtn">Import backup</button><button id="clearBtn" class="dangerBtn">Clear all data</button></div>
   ${isStandalone()?'':'<div class="settingsCard"><h3>Install on iPhone</h3><div class="muted settingsHelp">Open Planly in Safari, tap Share, then Add to Home Screen.</div></div>'}
   <div class="settingsCard"><h3>About Planly</h3><div class="muted settingsHelp">Private local-first planner. Your tasks stay on this device unless you export or sync them.</div><div class="muted" style="font-size:12px;margin-top:8px">Planly 3.1.0 Preview</div></div>`;
-  if($('#planlySignInBtn'))$('#planlySignInBtn').onclick=()=>planlySignIn().catch(err=>alert(err.message));\n  if($('#planlySignUpBtn'))$('#planlySignUpBtn').onclick=()=>planlySignUp().catch(err=>alert(err.message));\n  if($('#planlySignOutBtn'))$('#planlySignOutBtn').onclick=()=>planlySignOut().catch(err=>alert(err.message));\n  $('#themeSetting').value=state.theme;
+  if($('#planlySignInBtn'))$('#planlySignInBtn').onclick=()=>planlySignIn().then(()=>loadPlanlyCalendarSources()).catch(err=>alert(err.message));\n  if($('#planlyAddCalendarBtn'))$('#planlyAddCalendarBtn').onclick=()=>addPlanlyCalendarSource().catch(err=>{alert(err.message);render()});\n  if($('#planlySignUpBtn'))$('#planlySignUpBtn').onclick=()=>planlySignUp().catch(err=>alert(err.message));\n  if($('#planlySignOutBtn'))$('#planlySignOutBtn').onclick=()=>planlySignOut().catch(err=>alert(err.message));\n  $('#themeSetting').value=state.theme;
   $('#defaultCat').value=state.defaultCategory;
   $('#defaultDuration').value=String(state.defaultDuration||30);
   $('#showCompleted').checked=state.showCompleted;
