@@ -1152,7 +1152,7 @@ async function refreshPlanlyCalendarSource(sourceId,btn){
   if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');
   const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}
   try{
-    const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-refresh',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({sourceId})});
+    const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});
     const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');
     await loadPlanlyCalendarSources();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body;
   }finally{if(btn){btn.disabled=false;btn.textContent=original}}
