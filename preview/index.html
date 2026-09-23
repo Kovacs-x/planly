@@ -10,10 +10,10 @@
   <meta name="theme-color" content="#111215" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Planly" />
-  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-title" content="Planly Preview" />
+  <link rel="manifest" href="./manifest.webmanifest?v=310-preview" />
   <link rel="apple-touch-icon" href="../icon-192.png" />
-  <title>Planly</title>
+  <title>Planly Preview</title>
   <style>
     :root{--bg:#f7f7f9;--card:#fff;--text:#111215;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--accentText:#fff;--selected:#111827;--selectedText:#fff;--danger:#b91c1c;--success:#15803d;--warning:#b45309;--shadow:0 8px 30px rgba(0,0,0,.06)}
     :root[data-theme="dark"]{--bg:#111215;--card:#191b20;--text:#f9fafb;--muted:#9ca3af;--line:#2b2e35;--accent:#f3f4f6;--accentText:#111215;--selected:#2b3039;--selectedText:#f9fafb;--danger:#f87171;--success:#4ade80;--warning:#fbbf24;--shadow:none}
@@ -41,7 +41,7 @@
 </head>
 <body>
 <div class="app">
-  <div id="installHelp" class="installHelp" hidden><strong>Add Planly to your iPhone</strong><div class="muted" style="margin-top:6px;font-size:14px">Open in Safari → Share → Add to Home Screen.</div></div>
+  <div id="installHelp" class="installHelp" hidden><strong>Add Planly Preview to your iPhone</strong><div class="muted" style="margin-top:6px;font-size:14px">Open in Safari → Share → Add to Home Screen.</div></div>
   <header class="topbar"><div><div id="eyebrow" class="eyebrow"></div><div id="pageTitle" class="title">Today</div></div><div class="topActions"><button id="projectsToggle" class="iconbtn projectsIcon" aria-label="Projects">▦</button><button id="searchToggle" class="iconbtn searchIcon" aria-label="Search tasks">⌕</button><button id="themeToggle" class="iconbtn" aria-label="Toggle theme">◐</button></div></header>
   <main id="view"></main>
 </div>
