@@ -3,7 +3,7 @@
 const STATUS_PREFIX='planly-cloud-migration-status-v1:';
 const LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const WRITABLE_STATES=new Set(['cloud-write-test','offline-retry-needed','conflict']);
-let refreshTimer=0,lastForegroundKick=0;
+let refreshTimer=0,lastForegroundKick=0,realtimeClient=null,realtimeChannel=null,realtimeHouseholdId='',realtimeArmPromise=null;
 
 function cloudStatus(){
   const ownerId=String(localStorage.getItem(LAST_ACCOUNT_KEY)||'');
@@ -26,16 +26,54 @@ function refreshSharingGate(){
   }
 }
 function scheduleGateRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refreshSharingGate,0)}
+function kickHouseholdSync(){
+  if(!navigator.onLine)return;
+  // The core app's online reconciliation path is unthrottled and already owns conflict handling.
+  window.dispatchEvent(new Event('online'));
+  setTimeout(scheduleGateRefresh,250);
+}
 function kickForegroundHouseholdSync(){
   if(!navigator.onLine)return;
   const now=Date.now();
   if(now-lastForegroundKick<1200)return;
   lastForegroundKick=now;
-  // Planly's online reconciliation path is intentionally unthrottled. Reusing it here
-  // makes household tasks refresh immediately when the app returns to the foreground,
-  // rather than waiting for the generic 15-second focus/visibility throttle.
-  window.dispatchEvent(new Event('online'));
-  setTimeout(scheduleGateRefresh,250);
+  kickHouseholdSync();
+  void armHouseholdRealtime();
+}
+async function stopHouseholdRealtime(){
+  const client=realtimeClient,channel=realtimeChannel;
+  realtimeChannel=null;realtimeHouseholdId='';
+  if(client&&channel){try{await client.removeChannel(channel)}catch{}}
+}
+async function armHouseholdRealtime(){
+  if(realtimeArmPromise)return realtimeArmPromise;
+  realtimeArmPromise=(async()=>{
+    if(!navigator.onLine||!window.supabase?.createClient||!window.PLANLY_SUPABASE_CONFIG)return;
+    const cfg=window.PLANLY_SUPABASE_CONFIG;
+    if(!realtimeClient){
+      realtimeClient=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false}});
+    }
+    const {data:{session}={},error:sessionError}=await realtimeClient.auth.getSession();
+    if(sessionError||!session?.access_token){await stopHouseholdRealtime();return}
+    const ownerId=String(localStorage.getItem(LAST_ACCOUNT_KEY)||'');
+    if(!ownerId||ownerId!==String(session.user?.id||'')){await stopHouseholdRealtime();return}
+    const {data:memberships,error:membershipError}=await realtimeClient.from('planly_household_members').select('household_id').eq('user_id',session.user.id).limit(1);
+    if(membershipError||!memberships?.[0]?.household_id){await stopHouseholdRealtime();return}
+    const householdId=String(memberships[0].household_id);
+    if(realtimeChannel&&realtimeHouseholdId===householdId)return;
+    await stopHouseholdRealtime();
+    await realtimeClient.realtime.setAuth(session.access_token);
+    realtimeHouseholdId=householdId;
+    realtimeChannel=realtimeClient
+      .channel(`household:${householdId}`,{config:{private:true}})
+      .on('broadcast',{event:'*'},()=>kickHouseholdSync())
+      .subscribe(status=>{
+        if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+          if(realtimeChannel){void realtimeClient.removeChannel(realtimeChannel).catch(()=>{});realtimeChannel=null;realtimeHouseholdId=''}
+        }
+      });
+  })().catch(()=>{}).finally(()=>{realtimeArmPromise=null});
+  return realtimeArmPromise;
 }
 
 document.addEventListener('submit',e=>{
@@ -64,7 +102,9 @@ document.addEventListener('click',e=>{
 
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')kickForegroundHouseholdSync()});
 window.addEventListener('focus',kickForegroundHouseholdSync);
-window.addEventListener('online',()=>setTimeout(scheduleGateRefresh,300));
+window.addEventListener('online',()=>{setTimeout(scheduleGateRefresh,300);setTimeout(()=>void armHouseholdRealtime(),350)});
+window.addEventListener('pagehide',()=>void stopHouseholdRealtime());
 new MutationObserver(scheduleGateRefresh).observe(document.documentElement,{subtree:true,childList:true});
 refreshSharingGate();
+setTimeout(()=>void armHouseholdRealtime(),500);
 })();
