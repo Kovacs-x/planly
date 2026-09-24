@@ -20,7 +20,7 @@ let planlyOfflineReady=false,planlyOfflineStatus='Preparing offline mode…';
 const PLANLY_CLOUD_CACHE_PREFIX='planly-cloud-cache-v1:';
 const PLANLY_CLOUD_PENDING_PREFIX='planly-cloud-pending-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-3-2-preview-p21';
+const PLANLY_OFFLINE_CACHE='planly-v2-3-2-preview-p22';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1134,7 +1134,7 @@ function existingCloudMatchesLocal(existing,local,label){for(const row of existi
 async function upsertInChunks(table,rows,size=100){for(let i=0;i<rows.length;i+=size){const {error}=await planlySupabase.from(table).upsert(rows.slice(i,i+size),{onConflict:'owner_id,client_id'});if(error)throw error}}
 async function verifyPlanlyMigration(snapshot,ownerId,digest){const cloud=await inspectPlanlyCloud(ownerId),projects=migrationEntityMap(cloud.projects),tasks=migrationEntityMap(cloud.tasks);if(cloud.projects.length!==snapshot.projects.length)throw new Error('Cloud project count verification failed.');if(cloud.tasks.length!==snapshot.tasks.length)throw new Error('Cloud task count verification failed.');for(const p of snapshot.projects){const row=projects.get(String(p.id));if(!row||row.deleted_at||canonicalJson(row.data)!==canonicalJson(p))throw new Error('Project verification failed for '+p.id)}for(const t of snapshot.tasks){const row=tasks.get(String(t.id));if(!row||row.deleted_at||canonicalJson(row.data)!==canonicalJson(t))throw new Error('Task verification failed for '+t.id)}const cloudDigest=await sha256Text(canonicalJson({projects:snapshot.projects,tasks:snapshot.tasks,preferences:snapshot.preferences}));if(cloudDigest!==digest)throw new Error('Migration digest verification failed.');return cloud}
 async function migratePlanlySnapshotToCloud(snapshot){if(!PLANLY_CLOUD_PREVIEW)throw new Error('Cloud migration is disabled in this build.');if(!planlySession?.user||!initPlanlySupabase())throw new Error('Sign in to Planly first.');const ownerId=planlySession.user.id;assertUniqueLocalIds(snapshot.projects,'Projects');assertUniqueLocalIds(snapshot.tasks,'Tasks');if(!snapshot.tasks.length&&!snapshot.projects.length)throw new Error('No local tasks or projects were found. Migration stopped to protect against an empty snapshot.');const backupKey=planlyCloudBackupKey();if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,JSON.stringify({version:PLANLY_CLOUD_MIGRATION_VERSION,createdAt:new Date().toISOString(),ownerId,storeKey:STORE,raw:snapshot.raw}));const digest=await sha256Text(canonicalJson({projects:snapshot.projects,tasks:snapshot.tasks,preferences:snapshot.preferences}));setPlanlyCloudLocalStatus({state:'checking',digest,projectCount:snapshot.projects.length,taskCount:snapshot.tasks.length});const before=await inspectPlanlyCloud(ownerId);if(before.sync?.initial_migration_completed_at){if(before.sync.migration_digest&&before.sync.migration_digest!==digest)throw new Error('This account already completed migration from a different local snapshot. No data was overwritten.');setPlanlyCloudLocalStatus({state:'complete',digest,completedAt:before.sync.initial_migration_completed_at});return {alreadyComplete:true,taskCount:snapshot.tasks.length,projectCount:snapshot.projects.length}}existingCloudMatchesLocal(before.projects,snapshot.projects,'projects');existingCloudMatchesLocal(before.tasks,snapshot.tasks,'tasks');setPlanlyCloudLocalStatus({state:'uploading'});await upsertInChunks('planly_projects',snapshot.projects.map(p=>projectCloudRow(p,ownerId)));await upsertInChunks('planly_tasks',snapshot.tasks.map(t=>taskCloudRow(t,ownerId)));const now=Date.now();const {error:prefError}=await planlySupabase.from('planly_preferences').upsert({owner_id:ownerId,default_category:snapshot.preferences.defaultCategory,default_duration:snapshot.preferences.defaultDuration,auto_complete_parent_subtasks:snapshot.preferences.autoCompleteParentSubtasks,planning_start:snapshot.preferences.planningStart,planning_end:snapshot.preferences.planningEnd,client_updated_at:now},{onConflict:'owner_id'});if(prefError)throw prefError;setPlanlyCloudLocalStatus({state:'verifying'});await verifyPlanlyMigration(snapshot,ownerId,digest);const completedAt=new Date().toISOString();const {error:syncError}=await planlySupabase.from('planly_sync_state').upsert({owner_id:ownerId,schema_version:PLANLY_CLOUD_MIGRATION_VERSION,initial_migration_completed_at:completedAt,migration_project_count:snapshot.projects.length,migration_task_count:snapshot.tasks.length,migration_digest:digest,last_successful_sync_at:completedAt},{onConflict:'owner_id'});if(syncError)throw syncError;setPlanlyCloudLocalStatus({state:'complete',digest,completedAt});return {alreadyComplete:false,taskCount:snapshot.tasks.length,projectCount:snapshot.projects.length}}
-function planlyCloudPreviewHtml(){if(!PLANLY_CLOUD_PREVIEW)return '';const cachedOwner=planlyLastAccountId(),hasCachedOwner=!!cachedOwner;if(!planlySession?.user&&!hasCachedOwner)return '<div class="muted settingsHelp">3.2 preview: sign in above before importing your migration backup.</div>';const s=planlyCloudLocalStatus(),pending=readPlanlyPendingWrites().length,offlineCached=!planlySession?.user&&hasCachedOwner,label=pending?(pending+' change'+(pending===1?'':'s')+' pending sync'):offlineCached?'Offline cache loaded':s.state==='cloud-write-test'?'Cloud write test enabled':s.state==='cloud-loaded'?'Cloud copy loaded · read only':s.state==='complete'?'Migration verified':s.state==='uploading'?'Uploading…':s.state==='verifying'?'Verifying…':s.state==='checking'?'Checking…':s.state==='error'?'Stopped safely':'Not migrated';const counts=(Number.isFinite(s.taskCount)&&Number.isFinite(s.projectCount))?'<br>'+s.taskCount+' tasks · '+s.projectCount+' projects':'';const pendingHelp=pending?'<br><strong>'+pending+' queued change'+(pending===1?'':'s')+' will sync after Planly confirms the server write.</strong>':'';const help=offlineCached?'Using the last verified local cloud snapshot while Planly is offline.':planlyCloudReadOnly?'This preview is displaying the verified Supabase copy in read-only bootstrap mode. Changes are not persisted yet.':'Controlled cloud writes are enabled for this preview. Use the disposable conflict-test task below for multi-client testing.';const offlineReadyHtml='<div class="muted settingsHelp" style="margin-top:10px"><strong>Offline mode:</strong> '+esc(planlyOfflineStatus)+'</div>'+(!planlyOfflineReady&&navigator.onLine?'<button id="planlyPrepareOfflineBtn" class="secondaryBtn">Prepare offline mode</button>':'');return offlineReadyHtml+'<div class="calendarStatusRow"><span class="statusDot '+((!pending&&!offlineCached&&['complete','cloud-loaded','cloud-write-test'].includes(s.state))?'connected':'offline')+'"></span><strong>3.2 Cloud Preview · '+esc(label)+'</strong></div><div class="muted settingsHelp">'+help+pendingHelp+counts+'</div><input id="planlyMigrationFile" type="file" accept="application/json,.json" hidden>'+(!offlineCached?'<button id="planlyCloudMigrateBtn" class="secondaryBtn" '+(['checking','uploading','verifying'].includes(s.state)?'disabled':'')+'>'+(s.state==='cloud-loaded'?'Enable controlled write test':s.state==='cloud-write-test'||pending?'Write test enabled':'Verify with migration backup')+'</button>':'')+((!offlineCached&&(s.state==='cloud-write-test'||pending))?'<button id="planlyConflictTestBtn" class="secondaryBtn">Create / open conflict-test task</button><button id="planlyDeterministicConflictBtn" class="secondaryBtn">Run deterministic conflict test</button>':'')}
+function planlyCloudPreviewHtml(){if(!PLANLY_CLOUD_PREVIEW)return '';const cachedOwner=planlyLastAccountId(),hasCachedOwner=!!cachedOwner;if(!planlySession?.user&&!hasCachedOwner)return '<div class="muted settingsHelp">3.2 preview: sign in above before importing your migration backup.</div>';const s=planlyCloudLocalStatus(),pending=readPlanlyPendingWrites().length,offlineCached=!planlySession?.user&&hasCachedOwner,label=pending?(pending+' change'+(pending===1?'':'s')+' pending sync'):offlineCached?'Offline cache loaded':s.state==='cloud-write-test'?'Cloud write test enabled':s.state==='cloud-loaded'?'Cloud copy loaded · read only':s.state==='complete'?'Migration verified':s.state==='uploading'?'Uploading…':s.state==='verifying'?'Verifying…':s.state==='checking'?'Checking…':s.state==='error'?'Stopped safely':'Not migrated';const counts=(Number.isFinite(s.taskCount)&&Number.isFinite(s.projectCount))?'<br>'+s.taskCount+' tasks · '+s.projectCount+' projects':'';const pendingHelp=pending?'<br><strong>'+pending+' queued change'+(pending===1?'':'s')+' will sync after Planly confirms the server write.</strong>':'';const help=offlineCached?'Using the last verified local cloud snapshot while Planly is offline.':planlyCloudReadOnly?'This preview is displaying the verified Supabase copy in read-only bootstrap mode. Changes are not persisted yet.':'Controlled cloud writes are enabled for this preview. Use the disposable conflict-test task below for multi-client testing.';const offlineReadyHtml='<div class="muted settingsHelp" style="margin-top:10px"><strong>Offline mode:</strong> '+esc(planlyOfflineStatus)+'</div>'+(!planlyOfflineReady&&navigator.onLine?'<button id="planlyPrepareOfflineBtn" class="secondaryBtn">Prepare offline mode</button>':'');return offlineReadyHtml+'<div class="calendarStatusRow"><span class="statusDot '+((!pending&&!offlineCached&&['complete','cloud-loaded','cloud-write-test'].includes(s.state))?'connected':'offline')+'"></span><strong>3.2 Cloud Preview · '+esc(label)+'</strong></div><div class="muted settingsHelp">'+help+pendingHelp+counts+'</div><input id="planlyMigrationFile" type="file" accept="application/json,.json" hidden>'+(!offlineCached?'<button id="planlyCloudMigrateBtn" class="secondaryBtn" '+(['checking','uploading','verifying'].includes(s.state)?'disabled':'')+'>'+(s.state==='cloud-loaded'?'Enable controlled write test':s.state==='cloud-write-test'||pending?'Write test enabled':'Verify with migration backup')+'</button>':'')+((!offlineCached&&(s.state==='cloud-write-test'||pending))?'<button id="planlyConflictTestBtn" class="secondaryBtn">Create / open conflict-test task</button><button id="planlyDeterministicConflictBtn" class="secondaryBtn">Run deterministic conflict test</button><button id="planlySyncSelfTestBtn" class="secondaryBtn">Run sync self-test</button>':'')}
 async function runPlanlyCloudMigrationFile(file,btn){const original=btn?.textContent||'Choose migration backup';if(btn){btn.disabled=true;btn.textContent='Validating backup…'}try{const d=JSON.parse(await file.text()),snapshot=validateMigrationBackupFile(d);if(btn)btn.textContent='Preparing cloud copy…';const r=await migratePlanlySnapshotToCloud(snapshot);showToast((r.alreadyComplete?'Cloud migration already verified · ':'Cloud copy verified · ')+r.taskCount+' tasks · '+r.projectCount+' projects');render()}catch(err){setPlanlyCloudLocalStatus({state:'error',error:String(err?.message||err)});showToast('Cloud migration stopped safely');render();alert(err?.message||'Cloud migration failed. Your installed Planly data was not changed.')}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 
 function planlyCloudAccountKey(prefix,ownerId=planlyLastAccountId()){const id=String(ownerId||'');return id?prefix+id:''}
@@ -1262,39 +1262,64 @@ async function planlySignUp(){
 }
 async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupabase.auth.signOut();planlySession=null;localStorage.removeItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY);planlyCalendarSources=[];planlyExternalEvents=[];showToast('Signed out of Planly');render()}
 async function verifyPlanlyOfflineCache(){
-  if(!('caches'in window))return false;
+  if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE);
-    const checks=await Promise.all(['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'].map(x=>cache.match(x,{ignoreSearch:true})));
-    return checks.every(Boolean);
-  }catch{return false}
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    for(const asset of assets){if(!await cache.match(asset,{ignoreSearch:true}))missing.push(asset)}
+    return {ok:missing.length===0,missing};
+  }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
 }
+function planlyWait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 async function preparePlanlyOfflineMode(force=false){
-  if(!PLANLY_CLOUD_PREVIEW||!('serviceWorker'in navigator)){planlyOfflineReady=false;planlyOfflineStatus='Unavailable in this browser';return false}
+  if(!PLANLY_CLOUD_PREVIEW||!('serviceWorker'in navigator)){planlyOfflineReady=false;planlyOfflineStatus='Unavailable in this browser';if(force)render();return false}
   try{
-    planlyOfflineStatus='Preparing offline mode…';if(force)render();
-    await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
-    await navigator.serviceWorker.ready;
+    planlyOfflineStatus='Checking service worker…';if(force)render();
+    const reg=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
+    await Promise.race([navigator.serviceWorker.ready,planlyWait(4000)]);
+    if(reg?.waiting)reg.waiting.postMessage?.({type:'SKIP_WAITING'});
     if(!navigator.serviceWorker.controller){
-      await new Promise(resolve=>{
-        let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);resolve()};
-        const timer=setTimeout(finish,2500);
-        navigator.serviceWorker.addEventListener('controllerchange',finish,{once:true});
-      });
+      await Promise.race([
+        new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),
+        planlyWait(3000)
+      ]);
     }
-    const cached=await verifyPlanlyOfflineCache(),controlled=!!navigator.serviceWorker.controller;
-    planlyOfflineReady=controlled&&cached;
-    planlyOfflineStatus=planlyOfflineReady?'Ready for offline reload':controlled?'Service worker active · cache still preparing':'Not controlling this tab yet · reload once while online';
-    setPlanlyCloudLocalStatus({offlineReady:planlyOfflineReady,offlineStatus:planlyOfflineStatus});
-    if(force){render();showToast(planlyOfflineReady?'Offline mode ready':'Reload once online, then prepare offline mode again')}
+    const cacheCheck=await verifyPlanlyOfflineCache(),controlled=!!navigator.serviceWorker.controller;
+    planlyOfflineReady=controlled&&cacheCheck.ok;
+    planlyOfflineStatus=planlyOfflineReady?'Ready for offline reload':!controlled?'Service worker not controlling this tab':cacheCheck.missing.length?'Missing cache: '+cacheCheck.missing.join(', '):'Offline cache not ready';
+    setPlanlyCloudLocalStatus({offlineReady:planlyOfflineReady,offlineStatus:planlyOfflineStatus,offlineMissing:cacheCheck.missing||[]});
+    if(force){render();showToast(planlyOfflineReady?'Offline mode ready':planlyOfflineStatus)}
     return planlyOfflineReady;
   }catch(err){
-    planlyOfflineReady=false;planlyOfflineStatus='Setup failed · stay online';
-    setPlanlyCloudLocalStatus({offlineReady:false,offlineStatus:planlyOfflineStatus,offlineError:String(err?.message||err)});
-    if(force){render();showToast('Offline mode is not ready')}
+    planlyOfflineReady=false;planlyOfflineStatus='Setup error: '+String(err?.message||err);
+    setPlanlyCloudLocalStatus({offlineReady:false,offlineStatus:planlyOfflineStatus});
+    if(force){render();showToast('Offline readiness check failed')}
     return false;
   }
 }
+async function runPlanlySyncSelfTest(btn){
+  if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)throw new Error('Enable controlled cloud writes first.');
+  const ownerId=planlySession.user.id,id='planly-selftest-'+Date.now(),now=Date.now(),results=[];
+  const t={id,title:'Planly Sync Self-Test',date:localKey(new Date()),time:'',durationMinutes:30,priority:'normal',category:'Personal',projectId:'',recurrence:'none',recurrenceConfig:null,reminder:'none',notes:'Temporary automated sync QA',subtasks:[{id:uid(),title:'Self-test subtask',done:false}],addToCalendar:false,updatedAt:now,completed:false,pinned:false,googleEventId:'',calendarSync:'',createdAt:now};
+  if(btn){btn.disabled=true;btn.textContent='Running sync self-test…'}
+  try{
+    await cloudInsertTask(t,true);results.push('create');
+    const v1=Number(planlyCloudSyncMeta.tasks.get(id)||0);if(!v1)throw new Error('Self-test could not read initial cloud version.');
+    t.title='Planly Sync Self-Test — edited';t.subtasks[0].done=true;t.updatedAt=Date.now();
+    await cloudUpdateTask(t,true,v1);results.push('update');
+    const v2=Number(planlyCloudSyncMeta.tasks.get(id)||0);if(!(v2>v1))throw new Error('Self-test cloud version did not advance.');
+    const {data:verify,error:verifyError}=await planlySupabase.from('planly_tasks').select('data,cloud_version').eq('owner_id',ownerId).eq('client_id',id).is('deleted_at',null).single();
+    if(verifyError)throw verifyError;if(String(verify?.data?.title)!==t.title||verify?.data?.subtasks?.[0]?.done!==true)throw new Error('Self-test cloud verification mismatch.');results.push('verify');
+    await cloudDeleteTaskById(id,true,v2);results.push('tombstone');
+    const {data:deleted,error:deletedError}=await planlySupabase.from('planly_tasks').select('deleted_at').eq('owner_id',ownerId).eq('client_id',id).single();
+    if(deletedError)throw deletedError;if(!deleted?.deleted_at)throw new Error('Self-test tombstone verification failed.');results.push('delete');
+    setPlanlyCloudLocalStatus({selfTest:'passed',selfTestAt:new Date().toISOString(),selfTestSteps:results});
+    render();showToast('Sync self-test passed');
+    return true;
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Run sync self-test'}
+  }
+}
+
 async function startPlanlyAuth(){
   if(!initPlanlySupabase())return;
   try{
@@ -2034,6 +2059,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('#planlyCloudMigr
 document.addEventListener('click',e=>{const b=e.target.closest('#planlyConflictTestBtn');if(!b)return;openCloudConflictTestTask(b).catch(err=>{showToast('Conflict-test setup failed');alert(err?.message||'Could not prepare conflict-test task.')})});
 document.addEventListener('click',e=>{const b=e.target.closest('#planlyDeterministicConflictBtn');if(!b)return;runDeterministicConflictTest(b).catch(err=>{showToast('Conflict protection test failed');alert(err?.message||'Conflict protection test failed.')})});
 document.addEventListener('click',e=>{const b=e.target.closest('#planlyPrepareOfflineBtn');if(!b)return;preparePlanlyOfflineMode(true)});
+document.addEventListener('click',e=>{const b=e.target.closest('#planlySyncSelfTestBtn');if(!b)return;runPlanlySyncSelfTest(b).catch(err=>{showToast('Sync self-test failed');alert(err?.message||'Sync self-test failed.')})});
 document.addEventListener('change',e=>{if(e.target.id!=='planlyMigrationFile')return;const file=e.target.files?.[0],btn=$('#planlyCloudMigrateBtn');if(file)runPlanlyCloudMigrationFile(file,btn);e.target.value=''});
 $('#duplicateTask').onclick=prepareDuplicateTask;
 $('#deleteTask').onclick=()=>{const id=$('#taskId').value;const t=state.tasks.find(x=>x.id===id);if(id&&t&&confirm('Delete this task?')){closeSheet();deleteTaskWithUndo(t)}}
