@@ -1,6 +1,6 @@
-const CACHE='planly-preview-v3-2-p48';
-const VERSION='planly-preview-sw-p48';
-const APP_URL='./app-v3.2.0-migration-preview.js?v=320p48';
+const CACHE='planly-preview-v3-2-p49';
+const VERSION='planly-preview-sw-p49';
+const APP_URL='./app-v3.2.0-migration-preview.js?v=320p49';
 const REQUIRED=['./index.html',APP_URL,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
