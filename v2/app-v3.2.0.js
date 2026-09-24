@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-ui5';
-const PLANLY_SW_PROBE='planly-v2-sw-ui5';
+const PLANLY_OFFLINE_CACHE='planly-v2-calfix';
+const PLANLY_SW_PROBE='planly-v2-sw-calfix';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1139,8 +1139,8 @@ async function refreshPlanlySession(){
 }
 function planlyAccountHtml(){
   if(!initPlanlySupabase())return '<div class="muted settingsHelp">Cloud account service unavailable. Your local Planly data is unaffected.</div>';
-  if(planlySession?.user){const email=planlySession.user.email||'Planly account';return '<div class="calendarStatusRow"><span class="statusDot connected"></span><strong>Signed in</strong></div><div class="muted settingsHelp">'+esc(email)+'<br>Your existing tasks are still stored locally. Cloud task sync is not enabled yet.</div><button id="planlySignOutBtn" class="secondaryBtn">Sign out</button>'}
-  return '<div class="muted settingsHelp">Create a Planly account to prepare for secure calendar sources and future household sync. Your existing tasks stay on this iPhone.</div><div class="field"><label>Email</label><input id="planlyAuthEmail" class="input" type="email" autocomplete="email" placeholder="you@example.com"></div><div class="field"><label>Password</label><input id="planlyAuthPassword" class="input" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters"></div><button id="planlySignInBtn" class="primary">Sign in</button><button id="planlySignUpBtn" class="secondaryBtn">Create account</button>';
+  if(planlySession?.user){const email=planlySession.user.email||'Planly account';return '<div class="calendarStatusRow"><span class="statusDot connected"></span><strong>Signed in</strong></div><div class="muted settingsHelp">'+esc(email)+'<br>Your tasks, projects and planning preferences sync securely to this Planly account and remain available offline.</div><button id="planlySignOutBtn" class="secondaryBtn">Sign out</button>'}
+  return '<div class="muted settingsHelp">Sign in to sync your Planly data across sessions, keep it available offline and manage secure calendar sources.</div><div class="field"><label>Email</label><input id="planlyAuthEmail" class="input" type="email" autocomplete="email" placeholder="you@example.com"></div><div class="field"><label>Password</label><input id="planlyAuthPassword" class="input" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters"></div><button id="planlySignInBtn" class="primary">Sign in</button><button id="planlySignUpBtn" class="secondaryBtn">Create account</button>';
 }
 function planlyCloudStatusKey(){return PLANLY_CLOUD_STATUS_PREFIX+(planlyLastAccountId()||'anonymous')}
 function planlyCloudBackupKey(){return PLANLY_CLOUD_BACKUP_PREFIX+(planlyLastAccountId()||'anonymous')}
@@ -1393,7 +1393,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=326ui5','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=327calfix','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
@@ -1851,7 +1851,7 @@ async function startPlanlyAuth(){
       const pending=readPlanlyPendingWrites(),cached=readPlanlyCloudCache();
       if(pending.length&&cached){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',cacheRestored:true,pendingWrites:pending.length});render()}
     }
-    await loadPlanlyCalendarData();await loadVerifiedCloudPreview()
+    await Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()])
   }catch(err){planlyCloudBootstrapPending=false;if(PLANLY_CLOUD_PREVIEW){const offline=isOfflineCloudError(err),pending=readPlanlyPendingWrites(),restored=(offline||pending.length>0)&&restorePlanlyCloudCache();if(restored){applyPlanlyPendingToState();planlyCloudReadOnly=pending.length?false:planlyCloudReadOnly}console.warn('Planly cloud bootstrap stopped safely',err);setPlanlyCloudLocalStatus({state:pending.length?'offline-retry-needed':offline?'offline-retry-needed':'error',error:String(err?.message||err),cacheRestored:restored,pendingWrites:pending.length});if(restored)render()}}
   planlySupabase.auth.onAuthStateChange((_event,session)=>{adoptPlanlySession(session,{explicitSignOut:_event==='SIGNED_OUT'});if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()]).then(()=>render()).catch(()=>{})}else{render()}});
 }
@@ -1859,11 +1859,21 @@ window.addEventListener('online',()=>{if(PLANLY_CLOUD_PREVIEW&&planlySession?.us
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&PLANLY_CLOUD_PREVIEW&&planlySession?.user&&navigator.onLine)reconcilePlanlyCloud({minGapMs:15000,replay:true,replayToast:''}).catch(()=>{})});
 window.addEventListener('focus',()=>{if(PLANLY_CLOUD_PREVIEW&&planlySession?.user&&navigator.onLine)reconcilePlanlyCloud({minGapMs:15000,replay:true,replayToast:''}).catch(()=>{})});
 let planlyCalendarSources=[],planlyExternalEvents=[],monthCalendarFilter='all',planlyCalendarDataError='';
+const PLANLY_CALENDAR_CACHE_PREFIX='planly-calendar-cache-v1:';
 function calendarColour(value){return /^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):'#E78AA7'}
 function planlyCalendarSource(sourceId){return planlyCalendarSources.find(s=>String(s.id)===String(sourceId))||null}
-async function loadPlanlyCalendarSources(){if(!planlySession?.user||!initPlanlySupabase()){planlyCalendarSources=[];return []}const {data,error}=await planlySupabase.from('calendar_sources').select('id,name,source_type,colour,is_read_only,show_today,show_month,show_timeline,enabled,status,last_synced_at').order('created_at',{ascending:true});if(error)throw error;planlyCalendarSources=data||[];return planlyCalendarSources}
-async function loadPlanlyExternalEvents(){if(!planlySession?.user||!initPlanlySupabase()){planlyExternalEvents=[];planlyCalendarDataError='';return []}const {data,error}=await planlySupabase.from('external_calendar_events').select('id,source_id,external_uid,title,description,location,starts_at,ends_at,is_all_day,start_date,end_date,source_updated_at').order('start_date',{ascending:true});if(error){planlyExternalEvents=[];planlyCalendarDataError=error.message||'Calendar events could not be loaded.';throw error}planlyCalendarDataError='';planlyExternalEvents=data||[];return planlyExternalEvents}
-async function loadPlanlyCalendarData(){if(!planlySession?.user){planlyCalendarSources=[];planlyExternalEvents=[];return []}await loadPlanlyCalendarSources();await loadPlanlyExternalEvents();return planlyExternalEvents}
+function planlyCalendarCacheKey(){return PLANLY_CALENDAR_CACHE_PREFIX+(planlyLastAccountId()||'anonymous')}
+function persistPlanlyCalendarCache(){if(!planlySession?.user)return;try{localStorage.setItem(planlyCalendarCacheKey(),JSON.stringify({version:1,ownerId:String(planlySession.user.id),sources:planlyCalendarSources,events:planlyExternalEvents,savedAt:Date.now()}))}catch{}}
+function restorePlanlyCalendarCache(){if(!planlySession?.user)return false;try{const d=JSON.parse(localStorage.getItem(planlyCalendarCacheKey())||'null');if(!d||Number(d.version)!==1||String(d.ownerId)!==String(planlySession.user.id)||!Array.isArray(d.sources)||!Array.isArray(d.events))return false;planlyCalendarSources=d.sources;planlyExternalEvents=d.events;return true}catch{return false}}
+async function planlyCalendarQueryWithRetry(run){try{return await run()}catch(err){if(!navigator.onLine)throw err;await planlyWait(450);return run()}}
+async function loadPlanlyCalendarSources(){if(!planlySession?.user||!initPlanlySupabase()){planlyCalendarSources=[];return []}const {data,error}=await planlyCalendarQueryWithRetry(()=>planlySupabase.from('calendar_sources').select('id,name,source_type,colour,is_read_only,show_today,show_month,show_timeline,enabled,status,last_synced_at').order('created_at',{ascending:true}));if(error)throw error;planlyCalendarSources=data||[];return planlyCalendarSources}
+async function loadPlanlyExternalEvents(){if(!planlySession?.user||!initPlanlySupabase()){planlyExternalEvents=[];planlyCalendarDataError='';return []}const {data,error}=await planlyCalendarQueryWithRetry(()=>planlySupabase.from('external_calendar_events').select('id,source_id,external_uid,title,description,location,starts_at,ends_at,is_all_day,start_date,end_date,source_updated_at').order('start_date',{ascending:true}));if(error)throw error;planlyExternalEvents=data||[];return planlyExternalEvents}
+async function loadPlanlyCalendarData(){
+  if(!planlySession?.user){planlyCalendarSources=[];planlyExternalEvents=[];planlyCalendarDataError='';return []}
+  const hadCache=restorePlanlyCalendarCache(),previousSources=planlyCalendarSources,previousEvents=planlyExternalEvents;
+  try{await loadPlanlyCalendarSources();await loadPlanlyExternalEvents();planlyCalendarDataError='';persistPlanlyCalendarCache();return planlyExternalEvents}
+  catch(err){if(!planlyCalendarSources.length)planlyCalendarSources=previousSources;if(!planlyExternalEvents.length)planlyExternalEvents=previousEvents;const retained=hadCache||planlyCalendarSources.length||planlyExternalEvents.length;planlyCalendarDataError=retained?'Calendar is temporarily offline. Showing the last saved calendar data.':(err?.message||'Calendar data could not be loaded.');console.warn('Planly calendar refresh failed safely',err);return planlyExternalEvents}
+}
 function sourceVisibleFor(surface,sourceId){const s=planlyCalendarSource(sourceId);if(!s||s.enabled===false)return false;if(surface==='today')return s.show_today!==false;if(surface==='month')return s.show_month!==false;if(surface==='timeline')return s.show_timeline!==false;return true}
 function externalEventOccursOnDate(e,key){const start=String(e.start_date||''),end=String(e.end_date||start);if(!start)return false;if(e.is_all_day)return end>start?key>=start&&key<end:key===start;return key>=start&&key<=end}
 function externalEventsForDate(key,surface){return planlyExternalEvents.filter(e=>sourceVisibleFor(surface,e.source_id)&&externalEventOccursOnDate(e,key)).sort((a,b)=>{if(a.is_all_day!==b.is_all_day)return a.is_all_day?-1:1;return String(a.starts_at||'').localeCompare(String(b.starts_at||''))||String(a.title||'').localeCompare(String(b.title||''))})}
