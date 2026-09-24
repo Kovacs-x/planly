@@ -1496,9 +1496,9 @@ function planlyMutationCoverageAudit(){
     ['task project assignment',handleTaskActionChange,'stageTaskMutation'],
     ['Top 3 reorder',endTop3Drag,'stageTaskMutation'],
     ['Google metadata',syncTaskToGoogle,'stageTaskMutation'],
-    ['account preferences',renderSettings,'stagePreferenceMutation']
+    ['account preferences',settingsView,'stagePreferenceMutation']
   ].map(([name,fn,needle])=>({name,ok:typeof fn==='function'&&Function.prototype.toString.call(fn).includes(needle)}));
-  const deviceText=Function.prototype.toString.call(renderSettings);
+  const deviceText=Function.prototype.toString.call(settingsView);
   checks.push({name:'theme is device-local',ok:deviceText.includes("state.theme=e.target.value;save();applyTheme()")&&!deviceText.includes("state.theme=e.target.value;stagePreferenceMutation")});
   checks.push({name:'show completed is device-local',ok:deviceText.includes("state.showCompleted=e.target.checked;save()")&&!deviceText.includes("state.showCompleted=e.target.checked;stagePreferenceMutation")});
   checks.push({name:'auto calendar is device-local',ok:deviceText.includes("state.autoCalendarTimed=e.target.checked;save()")&&!deviceText.includes("state.autoCalendarTimed=e.target.checked;stagePreferenceMutation")});
