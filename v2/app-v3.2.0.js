@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-vi7a';
-const PLANLY_SW_PROBE='planly-v2-sw-vi7a';
+const PLANLY_OFFLINE_CACHE='planly-v2-vi7b';
+const PLANLY_SW_PROBE='planly-v2-sw-vi7b';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1393,7 +1393,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=329vi7a','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330vi7b','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
