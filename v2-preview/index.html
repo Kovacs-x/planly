@@ -67,24 +67,6 @@
     @keyframes checklistPulse{0%{transform:scale(1)}35%{transform:scale(1.012)}100%{transform:scale(1)}}@media(max-width:390px){.compactCoreRow{gap:14px!important;column-gap:14px!important}.compactCoreRow>.field{flex-basis:calc((100% - 14px)/2);width:calc((100% - 14px)/2);max-width:calc((100% - 14px)/2)}.compactCoreRow input[type="date"],.compactCoreRow input[type="time"]{font-size:15px!important;padding-left:8px!important;padding-right:8px!important}.taskActionPrimary{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboardMetrics{gap:5px}.dashboardHero{padding:14px}.todayPlannerBar{align-items:flex-start;flex-direction:column}.todayPlannerActions{width:100%}.todayPlannerActions button{flex:1}.timelineMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.row2{gap:8px}.row2 input[type="date"],.row2 input[type="time"]{padding-left:8px;padding-right:6px}}
     @media(min-width:700px){.fab{right:calc((100vw - 720px)/2 + 22px)}}
   </style>
-<script>
-  // p45: stale-worker recovery. A previously installed preview worker may serve an old
-  // cached index/app before the p44 release-gate fix. Network-loaded p45 unregisters
-  // only this preview scope and clears only preview caches; the worker will be revisited
-  // after the 3.2 release gate is complete.
-  (async()=>{
-    try{
-      if('serviceWorker' in navigator){
-        const reg=await navigator.serviceWorker.getRegistration('./');
-        if(reg)await reg.unregister();
-      }
-      if('caches' in window){
-        const keys=await caches.keys();
-        await Promise.all(keys.filter(k=>k.startsWith('planly-preview-v3-2-')).map(k=>caches.delete(k)));
-      }
-    }catch{}
-  })();
-</script>
 </head>
 <body>
 <div class="app">
@@ -135,6 +117,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0-migration-preview.js?v=320p45"></script>
+<script src="./app-v3.2.0-migration-preview.js?v=320p46"></script>
 </body>
 </html>
