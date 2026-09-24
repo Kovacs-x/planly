@@ -1264,8 +1264,8 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'],missing=[];
-    for(const asset of assets){if(!await cache.match(asset,{ignoreSearch:true}))missing.push(asset)}
+    const assets=['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    for(const asset of assets){if(!await caches.match(asset,{ignoreSearch:true}))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
 }
@@ -1275,33 +1275,38 @@ async function warmPlanlyOfflineAssets(){
   const urls=['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'];
   for(const url of urls){try{await fetch(url,{cache:'reload'})}catch{}}
 }
+async function finishPlanlyOfflineReadiness(force=false){
+  if(navigator.serviceWorker.controller)await warmPlanlyOfflineAssets();
+  const cacheCheck=await verifyPlanlyOfflineCache(),controlled=!!navigator.serviceWorker.controller;
+  planlyOfflineReady=controlled&&cacheCheck.ok;
+  planlyOfflineStatus=planlyOfflineReady?'Ready for offline reload':!controlled?'Service worker installed · reload once online':cacheCheck.missing.length?'Missing cache: '+cacheCheck.missing.join(', '):'Offline cache not ready';
+  setPlanlyCloudLocalStatus({offlineReady:planlyOfflineReady,offlineStatus:planlyOfflineStatus,offlineMissing:cacheCheck.missing||[]});
+  render();if(force)showToast(planlyOfflineReady?'Offline mode ready':planlyOfflineStatus);
+  return planlyOfflineReady;
+}
 async function preparePlanlyOfflineMode(force=false){
   if(!PLANLY_CLOUD_PREVIEW||!('serviceWorker'in navigator)){planlyOfflineReady=false;planlyOfflineStatus='Unavailable in this browser';if(force)render();return false}
   try{
-    planlyOfflineStatus='Checking service worker…';if(force)render();
-    const reg=await planlyWithTimeout(navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}),5000,'Service worker registration');
-    await planlyWithTimeout(Promise.resolve(reg.update?.()).catch(()=>{}),4000,'Service worker update').catch(()=>{});
-    await Promise.race([navigator.serviceWorker.ready,planlyWait(4000)]);
-    if(!navigator.serviceWorker.controller){
-      await Promise.race([
-        new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),
-        planlyWait(3000)
-      ]);
+    planlyOfflineStatus='Checking offline support…';if(force)render();
+    if(navigator.serviceWorker.controller)return finishPlanlyOfflineReadiness(force);
+    const existing=await planlyWithTimeout(navigator.serviceWorker.getRegistration('./'),3000,'Service worker lookup').catch(()=>null);
+    if(existing?.active||existing?.waiting||existing?.installing){
+      planlyOfflineReady=false;planlyOfflineStatus='Service worker installed · reload once online';
+      setPlanlyCloudLocalStatus({offlineReady:false,offlineStatus:planlyOfflineStatus});
+      render();if(force)showToast(planlyOfflineStatus);return false;
     }
-    if(navigator.serviceWorker.controller)await warmPlanlyOfflineAssets();
-    const cacheCheck=await verifyPlanlyOfflineCache(),controlled=!!navigator.serviceWorker.controller;
-    planlyOfflineReady=controlled&&cacheCheck.ok;
-    planlyOfflineStatus=planlyOfflineReady?'Ready for offline reload':!controlled?'Service worker not controlling this tab · reload once online':cacheCheck.missing.length?'Missing cache: '+cacheCheck.missing.join(', '):'Offline cache not ready';
-    setPlanlyCloudLocalStatus({offlineReady:planlyOfflineReady,offlineStatus:planlyOfflineStatus,offlineMissing:cacheCheck.missing||[]});
-    render();
-    if(force)showToast(planlyOfflineReady?'Offline mode ready':planlyOfflineStatus);
-    return planlyOfflineReady;
+    const reg=await planlyWithTimeout(navigator.serviceWorker.register('./sw.js'),6000,'Service worker registration');
+    if(reg?.active||reg?.waiting||reg?.installing){
+      planlyOfflineReady=false;planlyOfflineStatus='Service worker installed · reload once online';
+      setPlanlyCloudLocalStatus({offlineReady:false,offlineStatus:planlyOfflineStatus});
+      render();if(force)showToast(planlyOfflineStatus);return false;
+    }
+    planlyOfflineReady=false;planlyOfflineStatus='Service worker unavailable in this Safari tab';
+    setPlanlyCloudLocalStatus({offlineReady:false,offlineStatus:planlyOfflineStatus});render();if(force)showToast(planlyOfflineStatus);return false;
   }catch(err){
-    planlyOfflineReady=false;planlyOfflineStatus='Setup error: '+String(err?.message||err);
-    setPlanlyCloudLocalStatus({offlineReady:false,offlineStatus:planlyOfflineStatus});
-    render();
-    if(force)showToast('Offline readiness check failed');
-    return false;
+    planlyOfflineReady=false;planlyOfflineStatus='Service worker unavailable in this Safari tab';
+    setPlanlyCloudLocalStatus({offlineReady:false,offlineStatus:planlyOfflineStatus,offlineError:String(err?.message||err)});
+    render();if(force)showToast(planlyOfflineStatus);return false;
   }
 }
 
