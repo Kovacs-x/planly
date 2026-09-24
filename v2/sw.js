@@ -1,5 +1,5 @@
-const CACHE='planly-v2-3-1-0';
-const ASSETS=['./','./index.html','./app-v3.1.0.js','./supabase-config.js','./manifest.webmanifest','../icon-192.png','../icon-512.png'];
+const CACHE='planly-v2-3-2-preview-p15';
+const ASSETS=['./','./index.html','./app-v3.1.0.js','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest','../icon-192.png','../icon-512.png'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(
@@ -23,9 +23,14 @@ self.addEventListener('fetch',event=>{
     fetch(event.request,{cache:'no-store'})
       .then(response=>{
         const copy=response.clone();
-        caches.open(CACHE).then(cache=>cache.put(event.request,copy));
+        caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});
         return response;
       })
-      .catch(()=>caches.match(event.request).then(cached=>cached||caches.match('./index.html')))
+      .catch(async()=>{
+        const cached=await caches.match(event.request,{ignoreSearch:true});
+        if(cached)return cached;
+        if(event.request.mode==='navigate')return caches.match('./index.html');
+        return Response.error();
+      })
   );
 });
