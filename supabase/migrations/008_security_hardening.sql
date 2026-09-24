@@ -13,3 +13,11 @@ revoke execute on function public.get_calendar_source_feed_url(uuid, uuid) from 
 revoke execute on function public.replace_external_calendar_events(uuid, uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.get_calendar_source_feed_url(uuid, uuid) to service_role;
 grant execute on function public.replace_external_calendar_events(uuid, uuid, jsonb) to service_role;
+
+-- These two credential-management RPCs are intentionally browser-callable, but
+-- they derive the owner from auth.uid() and never return decrypted credentials.
+-- Keep their EXECUTE grants explicit rather than inherited from PUBLIC.
+revoke execute on function public.set_calendar_source_credential(uuid, text) from public, anon;
+revoke execute on function public.delete_calendar_source_credential(uuid) from public, anon;
+grant execute on function public.set_calendar_source_credential(uuid, text) to authenticated;
+grant execute on function public.delete_calendar_source_credential(uuid) to authenticated;
