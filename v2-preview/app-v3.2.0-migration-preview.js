@@ -1140,7 +1140,7 @@ function existingCloudMatchesLocal(existing,local,label){for(const row of existi
 async function upsertInChunks(table,rows,size=100){for(let i=0;i<rows.length;i+=size){const {error}=await planlySupabase.from(table).upsert(rows.slice(i,i+size),{onConflict:'owner_id,client_id'});if(error)throw error}}
 async function verifyPlanlyMigration(snapshot,ownerId,digest){const cloud=await inspectPlanlyCloud(ownerId),projects=migrationEntityMap(cloud.projects),tasks=migrationEntityMap(cloud.tasks);if(cloud.projects.length!==snapshot.projects.length)throw new Error('Cloud project count verification failed.');if(cloud.tasks.length!==snapshot.tasks.length)throw new Error('Cloud task count verification failed.');for(const p of snapshot.projects){const row=projects.get(String(p.id));if(!row||row.deleted_at||canonicalJson(row.data)!==canonicalJson(p))throw new Error('Project verification failed for '+p.id)}for(const t of snapshot.tasks){const row=tasks.get(String(t.id));if(!row||row.deleted_at||canonicalJson(row.data)!==canonicalJson(t))throw new Error('Task verification failed for '+t.id)}const cloudDigest=await sha256Text(canonicalJson({projects:snapshot.projects,tasks:snapshot.tasks,preferences:snapshot.preferences}));if(cloudDigest!==digest)throw new Error('Migration digest verification failed.');return cloud}
 async function migratePlanlySnapshotToCloud(snapshot){if(!PLANLY_CLOUD_PREVIEW)throw new Error('Cloud migration is disabled in this build.');if(!planlySession?.user||!initPlanlySupabase())throw new Error('Sign in to Planly first.');const ownerId=planlySession.user.id;assertUniqueLocalIds(snapshot.projects,'Projects');assertUniqueLocalIds(snapshot.tasks,'Tasks');if(!snapshot.tasks.length&&!snapshot.projects.length)throw new Error('No local tasks or projects were found. Migration stopped to protect against an empty snapshot.');const backupKey=planlyCloudBackupKey();if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,JSON.stringify({version:PLANLY_CLOUD_MIGRATION_VERSION,createdAt:new Date().toISOString(),ownerId,storeKey:STORE,raw:snapshot.raw}));const digest=await sha256Text(canonicalJson({projects:snapshot.projects,tasks:snapshot.tasks,preferences:snapshot.preferences}));setPlanlyCloudLocalStatus({state:'checking',digest,projectCount:snapshot.projects.length,taskCount:snapshot.tasks.length});const before=await inspectPlanlyCloud(ownerId);if(before.sync?.initial_migration_completed_at){if(before.sync.migration_digest&&before.sync.migration_digest!==digest)throw new Error('This account already completed migration from a different local snapshot. No data was overwritten.');setPlanlyCloudLocalStatus({state:'complete',digest,completedAt:before.sync.initial_migration_completed_at});return {alreadyComplete:true,taskCount:snapshot.tasks.length,projectCount:snapshot.projects.length}}existingCloudMatchesLocal(before.projects,snapshot.projects,'projects');existingCloudMatchesLocal(before.tasks,snapshot.tasks,'tasks');setPlanlyCloudLocalStatus({state:'uploading'});await upsertInChunks('planly_projects',snapshot.projects.map(p=>projectCloudRow(p,ownerId)));await upsertInChunks('planly_tasks',snapshot.tasks.map(t=>taskCloudRow(t,ownerId)));const now=Date.now();const {error:prefError}=await planlySupabase.from('planly_preferences').upsert({owner_id:ownerId,default_category:snapshot.preferences.defaultCategory,default_duration:snapshot.preferences.defaultDuration,auto_complete_parent_subtasks:snapshot.preferences.autoCompleteParentSubtasks,planning_start:snapshot.preferences.planningStart,planning_end:snapshot.preferences.planningEnd,client_updated_at:now},{onConflict:'owner_id'});if(prefError)throw prefError;setPlanlyCloudLocalStatus({state:'verifying'});await verifyPlanlyMigration(snapshot,ownerId,digest);const completedAt=new Date().toISOString();const {error:syncError}=await planlySupabase.from('planly_sync_state').upsert({owner_id:ownerId,schema_version:PLANLY_CLOUD_MIGRATION_VERSION,initial_migration_completed_at:completedAt,migration_project_count:snapshot.projects.length,migration_task_count:snapshot.tasks.length,migration_digest:digest,last_successful_sync_at:completedAt},{onConflict:'owner_id'});if(syncError)throw syncError;setPlanlyCloudLocalStatus({state:'complete',digest,completedAt});return {alreadyComplete:false,taskCount:snapshot.tasks.length,projectCount:snapshot.projects.length}}
-function planlyCloudPreviewHtml(){if(!PLANLY_CLOUD_PREVIEW)return '';const cachedOwner=planlyLastAccountId(),hasCachedOwner=!!cachedOwner;if(!planlySession?.user&&!hasCachedOwner)return '<div class="muted settingsHelp">3.2 preview: sign in above before importing your migration backup.</div>';const s=planlyCloudLocalStatus(),pending=readPlanlyPendingWrites().length,conflicts=readPlanlyConflicts(),offlineCached=!planlySession?.user&&hasCachedOwner,label=pending?(pending+' change'+(pending===1?'':'s')+' pending sync'):offlineCached?'Offline cache loaded':s.state==='cloud-write-test'?'Cloud write test enabled':s.state==='cloud-loaded'?'Cloud copy loaded · read only':s.state==='complete'?'Migration verified':s.state==='uploading'?'Uploading…':s.state==='verifying'?'Verifying…':s.state==='checking'?'Checking…':s.state==='error'?'Stopped safely':'Not migrated';const counts=(Number.isFinite(s.taskCount)&&Number.isFinite(s.projectCount))?'<br>'+s.taskCount+' tasks · '+s.projectCount+' projects':'';const freshness=s.lastPullAt?'<br>Last cloud check '+esc(new Date(s.lastPullAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})):'';const safety='<br><span class="muted">Cloud-safe restore/clear protection active</span>';const pendingHelp=pending?'<br><strong>'+pending+' queued change'+(pending===1?'':'s')+' will sync after Planly confirms the server write.</strong>':'';const pendingRows=readPlanlyPendingWrites(),journalErrors=pendingRows.filter(x=>x.status==='error').length,journalConflicts=pendingRows.filter(x=>x.status==='conflict').length,journalHelp=(journalErrors||journalConflicts)?'<br>'+journalErrors+' retry error'+(journalErrors===1?'':'s')+' · '+journalConflicts+' blocked by conflict':'';const help=offlineCached?'Using the last verified local cloud snapshot while Planly is offline.':planlyCloudReadOnly?'This preview is displaying the verified Supabase copy in read-only bootstrap mode. Changes are not persisted yet.':'Controlled cloud writes are enabled for this preview. Use the disposable conflict-test task below for multi-client testing.';const offlineReadyHtml='<div class="muted settingsHelp" style="margin-top:10px"><strong>Offline mode:</strong> '+esc(planlyOfflineStatus)+'</div>'+(!planlyOfflineReady&&navigator.onLine?'<button id="planlyPrepareOfflineBtn" class="secondaryBtn">Prepare offline mode</button>':'');const conflictHtml=conflicts.length?'<div class="settingsHelp" style="margin-top:12px"><strong>'+conflicts.length+' sync conflict'+(conflicts.length===1?'':'s')+' need review</strong>'+conflicts.map(c=>{const name=c.kind==='preference'?'Account preferences':String(c.localData?.title||c.serverData?.title||c.id);const serverDeleted=!!c.serverDeleted;return '<div style="margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:14px"><div><strong>'+esc(name)+'</strong></div><div class="muted" style="margin-top:4px">'+esc(serverDeleted?'Cloud copy was deleted':'Cloud and this device both changed')+'</div><button class="secondaryBtn" data-planly-conflict-cloud="'+esc(c.kind)+'|'+esc(c.id)+'">Use cloud version</button>'+(!serverDeleted?'<button class="secondaryBtn" data-planly-conflict-local="'+esc(c.kind)+'|'+esc(c.id)+'">Keep my version</button>':'')+'</div>'}).join('')+'</div>':'';return offlineReadyHtml+'<div class="calendarStatusRow"><span class="statusDot '+((!pending&&!offlineCached&&['complete','cloud-loaded','cloud-write-test'].includes(s.state))?'connected':'offline')+'"></span><strong>3.2 Cloud Preview · '+esc(label)+'</strong></div><div class="muted settingsHelp">'+help+pendingHelp+journalHelp+counts+freshness+safety+'</div>'+conflictHtml+'<input id="planlyMigrationFile" type="file" accept="application/json,.json" hidden>'+(!offlineCached?'<button id="planlyCloudMigrateBtn" class="secondaryBtn" '+(['checking','uploading','verifying'].includes(s.state)?'disabled':'')+'>'+(s.state==='cloud-loaded'?'Enable controlled write test':s.state==='cloud-write-test'||pending?'Write test enabled':'Verify with migration backup')+'</button>':'')+((!offlineCached&&(s.state==='cloud-write-test'||pending))?'<button id="planlyConflictTestBtn" class="secondaryBtn">Create / open conflict-test task</button><button id="planlyDeterministicConflictBtn" class="secondaryBtn">Run deterministic conflict test</button><button id="planlySyncSelfTestBtn" class="secondaryBtn">Run sync self-test</button>':'')}
+function planlyCloudPreviewHtml(){if(!PLANLY_CLOUD_PREVIEW)return '';const cachedOwner=planlyLastAccountId(),hasCachedOwner=!!cachedOwner;if(!planlySession?.user&&!hasCachedOwner)return '<div class="muted settingsHelp">3.2 preview: sign in above before importing your migration backup.</div>';const s=planlyCloudLocalStatus(),pending=readPlanlyPendingWrites().length,conflicts=readPlanlyConflicts(),offlineCached=!planlySession?.user&&hasCachedOwner,label=pending?(pending+' change'+(pending===1?'':'s')+' pending sync'):offlineCached?'Offline cache loaded':s.state==='cloud-write-test'?'Cloud write test enabled':s.state==='cloud-loaded'?'Cloud copy loaded · read only':s.state==='complete'?'Migration verified':s.state==='uploading'?'Uploading…':s.state==='verifying'?'Verifying…':s.state==='checking'?'Checking…':s.state==='error'?'Stopped safely':'Not migrated';const counts=(Number.isFinite(s.taskCount)&&Number.isFinite(s.projectCount))?'<br>'+s.taskCount+' tasks · '+s.projectCount+' projects':'';const freshness=s.lastPullAt?'<br>Last cloud check '+esc(new Date(s.lastPullAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})):'';const safety='<br><span class="muted">Cloud-safe restore/clear protection active</span>';const integrity=s.integritySuite?'<br><span class="muted">Integrity suite: '+esc(s.integritySuite)+(s.integritySuiteAt?' · '+esc(new Date(s.integritySuiteAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})):'')+'</span>':'';const pendingHelp=pending?'<br><strong>'+pending+' queued change'+(pending===1?'':'s')+' will sync after Planly confirms the server write.</strong>':'';const pendingRows=readPlanlyPendingWrites(),journalErrors=pendingRows.filter(x=>x.status==='error').length,journalConflicts=pendingRows.filter(x=>x.status==='conflict').length,journalHelp=(journalErrors||journalConflicts)?'<br>'+journalErrors+' retry error'+(journalErrors===1?'':'s')+' · '+journalConflicts+' blocked by conflict':'';const help=offlineCached?'Using the last verified local cloud snapshot while Planly is offline.':planlyCloudReadOnly?'This preview is displaying the verified Supabase copy in read-only bootstrap mode. Changes are not persisted yet.':'Controlled cloud writes are enabled for this preview. Use the disposable conflict-test task below for multi-client testing.';const offlineReadyHtml='<div class="muted settingsHelp" style="margin-top:10px"><strong>Offline mode:</strong> '+esc(planlyOfflineStatus)+'</div>'+(!planlyOfflineReady&&navigator.onLine?'<button id="planlyPrepareOfflineBtn" class="secondaryBtn">Prepare offline mode</button>':'');const conflictHtml=conflicts.length?'<div class="settingsHelp" style="margin-top:12px"><strong>'+conflicts.length+' sync conflict'+(conflicts.length===1?'':'s')+' need review</strong>'+conflicts.map(c=>{const name=c.kind==='preference'?'Account preferences':String(c.localData?.title||c.serverData?.title||c.id);const serverDeleted=!!c.serverDeleted;return '<div style="margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:14px"><div><strong>'+esc(name)+'</strong></div><div class="muted" style="margin-top:4px">'+esc(serverDeleted?'Cloud copy was deleted':'Cloud and this device both changed')+'</div><button class="secondaryBtn" data-planly-conflict-cloud="'+esc(c.kind)+'|'+esc(c.id)+'">Use cloud version</button>'+(!serverDeleted?'<button class="secondaryBtn" data-planly-conflict-local="'+esc(c.kind)+'|'+esc(c.id)+'">Keep my version</button>':'')+'</div>'}).join('')+'</div>':'';return offlineReadyHtml+'<div class="calendarStatusRow"><span class="statusDot '+((!pending&&!offlineCached&&['complete','cloud-loaded','cloud-write-test'].includes(s.state))?'connected':'offline')+'"></span><strong>3.2 Cloud Preview · '+esc(label)+'</strong></div><div class="muted settingsHelp">'+help+pendingHelp+journalHelp+counts+freshness+safety+integrity+'</div>'+conflictHtml+'<input id="planlyMigrationFile" type="file" accept="application/json,.json" hidden>'+(!offlineCached?'<button id="planlyCloudMigrateBtn" class="secondaryBtn" '+(['checking','uploading','verifying'].includes(s.state)?'disabled':'')+'>'+(s.state==='cloud-loaded'?'Enable controlled write test':s.state==='cloud-write-test'||pending?'Write test enabled':'Verify with migration backup')+'</button>':'')+((!offlineCached&&(s.state==='cloud-write-test'||pending))?'<button id="planlyConflictTestBtn" class="secondaryBtn">Create / open conflict-test task</button><button id="planlyDeterministicConflictBtn" class="secondaryBtn">Run deterministic conflict test</button><button id="planlySyncSelfTestBtn" class="secondaryBtn">Run sync self-test</button><button id="planlyIntegritySuiteBtn" class="secondaryBtn">Run 3.2 integrity suite</button>':'')}
 async function runPlanlyCloudMigrationFile(file,btn){const original=btn?.textContent||'Choose migration backup';if(btn){btn.disabled=true;btn.textContent='Validating backup…'}try{const d=JSON.parse(await file.text()),snapshot=validateMigrationBackupFile(d);if(btn)btn.textContent='Preparing cloud copy…';const r=await migratePlanlySnapshotToCloud(snapshot);showToast((r.alreadyComplete?'Cloud migration already verified · ':'Cloud copy verified · ')+r.taskCount+' tasks · '+r.projectCount+' projects');render()}catch(err){setPlanlyCloudLocalStatus({state:'error',error:String(err?.message||err)});showToast('Cloud migration stopped safely');render();alert(err?.message||'Cloud migration failed. Your installed Planly data was not changed.')}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 
 function planlyCloudAccountKey(prefix,ownerId=planlyLastAccountId()){const id=String(ownerId||'');return id?prefix+id:''}
@@ -1457,6 +1457,152 @@ async function runPlanlySyncSelfTest(btn){
     return true;
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Run sync self-test'}
+  }
+}
+
+function planlyMutationCoverageAudit(){
+  const checks=[
+    ['complete + recurrence',completeTaskWithUndo,'stageChangedTasksFromSnapshot'],
+    ['reschedule',rescheduleTaskWithUndo,'stageChangedTasksFromSnapshot'],
+    ['delete tombstone',deleteTaskWithUndo,"stagePlanlyPendingWrite('task','delete'"],
+    ['Top 3 pin',toggleTaskPin,'stageChangedTasksFromSnapshot'],
+    ['checklist',toggleTaskSubtask,'stageTaskMutation'],
+    ['Plan My Day',commitPlanDay,'stageChangedTasksFromSnapshot'],
+    ['timeline move',endTimelineDrag,'stageChangedTasksFromSnapshot'],
+    ['project create/edit',saveProjectEditor,'stageProjectMutation'],
+    ['project archive/restore',handleProjectsClick,'stageProjectMutation'],
+    ['task quick actions',handleTaskActionClick,'stageTaskMutation'],
+    ['task project assignment',handleTaskActionChange,'stageTaskMutation'],
+    ['Top 3 reorder',endTop3Drag,'stageTaskMutation'],
+    ['Google metadata',syncTaskToGoogle,'stageTaskMutation'],
+    ['account preferences',renderSettings,'stagePreferenceMutation']
+  ].map(([name,fn,needle])=>({name,ok:typeof fn==='function'&&Function.prototype.toString.call(fn).includes(needle)}));
+  const deviceText=Function.prototype.toString.call(renderSettings);
+  checks.push({name:'theme is device-local',ok:deviceText.includes("state.theme=e.target.value;save();applyTheme()")&&!deviceText.includes("state.theme=e.target.value;stagePreferenceMutation")});
+  checks.push({name:'show completed is device-local',ok:deviceText.includes("state.showCompleted=e.target.checked;save()")&&!deviceText.includes("state.showCompleted=e.target.checked;stagePreferenceMutation")});
+  checks.push({name:'auto calendar is device-local',ok:deviceText.includes("state.autoCalendarTimed=e.target.checked;save()")&&!deviceText.includes("state.autoCalendarTimed=e.target.checked;stagePreferenceMutation")});
+  return {passed:checks.every(x=>x.ok),checks};
+}
+async function planlyFetchTaskRow(id){
+  const {data,error}=await planlySupabase.from('planly_tasks').select('client_id,data,cloud_version,deleted_at').eq('owner_id',planlySession.user.id).eq('client_id',String(id)).maybeSingle();
+  if(error)throw error;return data||null;
+}
+async function planlyFetchProjectRow(id){
+  const {data,error}=await planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',planlySession.user.id).eq('client_id',String(id)).maybeSingle();
+  if(error)throw error;return data||null;
+}
+async function planlyCleanupIntegrityRow(table,id){
+  const ownerId=planlySession.user.id;
+  const {data,error}=await planlySupabase.from(table).select('cloud_version,deleted_at').eq('owner_id',ownerId).eq('client_id',String(id)).maybeSingle();
+  if(error||!data||data.deleted_at)return;
+  await planlySupabase.from(table).update({deleted_at:new Date().toISOString(),client_updated_at:Date.now()}).eq('owner_id',ownerId).eq('client_id',String(id)).eq('cloud_version',Number(data.cloud_version||0));
+}
+async function runPlanlySyncIntegritySuite(btn){
+  if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)throw new Error('Enable controlled cloud writes first.');
+  if(!navigator.onLine)throw new Error('The integrity suite needs an online connection.');
+  if(readPlanlyPendingWrites().length||readPlanlyConflicts().length)throw new Error('Resolve or sync existing pending changes before running the integrity suite.');
+  const audit=planlyMutationCoverageAudit();
+  if(!audit.passed)throw new Error('Mutation coverage audit failed: '+audit.checks.filter(x=>!x.ok).map(x=>x.name).join(', '));
+  const stamp=Date.now(),taskId='planly-integrity-task-'+stamp,projectId='planly-integrity-project-'+stamp,ownerId=planlySession.user.id,steps=['mutation-audit'];
+  let childId='',projectVersion=0,taskVersion=0,preferenceVersionBefore=0;
+  const removeLocalTestRows=()=>{
+    state.tasks=state.tasks.filter(x=>!String(x.id).startsWith('planly-integrity-task-'+stamp));
+    state.projects=state.projects.filter(x=>String(x.id)!==projectId);
+    for(const id of [taskId,childId].filter(Boolean)){planlyCloudSyncMeta.tasks.delete(id);clearPlanlyPendingWrite('task',id);clearPlanlyConflict('task',id)}
+    planlyCloudSyncMeta.projects.delete(projectId);clearPlanlyPendingWrite('project',projectId);clearPlanlyConflict('project',projectId);
+  };
+  if(btn){btn.disabled=true;btn.textContent='Running 3.2 integrity suite…'}
+  try{
+    const now=Date.now(),project={id:projectId,name:'Planly Integrity Project',dueDate:'',notes:'Disposable automated 3.2 QA',archived:false,createdAt:now,updatedAt:now};
+    stageProjectMutation(project);
+    let pending=pendingPlanlyWrite('project',projectId);
+    if(!pending||pending.status!=='queued'||Number(pending.baseVersion)!==0)throw new Error('Project journal staging failed.');
+    let replay=await replayPlanlyPendingWrites();if(replay.errors||replay.conflicts)throw new Error('Project create replay failed.');
+    let projectRow=await planlyFetchProjectRow(projectId);
+    if(!projectRow||projectRow.deleted_at||projectRow.data?.name!==project.name)throw new Error('Project create verification failed.');
+    projectVersion=Number(projectRow.cloud_version||0);if(!projectVersion||pendingPlanlyWrite('project',projectId))throw new Error('Project create journal cleanup failed.');
+    steps.push('project-create');
+
+    project.name='Planly Integrity Project — edited';project.archived=true;project.updatedAt=Date.now();
+    stageProjectMutation(project);const firstBase=Number(pendingPlanlyWrite('project',projectId)?.baseVersion||0);
+    project.notes='Repeated local edit before replay';project.updatedAt=Date.now();stageProjectMutation(project);
+    pending=pendingPlanlyWrite('project',projectId);
+    if(firstBase!==projectVersion||Number(pending?.baseVersion||0)!==projectVersion)throw new Error('Dirty project base version was rebased.');
+    replay=await replayPlanlyPendingWrites();if(replay.errors||replay.conflicts)throw new Error('Project update replay failed.');
+    projectRow=await planlyFetchProjectRow(projectId);
+    if(projectRow?.data?.archived!==true||projectRow?.data?.notes!==project.notes||Number(projectRow.cloud_version)<=projectVersion)throw new Error('Project update verification failed.');
+    projectVersion=Number(projectRow.cloud_version);steps.push('project-update-stable-base');
+
+    const task={id:taskId,title:'Planly Integrity Task',date:localKey(new Date()),time:'09:15',durationMinutes:45,priority:'high',category:'Personal',projectId,recurrence:'daily',recurrenceConfig:{unit:'days',interval:1,weekdays:[],monthlyMode:'day',monthDay:parseKey(localKey(new Date())).getDate(),ordinal:1,weekday:parseKey(localKey(new Date())).getDay(),endMode:'count',endDate:'',maxOccurrences:3,anchorDate:localKey(new Date())},reminder:'none',notes:'Disposable automated 3.2 QA',subtasks:[{id:uid(),title:'Integrity checklist',done:false}],addToCalendar:false,updatedAt:Date.now(),occurrenceNumber:1,completed:false,pinned:false,googleEventId:'',calendarSync:'',createdAt:Date.now()};
+    stageTaskMutation(task);
+    pending=pendingPlanlyWrite('task',taskId);
+    if(!pending||Number(pending.baseVersion)!==0||!pending.operationId)throw new Error('Task journal staging failed.');
+    replay=await replayPlanlyPendingWrites();if(replay.errors||replay.conflicts)throw new Error('Task create replay failed.');
+    let taskRow=await planlyFetchTaskRow(taskId);
+    if(!taskRow||taskRow.deleted_at||taskRow.data?.projectId!==projectId)throw new Error('Task create verification failed.');
+    taskVersion=Number(taskRow.cloud_version||0);steps.push('task-create');
+
+    task.title='Planly Integrity Task — edited';task.subtasks[0].done=true;task.pinned=true;task.top3Order=0;task.notes='First local edit';task.updatedAt=Date.now();
+    stageTaskMutation(task);const taskBase=Number(pendingPlanlyWrite('task',taskId)?.baseVersion||0);
+    task.notes='Second local edit before replay';task.durationMinutes=60;task.updatedAt=Date.now();stageTaskMutation(task);
+    pending=pendingPlanlyWrite('task',taskId);
+    if(taskBase!==taskVersion||Number(pending?.baseVersion||0)!==taskVersion||Number(pending?.attempts||0)!==0)throw new Error('Dirty task journal/base version failed.');
+    replay=await replayPlanlyPendingWrites();if(replay.errors||replay.conflicts)throw new Error('Task update replay failed.');
+    taskRow=await planlyFetchTaskRow(taskId);
+    if(taskRow?.data?.title!==task.title||taskRow?.data?.subtasks?.[0]?.done!==true||taskRow?.data?.pinned!==true||Number(taskRow?.data?.durationMinutes)!==60||Number(taskRow.cloud_version)<=taskVersion)throw new Error('Task field mutation verification failed.');
+    taskVersion=Number(taskRow.cloud_version);steps.push('task-edit-checklist-top3-stable-base');
+
+    task.completed=true;task.updatedAt=Date.now();createNextRecurring(task);
+    const child=state.tasks.find(x=>String(x.seriesId)===taskId&&String(x.id)!==taskId);
+    if(!child||Number(child.occurrenceNumber)!==2||child.completed||child.subtasks?.[0]?.done!==false||child.projectId!==projectId)throw new Error('Recurring child generation failed.');
+    childId=String(child.id);stageTaskMutation(task);stageTaskMutation(child);
+    replay=await replayPlanlyPendingWrites();if(replay.errors||replay.conflicts)throw new Error('Recurrence replay failed.');
+    const [parentRow,childRow]=await Promise.all([planlyFetchTaskRow(taskId),planlyFetchTaskRow(childId)]);
+    if(parentRow?.data?.completed!==true||!childRow||childRow.deleted_at||Number(childRow.data?.occurrenceNumber)!==2||childRow.data?.seriesId!==taskId)throw new Error('Recurrence cloud verification failed.');
+    taskVersion=Number(parentRow.cloud_version||0);const childVersion=Number(childRow.cloud_version||0);steps.push('completion-recurrence-child');
+
+    task.completed=false;task.pinned=false;delete task.top3Order;task.updatedAt=Date.now();stageTaskMutation(task);
+    replay=await replayPlanlyPendingWrites();if(replay.errors||replay.conflicts)throw new Error('Task reopen replay failed.');
+    taskRow=await planlyFetchTaskRow(taskId);
+    if(taskRow?.data?.completed!==false||Number(taskRow.cloud_version)<=taskVersion)throw new Error('Task reopen verification failed.');
+    taskVersion=Number(taskRow.cloud_version);steps.push('task-reopen');
+
+    const {data:prefRow,error:prefError}=await planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle();
+    if(prefError)throw prefError;
+    if(prefRow){
+      preferenceVersionBefore=Number(prefRow.cloud_version||0);
+      const samePrefs={defaultCategory:prefRow.default_category||'Personal',defaultDuration:Number(prefRow.default_duration||30),autoCompleteParentSubtasks:!!prefRow.auto_complete_parent_subtasks,planningStart:prefRow.planning_start||'08:00',planningEnd:prefRow.planning_end||'23:00'};
+      const prefResult=await cloudUpdatePreferences(samePrefs,true,preferenceVersionBefore);
+      if(Number(prefResult?.cloud_version)<=preferenceVersionBefore)throw new Error('Preference optimistic write verification failed.');
+      steps.push('preferences-write');
+    }else steps.push('preferences-not-initialized');
+
+    stagePlanlyPendingWrite('task','delete',taskId,taskVersion);
+    stagePlanlyPendingWrite('task','delete',childId,childVersion);
+    replay=await replayPlanlyPendingWrites();if(replay.errors||replay.conflicts)throw new Error('Task tombstone replay failed.');
+    const [parentDeleted,childDeleted]=await Promise.all([planlyFetchTaskRow(taskId),planlyFetchTaskRow(childId)]);
+    if(!parentDeleted?.deleted_at||!childDeleted?.deleted_at)throw new Error('Task tombstone verification failed.');
+    steps.push('task-tombstones');
+
+    await planlyCleanupIntegrityRow('planly_projects',projectId);
+    projectRow=await planlyFetchProjectRow(projectId);
+    if(!projectRow?.deleted_at)throw new Error('Project cleanup tombstone failed.');
+    steps.push('project-tombstone-cleanup');
+
+    if(readPlanlyPendingWrites().some(x=>[taskId,childId,projectId].includes(x.id)))throw new Error('Integrity test left pending writes behind.');
+    if(readPlanlyConflicts().some(x=>[taskId,childId,projectId].includes(x.id)))throw new Error('Integrity test left conflicts behind.');
+    setPlanlyCloudLocalStatus({integritySuite:'passed',integritySuiteAt:new Date().toISOString(),integritySuiteSteps:steps,mutationAuditCount:audit.checks.length});
+    removeLocalTestRows();persistPlanlyCloudCache();render();showToast('3.2 integrity suite passed');
+    return {passed:true,steps,audit};
+  }catch(err){
+    setPlanlyCloudLocalStatus({integritySuite:'failed',integritySuiteAt:new Date().toISOString(),integritySuiteError:String(err?.message||err),integritySuiteSteps:steps});
+    throw err;
+  }finally{
+    try{await planlyCleanupIntegrityRow('planly_tasks',taskId)}catch{}
+    if(childId){try{await planlyCleanupIntegrityRow('planly_tasks',childId)}catch{}}
+    try{await planlyCleanupIntegrityRow('planly_projects',projectId)}catch{}
+    removeLocalTestRows();persistPlanlyCloudCache();render();
+    if(btn){btn.disabled=false;btn.textContent='Run 3.2 integrity suite'}
   }
 }
 
@@ -2251,6 +2397,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('#planlyConflictT
 document.addEventListener('click',e=>{const b=e.target.closest('#planlyDeterministicConflictBtn');if(!b)return;runDeterministicConflictTest(b).catch(err=>{showToast('Conflict protection test failed');alert(err?.message||'Conflict protection test failed.')})});
 document.addEventListener('click',e=>{const b=e.target.closest('#planlyPrepareOfflineBtn');if(!b)return;preparePlanlyOfflineMode(true)});
 document.addEventListener('click',e=>{const b=e.target.closest('#planlySyncSelfTestBtn');if(!b)return;runPlanlySyncSelfTest(b).catch(err=>{showToast('Sync self-test failed');alert(err?.message||'Sync self-test failed.')})});
+document.addEventListener('click',e=>{const b=e.target.closest('#planlyIntegritySuiteBtn');if(!b)return;runPlanlySyncIntegritySuite(b).catch(err=>{showToast('3.2 integrity suite failed');alert(err?.message||'3.2 integrity suite failed.')})});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-planly-conflict-cloud]');if(!b)return;const [kind,...rest]=String(b.dataset.planlyConflictCloud||'').split('|'),id=rest.join('|');resolvePlanlyConflictUseCloud(kind,id).catch(err=>{showToast('Conflict resolution failed');alert(err?.message||'Conflict resolution failed.')})});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-planly-conflict-local]');if(!b)return;const [kind,...rest]=String(b.dataset.planlyConflictLocal||'').split('|'),id=rest.join('|');resolvePlanlyConflictKeepLocal(kind,id).catch(err=>{showToast('Conflict resolution failed');alert(err?.message||'Conflict resolution failed.')})});
 document.addEventListener('change',e=>{if(e.target.id!=='planlyMigrationFile')return;const file=e.target.files?.[0],btn=$('#planlyCloudMigrateBtn');if(file)runPlanlyCloudMigrationFile(file,btn);e.target.value=''});
