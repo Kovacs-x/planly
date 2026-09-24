@@ -116,6 +116,20 @@
     .searchHeader{padding-bottom:12px;border-bottom:1px solid var(--line)}.searchInputWrap{background:var(--cardSoft);border-color:transparent}.searchFilters{padding-top:12px}.searchFilterChips{scrollbar-width:none}.searchFilterChips::-webkit-scrollbar{display:none}.searchFilterChips button{min-height:38px;padding:7px 13px}.searchResult{box-shadow:none;background:var(--cardSoft);border-color:transparent;min-height:58px}
     .projectsContent{padding-top:14px}.projectCard,.projectDetailHero,.projectTaskRow{box-shadow:none}.projectCard{background:var(--cardSoft)}.projectsHeader .projectsClose,.projectsHeader .projectsBack,.timelineHeader>button,.focusHeader>button,.planDayHeader>button{min-height:44px}
     @media(max-width:520px){.sheet{max-height:92dvh;border-radius:22px 22px 0 0}.focusTimerCard>strong{font-size:48px}.timelineMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.searchFilterSelects{grid-template-columns:1fr}.planDayTitle,.timelineTitle,.focusTitle,.projectsTitle{font-size:24px}}
+
+    /* UI overhaul phase 6 — whole-app consistency and polish */
+    html{-webkit-tap-highlight-color:transparent}body{min-height:100dvh}.app{width:100%}
+    button,.taskSurface,.projectCard,.searchResult,.dashboardNextCard{transition:background-color .16s ease,border-color .16s ease,opacity .16s ease,transform .12s ease}button:active{transform:scale(.985)}button:disabled{cursor:default;opacity:.5;transform:none}.iconbtn:active,.smallbtn:active,.nav button:active{transform:scale(.95)}
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid color-mix(in srgb,var(--text) 62%,transparent);outline-offset:2px}
+    .calendarGroupLabel,.dashboardLabel,.monthAgenda .calendarGroupLabel{letter-spacing:.09em}.sectionHead h2,.settingsGroupHead h2{font-weight:760}.muted{line-height:1.4}.empty{background:color-mix(in srgb,var(--cardSoft) 72%,transparent);line-height:1.5}.empty strong{color:var(--text)}
+    .primary,.secondaryBtn,.dangerBtn,.toolbar button,.calendarFilters button,.dashboardActions button{font-weight:720}.secondaryBtn{background:var(--cardSoft)}.dangerBtn{background:color-mix(in srgb,var(--danger) 5%,var(--card));border-color:color-mix(in srgb,var(--danger) 22%,var(--line))}
+    .taskSurface{min-height:58px}.taskActions{align-items:center}.smallbtn{display:grid;place-items:center}.pill,.projectTaskPill{line-height:1.25}.check{flex:none}.check:active{transform:scale(.9)}.completedToggle{background:var(--cardSoft);box-shadow:none}
+    .fab{width:60px;height:60px;display:grid;place-items:center;line-height:1;box-shadow:0 12px 28px rgba(0,0,0,.16)}.fab:active{transform:scale(.94)!important}.nav button{font-weight:650}.nav button.active{font-weight:780}
+    .undoToast{box-shadow:0 14px 36px rgba(0,0,0,.18)}#planlyToast{white-space:normal!important;text-align:center;line-height:1.35}
+    :root[data-theme="dark"] .empty{background:color-mix(in srgb,var(--cardSoft) 82%,transparent)}:root[data-theme="dark"] .iconbtn,:root[data-theme="dark"] .taskSurface,:root[data-theme="dark"] .settingsCard,:root[data-theme="dark"] .monthShell{border-color:#2d323b}:root[data-theme="dark"] .fab{box-shadow:0 12px 30px rgba(0,0,0,.38)}:root[data-theme="dark"] .sheetWrap,:root[data-theme="dark"] .taskActionWrap{background:rgba(0,0,0,.58)}
+    @media(hover:hover){.iconbtn:hover,.smallbtn:hover,.toolbar button:hover{border-color:color-mix(in srgb,var(--text) 20%,var(--line))}.nav button:hover:not(.active){background:var(--cardSoft)}}
+    @media(max-width:390px){.app{padding-left:14px;padding-right:14px}.title{font-size:30px}.topActions{gap:5px}.iconbtn{width:40px;height:40px}.nav button{font-size:11px}.settingsGroupHead h2{font-size:18px}.taskSurface{padding-left:12px;padding-right:12px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
   </style>
 </head>
 <body>
@@ -167,6 +181,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0.js?v=327calfix"></script>
+<script src="./app-v3.2.0.js?v=328ui6"></script>
 </body>
 </html>
