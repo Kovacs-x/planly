@@ -1,7 +1,8 @@
 const CACHE='planly-v2-330a9';
 const VERSION='planly-v2-sw-330a9';
 const APP_URL='./app-v3.2.0.js?v=330a9';
-const REQUIRED=['./index.html',APP_URL,'./supabase-config.js','./manifest.webmanifest'];
+const HARDENING_URL='./hardening-v3.3b.js';
+const REQUIRED=['./index.html',APP_URL,HARDENING_URL,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
 async function cacheOne(cache,url){
@@ -20,6 +21,24 @@ async function networkThenCache(request,cacheKey){
   }catch{
     return (await cache.match(cacheKey))||Response.error();
   }
+}
+async function hardenedAppResponse(request){
+  const cache=await caches.open(CACHE);
+  let appResponse,hardeningResponse;
+  try{
+    [appResponse,hardeningResponse]=await Promise.all([
+      fetch(request,{cache:'no-store'}),
+      fetch(HARDENING_URL,{cache:'no-store'})
+    ]);
+    if(appResponse?.ok)await cache.put(APP_URL,appResponse.clone());
+    if(hardeningResponse?.ok)await cache.put(HARDENING_URL,hardeningResponse.clone());
+  }catch{}
+  if(!appResponse?.ok)appResponse=await cache.match(APP_URL);
+  if(!hardeningResponse?.ok)hardeningResponse=await cache.match(HARDENING_URL);
+  if(!appResponse)return Response.error();
+  const appText=await appResponse.text();
+  const hardeningText=hardeningResponse?await hardeningResponse.text():'';
+  return new Response(appText+'\n;'+hardeningText,{status:200,headers:{'Content-Type':'application/javascript; charset=utf-8','Cache-Control':'no-store'}});
 }
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
@@ -55,7 +74,7 @@ self.addEventListener('fetch',event=>{
   if(url.origin===self.location.origin){
     const isApp=url.pathname.endsWith('/app-v3.2.0.js');
     if(isApp){
-      event.respondWith(networkThenCache(event.request,APP_URL));
+      event.respondWith(hardenedAppResponse(event.request));
       return;
     }
     event.respondWith((async()=>{
