@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-3-2-0';
-const PLANLY_SW_PROBE='planly-v2-sw-3-2-0';
+const PLANLY_OFFLINE_CACHE='planly-v2-ui1';
+const PLANLY_SW_PROBE='planly-v2-sw-ui1';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1391,7 +1391,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=320','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=321ui1','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
@@ -1930,7 +1930,7 @@ function settingsView(){
   <div class="settingsCard"><h3>Google Calendar</h3><div class="calendarStatusRow"><span class="statusDot ${googleConnected()?'connected':'offline'}"></span><strong>${esc(googleStatus)}</strong>${pendingCount?`<span class="muted">${pendingCount} pending</span>`:''}</div><div class="muted settingsHelp">Sync destination: your private <strong>Planly</strong> Google calendar. Planly refreshes Google access when you save a Calendar task when possible. Outlook is never modified.</div><label class="settingToggle"><input id="autoCalendarTimed" type="checkbox"><span><strong>Automatically sync timed tasks</strong><small>When a new task has a time, turn on “Add to Google Calendar” automatically.</small></span></label><details class="advancedSettings"><summary>Connection settings</summary><label class="muted smallLabel">Google OAuth client ID</label><input id="googleClientId" class="input" value="${esc(googleId)}" placeholder="...apps.googleusercontent.com" autocomplete="off"></details><button id="googleConnectBtn" class="primary">${googleConnected()?'Reconnect Google':'Connect Google Calendar'}</button><button id="googleSyncBtn" class="secondaryBtn">Sync pending items${pendingCount?` (${pendingCount})`:''}</button>${googleConnected()?'<button id="googleDisconnectBtn" class="dangerBtn">Disconnect Google</button>':''}</div>
   <div class="settingsCard"><h3>Data</h3><button id="exportBtn" class="primary">Export backup</button><button id="importBtn" class="secondaryBtn">Import backup</button><button id="clearBtn" class="dangerBtn">Clear all data</button></div>
   ${isStandalone()?'':'<div class="settingsCard"><h3>Install on iPhone</h3><div class="muted settingsHelp">Open Planly in Safari, tap Share, then Add to Home Screen.</div></div>'}
-  <div class="settingsCard"><h3>About Planly</h3><div class="muted settingsHelp">Private local-first planner. Your tasks stay on this device unless you export or sync them.</div><div class="muted" style="font-size:12px;margin-top:8px">Planly 3.1.0</div></div>`;
+  <div class="settingsCard"><h3>About Planly</h3><div class="muted settingsHelp">Private local-first planner. Your tasks stay on this device unless you export or sync them.</div><div class="muted" style="font-size:12px;margin-top:8px">Planly 3.2</div></div>`;
   if($('#planlySignInBtn'))$('#planlySignInBtn').onclick=()=>planlySignIn().then(()=>loadPlanlyCalendarData()).catch(err=>alert(err.message));
   if($('#planlyAddCalendarBtn'))$('#planlyAddCalendarBtn').onclick=()=>addPlanlyCalendarSource().catch(err=>{alert(err.message);render()});
   $$('[data-planly-calendar-refresh]').forEach(btn=>btn.onclick=()=>refreshPlanlyCalendarSource(btn.dataset.planlyCalendarRefresh,btn).catch(err=>alert(err.message)));
