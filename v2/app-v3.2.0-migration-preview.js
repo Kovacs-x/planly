@@ -1163,7 +1163,36 @@ async function cloudUpdatePreferences(p,replay=false,forcedVersion=null){const o
 function isOfflineCloudError(err){const m=String(err?.message||err||'').toLowerCase();return !navigator.onLine||m.includes('failed to fetch')||m.includes('network')||m.includes('load failed')}
 function queueCloudWrite(work,success='Synced to Planly Cloud'){if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly)return Promise.resolve();planlyCloudWriteQueue=planlyCloudWriteQueue.catch(()=>{}).then(work).then(v=>{if(v?.deferred||v?.replayed===0)return v;if(success)showToast(success);return v}).catch(err=>{const offline=isOfflineCloudError(err);setPlanlyCloudLocalStatus({state:offline?'offline-retry-needed':'conflict',error:String(err?.message||err)});showToast(offline?'Offline · reload when connected':'Cloud conflict · reload required');if(!offline)alert(err?.message||'Cloud sync failed.');return null});return planlyCloudWriteQueue}
 function enableCloudWritePreview(){if(!PLANLY_CLOUD_PREVIEW||!planlySession?.user)return;planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'cloud-write-test'});render()}
-async function openCloudConflictTestTask(btn){if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)throw new Error('Enable the controlled write test first.');const id='planly-cloud-conflict-test',existing=state.tasks.find(t=>String(t.id)===id);if(existing){state.tab='today';state.selectedDate=existing.date||localKey(new Date());render();setTimeout(()=>openSheet(existing),0);return}const now=Date.now(),t={id,title:'Cloud Conflict Test',date:localKey(new Date()),time:'',durationMinutes:30,priority:'normal',category:'Personal',projectId:'',recurrence:'none',recurrenceConfig:null,reminder:'none',notes:'Disposable 3.2 multi-client conflict test task',subtasks:[],addToCalendar:false,updatedAt:now,completed:false,pinned:false,googleEventId:'',calendarSync:'',createdAt:now};if(btn){btn.disabled=true;btn.textContent='Creating test task…'}try{await cloudInsertTask(t);state.tasks.push(t);state.tab='today';state.selectedDate=t.date;setPlanlyCloudLocalStatus({state:'cloud-write-test',taskCount:state.tasks.length,projectCount:state.projects.length});render();showToast('Conflict-test task ready');setTimeout(()=>openSheet(t),0)}catch(err){if(String(err?.message||'').toLowerCase().includes('duplicate key')){await loadVerifiedCloudPreview();const cloudTask=state.tasks.find(x=>String(x.id)===id);render();if(cloudTask){setTimeout(()=>openSheet(cloudTask),0);return}}throw err}finally{if(btn){btn.disabled=false;btn.textContent='Create / open conflict-test task'}}}
+async function openCloudConflictTestTask(btn){
+  if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)throw new Error('Enable the controlled write test first.');
+  const id='planly-cloud-conflict-test',existing=state.tasks.find(t=>String(t.id)===id);
+  if(existing){state.tab='today';state.selectedDate=existing.date||localKey(new Date());render();setTimeout(()=>openSheet(existing),0);return}
+  const ownerId=planlySession.user.id,now=Date.now(),t={id,title:'Cloud Conflict Test',date:localKey(new Date()),time:'',durationMinutes:30,priority:'normal',category:'Personal',projectId:'',recurrence:'none',recurrenceConfig:null,reminder:'none',notes:'Disposable 3.2 multi-client conflict test task',subtasks:[],addToCalendar:false,updatedAt:now,completed:false,pinned:false,googleEventId:'',calendarSync:'',createdAt:now};
+  if(btn){btn.disabled=true;btn.textContent='Creating test task…'}
+  try{
+    const {data:existingRow,error:lookupError}=await planlySupabase.from('planly_tasks').select('client_id,cloud_version,deleted_at').eq('owner_id',ownerId).eq('client_id',id).maybeSingle();
+    if(lookupError)throw lookupError;
+    if(existingRow?.deleted_at){
+      const reviveRow=taskCloudRow(t,ownerId);
+      const {data:restored,error:restoreError}=await planlySupabase.from('planly_tasks').update(reviveRow).eq('owner_id',ownerId).eq('client_id',id).eq('cloud_version',Number(existingRow.cloud_version)).select('client_id,cloud_version').maybeSingle();
+      if(restoreError)throw restoreError;
+      if(!restored)throw new Error('Conflict-test task changed before it could be restored. Reload and try again.');
+      planlyCloudSyncMeta.tasks.set(id,Number(restored.cloud_version));
+    }else if(existingRow){
+      await loadVerifiedCloudPreview();
+      const cloudTask=state.tasks.find(x=>String(x.id)===id);
+      render();if(cloudTask){setTimeout(()=>openSheet(cloudTask),0);return}
+      throw new Error('Conflict-test task exists in cloud but could not be loaded.');
+    }else{
+      await cloudInsertTask(t,true);
+    }
+    clearPlanlyPendingWrite('task',id);
+    state.tasks=state.tasks.filter(x=>String(x.id)!==id);state.tasks.push(t);persistPlanlyCloudCache();
+    state.tab='today';state.selectedDate=t.date;setPlanlyCloudLocalStatus({state:'cloud-write-test',taskCount:state.tasks.length,projectCount:state.projects.length});render();showToast(existingRow?.deleted_at?'Conflict-test task restored':'Conflict-test task ready');setTimeout(()=>openSheet(t),0);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Create / open conflict-test task'}
+  }
+}
 async function runDeterministicConflictTest(btn){
   if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)throw new Error('Enable the controlled write test first.');
   const id='planly-cloud-conflict-test',ownerId=planlySession.user.id;
