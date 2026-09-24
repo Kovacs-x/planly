@@ -41,7 +41,16 @@ async function run(){
   }catch(e){log('swFetchError',e.name+': '+e.message)}
   let reg;
   try{
-    reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+    const existing=await navigator.serviceWorker.getRegistration('./');
+    if(existing&&!existing.installing&&!existing.waiting&&!existing.active){
+      log('staleEmptyRegistration','found; unregistering before retry');
+      await existing.unregister();
+      await wait(250);
+    }
+    reg=await Promise.race([
+      navigator.serviceWorker.register('./sw.js',{scope:'./'}),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('register() timed out after 6s')),6000))
+    ]);
     log('registerPromise','resolved');
     log('registrationScope',reg.scope);
     log('stateImmediately',{installing:reg.installing?.state||'',waiting:reg.waiting?.state||'',active:reg.active?.state||''});
