@@ -1114,9 +1114,26 @@ function initPlanlySupabase(){
 }
 function planlyLastAccountId(){return String(planlySession?.user?.id||localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||'')}
 function rememberPlanlyAccount(session){const id=session?.user?.id;if(id)localStorage.setItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY,String(id))}
+function resetPlanlyCloudRuntimeState(){
+  state.tasks=[];state.projects=[];
+  state.defaultCategory='Personal';state.defaultDuration=30;state.autoCompleteParentSubtasks=false;state.planningStart='08:00';state.planningEnd='23:00';
+  planlyCloudSyncMeta={tasks:new Map(),projects:new Map(),preferences:0};planlyCloudReadOnly=true;planlyCloudBootstrapPending=PLANLY_CLOUD_PREVIEW;planlyReconcilePromise=null;planlyLastReconcileAt=0;
+  editingSubtasks=[];activeSearchFilter='all';projectPanelMode='list';activeProjectId='';editingProjectId='';dayPlanDraft=null;dayPlanStep=0;dayPlanGroups={overdue:[],inbox:[],today:[]};timelineDrag=null;taskActionId='';
+  clearInterval(focusTicker);focusTicker=null;focusTaskId='';focusElapsedMs=0;focusStartedAt=0;expandedTaskChecklists.clear();
+  planlyCalendarSources=[];planlyExternalEvents=[];planlyCalendarDataError='';
+  for(const id of ['sheetWrap','taskActionWrap','timelineWrap','planDayWrap','focusWrap','searchWrap','projectsWrap']){const el=$('#'+id);if(el){el.classList.remove('open');el.setAttribute('aria-hidden','true')}}
+}
+function adoptPlanlySession(session,{explicitSignOut=false}={}){
+  const previousOwner=String(planlySession?.user?.id||localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||''),nextOwner=String(session?.user?.id||''),ownerChanged=!!previousOwner&&!!nextOwner&&previousOwner!==nextOwner;
+  planlySession=session||null;
+  if(ownerChanged||explicitSignOut)resetPlanlyCloudRuntimeState();
+  if(nextOwner)localStorage.setItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY,nextOwner);
+  else if(explicitSignOut)localStorage.removeItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY);
+  return {previousOwner,nextOwner,ownerChanged,explicitSignOut};
+}
 async function refreshPlanlySession(){
   if(!initPlanlySupabase())return null;
-  const {data}=await planlySupabase.auth.getSession();planlySession=data?.session||null;rememberPlanlyAccount(planlySession);return planlySession;
+  const {data}=await planlySupabase.auth.getSession();adoptPlanlySession(data?.session||null);return planlySession;
 }
 function planlyAccountHtml(){
   if(!initPlanlySupabase())return '<div class="muted settingsHelp">Cloud account service unavailable. Your local Planly data is unaffected.</div>';
@@ -1347,8 +1364,8 @@ async function loadVerifiedCloudPreview(){
   const {data:sync,error:syncError}=await planlySupabase.from('planly_sync_state').select('initial_migration_completed_at,migration_project_count,migration_task_count,migration_digest').eq('owner_id',ownerId).maybeSingle();
   if(syncError)throw syncError;if(!sync?.initial_migration_completed_at)return false;
   const [tasksRes,projectsRes,prefsRes]=await Promise.all([
-    planlySupabase.from('planly_tasks').select('client_id,data,cloud_version,deleted_at').is('deleted_at',null),
-    planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').is('deleted_at',null),
+    planlySupabase.from('planly_tasks').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).is('deleted_at',null),
+    planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).is('deleted_at',null),
     planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle()
   ]);
   for(const r of [tasksRes,projectsRes,prefsRes])if(r.error)throw r.error;
@@ -1363,14 +1380,14 @@ async function loadVerifiedCloudPreview(){
 async function planlySignIn(){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
   const email=$('#planlyAuthEmail')?.value.trim(),password=$('#planlyAuthPassword')?.value||'';if(!email||!password)throw new Error('Enter your email and password.');
-  const {data,error}=await planlySupabase.auth.signInWithPassword({email,password});if(error)throw error;planlySession=data.session;rememberPlanlyAccount(planlySession);showToast('Signed in to Planly');render();
+  const {data,error}=await planlySupabase.auth.signInWithPassword({email,password});if(error)throw error;adoptPlanlySession(data.session);showToast('Signed in to Planly');render();
 }
 async function planlySignUp(){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
   const email=$('#planlyAuthEmail')?.value.trim(),password=$('#planlyAuthPassword')?.value||'';if(!email||password.length<8)throw new Error('Enter your email and a password of at least 8 characters.');
-  const {data,error}=await planlySupabase.auth.signUp({email,password,options:{emailRedirectTo:'https://kovacs-x.github.io/planly/v2/'}});if(error)throw error;planlySession=data.session||null;rememberPlanlyAccount(planlySession);showToast(data.session?'Planly account created':'Check your email to confirm your Planly account');render();
+  const {data,error}=await planlySupabase.auth.signUp({email,password,options:{emailRedirectTo:'https://kovacs-x.github.io/planly/v2/'}});if(error)throw error;adoptPlanlySession(data.session||null);showToast(data.session?'Planly account created':'Check your email to confirm your Planly account');render();
 }
-async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupabase.auth.signOut();planlySession=null;localStorage.removeItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY);planlyCalendarSources=[];planlyExternalEvents=[];showToast('Signed out of Planly');render()}
+async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupabase.auth.signOut();adoptPlanlySession(null,{explicitSignOut:true});showToast('Signed out of Planly');render()}
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
@@ -1487,6 +1504,17 @@ function planlyMutationCoverageAudit(){
   checks.push({name:'auto calendar is device-local',ok:deviceText.includes("state.autoCalendarTimed=e.target.checked;save()")&&!deviceText.includes("state.autoCalendarTimed=e.target.checked;stagePreferenceMutation")});
   return {passed:checks.every(x=>x.ok),checks};
 }
+function planlyRecoveryCoverageAudit(){
+  const signOutText=Function.prototype.toString.call(planlySignOut),startAuthText=Function.prototype.toString.call(startPlanlyAuth),bootstrapText=Function.prototype.toString.call(loadVerifiedCloudPreview),resetText=Function.prototype.toString.call(resetPlanlyCloudRuntimeState);
+  const checks=[
+    {name:'sign-out clears account runtime state',ok:signOutText.includes("explicitSignOut:true")&&signOutText.includes('adoptPlanlySession')},
+    {name:'auth account changes use context adoption',ok:startAuthText.includes('adoptPlanlySession')&&startAuthText.includes("explicitSignOut:_event==='SIGNED_OUT'")},
+    {name:'bootstrap explicitly owner-scoped',ok:(bootstrapText.match(/\.eq\('owner_id',ownerId\)/g)||[]).length>=3},
+    {name:'runtime reset preserves device-local storage',ok:!resetText.includes('PLANLY_DEVICE_SETTINGS_KEY')&&!resetText.includes('GOOGLE_AUTH_KEY')&&!resetText.includes('GOOGLE_DELETE_QUEUE_KEY')},
+    {name:'startup overlays durable pending journal',ok:Function.prototype.toString.call(applyPlanlyPendingToState).includes("op.action==='delete'")}
+  ];
+  return {passed:checks.every(x=>x.ok),checks};
+}
 async function planlyFetchTaskRow(id){
   const {data,error}=await planlySupabase.from('planly_tasks').select('client_id,data,cloud_version,deleted_at').eq('owner_id',planlySession.user.id).eq('client_id',String(id)).maybeSingle();
   if(error)throw error;return data||null;
@@ -1501,13 +1529,83 @@ async function planlyCleanupIntegrityRow(table,id){
   if(error||!data||data.deleted_at)return;
   await planlySupabase.from(table).update({deleted_at:new Date().toISOString(),client_updated_at:Date.now()}).eq('owner_id',ownerId).eq('client_id',String(id)).eq('cloud_version',Number(data.cloud_version||0));
 }
+function planlyUpsertAuditTask(t){const id=String(t.id),i=state.tasks.findIndex(x=>String(x.id)===id);if(i>=0)state.tasks[i]=t;else state.tasks.push(t)}
+function planlyRecoveryAuditTask(id,title){
+  const now=Date.now();
+  return {id,title,date:localKey(new Date()),time:'',durationMinutes:30,priority:'normal',category:'Personal',projectId:'',recurrence:'none',recurrenceConfig:null,reminder:'none',notes:'Disposable 3.2 recovery-state QA',subtasks:[],addToCalendar:false,updatedAt:now,completed:false,pinned:false,googleEventId:'',calendarSync:'',createdAt:now};
+}
+async function runPlanlyRecoveryStateAudit(stamp,steps){
+  const ownerId=planlySession.user.id,prefix='planly-integrity-task-'+stamp+'-recovery-',restartId=prefix+'restart',conflictId=prefix+'conflict',parallelId=prefix+'parallel',remoteDeleteId=prefix+'remote-delete',ids=[restartId,conflictId,parallelId,remoteDeleteId];
+  const cleanup=async()=>{
+    for(const id of ids){try{await planlyCleanupIntegrityRow('planly_tasks',id)}catch{}clearPlanlyPendingWrite('task',id);clearPlanlyConflict('task',id);planlyCloudSyncMeta.tasks.delete(id)}
+    state.tasks=state.tasks.filter(x=>!ids.includes(String(x.id)));persistPlanlyCloudCache();
+  };
+  try{
+    // Pending write + restart simulation: cache reload plus journal overlay must preserve the dirty local copy and original baseVersion.
+    let restartTask=planlyRecoveryAuditTask(restartId,'Recovery Restart — server');
+    await cloudInsertTask(restartTask,true);
+    const restartVersion=Number(planlyCloudSyncMeta.tasks.get(restartId)||0);if(!restartVersion)throw new Error('Recovery audit could not establish restart task version.');
+    planlyUpsertAuditTask(restartTask);persistPlanlyCloudCache();
+    restartTask={...restartTask,title:'Recovery Restart — pending local',updatedAt:Date.now()};planlyUpsertAuditTask(restartTask);stageTaskMutation(restartTask);
+    const restartPending=pendingPlanlyWrite('task',restartId),restartOperationId=restartPending?.operationId;
+    if(!restartPending||Number(restartPending.baseVersion)!==restartVersion||!restartOperationId)throw new Error('Pending restart journal setup failed.');
+    state.tasks=state.tasks.filter(x=>String(x.id)!==restartId);planlyCloudSyncMeta.tasks.delete(restartId);
+    if(!restorePlanlyCloudCache())throw new Error('Pending restart cache could not be restored.');
+    applyPlanlyPendingToState();
+    const recoveredRestart=state.tasks.find(x=>String(x.id)===restartId),recoveredPending=pendingPlanlyWrite('task',restartId);
+    if(recoveredRestart?.title!==restartTask.title||recoveredPending?.operationId!==restartOperationId||Number(recoveredPending?.baseVersion)!==restartVersion)throw new Error('Pending write did not survive restart simulation.');
+    let replay=await replayPlanlyPendingWrites();if(replay.errors||replay.conflicts||pendingPlanlyWrite('task',restartId))throw new Error('Restart-recovered pending write did not replay cleanly.');
+    let row=await planlyFetchTaskRow(restartId);if(row?.data?.title!==restartTask.title)throw new Error('Restart-recovered write cloud verification failed.');
+    steps.push('pending-write-restart');
+
+    // Stale second client + multiple queued writes: one conflict must not prevent an unrelated queued update from succeeding.
+    let conflictTask=planlyRecoveryAuditTask(conflictId,'Recovery Conflict — base'),parallelTask=planlyRecoveryAuditTask(parallelId,'Recovery Parallel — base');
+    await cloudInsertTask(conflictTask,true);await cloudInsertTask(parallelTask,true);
+    const conflictBase=Number(planlyCloudSyncMeta.tasks.get(conflictId)||0),parallelBase=Number(planlyCloudSyncMeta.tasks.get(parallelId)||0);
+    planlyUpsertAuditTask(conflictTask);planlyUpsertAuditTask(parallelTask);persistPlanlyCloudCache();
+    conflictTask={...conflictTask,title:'Recovery Conflict — local pending',updatedAt:Date.now()};
+    parallelTask={...parallelTask,title:'Recovery Parallel — local pending',updatedAt:Date.now()};
+    planlyUpsertAuditTask(conflictTask);planlyUpsertAuditTask(parallelTask);stageTaskMutation(conflictTask);stageTaskMutation(parallelTask);
+    const originalConflictOperation=pendingPlanlyWrite('task',conflictId)?.operationId;
+    const serverConflict={...conflictTask,title:'Recovery Conflict — remote newer',updatedAt:Date.now()},serverRow=taskCloudRow(serverConflict,ownerId);delete serverRow.owner_id;delete serverRow.client_id;
+    const {data:advanced,error:advanceError}=await planlySupabase.from('planly_tasks').update(serverRow).eq('owner_id',ownerId).eq('client_id',conflictId).eq('cloud_version',conflictBase).select('client_id,data,cloud_version').maybeSingle();
+    if(advanceError)throw advanceError;if(!advanced||Number(advanced.cloud_version)<=conflictBase)throw new Error('Stale-client setup did not advance the remote version.');
+    replay=await replayPlanlyPendingWrites();
+    const conflictRecord=readPlanlyConflicts().find(x=>x.kind==='task'&&x.id===conflictId),blockedPending=pendingPlanlyWrite('task',conflictId),parallelPending=pendingPlanlyWrite('task',parallelId);
+    row=await planlyFetchTaskRow(parallelId);
+    if(!conflictRecord||blockedPending?.status!=='conflict'||blockedPending?.operationId!==originalConflictOperation)throw new Error('Stale second-client conflict was not persisted correctly.');
+    if(parallelPending||row?.data?.title!==parallelTask.title)throw new Error('Unrelated queued write was blocked by another task conflict.');
+    state.tasks=state.tasks.filter(x=>String(x.id)!==conflictId);planlyCloudSyncMeta.tasks.delete(conflictId);
+    if(!restorePlanlyCloudCache())throw new Error('Conflict restart cache could not be restored.');
+    applyPlanlyPendingToState();
+    const recoveredConflict=state.tasks.find(x=>String(x.id)===conflictId);
+    if(recoveredConflict?.title!==conflictTask.title||!readPlanlyConflicts().some(x=>x.kind==='task'&&x.id===conflictId)||pendingPlanlyWrite('task',conflictId)?.operationId!==originalConflictOperation)throw new Error('Conflict state did not survive restart simulation.');
+    await resolvePlanlyConflictUseCloud('task',conflictId);
+    const accepted=state.tasks.find(x=>String(x.id)===conflictId);
+    if(accepted?.title!==serverConflict.title||pendingPlanlyWrite('task',conflictId)||readPlanlyConflicts().some(x=>x.kind==='task'&&x.id===conflictId))throw new Error('Conflict resolution did not cleanly accept the remote copy.');
+    steps.push('conflict-restart-multi-queue-stale-client');
+
+    // Remote deletion must remove a clean local copy during reconciliation.
+    const remoteDeleteTask=planlyRecoveryAuditTask(remoteDeleteId,'Recovery Remote Delete');
+    await cloudInsertTask(remoteDeleteTask,true);
+    const remoteDeleteVersion=Number(planlyCloudSyncMeta.tasks.get(remoteDeleteId)||0);planlyUpsertAuditTask(remoteDeleteTask);persistPlanlyCloudCache();
+    const {data:deleted,error:deleteError}=await planlySupabase.from('planly_tasks').update({deleted_at:new Date().toISOString(),client_updated_at:Date.now()}).eq('owner_id',ownerId).eq('client_id',remoteDeleteId).eq('cloud_version',remoteDeleteVersion).select('client_id,cloud_version,deleted_at').maybeSingle();
+    if(deleteError)throw deleteError;if(!deleted?.deleted_at)throw new Error('Remote-deletion setup failed.');
+    await reconcilePlanlyCloud({render:false,replay:false});
+    if(state.tasks.some(x=>String(x.id)===remoteDeleteId))throw new Error('Remote tombstone did not remove a clean local task.');
+    steps.push('remote-deletion-reconcile');
+    return true;
+  }finally{await cleanup()}
+}
+
 async function runPlanlySyncIntegritySuite(btn){
   if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)throw new Error('Enable controlled cloud writes first.');
   if(!navigator.onLine)throw new Error('The integrity suite needs an online connection.');
   if(readPlanlyPendingWrites().length||readPlanlyConflicts().length)throw new Error('Resolve or sync existing pending changes before running the integrity suite.');
-  const audit=planlyMutationCoverageAudit();
+  const audit=planlyMutationCoverageAudit(),recoveryCoverage=planlyRecoveryCoverageAudit();
   if(!audit.passed)throw new Error('Mutation coverage audit failed: '+audit.checks.filter(x=>!x.ok).map(x=>x.name).join(', '));
-  const stamp=Date.now(),taskId='planly-integrity-task-'+stamp,projectId='planly-integrity-project-'+stamp,ownerId=planlySession.user.id,steps=['mutation-audit'];
+  if(!recoveryCoverage.passed)throw new Error('Recovery coverage audit failed: '+recoveryCoverage.checks.filter(x=>!x.ok).map(x=>x.name).join(', '));
+  const stamp=Date.now(),taskId='planly-integrity-task-'+stamp,projectId='planly-integrity-project-'+stamp,ownerId=planlySession.user.id,steps=['mutation-audit','recovery-coverage-audit'];
   let childId='',projectVersion=0,taskVersion=0,preferenceVersionBefore=0;
   const removeLocalTestRows=()=>{
     state.tasks=state.tasks.filter(x=>!String(x.id).startsWith('planly-integrity-task-'+stamp));
@@ -1593,9 +1691,11 @@ async function runPlanlySyncIntegritySuite(btn){
     if(!projectRow?.deleted_at)throw new Error('Project tombstone verification failed.');
     steps.push('project-tombstone');
 
+    await runPlanlyRecoveryStateAudit(stamp,steps);
+
     if(readPlanlyPendingWrites().some(x=>[taskId,childId,projectId].includes(x.id)))throw new Error('Integrity test left pending writes behind.');
     if(readPlanlyConflicts().some(x=>[taskId,childId,projectId].includes(x.id)))throw new Error('Integrity test left conflicts behind.');
-    setPlanlyCloudLocalStatus({integritySuite:'passed',integritySuiteAt:new Date().toISOString(),integritySuiteSteps:steps,mutationAuditCount:audit.checks.length});
+    setPlanlyCloudLocalStatus({integritySuite:'passed',integritySuiteAt:new Date().toISOString(),integritySuiteSteps:steps,mutationAuditCount:audit.checks.length,recoveryAuditCount:recoveryCoverage.checks.length});
     removeLocalTestRows();persistPlanlyCloudCache();render();showToast('3.2 integrity suite passed');
     return {passed:true,steps,audit};
   }catch(err){
@@ -1668,7 +1768,7 @@ async function startPlanlyAuth(){
     }
     await loadPlanlyCalendarData();await loadVerifiedCloudPreview()
   }catch(err){planlyCloudBootstrapPending=false;if(PLANLY_CLOUD_PREVIEW){const offline=isOfflineCloudError(err),pending=readPlanlyPendingWrites(),restored=(offline||pending.length>0)&&restorePlanlyCloudCache();if(restored){applyPlanlyPendingToState();planlyCloudReadOnly=pending.length?false:planlyCloudReadOnly}console.warn('Planly cloud bootstrap stopped safely',err);setPlanlyCloudLocalStatus({state:pending.length?'offline-retry-needed':offline?'offline-retry-needed':'error',error:String(err?.message||err),cacheRestored:restored,pendingWrites:pending.length});if(restored)render()}}
-  planlySupabase.auth.onAuthStateChange((_event,session)=>{planlySession=session;rememberPlanlyAccount(session);if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()]).then(()=>render()).catch(()=>{})}else{planlyCalendarSources=[];planlyExternalEvents=[];render()}});
+  planlySupabase.auth.onAuthStateChange((_event,session)=>{adoptPlanlySession(session,{explicitSignOut:_event==='SIGNED_OUT'});if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()]).then(()=>render()).catch(()=>{})}else{render()}});
 }
 window.addEventListener('online',()=>{if(PLANLY_CLOUD_PREVIEW&&planlySession?.user)reconcilePlanlyCloud({replay:true,replayToast:'Offline changes synced'}).catch(err=>{if(!isOfflineCloudError(err))console.warn('Planly reconcile failed',err)})});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&PLANLY_CLOUD_PREVIEW&&planlySession?.user&&navigator.onLine)reconcilePlanlyCloud({minGapMs:15000,replay:true,replayToast:''}).catch(()=>{})});
