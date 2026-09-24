@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-preview-v3-2-p46';
-const PLANLY_SW_PROBE='planly-preview-sw-p46';
+const PLANLY_OFFLINE_CACHE='planly-preview-v3-2-p47';
+const PLANLY_SW_PROBE='planly-preview-sw-p47';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1571,7 +1571,7 @@ function planlyReleaseGateAudit(){
     {name:'planning surfaces available',ok:[commitPlanDay,renderTimeline,openFocus,toggleTaskPin,endTop3Drag].every(x=>typeof x==='function')},
     {name:'projects and checklist available',ok:[saveProjectEditor,toggleTaskSubtask].every(x=>typeof x==='function')},
     {name:'recurrence generation guarded',ok:typeof createNextRecurring==='function'&&fn(completeTaskWithUndo).includes('createNextRecurring')&&fn(createNextRecurring).includes('recurrence')},
-    {name:'Google calendar ownership safety present',ok:fn(syncTaskToGoogle).includes('PLANLY_CALENDAR_ID')&&fn(queueGoogleDelete).includes('googleEventId')},
+    {name:'Google calendar ownership safety present',ok:typeof calendarBase==='function'&&fn(calendarBase).includes('PLANLY_CALENDAR_ID')&&fn(syncTaskToGoogle).includes('calendarBase()')&&fn(queueGoogleDelete).includes('eventId')&&fn(deleteTaskWithUndo).includes("isRecurringGoogle?'':(t.googleEventId||'')")},
     {name:'cloud journal and conflict resolution present',ok:[stagePlanlyPendingWrite,replayPlanlyPendingWrites,resolvePlanlyConflictUseCloud,resolvePlanlyConflictKeepLocal].every(x=>typeof x==='function')},
     {name:'device settings remain separate',ok:fn(resetPlanlyCloudRuntimeState).includes("state.defaultCategory='Personal'")&&!fn(resetPlanlyCloudRuntimeState).includes('persistPlanlyDeviceSettings')},
     {name:'foreground reconciliation enabled',ok:typeof reconcilePlanlyCloud==='function'},
