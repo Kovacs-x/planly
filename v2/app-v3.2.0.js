@@ -1142,6 +1142,34 @@ function planlyAccountHtml(){
   if(planlySession?.user){const email=planlySession.user.email||'Planly account';return '<div class="calendarStatusRow"><span class="statusDot connected"></span><strong>Signed in</strong></div><div class="muted settingsHelp">'+esc(email)+'<br>Your tasks, projects and planning preferences sync securely to this Planly account and remain available offline.</div><button id="planlySignOutBtn" class="secondaryBtn">Sign out</button>'}
   return '<div class="muted settingsHelp">Sign in to sync your Planly data across sessions, keep it available offline and manage secure calendar sources.</div><form id="planlySignInForm" autocomplete="on"><div class="field"><label for="planlyAuthEmail">Email</label><input id="planlyAuthEmail" name="username" class="input" type="email" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="username" placeholder="you@example.com"></div><div class="field"><label for="planlyAuthPassword">Password</label><input id="planlyAuthPassword" name="password" class="input" type="password" autocomplete="current-password" minlength="8" placeholder="Your password"></div><button id="planlySignInBtn" class="primary" type="submit">Sign in</button></form><button id="planlySignUpBtn" class="secondaryBtn" type="button">Create account</button>';
 }
+let planlyHousehold=null,planlyHouseholdMembers=[],planlyHouseholdInvites=[],planlyHouseholdError='';
+async function loadPlanlyHousehold(){
+  if(!planlySession?.user||!initPlanlySupabase()){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';return null}
+  try{
+    const {data:memberships,error:membershipError}=await planlySupabase.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('user_id',planlySession.user.id).limit(1);
+    if(membershipError)throw membershipError;
+    const mine=(memberships||[])[0];
+    if(!mine){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';return null}
+    const {data:house,error:houseError}=await planlySupabase.from('planly_households').select('id,name,created_by,created_at').eq('id',mine.household_id).single();
+    if(houseError)throw houseError;
+    const {data:members,error:membersError}=await planlySupabase.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('household_id',mine.household_id).order('joined_at',{ascending:true});
+    if(membersError)throw membersError;
+    planlyHousehold={...house,myRole:mine.role};planlyHouseholdMembers=members||[];
+    if(mine.role==='owner'){const {data:invites,error:inviteError}=await planlySupabase.from('planly_household_invites').select('id,household_id,invited_email,status,expires_at,created_at').eq('household_id',mine.household_id).eq('status','pending').order('created_at',{ascending:false});if(inviteError)throw inviteError;planlyHouseholdInvites=invites||[]}else planlyHouseholdInvites=[];
+    planlyHouseholdError='';return planlyHousehold
+  }catch(err){planlyHouseholdError=err?.message||'Household could not be loaded.';return null}
+}
+function planlyHouseholdHtml(){
+  if(!planlySession?.user)return '<div class="muted settingsHelp">Sign in to create or join a household.</div>';
+  if(planlyHouseholdError)return '<div class="empty compactEmpty"><strong>Household unavailable</strong><br><span class="muted">'+esc(planlyHouseholdError)+'</span></div>';
+  if(!planlyHousehold)return '<div class="muted settingsHelp">Create a household to prepare secure sharing with another Planly account.</div><div class="field"><label>Household name</label><input id="planlyHouseholdName" class="input" maxlength="80" placeholder="Our household"></div><button id="planlyCreateHouseholdBtn" class="primary">Create household</button><details class="advancedSettings"><summary>Have an invite code?</summary><div class="field"><label>Invite code</label><input id="planlyHouseholdInviteToken" class="input" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Paste invite code"></div><button id="planlyAcceptHouseholdBtn" class="secondaryBtn">Join household</button></details>';
+  const owner=planlyHousehold.myRole==='owner',pending=owner&&planlyHouseholdInvites.length?'<div class="muted settingsHelp"><strong>Pending invites</strong><br>'+planlyHouseholdInvites.map(i=>esc(i.invited_email)+' · expires '+esc(new Date(i.expires_at).toLocaleDateString())).join('<br>')+'</div>':'';
+  return '<div class="calendarStatusRow"><span class="statusDot connected"></span><strong>'+esc(planlyHousehold.name)+'</strong><span class="muted">'+planlyHouseholdMembers.length+' member'+(planlyHouseholdMembers.length===1?'':'s')+'</span></div><div class="muted settingsHelp">Your role: '+esc(planlyHousehold.myRole)+'. Sharing of tasks/projects stays off until the next 3.3 phase.</div>'+pending+(owner?'<div class="field"><label>Invite by email</label><input id="planlyHouseholdInviteEmail" class="input" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="person@example.com"></div><button id="planlyCreateHouseholdInviteBtn" class="secondaryBtn">Create invite code</button>':'<button id="planlyLeaveHouseholdBtn" class="dangerBtn">Leave household</button>');
+}
+async function createPlanlyHousehold(){const name=$('#planlyHouseholdName')?.value.trim();if(!name)throw new Error('Enter a household name.');const {error}=await planlySupabase.rpc('planly_create_household',{p_name:name});if(error)throw error;await loadPlanlyHousehold();showToast('Household created');render()}
+async function createPlanlyHouseholdInvite(){const email=$('#planlyHouseholdInviteEmail')?.value.trim();if(!email)throw new Error('Enter an email address.');const {data,error}=await planlySupabase.rpc('planly_create_household_invite',{p_household_id:planlyHousehold.id,p_email:email});if(error)throw error;await loadPlanlyHousehold();render();prompt('Send this private invite code to '+email+'. It expires in 7 days.',String(data||''))}
+async function acceptPlanlyHouseholdInvite(){const token=$('#planlyHouseholdInviteToken')?.value.trim();if(!token)throw new Error('Enter the invite code.');const {error}=await planlySupabase.rpc('planly_accept_household_invite',{p_token:token});if(error)throw error;await loadPlanlyHousehold();showToast('Household joined');render()}
+async function leavePlanlyHousehold(){if(!planlyHousehold||!confirm('Leave “'+planlyHousehold.name+'”? Shared access will end immediately.'))return;const {error}=await planlySupabase.rpc('planly_leave_household',{p_household_id:planlyHousehold.id});if(error)throw error;await loadPlanlyHousehold();showToast('Left household');render()}
 function planlyCloudStatusKey(){return PLANLY_CLOUD_STATUS_PREFIX+(planlyLastAccountId()||'anonymous')}
 function planlyCloudBackupKey(){return PLANLY_CLOUD_BACKUP_PREFIX+(planlyLastAccountId()||'anonymous')}
 function planlyCloudLocalStatus(){try{return JSON.parse(localStorage.getItem(planlyCloudStatusKey())||'{}')}catch{return {}}}
@@ -1851,7 +1879,7 @@ async function startPlanlyAuth(){
       const pending=readPlanlyPendingWrites(),cached=readPlanlyCloudCache();
       if(pending.length&&cached){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',cacheRestored:true,pendingWrites:pending.length});render()}
     }
-    await Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()])
+    await Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview(),loadPlanlyHousehold()])
   }catch(err){planlyCloudBootstrapPending=false;if(PLANLY_CLOUD_PREVIEW){const offline=isOfflineCloudError(err),pending=readPlanlyPendingWrites(),restored=(offline||pending.length>0)&&restorePlanlyCloudCache();if(restored){applyPlanlyPendingToState();planlyCloudReadOnly=pending.length?false:planlyCloudReadOnly}console.warn('Planly cloud bootstrap stopped safely',err);setPlanlyCloudLocalStatus({state:pending.length?'offline-retry-needed':offline?'offline-retry-needed':'error',error:String(err?.message||err),cacheRestored:restored,pendingWrites:pending.length});if(restored)render()}}
   planlySupabase.auth.onAuthStateChange((_event,session)=>{adoptPlanlySession(session,{explicitSignOut:_event==='SIGNED_OUT'});if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()]).then(()=>render()).catch(()=>{})}else{render()}});
 }
@@ -1936,6 +1964,7 @@ function settingsView(){
   <section class="settingsGroup"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">Account</span><h2>Your Planly</h2><p>Identity, cloud state and household calendar sources.</p></div></div>
     <div class="settingsCard"><h3>Planly Account</h3>${planlyAccountHtml()}</div>
     <div class="settingsCard"><h3>Cloud Sync</h3>${planlyCloudPreviewHtml()}</div>
+    <div class="settingsCard"><h3>Household</h3>${planlyHouseholdHtml()}</div>
     <div class="settingsCard"><h3>Calendars</h3>${planlyCalendarDataError?'<div class="empty compactEmpty"><strong>Calendar data error</strong><br><span class="muted">'+esc(planlyCalendarDataError)+'</span></div>':''}${planlyCalendarSourcesHtml()}</div>
   </section>
   <section class="settingsGroup"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">Planning</span><h2>Tasks & time</h2><p>Defaults that shape new tasks and your daily timeline.</p></div></div>
@@ -1959,6 +1988,10 @@ function settingsView(){
   $$('[data-planly-calendar-remove]').forEach(btn=>btn.onclick=()=>removePlanlyCalendarSource(btn.dataset.planlyCalendarRemove,Number(btn.dataset.eventCount||0)).catch(err=>alert(err.message)));
   if($('#planlySignUpBtn'))$('#planlySignUpBtn').onclick=()=>{const email=$('#planlyAuthEmail')?.value||'';const host=$('#planlySignUpBtn').parentElement;host.innerHTML='<form id="planlySignUpForm" autocomplete="on"><div class="muted settingsHelp">Create a Planly account. Apple can suggest and save a strong password here.</div><div class="field"><label for="planlyAuthEmail">Email</label><input id="planlyAuthEmail" name="username" class="input" type="email" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="username" placeholder="you@example.com" value="'+esc(email)+'"></div><div class="field"><label for="planlyAuthPassword">New password</label><input id="planlyAuthPassword" name="new-password" class="input" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></div><button class="primary" type="submit">Create account</button><button id="planlyBackToSignInBtn" class="secondaryBtn" type="button">Back to sign in</button></form>';$('#planlySignUpForm').onsubmit=e=>{e.preventDefault();planlySignUp().catch(err=>alert(err.message))};$('#planlyBackToSignInBtn').onclick=()=>render()};
   if($('#planlySignOutBtn'))$('#planlySignOutBtn').onclick=()=>planlySignOut().catch(err=>alert(err.message));
+  if($('#planlyCreateHouseholdBtn'))$('#planlyCreateHouseholdBtn').onclick=()=>createPlanlyHousehold().catch(err=>alert(err.message));
+  if($('#planlyCreateHouseholdInviteBtn'))$('#planlyCreateHouseholdInviteBtn').onclick=()=>createPlanlyHouseholdInvite().catch(err=>alert(err.message));
+  if($('#planlyAcceptHouseholdBtn'))$('#planlyAcceptHouseholdBtn').onclick=()=>acceptPlanlyHouseholdInvite().catch(err=>alert(err.message));
+  if($('#planlyLeaveHouseholdBtn'))$('#planlyLeaveHouseholdBtn').onclick=()=>leavePlanlyHousehold().catch(err=>alert(err.message));
   $('#themeSetting').value=state.theme;
   $('#defaultCat').value=state.defaultCategory;
   $('#defaultDuration').value=String(state.defaultDuration||30);
