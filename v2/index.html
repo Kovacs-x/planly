@@ -10,10 +10,39 @@
   <meta name="theme-color" content="#111215" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Planly" />
+  <meta name="apple-mobile-web-app-title" content="Planly 3.2" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="../icon-192.png" />
-  <title>Planly</title>
+  <title>Planly 3.2 Preview</title>
+  <script>
+    window.__planlySwBoot={status:'starting'};
+    if('serviceWorker' in navigator){
+      (async()=>{
+        try{
+          const regs=await navigator.serviceWorker.getRegistrations();
+          for(const reg of regs){
+            const path=new URL(reg.scope).pathname;
+            if(path.endsWith('/planly/')) await reg.unregister();
+            if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active) await reg.unregister();
+          }
+          await new Promise(resolve=>setTimeout(resolve,250));
+          const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+          if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+          window.__planlySwBoot={
+            status:'registered',
+            scope:reg.scope,
+            active:reg.active?.state||'',
+            waiting:reg.waiting?.state||'',
+            installing:reg.installing?.state||''
+          };
+        }catch(err){
+          window.__planlySwBoot={status:'error',name:err?.name||'',message:err?.message||String(err)};
+        }
+      })();
+    }else{
+      window.__planlySwBoot={status:'unsupported'};
+    }
+  </script>
   <style>
     :root{--bg:#f7f7f9;--card:#fff;--text:#111215;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--accentText:#fff;--selected:#111827;--selectedText:#fff;--danger:#b91c1c;--success:#15803d;--warning:#b45309;--shadow:0 8px 30px rgba(0,0,0,.06)}
     :root[data-theme="dark"]{--bg:#111215;--card:#191b20;--text:#f9fafb;--muted:#9ca3af;--line:#2b2e35;--accent:#f3f4f6;--accentText:#111215;--selected:#2b3039;--selectedText:#f9fafb;--danger:#f87171;--success:#4ade80;--warning:#fbbf24;--shadow:none}
@@ -88,6 +117,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.1.0.js"></script>
+<script src="./app-v3.2.0.js?v=320"></script>
 </body>
 </html>
