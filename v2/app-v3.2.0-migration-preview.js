@@ -1188,7 +1188,7 @@ async function loadVerifiedCloudPreview(){
   assertUniqueLocalIds(tasks,'Cloud tasks');assertUniqueLocalIds(projects,'Cloud projects');rememberCloudVersions(taskRows,projectRows);
   state.tasks=tasks;state.projects=projects;
   const p=prefsRes.data;if(p){state.defaultCategory=p.default_category||'Personal';state.defaultDuration=Number(p.default_duration||30);state.autoCompleteParentSubtasks=!!p.auto_complete_parent_subtasks;state.planningStart=p.planning_start||'08:00';state.planningEnd=p.planning_end||'23:00'}
-  const previousStatus=planlyCloudLocalStatus();planlyCloudReadOnly=!['cloud-write-test','offline-retry-needed'].includes(previousStatus.state);planlyCloudBootstrapPending=false;applyPlanlyPendingToState();persistPlanlyCloudCache();setPlanlyCloudLocalStatus({state:planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',taskCount:tasks.length,projectCount:projects.length,loadedAt:new Date().toISOString(),pendingWrites:readPlanlyPendingWrites().length});if(!planlyCloudReadOnly&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced');return true;
+  const previousStatus=planlyCloudLocalStatus(),pendingBeforeOverlay=readPlanlyPendingWrites();planlyCloudReadOnly=pendingBeforeOverlay.length?false:!['cloud-write-test','offline-retry-needed'].includes(previousStatus.state);planlyCloudBootstrapPending=false;applyPlanlyPendingToState();persistPlanlyCloudCache();setPlanlyCloudLocalStatus({state:planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',taskCount:tasks.length,projectCount:projects.length,loadedAt:new Date().toISOString(),pendingWrites:readPlanlyPendingWrites().length});if(!planlyCloudReadOnly&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced');return true;
 }
 async function planlySignIn(){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
@@ -1203,8 +1203,15 @@ async function planlySignUp(){
 async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupabase.auth.signOut();planlySession=null;planlyCalendarSources=[];planlyExternalEvents=[];showToast('Signed out of Planly');render()}
 async function startPlanlyAuth(){
   if(!initPlanlySupabase())return;
-  try{await refreshPlanlySession();await loadPlanlyCalendarData();await loadVerifiedCloudPreview()}catch(err){planlyCloudBootstrapPending=false;if(PLANLY_CLOUD_PREVIEW){const offline=isOfflineCloudError(err),restored=offline&&restorePlanlyCloudCache();console.warn('Planly cloud bootstrap stopped safely',err);setPlanlyCloudLocalStatus({state:offline?'offline-retry-needed':'error',error:String(err?.message||err),cacheRestored:restored,pendingWrites:readPlanlyPendingWrites().length});if(restored)render()}}
-  planlySupabase.auth.onAuthStateChange((_event,session)=>{planlySession=session;if(session)Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()]).then(()=>render()).catch(()=>{});else{planlyCalendarSources=[];planlyExternalEvents=[];render()}});
+  try{
+    await refreshPlanlySession();
+    if(PLANLY_CLOUD_PREVIEW&&planlySession?.user){
+      const pending=readPlanlyPendingWrites(),cached=readPlanlyCloudCache();
+      if(pending.length&&cached){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',cacheRestored:true,pendingWrites:pending.length});render()}
+    }
+    await loadPlanlyCalendarData();await loadVerifiedCloudPreview()
+  }catch(err){planlyCloudBootstrapPending=false;if(PLANLY_CLOUD_PREVIEW){const offline=isOfflineCloudError(err),pending=readPlanlyPendingWrites(),restored=(offline||pending.length>0)&&restorePlanlyCloudCache();if(restored){applyPlanlyPendingToState();planlyCloudReadOnly=pending.length?false:planlyCloudReadOnly}console.warn('Planly cloud bootstrap stopped safely',err);setPlanlyCloudLocalStatus({state:pending.length?'offline-retry-needed':offline?'offline-retry-needed':'error',error:String(err?.message||err),cacheRestored:restored,pendingWrites:pending.length});if(restored)render()}}
+  planlySupabase.auth.onAuthStateChange((_event,session)=>{planlySession=session;if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()]).then(()=>render()).catch(()=>{})}else{planlyCalendarSources=[];planlyExternalEvents=[];render()}});
 }
 window.addEventListener('online',()=>{if(PLANLY_CLOUD_PREVIEW&&planlySession?.user&&!planlyCloudReadOnly&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced')});
 let planlyCalendarSources=[],planlyExternalEvents=[],monthCalendarFilter='all',planlyCalendarDataError='';
