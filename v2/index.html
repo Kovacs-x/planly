@@ -95,6 +95,11 @@
     #addBtn{position:fixed!important;bottom:calc(76px + env(safe-area-inset-bottom))!important;z-index:41!important}
     .upcomingSection:last-of-type,.completedSection:last-child,.upcomingEmpty{margin-bottom:0}
     @media(max-width:520px){.app{padding-bottom:calc(126px + env(safe-area-inset-bottom))}#view{padding-bottom:24px}.nav{bottom:0!important;width:100%!important;padding-left:8px!important;padding-right:8px!important}.nav button{min-height:50px!important}}
+
+    /* UI overhaul phase 3 — Upcoming + Month */
+    .upcomingSummary{position:relative;top:auto;display:grid;grid-template-columns:1fr auto;align-items:center;padding:14px 15px;margin-bottom:20px;background:linear-gradient(180deg,var(--card),var(--cardSoft));box-shadow:none}.upcomingSummary strong{font-size:18px;letter-spacing:-.02em}.upcomingSummary .muted{font-size:11px;font-weight:700}.upcomingSection{margin-top:24px}.upcomingSection>.sectionHead{padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:12px}.upcomingDateGroup{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:10px;margin:0 0 15px}.upcomingDateLabel{padding:10px 0 0;margin:0;font-size:11px;line-height:1.3;font-weight:760}.upcomingDateGroup>.task{grid-column:2}.upcomingDateGroup>.task+.task{grid-column:2}.upcomingDateGroup .taskSurface{min-height:58px}
+    .monthShell{background:var(--card);border:1px solid var(--line);border-radius:var(--radiusCard);padding:12px;margin-bottom:18px}.monthControls{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;gap:8px;margin-bottom:10px}.monthControls button{height:40px;border:1px solid var(--line);background:var(--cardSoft);color:var(--text);border-radius:12px;font-weight:750}.monthControls .monthToday{font-size:12px}.calendarFilters{margin-bottom:13px}.calendar{gap:3px}.dow{height:26px;font-size:10px;font-weight:750}.day{aspect-ratio:auto;min-height:49px;border-radius:11px;font-size:12px;padding:4px 2px;justify-content:flex-start}.day>span{font-weight:680;line-height:18px}.day.has{background:var(--cardSoft);border-color:transparent}.day.doneDay{border-color:transparent}.day.selected{background:var(--selected);border-color:var(--selected);box-shadow:0 0 0 1px var(--selected)}.day.isToday:not(.selected)>span{display:grid;place-items:center;min-width:20px;height:20px;padding:0 4px;border-radius:999px;background:var(--text);color:var(--bg)}.day.selected .calendarShiftLabel{background:color-mix(in srgb,#E78AA7 35%,var(--selectedText));color:var(--selectedText)}.calendarShiftLabel{max-width:95%;font-size:7px!important}.calendarDots{margin-top:2px}.monthAgenda{margin-top:6px}.monthAgenda>.sectionHead{padding-bottom:9px;border-bottom:1px solid var(--line)}.monthAgendaDate{font-size:18px!important;letter-spacing:-.02em}
+    @media(max-width:520px){.upcomingDateGroup{grid-template-columns:64px minmax(0,1fr);column-gap:8px}.upcomingDateLabel{font-size:10px}.monthShell{padding:9px}.day{min-height:45px}.calendar{gap:2px}.calendarShiftLabel{font-size:6.5px!important;padding-left:2px;padding-right:2px}}
   </style>
 </head>
 <body>
@@ -146,6 +151,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0.js?v=323ui2fix"></script>
+<script src="./app-v3.2.0.js?v=324ui3"></script>
 </body>
 </html>
