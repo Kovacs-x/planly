@@ -386,7 +386,7 @@ function taskHtml(t,top3Mode=false){
   const projectMeta=projectName?`<button type="button" class="projectTaskPill" data-action="project" data-project-id="${esc(t.projectId)}">▦ ${esc(projectName)}</button>`:'';
   const sharedMeta=t.visibility==='household'?'<span class="pill householdTaskPill">⌂ Household</span>':'';
   const surface=`<div class="taskSurface"><button class="check" data-action="toggle" aria-label="Toggle complete">${t.completed?'✓':''}</button><div class="taskBody ${subtasks.length?'checklistTap':''}" ${subtasks.length?'data-action="checklist" aria-label="Open checklist"':''}><div class="taskTitle">${esc(t.title)}</div><div class="meta">${t.time?`<span class="taskTimeBadge">${esc(t.time)} · ${durationLabel(t.durationMinutes)}</span>`:''}${isOverdue(t)?`<span class="pill" style="color:var(--danger)">Overdue · ${esc(fmt(t.date,{day:'numeric',month:'short'}))}</span>`:''}<span class="categoryBadge category-${String(t.category||"personal").toLowerCase().replace(/[^a-z0-9_-]/g,"")}"><span class="categoryDot"></span>${esc(t.category)}</span>${projectMeta}${sharedMeta}${priority}${t.recurrence&&t.recurrence!=='none'?`<span class="pill">↻ ${esc(recurrenceLabel(t))}</span>`:''}${reminder?`<span class="pill">◷ ${esc(reminder)}</span>`:''}${subtaskMeta}${calendarSyncHtml(t)}</div>${t.notes?`<div class="taskNotes muted">${esc(t.notes)}</div>`:''}${inlineChecklist}${isOverdue(t)?`<button class="chip" data-action="today" style="margin-top:10px;padding:7px 10px">Move to Today</button>`:''}</div><div class="taskActions">${top3Mode&&!t.completed?'<button type="button" class="top3DragHandle" aria-label="Drag to reorder Top 3">≡</button>':''}${t.completed?'':`<button class="smallbtn" data-action="pin" aria-label="Pin">${t.pinned?'★':'☆'}</button>`}<button class="smallbtn" data-action="actions" aria-label="Task actions">•••</button></div></div>`;
-  return `<div class="task taskSwipe ${t.completed?'done':''}" data-id="${t.id}"><div class="swipeUnderlay"><div class="swipeCompleteCue">✓ Complete</div><div class="swipeQuickActions"><button data-action="tomorrow">Tomorrow</button><button data-action="edit">Edit</button><button data-action="delete">Delete</button></div></div>${surface}</div>`
+  return `<div class="task taskSwipe ${t.completed?'done':''}" data-id="${t.id}" data-owner="${esc(t._planlyOwnerId||planlySession?.user?.id||'')}"><div class="swipeUnderlay"><div class="swipeCompleteCue">✓ Complete</div><div class="swipeQuickActions"><button data-action="tomorrow">Tomorrow</button><button data-action="edit">Edit</button><button data-action="delete">Delete</button></div></div>${surface}</div>`
 }
 function visibleTasks(arr){return state.showCompleted?arr:arr.filter(t=>!t.completed)}
 function completedSection(tasks,key){
@@ -2240,7 +2240,8 @@ function handleViewClick(e){
   const actionEl=e.target.closest('[data-action]');
   if(!actionEl)return;
 
-  const t=state.tasks.find(x=>x.id===taskEl.dataset.id);
+  const candidates=state.tasks.filter(x=>String(x.id)===String(taskEl.dataset.id)),ownerKey=String(taskEl.dataset.owner||'');
+  const t=(ownerKey?candidates.find(x=>String(x._planlyOwnerId||planlySession?.user?.id||'')===ownerKey):null)||candidates.find(x=>x._planlyOwnedByMe!==false)||candidates[0];
   if(!t)return;
 
   const action=actionEl.dataset.action;
