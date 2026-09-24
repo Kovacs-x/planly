@@ -15,10 +15,30 @@
   <link rel="apple-touch-icon" href="../icon-192.png" />
   <title>Planly 3.2 Preview</title>
   <script>
+    window.__planlySwBoot={status:'starting'};
     if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('./sw.js?v=p29',{scope:'./'}).then(reg=>{
-        if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-      }).catch(()=>{});
+      (async()=>{
+        try{
+          const regs=await navigator.serviceWorker.getRegistrations();
+          for(const reg of regs){
+            const path=new URL(reg.scope).pathname;
+            if(path.endsWith('/planly/')) await reg.unregister();
+          }
+          const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+          if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+          window.__planlySwBoot={
+            status:'registered',
+            scope:reg.scope,
+            active:reg.active?.state||'',
+            waiting:reg.waiting?.state||'',
+            installing:reg.installing?.state||''
+          };
+        }catch(err){
+          window.__planlySwBoot={status:'error',name:err?.name||'',message:err?.message||String(err)};
+        }
+      })();
+    }else{
+      window.__planlySwBoot={status:'unsupported'};
     }
   </script>
   <style>
@@ -95,6 +115,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0-migration-preview.js?v=320p29"></script>
+<script src="./app-v3.2.0-migration-preview.js?v=320p30"></script>
 </body>
 </html>
