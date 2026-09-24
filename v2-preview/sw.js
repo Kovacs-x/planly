@@ -1,5 +1,5 @@
-const CACHE='planly-preview-v3-2-p31';
-const VERSION='planly-preview-sw-p31';
+const CACHE='planly-preview-v3-2-p32';
+const VERSION='planly-preview-sw-p32';
 const REQUIRED=['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
