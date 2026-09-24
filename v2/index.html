@@ -158,6 +158,18 @@
 
     /* Task composer iPhone reachability fix */
     .sheet{padding-bottom:calc(118px + env(safe-area-inset-bottom));scroll-padding-bottom:calc(118px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}.sheet #taskForm{padding-bottom:8px}.sheet .formActions{position:relative;z-index:2;margin-top:14px;margin-bottom:8px}.fab{display:grid;place-items:center;padding:0;line-height:1}.fab .pIcon{display:block;margin:auto}.fab>svg{position:relative;left:0;top:0}
+  
+    /* Settings typography system — one visual hierarchy across every settings surface */
+    .settingsGroup{--settingsTitle:15px;--settingsRowTitle:13px;--settingsBody:12px;--settingsMeta:10px;--settingsLabel:9px}
+    .settingsGroupHead{margin-bottom:11px}.settingsGroupHead .calendarGroupLabel{font-size:var(--settingsLabel);font-weight:760;letter-spacing:.095em;line-height:1.2}.settingsGroupHead h2{font-size:18px;font-weight:740;line-height:1.18;letter-spacing:-.018em}.settingsGroupHead p{font-size:11px;line-height:1.45}
+    .settingsCard{padding:15px 16px}.settingsCard>h3{margin:0 0 12px!important;font-size:var(--settingsTitle)!important;font-weight:720!important;line-height:1.25!important;letter-spacing:-.012em!important}.settingsCard .settingsHelp{font-size:var(--settingsBody);line-height:1.48}.settingsPrimaryRow{gap:9px;margin-bottom:8px}.settingsPrimaryRow strong{font-size:var(--settingsTitle);font-weight:720;line-height:1.3;letter-spacing:-.01em}
+    .householdSettingsCard{padding:15px 16px}.householdSettingsCard>h3{margin-bottom:12px!important}.householdSettings{gap:12px}.householdSummary{padding:13px 14px;border-radius:15px}.householdSummaryName{gap:9px}.householdSummaryName strong{font-size:var(--settingsTitle);font-weight:720;line-height:1.3;letter-spacing:-.01em}.householdSummaryMeta{margin-top:6px;font-size:var(--settingsMeta);line-height:1.4}.householdRoleBadge{min-height:23px;padding:4px 9px;font-size:var(--settingsMeta);font-weight:720;letter-spacing:0}
+    .householdPrivacyNote{padding:11px 12px}.householdPrivacyNote strong{font-size:var(--settingsRowTitle);font-weight:700;line-height:1.3}.householdPrivacyNote span{font-size:11px;line-height:1.45}.householdSubsection{gap:9px;padding-top:13px}.householdSectionEyebrow{font-size:var(--settingsLabel);font-weight:760;letter-spacing:.095em}.householdSubsectionHead h4{margin-top:3px;font-size:var(--settingsTitle);font-weight:720;line-height:1.28;letter-spacing:-.01em}.householdSubsectionHead p{font-size:11px;line-height:1.45}.householdCount{font-size:var(--settingsMeta);font-weight:680}.householdMemberRow{padding:11px 12px}.householdMemberName{font-size:var(--settingsRowTitle);font-weight:700;line-height:1.35;letter-spacing:-.004em}.householdMemberMeta{font-size:var(--settingsMeta);line-height:1.35}
+    .householdManageText strong{font-size:var(--settingsRowTitle);font-weight:700;line-height:1.35;letter-spacing:-.004em}.householdManageText small{font-size:var(--settingsMeta);line-height:1.4}.householdManageChevron{font-weight:400}.householdPanelHint,.householdInviteReady>p,.householdEmptyIntro p{font-size:11px;line-height:1.45}.householdInviteReady>strong,.householdEmptyIntro strong{font-size:var(--settingsRowTitle);font-weight:700}
+    .calendarSourceDetails>summary{padding:11px 12px}.calendarSourceSummaryText{gap:3px}.calendarSourceSummaryText strong{font-size:var(--settingsRowTitle);font-weight:700;line-height:1.35;letter-spacing:-.004em}.calendarSourceSummaryText small{font-size:var(--settingsMeta);line-height:1.35}.calendarSourceChevron{font-weight:400}
+    .settingsCard .settingToggle>span{font-size:var(--settingsBody);line-height:1.4}.settingsCard .settingToggle strong{font-weight:700}.settingsCard .settingToggle small{font-size:10px;line-height:1.4}.settingsCard .field>label,.settingsCard .smallLabel{font-size:11px;font-weight:650;line-height:1.35}.settingsCard .advancedSettings>summary{font-size:var(--settingsRowTitle);font-weight:700;line-height:1.35}
+    @media(max-width:420px){.settingsCard,.householdSettingsCard{padding:14px}.settingsGroupHead h2{font-size:18px}.householdSummaryName strong,.settingsPrimaryRow strong{font-size:15px}}
+
   </style>
 </head>
 <body>
@@ -209,6 +221,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0.js?v=330a6"></script>
+<script src="./app-v3.2.0.js?v=330a7"></script>
 </body>
 </html>
