@@ -1,17 +1,32 @@
-const CACHE='planly-preview-v3-2-p28';
-const VERSION='planly-preview-sw-p28';
-const ASSETS=['./','./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest','../icon-192.png','../icon-512.png'];
+const CACHE='planly-preview-v3-2-p29';
+const VERSION='planly-preview-sw-p29';
+const REQUIRED=['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'];
+const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
+
+async function cacheOne(cache,url){
+  try{
+    const response=await fetch(url,{cache:'reload'});
+    if(response?.ok){await cache.put(url,response.clone());return true}
+  }catch{}
+  return false;
+}
 
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE);
+    const required=await Promise.all(REQUIRED.map(url=>cacheOne(cache,url)));
+    if(required.some(ok=>!ok))throw new Error('Required Planly preview asset failed to cache');
+    await Promise.allSettled(OPTIONAL.map(url=>cacheOne(cache,url)));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate',event=>{
-  event.waitUntil(
-    caches.keys()
-      .then(keys=>Promise.all(keys.filter(key=>key.startsWith('planly-preview-v3-2-')&&key!==CACHE).map(key=>caches.delete(key))))
-      .then(()=>self.clients.claim())
-  );
+  event.waitUntil((async()=>{
+    const keys=await caches.keys();
+    await Promise.all(keys.filter(key=>key.startsWith('planly-preview-v3-2-')&&key!==CACHE).map(key=>caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('message',event=>{
@@ -26,32 +41,30 @@ self.addEventListener('fetch',event=>{
     return;
   }
   if(event.request.mode==='navigate'){
-    event.respondWith(
-      caches.open(CACHE).then(async cache=>{
-        const cached=await cache.match('./index.html',{ignoreSearch:true})||await cache.match('./',{ignoreSearch:true});
-        if(cached)return cached;
-        try{
-          const response=await fetch(event.request,{cache:'no-store'});
-          if(response?.ok)cache.put('./index.html',response.clone()).catch(()=>{});
-          return response;
-        }catch{
-          return new Response('<!doctype html><title>Planly offline</title><body>Planly offline cache is unavailable.</body>',{status:503,headers:{'Content-Type':'text/html'}});
-        }
-      })
-    );
+    event.respondWith((async()=>{
+      const cache=await caches.open(CACHE);
+      const cached=await cache.match('./index.html',{ignoreSearch:true})||await cache.match('./',{ignoreSearch:true});
+      if(cached)return cached;
+      try{
+        const response=await fetch(event.request,{cache:'no-store'});
+        if(response?.ok)await cache.put('./index.html',response.clone());
+        return response;
+      }catch{
+        return new Response('<!doctype html><title>Planly offline</title><body>Planly offline cache is unavailable.</body>',{status:503,headers:{'Content-Type':'text/html'}});
+      }
+    })());
     return;
   }
   if(url.origin===self.location.origin){
-    event.respondWith(
-      caches.match(event.request,{ignoreSearch:true}).then(async cached=>{
-        if(cached)return cached;
-        try{
-          const response=await fetch(event.request,{cache:'no-store'});
-          if(response?.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>{});
-          return response;
-        }catch{return Response.error()}
-      })
-    );
+    event.respondWith((async()=>{
+      const cached=await caches.match(event.request,{ignoreSearch:true});
+      if(cached)return cached;
+      try{
+        const response=await fetch(event.request,{cache:'no-store'});
+        if(response?.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>{});
+        return response;
+      }catch{return Response.error()}
+    })());
     return;
   }
   event.respondWith(fetch(event.request).catch(()=>Response.error()));

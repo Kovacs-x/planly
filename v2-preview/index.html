@@ -14,6 +14,13 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="../icon-192.png" />
   <title>Planly 3.2 Preview</title>
+  <script>
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('./sw.js?v=p29',{scope:'./'}).then(reg=>{
+        if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+      }).catch(()=>{});
+    }
+  </script>
   <style>
     :root{--bg:#f7f7f9;--card:#fff;--text:#111215;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--accentText:#fff;--selected:#111827;--selectedText:#fff;--danger:#b91c1c;--success:#15803d;--warning:#b45309;--shadow:0 8px 30px rgba(0,0,0,.06)}
     :root[data-theme="dark"]{--bg:#111215;--card:#191b20;--text:#f9fafb;--muted:#9ca3af;--line:#2b2e35;--accent:#f3f4f6;--accentText:#111215;--selected:#2b3039;--selectedText:#f9fafb;--danger:#f87171;--success:#4ade80;--warning:#fbbf24;--shadow:none}
@@ -88,6 +95,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0-migration-preview.js?v=320p28"></script>
+<script src="./app-v3.2.0-migration-preview.js?v=320p29"></script>
 </body>
 </html>
