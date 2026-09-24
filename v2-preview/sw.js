@@ -1,5 +1,5 @@
-const CACHE='planly-preview-v3-2-p26';
-const VERSION='planly-preview-sw-p26';
+const CACHE='planly-preview-v3-2-p28';
+const VERSION='planly-preview-sw-p28';
 const ASSETS=['./','./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest','../icon-192.png','../icon-512.png'];
 
 self.addEventListener('install',event=>{

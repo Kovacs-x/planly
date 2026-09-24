@@ -1,4 +1,5 @@
-const CACHE='planly-v10';
+const CACHE='planly-root-v11';
+const LEGACY_ROOT_CACHES=new Set(['planly-v10']);
 const ASSETS=['./','./index.html','./loader-v1.2.4.js','./app.js?v=1.2.4','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
@@ -11,21 +12,29 @@ self.addEventListener('install',event=>{
 
 self.addEventListener('activate',event=>{
   event.waitUntil(
-    caches.keys()
-      .then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
-      .then(()=>self.clients.claim())
+    caches.keys().then(keys=>Promise.all(
+      keys.filter(key=>LEGACY_ROOT_CACHES.has(key)||key.startsWith('planly-root-')&&key!==CACHE)
+        .map(key=>caches.delete(key))
+    ))
   );
 });
 
 self.addEventListener('fetch',event=>{
-  if(event.request.method!=='GET') return;
+  if(event.request.method!=='GET')return;
+  const url=new URL(event.request.url);
+  // /v2/ and /v2-preview/ own their service-worker scopes. The root worker must not
+  // intercept their navigations/assets or mutate their caches.
+  if(url.origin===self.location.origin&&(url.pathname.includes('/planly/v2/')||url.pathname.includes('/planly/v2-preview/')))return;
+
   event.respondWith(
     fetch(event.request,{cache:'no-store'})
       .then(response=>{
-        const copy=response.clone();
-        caches.open(CACHE).then(cache=>cache.put(event.request,copy));
+        if(response?.ok&&url.origin===self.location.origin){
+          const copy=response.clone();
+          caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});
+        }
         return response;
       })
-      .catch(()=>caches.match(event.request).then(cached=>cached||caches.match('./index.html')))
+      .catch(()=>caches.match(event.request,{ignoreSearch:true}).then(cached=>cached||caches.match('./index.html')))
   );
 });
