@@ -30,8 +30,7 @@ begin
     else coalesce(new.household_id, old.household_id)
   end;
 
-  if v_household is not null
-     and (tg_op = 'DELETE' or old.household_id is not distinct from v_household or new.household_id is not null) then
+  if v_household is not null then
     perform realtime.broadcast_changes(
       'household:' || v_household::text,
       tg_op,
