@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-330a5';
-const PLANLY_SW_PROBE='planly-v2-sw-330a5';
+const PLANLY_OFFLINE_CACHE='planly-v2-330a6';
+const PLANLY_SW_PROBE='planly-v2-sw-330a6';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1144,6 +1144,7 @@ function planlyAccountHtml(){
   return '<div class="muted settingsHelp">Sign in to sync your Planly data across sessions, keep it available offline and manage secure calendar sources.</div><form id="planlySignInForm" autocomplete="on"><div class="field"><label for="planlyAuthEmail">Email</label><input id="planlyAuthEmail" name="username" class="input" type="email" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="username" placeholder="you@example.com"></div><div class="field"><label for="planlyAuthPassword">Password</label><input id="planlyAuthPassword" name="password" class="input" type="password" autocomplete="current-password" minlength="8" placeholder="Your password"></div><button id="planlySignInBtn" class="primary" type="submit">Sign in</button></form><button id="planlySignUpBtn" class="secondaryBtn" type="button">Create account</button>';
 }
 const PLANLY_HOUSEHOLD_INVITE_SESSION_KEY='planly-household-invite-session-v1';
+const PLANLY_HOUSEHOLD_MANAGE_SESSION_KEY='planly-household-manage-open-v1';
 let planlyHousehold=null,planlyHouseholdMembers=[],planlyHouseholdInvites=[],planlyHouseholdError='',planlyPendingHouseholdInviteToken='',planlyFreshHouseholdInvite=null;
 function normalizePlanlyHouseholdInviteToken(value){const token=String(value||'').trim().toLowerCase();return /^[0-9a-f]{64}$/.test(token)?token:''}
 function readPendingPlanlyHouseholdInvite(){try{const token=normalizePlanlyHouseholdInviteToken(sessionStorage.getItem(PLANLY_HOUSEHOLD_INVITE_SESSION_KEY));if(!token)sessionStorage.removeItem(PLANLY_HOUSEHOLD_INVITE_SESSION_KEY);return token}catch{return ''}}
@@ -1151,6 +1152,8 @@ function setPendingPlanlyHouseholdInvite(value){const token=normalizePlanlyHouse
 planlyPendingHouseholdInviteToken=readPendingPlanlyHouseholdInvite();
 function capturePlanlyHouseholdInviteFromUrl(){try{const params=new URLSearchParams(String(location.hash||'').replace(/^#/,''));if(!params.has('household-invite'))return false;const token=normalizePlanlyHouseholdInviteToken(params.get('household-invite'));history.replaceState(history.state,'',location.pathname+location.search);if(!token){setPendingPlanlyHouseholdInvite('');return false}setPendingPlanlyHouseholdInvite(token);return true}catch{return false}}
 function clearPendingPlanlyHouseholdInvite(){setPendingPlanlyHouseholdInvite('');render()}
+function planlyHouseholdManageOpen(){try{return sessionStorage.getItem(PLANLY_HOUSEHOLD_MANAGE_SESSION_KEY)==='1'}catch{return false}}
+function setPlanlyHouseholdManageOpen(open){try{sessionStorage.setItem(PLANLY_HOUSEHOLD_MANAGE_SESSION_KEY,open?'1':'0')}catch{}}
 function planlyHouseholdInviteLink(token){const base=location.origin+location.pathname.replace(/index[.]html$/i,'');return base+'#household-invite='+encodeURIComponent(token)}
 async function loadPlanlyHousehold(){
   if(!planlySession?.user||!initPlanlySupabase()){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';return null}
@@ -1203,7 +1206,9 @@ function planlyHouseholdHtml(){
   const invitePanel=owner?'<section class="householdSubsection householdActionPanel"><div class="householdSubsectionHead"><div><span class="householdSectionEyebrow">Invite</span><h4>Invite a member</h4><p>Send a private link to another Planly account.</p></div></div>'+planlyFreshHouseholdInviteHtml()+'<div class="field householdField"><label for="planlyHouseholdInviteEmail">Email address</label><input id="planlyHouseholdInviteEmail" class="input" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="person@example.com"></div><button id="planlyCreateHouseholdInviteBtn" class="secondaryBtn" type="button">Create invitation link</button></section>':'';
   const ownershipPanel=owner?'<section class="householdSubsection householdActionPanel"><div class="householdSubsectionHead"><div><span class="householdSectionEyebrow">Ownership</span><h4>Household owner</h4></div></div>'+planlyHouseholdTransferHtml()+'</section>':'';
   const exitPanel='<section class="householdSubsection householdDangerPanel"><div class="householdSubsectionHead"><div><span class="householdSectionEyebrow">Danger zone</span><h4>'+(owner?'Delete household':'Leave household')+'</h4><p>'+(owner?'Removes the household membership and invitations. Your private Planly data is not deleted.':'Leave this household and remove your shared access.')+'</p></div></div><button id="'+(owner?'planlyDeleteHouseholdBtn':'planlyLeaveHouseholdBtn')+'" class="dangerBtn" type="button">'+(owner?'Delete household':'Leave household')+'</button></section>';
-  return '<div class="householdSettings">'+waitingNotice+'<div class="householdSummary"><div class="householdSummaryTop"><div class="householdSummaryName"><span class="statusDot connected"></span><strong>'+esc(planlyHousehold.name)+'</strong></div><span class="householdRoleBadge '+(owner?'owner':'member')+'">'+roleLabel+'</span></div><div class="householdSummaryMeta"><span>'+planlyHouseholdMembers.length+' member'+(planlyHouseholdMembers.length===1?'':'s')+'</span><span aria-hidden="true">·</span><span>'+(owner?'You manage this household':'You are a household member')+'</span></div></div><div class="householdPrivacyNote"><strong>Private by default</strong><span>Tasks and projects stay private unless you explicitly share them.</span></div>'+planlyHouseholdMemberRowsHtml()+planlyHouseholdPendingInvitesHtml()+invitePanel+ownershipPanel+exitPanel+'</div>'
+  const manageOpen=(planlyHouseholdManageOpen()||!!planlyFreshHouseholdInvite)?' open':'',manageHelp=owner?'Invite members, ownership & household controls':'Household membership controls';
+  const managePanel='<details id="planlyHouseholdManage" class="householdManage"'+manageOpen+'><summary><span class="householdManageText"><strong>Manage household</strong><small>'+manageHelp+'</small></span><span class="householdManageChevron" aria-hidden="true">›</span></summary><div class="householdManageBody">'+invitePanel+ownershipPanel+exitPanel+'</div></details>';
+  return '<div class="householdSettings">'+waitingNotice+'<div class="householdSummary"><div class="householdSummaryTop"><div class="householdSummaryName"><span class="statusDot connected"></span><strong>'+esc(planlyHousehold.name)+'</strong></div><span class="householdRoleBadge '+(owner?'owner':'member')+'">'+roleLabel+'</span></div><div class="householdSummaryMeta"><span>'+planlyHouseholdMembers.length+' member'+(planlyHouseholdMembers.length===1?'':'s')+'</span><span aria-hidden="true">·</span><span>'+(owner?'You manage this household':'You are a household member')+'</span></div></div><div class="householdPrivacyNote"><strong>Private by default</strong><span>Tasks and projects stay private unless you explicitly share them.</span></div>'+planlyHouseholdMemberRowsHtml()+planlyHouseholdPendingInvitesHtml()+managePanel+'</div>'
 }
 
 async function createPlanlyHousehold(){const name=$('#planlyHouseholdName')?.value.trim();if(!name)throw new Error('Enter a household name.');const {error}=await planlySupabase.rpc('planly_create_household',{p_name:name});if(error)throw error;await loadPlanlyHousehold();showToast('Household created');render()}
@@ -1490,7 +1495,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330a5','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330a6','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
@@ -1500,7 +1505,7 @@ async function planlyWithTimeout(promise,ms,label){let timer;try{return await Pr
 async function probePlanlyServiceWorker(){
   if(!navigator.serviceWorker?.controller)return {ok:false,reason:'no-controller'};
   try{
-    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?v=330a5',{cache:'no-store'}),3000,'Service worker probe');
+    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?v=330a6',{cache:'no-store'}),3000,'Service worker probe');
     const text=(await res.text()).trim();
     return {ok:res.ok&&text===PLANLY_SW_PROBE,reason:text||('HTTP '+res.status)};
   }catch(err){return {ok:false,reason:String(err?.message||err)}}
@@ -2069,6 +2074,7 @@ function settingsView(){
   if($('#planlyCopyHouseholdInviteBtn'))$('#planlyCopyHouseholdInviteBtn').onclick=()=>copyPlanlyHouseholdInvite().catch(err=>alert(err.message));
   if($('#planlyDiscardHouseholdInviteBtn'))$('#planlyDiscardHouseholdInviteBtn').onclick=discardPlanlyHouseholdInvite;
   $$('[data-planly-household-revoke]').forEach(btn=>btn.onclick=()=>revokePlanlyHouseholdInvite(btn.dataset.planlyHouseholdRevoke).catch(err=>alert(err.message)));
+  if($('#planlyHouseholdManage'))$('#planlyHouseholdManage').ontoggle=e=>setPlanlyHouseholdManageOpen(e.currentTarget.open);
   $('#themeSetting').value=state.theme;
   $('#defaultCat').value=state.defaultCategory;
   $('#defaultDuration').value=String(state.defaultDuration||30);
