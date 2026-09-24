@@ -50,6 +50,115 @@ function serviceFetch(path: string, init: RequestInit = {}) {
   })
 }
 
+
+const MAX_FEED_BYTES = 2_000_000
+const MAX_REDIRECTS = 3
+const FEED_TIMEOUT_MS = 12_000
+
+function blockedIpv4(host: string) {
+  const p = host.split('.').map(Number)
+  if (p.length !== 4 || p.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false
+  const [a, b, d] = p
+  return a === 0 || a === 10 || a === 127 || a >= 224 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 0) ||
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 0 && d === 2) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    (a === 198 && b === 51 && d === 100) ||
+    (a === 203 && b === 0 && d === 113)
+}
+
+function blockedIp(host: string) {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '')
+  if (blockedIpv4(h)) return true
+  if (!h.includes(':')) return false
+  if (h === '::' || h === '::1') return true
+  if (h.startsWith('fc') || h.startsWith('fd')) return true
+  if (/^fe[89ab]/.test(h)) return true
+  const mapped = h.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+  return mapped ? blockedIpv4(mapped[1]) : false
+}
+
+async function assertPublicHttpsUrl(url: URL) {
+  if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Unsafe calendar URL')
+  if (url.port && url.port !== '443') throw new Error('Unsafe calendar port')
+  const host = url.hostname.toLowerCase().replace(/\.$/, '')
+  if (!host || host === 'localhost' || host.endsWith('.localhost') ||
+      host.endsWith('.local') || host.endsWith('.internal') ||
+      host.endsWith('.lan') || blockedIp(host)) {
+    throw new Error('Private calendar destination')
+  }
+  if (/^[\d.]+$/.test(host) || host.includes(':')) return
+  const results = await Promise.allSettled([
+    Deno.resolveDns(host, 'A'),
+    Deno.resolveDns(host, 'AAAA'),
+  ])
+  const addresses = results.flatMap((r) => r.status === 'fulfilled' ? r.value : [])
+  if (!addresses.length || addresses.some((ip) => blockedIp(ip))) {
+    throw new Error('Calendar destination is not public')
+  }
+}
+
+async function readLimitedText(response: Response) {
+  const declared = Number(response.headers.get('content-length') || 0)
+  if (declared > MAX_FEED_BYTES) throw new Error('Calendar feed is too large')
+  if (!response.body) return ''
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value) continue
+    total += value.byteLength
+    if (total > MAX_FEED_BYTES) {
+      await reader.cancel()
+      throw new Error('Calendar feed is too large')
+    }
+    chunks.push(value)
+  }
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new TextDecoder().decode(bytes)
+}
+
+async function fetchCalendarFeed(input: string | URL) {
+  let url = input instanceof URL ? new URL(input.toString()) : new URL(String(input))
+  for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
+    await assertPublicHttpsUrl(url)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS)
+    let response: Response
+    try {
+      response = await fetch(url, {
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: {
+          Accept: 'text/calendar,text/plain;q=0.9,*/*;q=0.1',
+          'User-Agent': 'Planly-Calendar/1.1',
+        },
+      })
+    } finally {
+      clearTimeout(timer)
+    }
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get('location')
+      if (!location || redirect === MAX_REDIRECTS) throw new Error('Unsafe calendar redirect')
+      url = new URL(location, url)
+      continue
+    }
+    return { response, text: await readLimitedText(response), finalUrl: url }
+  }
+  throw new Error('Too many calendar redirects')
+}
+
 function unfold(value: string) {
   return value.replace(/\r?\n[ \t]/g, '')
 }
@@ -307,21 +416,16 @@ async function refreshSource(sourceId: string, userId: string, auth: string) {
   if (!credRes.ok || !feedUrl) return json({ error: 'Calendar credential unavailable.' }, 500)
 
   let feed: Response
+  let ics: string
   try {
-    feed = await fetch(String(feedUrl), {
-      redirect: 'follow',
-      headers: {
-        Accept: 'text/calendar,text/plain;q=0.9,*/*;q=0.1',
-        'User-Agent': 'Planly-Calendar/1.0',
-      },
-    })
+    const result = await fetchCalendarFeed(String(feedUrl))
+    feed = result.response
+    ics = result.text
   } catch {
-    return json({ error: 'Calendar feed could not be reached.' }, 502)
+    return json({ error: 'Calendar feed could not be reached safely.' }, 502)
   }
 
   if (!feed.ok) return json({ error: 'Calendar feed could not be opened.' }, 502)
-
-  const ics = await feed.text()
   if (!/BEGIN:VCALENDAR/i.test(ics) || !/END:VCALENDAR/i.test(ics)) {
     return json({ error: 'Calendar feed is invalid.' }, 502)
   }
@@ -412,21 +516,16 @@ Deno.serve(async (req) => {
   }
 
   let feed: Response
+  let text: string
   try {
-    feed = await fetch(url, {
-      redirect: 'follow',
-      headers: {
-        'User-Agent': 'Planly-Calendar/1.0',
-        Accept: 'text/calendar,text/plain;q=0.9,*/*;q=0.1',
-      },
-    })
+    const result = await fetchCalendarFeed(url)
+    feed = result.response
+    text = result.text
   } catch {
-    return json({ error: 'Planly could not reach this calendar feed.' }, 400)
+    return json({ error: 'Planly could not safely reach this calendar feed.' }, 400)
   }
 
   if (!feed.ok) return json({ error: 'The calendar feed could not be opened.' }, 400)
-
-  const text = await feed.text()
   if (!/BEGIN:VCALENDAR/i.test(text) || !/END:VCALENDAR/i.test(text)) {
     return json({ error: 'This link did not return an iCalendar feed.' }, 400)
   }
