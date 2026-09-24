@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-ui1';
-const PLANLY_SW_PROBE='planly-v2-sw-ui1';
+const PLANLY_OFFLINE_CACHE='planly-v2-ui2';
+const PLANLY_SW_PROBE='planly-v2-sw-ui2';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1049,10 +1049,11 @@ function todayView(){
   const allDone=!activeToday.length&&!overdue.length&&todayAll.length>0,nothingPlanned=!todayAll.length&&!overdue.length;
   const statusCard=allDone?'<div class="dayStatus doneStatus"><strong>All done for today</strong><span>✓</span></div>':nothingPlanned?'<div class="dayStatus"><strong>Nothing planned yet</strong><span class="muted">Tap + to add something.</span></div>':'';
   const household=householdEvents.length?`<section class="householdCard"><div class="sectionHead"><div><span class="householdEyebrow">Household</span><h2>Wife’s schedule</h2></div><span class="muted">${householdEvents.length}</span></div><div class="externalEventList">${householdEvents.map(e=>externalEventHtml(e,key)).join('')}</div></section>`:'';
-  const top3=activeToday.length?`<section class="section"><div class="sectionHead"><h2>Top 3</h2><span class="muted">${pins.length}/3</span></div>${pins.length?`<div class="top3List">${pins.map(t=>taskHtml(t,true)).join('')}</div>`:'<div class="empty compactEmpty">Star up to three priorities for today.</div>'}</section>`:'';
-  const schedule=scheduled.length?`<section class="section"><div class="sectionHead"><h2>Schedule</h2><span class="muted">${scheduled.length}</span></div>${scheduled.map(taskHtml).join('')}</section>`:'';
-  const anytimeSection=anytime.length?`<section class="section"><div class="sectionHead"><h2>Anytime</h2><span class="muted">${anytime.length}</span></div>${anytime.map(taskHtml).join('')}</section>`:'';
-  $('#view').innerHTML=`${dashboard}${household}${overdue.length?`<section class="section"><div class="sectionHead"><h2>Overdue</h2><span class="muted">${overdue.length}</span></div>${overdue.map(taskHtml).join('')}</section>`:''}${statusCard}${top3}${schedule}${anytimeSection}${completedSection(completed,'today:'+key)}`
+  const top3=activeToday.length?`<section class="section prioritySection"><div class="sectionHead"><div><span class="calendarGroupLabel">Priorities</span><h2>Top 3</h2></div><span class="muted">${pins.length}/3</span></div>${pins.length?`<div class="top3List">${pins.map(t=>taskHtml(t,true)).join('')}</div>`:'<div class="empty compactEmpty">Star the tasks that matter most today.</div>'}</section>`:'';
+  const schedule=scheduled.length?`<section class="section"><div class="sectionHead"><div><span class="calendarGroupLabel">Time blocked</span><h2>Schedule</h2></div><span class="muted">${scheduled.length}</span></div>${scheduled.map(taskHtml).join('')}</section>`:'';
+  const anytimeSection=anytime.length?`<section class="section"><div class="sectionHead"><div><span class="calendarGroupLabel">Flexible</span><h2>Anytime</h2></div><span class="muted">${anytime.length}</span></div>${anytime.map(taskHtml).join('')}</section>`:'';
+  const overdueSection=overdue.length?`<section class="section overdueSection"><div class="sectionHead"><div><span class="calendarGroupLabel">Needs attention</span><h2>Overdue</h2></div><span class="muted">${overdue.length}</span></div>${overdue.map(taskHtml).join('')}</section>`:'';
+  $('#view').innerHTML=`${dashboard}${statusCard}${top3}${schedule}${anytimeSection}${overdueSection}${household}${completedSection(completed,'today:'+key)}`
 }
 function startMonday(key){const d=parseKey(key);const diff=(d.getDay()+6)%7;d.setDate(d.getDate()-diff);return localKey(d)}
 function upcomingGroup(title,tasks){
@@ -1391,7 +1392,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=321ui1','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=322ui2','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
