@@ -1,6 +1,6 @@
-const CACHE='planly-v2-ui2';
-const VERSION='planly-v2-sw-ui2';
-const APP_URL='./app-v3.2.0.js?v=322ui2';
+const CACHE='planly-v2-ui2fix';
+const VERSION='planly-v2-sw-ui2fix';
+const APP_URL='./app-v3.2.0.js?v=323ui2fix';
 const REQUIRED=['./index.html',APP_URL,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
