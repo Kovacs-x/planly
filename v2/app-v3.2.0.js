@@ -1464,6 +1464,8 @@ async function runDeterministicConflictTest(btn){
 }
 
 function planlyTaskFromCloudRow(row){if(!row?.data)return null;const visibility=row.visibility==='household'?'household':'private',householdId=visibility==='household'?(row.household_id||null):null;return {...row.data,visibility,householdId,_planlyOwnerId:String(row.owner_id||''),_planlyOwnedByMe:String(row.owner_id||'')===String(planlySession?.user?.id||'')}}
+function planlyCloudTaskKey(row){return String(row?.owner_id||'')+'|'+String(row?.client_id||'')}
+function planlyLocalTaskKey(task){return String(task?._planlyOwnerId||planlySession?.user?.id||'')+'|'+String(task?.id||'')}
 function planlyOwnedTasks(){return state.tasks.filter(t=>t._planlyOwnedByMe!==false)}
 async function loadVerifiedCloudPreview(){
   if(!PLANLY_CLOUD_PREVIEW||!planlySession?.user||!initPlanlySupabase()){planlyCloudBootstrapPending=false;return false;}
@@ -1916,16 +1918,16 @@ async function reconcilePlanlyCloud(options={}){
     const pending=readPlanlyPendingWrites(),conflicts=readPlanlyConflicts();
     const dirtyTasks=new Set(pending.filter(x=>x.kind==='task').map(x=>x.id)),dirtyProjects=new Set(pending.filter(x=>x.kind==='project').map(x=>x.id)),dirtyPrefs=pending.some(x=>x.kind==='preference');
     const conflictTasks=new Set(conflicts.filter(x=>x.kind==='task').map(x=>x.id)),conflictProjects=new Set(conflicts.filter(x=>x.kind==='project').map(x=>x.id)),conflictPrefs=conflicts.some(x=>x.kind==='preference');
-    const taskRows=tasksRes.data||[],projectRows=projectsRes.data||[],serverTaskIds=new Set(taskRows.map(r=>String(r.client_id))),serverProjectIds=new Set(projectRows.map(r=>String(r.client_id)));
+    const taskRows=tasksRes.data||[],projectRows=projectsRes.data||[],serverTaskKeys=new Set(taskRows.map(planlyCloudTaskKey)),serverProjectIds=new Set(projectRows.map(r=>String(r.client_id)));
     for(const row of taskRows){
-      const id=String(row.client_id),blocked=dirtyTasks.has(id)||conflictTasks.has(id);
+      const id=String(row.client_id),owned=String(row.owner_id||'')===String(ownerId),blocked=owned&&(dirtyTasks.has(id)||conflictTasks.has(id));
       if(!blocked){
         if(row.deleted_at)state.tasks=state.tasks.filter(x=>String(x.id)!==id);
-        else if(row.data&&String(row.data.id)===id){const cloudTask=planlyTaskFromCloudRow(row),i=state.tasks.findIndex(x=>String(x.id)===id);if(i>=0)state.tasks[i]=cloudTask;else state.tasks.push(cloudTask)}
+        else if(row.data&&String(row.data.id)===id){const cloudTask=planlyTaskFromCloudRow(row),key=planlyCloudTaskKey(row),i=state.tasks.findIndex(x=>planlyLocalTaskKey(x)===key);if(i>=0)state.tasks[i]=cloudTask;else state.tasks.push(cloudTask)}
       }
-      planlyCloudSyncMeta.tasks.set(id,Number(row.cloud_version||1));
+      if(owned)planlyCloudSyncMeta.tasks.set(id,Number(row.cloud_version||1));
     }
-    state.tasks=state.tasks.filter(t=>{const id=String(t.id);if(dirtyTasks.has(id)||conflictTasks.has(id))return true;if(!planlyCloudSyncMeta.tasks.has(id))return true;return serverTaskIds.has(id)});
+    state.tasks=state.tasks.filter(t=>{const id=String(t.id),owned=t._planlyOwnedByMe!==false;if(owned&&(dirtyTasks.has(id)||conflictTasks.has(id)))return true;return serverTaskKeys.has(planlyLocalTaskKey(t))});
     for(const row of projectRows){
       const id=String(row.client_id),blocked=dirtyProjects.has(id)||conflictProjects.has(id);
       if(!blocked){
