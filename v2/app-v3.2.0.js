@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-vi7b';
-const PLANLY_SW_PROBE='planly-v2-sw-vi7b';
+const PLANLY_OFFLINE_CACHE='planly-v2-vi7c';
+const PLANLY_SW_PROBE='planly-v2-sw-vi7c';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1393,7 +1393,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330vi7b','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=331vi7c','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
@@ -2056,7 +2056,7 @@ function closeSearch(){
   unlockSheetBackground();
 }
 
-function render(){ $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab)); $('#addBtn').style.display=state.tab==='settings'?'none':'block'; if(state.tab==='today')todayView();else if(state.tab==='upcoming')upcomingView();else if(state.tab==='month')monthView();else if(state.tab==='inbox')inboxView();else settingsView(); refreshProjectsIfOpen(); refreshTimelineIfOpen(); refreshFocusIfOpen(); refreshTaskActionsIfOpen() }
+function render(){ $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab)); $('#addBtn').style.display=state.tab==='settings'?'none':'block'; if(state.tab==='today')todayView();else if(state.tab==='upcoming')upcomingView();else if(state.tab==='month')monthView();else if(state.tab==='inbox')inboxView();else settingsView(); const view=$('#view');if(view&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){view.classList.remove('viewEntering');void view.offsetWidth;view.classList.add('viewEntering')} refreshProjectsIfOpen(); refreshTimelineIfOpen(); refreshFocusIfOpen(); refreshTaskActionsIfOpen() }
 
 function toggleTaskSubtask(t,subtaskId){
   if(!t||!Array.isArray(t.subtasks))return;
