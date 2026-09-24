@@ -152,6 +152,9 @@
     #view.viewEntering{animation:planlyViewIn .22s cubic-bezier(.2,.7,.25,1)}.nav button .pIcon{transition:transform .2s cubic-bezier(.2,.8,.2,1),color .18s}.nav button.active .pIcon{transform:translateY(-1px) scale(1.08)}.nav button:active .pIcon{transform:scale(.9)}.fab{transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s}.fab:active{transform:scale(.9)!important}.taskSurface{transition:transform .16s cubic-bezier(.2,.8,.2,1),border-color .18s,background-color .18s,box-shadow .18s}.task:active .taskSurface{transform:scale(.992)}.check{transition:transform .16s cubic-bezier(.2,.8,.2,1),background-color .18s,border-color .18s}.task.done .check{animation:planlyCheckPop .28s cubic-bezier(.2,.9,.25,1)}.inlineSubtask.done .inlineSubtaskCheck{animation:planlyCheckPop .25s ease}.dashboardProgress>span,.bar>span,.projectMiniBar>span{transition:width .45s cubic-bezier(.2,.75,.2,1)}.dashboardNextCard:active,.projectCard:active{transform:scale(.985)}.day{transition:transform .14s ease,background-color .18s,border-color .18s,box-shadow .18s}.day:active{transform:scale(.9)}.day.selected{transform:scale(1.035)}
     .sheetWrap.open,.taskActionWrap.open{animation:planlyOverlayIn .16s ease}.sheetWrap.open .sheet,.taskActionWrap.open .taskActionSheet{animation:planlySheetIn .24s cubic-bezier(.2,.75,.2,1)}.planDayWrap.open .planDayPanel,.timelineWrap.open .timelinePanel,.projectsWrap.open .projectsPanel,.searchWrap.open .searchPanel{animation:planlyViewIn .22s cubic-bezier(.2,.7,.25,1)}.focusWrap.open .focusPanel{animation:planlyFocusIn .28s cubic-bezier(.2,.75,.2,1)}.undoToast.show{box-shadow:0 16px 36px rgba(0,0,0,.25)}#planlyToast{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
     @media(prefers-reduced-motion:reduce){#view.viewEntering,.sheetWrap.open,.taskActionWrap.open,.sheetWrap.open .sheet,.taskActionWrap.open .taskActionSheet,.planDayWrap.open .planDayPanel,.timelineWrap.open .timelinePanel,.projectsWrap.open .projectsPanel,.searchWrap.open .searchPanel,.focusWrap.open .focusPanel,.task.done .check,.inlineSubtask.done .inlineSubtaskCheck{animation:none!important}.nav button.active .pIcon,.day.selected{transform:none!important}}
+
+    /* Task composer iPhone reachability fix */
+    .sheet{padding-bottom:calc(118px + env(safe-area-inset-bottom));scroll-padding-bottom:calc(118px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}.sheet #taskForm{padding-bottom:8px}.sheet .formActions{position:relative;z-index:2;margin-top:14px;margin-bottom:8px}.fab{display:grid;place-items:center;padding:0;line-height:1}.fab .pIcon{display:block;margin:auto}.fab>svg{position:relative;left:0;top:0}
   </style>
 </head>
 <body>
@@ -203,6 +206,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0.js?v=331vi7c"></script>
+<script src="./app-v3.2.0.js?v=332sheetfix"></script>
 </body>
 </html>
