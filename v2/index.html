@@ -79,6 +79,14 @@
     .nav button{min-height:52px!important;border-radius:16px!important;font-size:12px!important;font-weight:680!important}.nav button.active{background:var(--selected)!important;color:var(--selectedText)!important}
     #addBtn{bottom:calc(86px + env(safe-area-inset-bottom))!important;right:max(22px,calc((100vw - 760px)/2 + 22px))!important;box-shadow:var(--shadowLift)!important}
     @media(max-width:520px){.app{padding-left:14px;padding-right:14px}.title{font-size:30px}.topbar{margin-bottom:18px}.dashboardMetrics{gap:5px}.nav{width:calc(100% - 16px);bottom:calc(8px + env(safe-area-inset-bottom))!important}.nav button{min-height:50px!important}.taskSurface{padding:13px 12px}}
+
+    /* UI overhaul phase 2 — daily command centre + task hierarchy */
+    #view{min-height:calc(100dvh - 190px);padding-bottom:72px}.upcomingSection:last-of-type,.completedSection:last-child{margin-bottom:58px}.upcomingEmpty{margin-bottom:58px}
+    .todayDashboard{margin-bottom:6px}.dashboardHero{background:linear-gradient(180deg,var(--card),var(--cardSoft));border:1px solid var(--line);padding:18px}.dashboardHeroTop strong{font-size:21px;letter-spacing:-.025em}.dashboardPercent{font-size:13px;font-weight:750;background:var(--selected);color:var(--selectedText);padding:6px 9px;border-radius:999px}.dashboardProgress{height:5px;margin:14px 0}.dashboardMetrics{grid-template-columns:repeat(3,1fr)}.dashboardMetrics>div{border:0;padding:10px 8px;border-radius:14px}.dashboardMetrics strong{font-size:15px}.dashboardMetrics span{font-size:10px}.dashboardActions{margin-top:12px}.dashboardActions button{min-height:42px}
+    .sectionHead{align-items:baseline}.sectionHead>.muted{font-size:11px;font-weight:700;background:var(--cardSoft);border:1px solid var(--line);border-radius:999px;padding:3px 7px}.top3List .taskSurface{border-color:color-mix(in srgb,var(--text) 16%,var(--line));background:linear-gradient(180deg,var(--card),var(--cardSoft))}
+    .taskSurface{min-height:62px}.taskBody{min-width:0}.taskTitle{line-height:1.3}.meta{row-gap:5px}.categoryText{color:var(--muted);font-size:11px}.taskTimeBadge{font-weight:720;color:var(--text);background:var(--cardSoft);border:1px solid var(--line);border-radius:999px;padding:3px 7px}.taskActions{gap:2px;align-self:start}.taskActions .smallbtn{width:34px;height:34px;border:0;background:transparent}.taskActions .smallbtn:hover{background:var(--cardSoft)}.taskActions [data-action="pin"]{font-size:18px}.taskNotes{margin-top:7px;line-height:1.4}.projectTaskPill{background:transparent;border:0;padding:2px 0;color:var(--muted)}.priorityPill{padding:3px 6px}
+    .upcomingSummary{position:sticky;top:8px;z-index:6;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:16px;padding:11px 13px;margin-bottom:18px}.upcomingDateGroup{margin-bottom:17px}.upcomingDateLabel{position:relative;top:auto;background:transparent;padding:0 2px 7px;font-size:12px;font-weight:760;color:var(--muted)}
+    @media(max-width:520px){#view{padding-bottom:84px}.upcomingSection:last-of-type,.completedSection:last-child,.upcomingEmpty{margin-bottom:72px}.taskSurface{grid-template-columns:30px minmax(0,1fr) auto}.taskActions .smallbtn{width:32px;height:32px}.dashboardHero{padding:15px}.dashboardHeroTop strong{font-size:19px}}
   </style>
 </head>
 <body>
@@ -130,6 +138,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0.js?v=321ui1"></script>
+<script src="./app-v3.2.0.js?v=322ui2"></script>
 </body>
 </html>
