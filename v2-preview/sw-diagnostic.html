@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Planly SW Diagnostic</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#111215;color:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;padding:calc(env(safe-area-inset-top) + 24px) 18px 40px}main{max-width:720px;margin:auto}h1{font-size:28px;margin:0 0 8px}p{color:#aeb4c0;line-height:1.45}#status{font-size:18px;font-weight:700;margin:20px 0;padding:16px;border:1px solid #343841;border-radius:16px;background:#191b20}pre{white-space:pre-wrap;word-break:break-word;background:#0b0c0f;border:1px solid #343841;border-radius:16px;padding:16px;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}button{width:100%;min-height:50px;border:1px solid #343841;border-radius:14px;background:#f3f4f6;color:#111215;font-weight:750;font-size:16px;margin:12px 0}
+</style>
+</head>
+<body><main>
+<h1>Planly service-worker diagnostic</h1>
+<p>This page tests only Safari service-worker registration. It does not load Planly, Supabase, Google, or your task data.</p>
+<div id="status">Running diagnostic…</div>
+<button id="rerun">Run diagnostic again</button>
+<pre id="log"></pre>
+</main>
+<script>
+const $=s=>document.querySelector(s),logEl=$('#log'),statusEl=$('#status');
+const lines=[];function log(k,v){lines.push(k+': '+(typeof v==='string'?v:JSON.stringify(v)));logEl.textContent=lines.join('\n')}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function describeRegs(){
+  const regs=await navigator.serviceWorker.getRegistrations();
+  return regs.map(r=>({scope:r.scope,installing:r.installing?.state||'',waiting:r.waiting?.state||'',active:r.active?.state||''}));
+}
+async function run(){
+  lines.length=0;logEl.textContent='';statusEl.textContent='Running diagnostic…';
+  log('time',new Date().toISOString());
+  log('href',location.href);log('secureContext',window.isSecureContext);
+  log('serviceWorkerAPI',!!navigator.serviceWorker);
+  log('userAgent',navigator.userAgent);
+  if(!navigator.serviceWorker){statusEl.textContent='FAIL — ServiceWorker API unavailable';return}
+  log('controllerBefore',navigator.serviceWorker.controller?.scriptURL||'none');
+  try{log('registrationsBefore',await describeRegs())}catch(e){log('getRegistrationsBeforeError',e.name+': '+e.message)}
+  try{
+    const r=await fetch('./sw.js?diag='+Date.now(),{cache:'no-store'});
+    log('swFetchStatus',r.status+' '+r.statusText);
+    log('swContentType',r.headers.get('content-type')||'');
+    const txt=await r.text();
+    log('swFirstLine',txt.split('\n')[0]||'');
+  }catch(e){log('swFetchError',e.name+': '+e.message)}
+  let reg;
+  try{
+    reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+    log('registerPromise','resolved');
+    log('registrationScope',reg.scope);
+    log('stateImmediately',{installing:reg.installing?.state||'',waiting:reg.waiting?.state||'',active:reg.active?.state||''});
+  }catch(e){
+    log('registerPromise','REJECTED');
+    log('registerError',e.name+': '+e.message);
+    statusEl.textContent='FAIL — registration promise rejected';
+    return;
+  }
+  const observed=reg.installing||reg.waiting||reg.active;
+  if(observed){
+    log('observedWorker',observed.scriptURL+' ['+observed.state+']');
+    observed.addEventListener('statechange',()=>log('workerStateChange',observed.state));
+  }else log('observedWorker','none');
+  let controllerChanged=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{controllerChanged=true;log('controllerChange',navigator.serviceWorker.controller?.scriptURL||'none')},{once:true});
+  await wait(8000);
+  try{log('registrationsAfter8s',await describeRegs())}catch(e){log('getRegistrationsAfterError',e.name+': '+e.message)}
+  log('controllerAfter8s',navigator.serviceWorker.controller?.scriptURL||'none');
+  log('controllerChanged',controllerChanged);
+  const finalRegs=await navigator.serviceWorker.getRegistrations().catch(()=>[]);
+  const preview=finalRegs.find(r=>r.scope.includes('/v2-preview/'));
+  if(preview?.active){
+    statusEl.textContent=navigator.serviceWorker.controller?'PASS — worker active and controlling':'PARTIAL — worker active but not controlling this page';
+  }else if(preview?.installing){statusEl.textContent='FAIL — worker still installing after 8 seconds'}
+  else if(preview?.waiting){statusEl.textContent='PARTIAL — worker installed but waiting'}
+  else{statusEl.textContent='FAIL — registration disappeared after install attempt'}
+}
+$('#rerun').onclick=run;run();
+</script></body></html>
