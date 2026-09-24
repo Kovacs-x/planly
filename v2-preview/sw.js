@@ -1,5 +1,5 @@
-const CACHE='planly-preview-v3-2-p30';
-const VERSION='planly-preview-sw-p30';
+const CACHE='planly-preview-v3-2-p31';
+const VERSION='planly-preview-sw-p31';
 const REQUIRED=['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
@@ -14,9 +14,7 @@ async function cacheOne(cache,url){
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
-    const required=await Promise.all(REQUIRED.map(url=>cacheOne(cache,url)));
-    if(required.some(ok=>!ok))throw new Error('Required Planly preview asset failed to cache');
-    await Promise.allSettled(OPTIONAL.map(url=>cacheOne(cache,url)));
+    await Promise.allSettled([...REQUIRED,...OPTIONAL].map(url=>cacheOne(cache,url)));
     await self.skipWaiting();
   })());
 });
