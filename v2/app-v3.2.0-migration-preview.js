@@ -1144,7 +1144,26 @@ function restorePlanlyCloudCache(){const c=readPlanlyCloudCache();if(!c)return f
 function applyPlanlyPendingToState(){for(const op of readPlanlyPendingWrites()){if(op.kind==='task'){if(op.action==='delete')state.tasks=state.tasks.filter(x=>String(x.id)!==op.id);else if(op.data){const i=state.tasks.findIndex(x=>String(x.id)===op.id);if(i>=0)state.tasks[i]=op.data;else state.tasks.push(op.data)}}else if(op.kind==='project'&&op.data){const i=state.projects.findIndex(x=>String(x.id)===op.id);if(i>=0)state.projects[i]=op.data;else state.projects.push(op.data)}else if(op.kind==='preference'&&op.data){const p=op.data;state.defaultCategory=p.defaultCategory||state.defaultCategory;state.defaultDuration=Number(p.defaultDuration||state.defaultDuration);state.autoCompleteParentSubtasks=!!p.autoCompleteParentSubtasks;state.planningStart=p.planningStart||state.planningStart;state.planningEnd=p.planningEnd||state.planningEnd}}}
 function stagePlanlyPendingWrite(kind,action,item,baseVersion){const id=kind==='preference'?'preferences':String(item?.id||item||'');if(!id)return;const list=readPlanlyPendingWrites().filter(x=>!(x.kind===kind&&x.id===id));list.push({kind,action,id,data:action==='delete'?null:item,baseVersion:Number(baseVersion||0),stagedAt:new Date().toISOString()});writePlanlyPendingWrites(list);persistPlanlyCloudCache()}
 function clearPlanlyPendingWrite(kind,id){writePlanlyPendingWrites(readPlanlyPendingWrites().filter(x=>!(x.kind===kind&&x.id===String(id))));persistPlanlyCloudCache()}
-async function replayPlanlyPendingWrites(){if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)return {replayed:0,deferred:true};if(!navigator.onLine){setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:readPlanlyPendingWrites().length});render();return {replayed:0,deferred:true}};const pending=readPlanlyPendingWrites();let replayed=0;for(const op of pending){if(op.kind==='task'){if(op.action==='delete')await cloudDeleteTaskById(op.id,true,op.baseVersion);else if(op.baseVersion)await cloudUpdateTask(op.data,true,op.baseVersion);else await cloudInsertTask(op.data,true)}else if(op.kind==='project'){if(op.baseVersion)await cloudUpdateProject(op.data,true,op.baseVersion);else await cloudInsertProject(op.data,true)}else if(op.kind==='preference'){await cloudUpdatePreferences(op.data,true,op.baseVersion)}replayed++}if(replayed){await touchPlanlyLastSuccessfulSync().catch(()=>{});setPlanlyCloudLocalStatus({state:'cloud-write-test',lastReplayAt:new Date().toISOString(),replayed,pendingWrites:readPlanlyPendingWrites().length})}return {replayed}}
+async function repairDisposableConflictTestPending(){
+  if(!planlySession?.user||!navigator.onLine)return false;
+  const ownerId=planlySession.user.id,pending=readPlanlyPendingWrites();let changed=false;
+  for(const op of pending){
+    if(op.kind!=='task'||op.action==='delete'||Number(op.baseVersion||0)!==0||!String(op.id).startsWith('planly-cloud-conflict-test'))continue;
+    const {data:row,error}=await planlySupabase.from('planly_tasks').select('client_id,cloud_version,deleted_at').eq('owner_id',ownerId).eq('client_id',op.id).maybeSingle();
+    if(error)throw error;if(!row)continue;
+    if(row.deleted_at){
+      const oldId=String(op.id),newId='planly-cloud-conflict-test-'+Date.now();
+      op.id=newId;op.data={...(op.data||{}),id:newId,updatedAt:Date.now()};op.baseVersion=0;setPlanlyConflictTestId(newId);
+      const local=state.tasks.find(t=>String(t.id)===oldId);if(local)local.id=newId;
+      planlyCloudSyncMeta.tasks.delete(oldId);changed=true;
+    }else{
+      op.baseVersion=Number(row.cloud_version||0);planlyCloudSyncMeta.tasks.set(String(op.id),Number(row.cloud_version||0));changed=true;
+    }
+  }
+  if(changed){writePlanlyPendingWrites(pending);persistPlanlyCloudCache()}
+  return changed;
+}
+async function replayPlanlyPendingWrites(){if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)return {replayed:0,deferred:true};if(!navigator.onLine){setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:readPlanlyPendingWrites().length});render();return {replayed:0,deferred:true}};await repairDisposableConflictTestPending();const pending=readPlanlyPendingWrites();let replayed=0;for(const op of pending){if(op.kind==='task'){if(op.action==='delete')await cloudDeleteTaskById(op.id,true,op.baseVersion);else if(op.baseVersion)await cloudUpdateTask(op.data,true,op.baseVersion);else await cloudInsertTask(op.data,true)}else if(op.kind==='project'){if(op.baseVersion)await cloudUpdateProject(op.data,true,op.baseVersion);else await cloudInsertProject(op.data,true)}else if(op.kind==='preference'){await cloudUpdatePreferences(op.data,true,op.baseVersion)}replayed++}if(replayed){await touchPlanlyLastSuccessfulSync().catch(()=>{});setPlanlyCloudLocalStatus({state:'cloud-write-test',lastReplayAt:new Date().toISOString(),replayed,pendingWrites:readPlanlyPendingWrites().length})}return {replayed}}
 function planlyCloudWritesEnabled(){return PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly&&!!planlyLastAccountId()}
 function currentPlanlyCloudPreferences(){return {defaultCategory:state.defaultCategory,defaultDuration:Number(state.defaultDuration||30),autoCompleteParentSubtasks:!!state.autoCompleteParentSubtasks,planningStart:state.planningStart||'08:00',planningEnd:state.planningEnd||'23:00'}}
 function stageTaskMutation(t){if(!planlyCloudWritesEnabled()||!t?.id)return '';const id=String(t.id),baseVersion=Number(planlyCloudSyncMeta.tasks.get(id)||0);stagePlanlyPendingWrite('task','upsert',t,baseVersion);return id}
@@ -1169,8 +1188,8 @@ function setPlanlyConflictTestId(id){localStorage.setItem(PLANLY_CONFLICT_TEST_I
 async function openCloudConflictTestTask(btn){
   if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)throw new Error('Enable the controlled write test first.');
   let id=currentPlanlyConflictTestId(),existing=state.tasks.find(t=>String(t.id)===id);
-  if(existing){state.tab='today';state.selectedDate=existing.date||localKey(new Date());render();setTimeout(()=>openSheet(existing),0);return}
   const ownerId=planlySession.user.id;
+  if(existing&&planlyCloudSyncMeta.tasks.get(id)){state.tab='today';state.selectedDate=existing.date||localKey(new Date());render();setTimeout(()=>openSheet(existing),0);return}
   if(btn){btn.disabled=true;btn.textContent='Creating test task…'}
   try{
     const {data:row,error:lookupError}=await planlySupabase.from('planly_tasks').select('client_id,deleted_at').eq('owner_id',ownerId).eq('client_id',id).maybeSingle();
@@ -1181,9 +1200,9 @@ async function openCloudConflictTestTask(btn){
       render();if(cloudTask){setTimeout(()=>openSheet(cloudTask),0);return}
       throw new Error('Conflict-test task exists in cloud but could not be loaded.');
     }
-    if(row?.deleted_at){id='planly-cloud-conflict-test-'+Date.now();setPlanlyConflictTestId(id)}
+    if(row?.deleted_at){const oldId=id;id='planly-cloud-conflict-test-'+Date.now();setPlanlyConflictTestId(id);clearPlanlyPendingWrite('task',oldId);state.tasks=state.tasks.filter(x=>String(x.id)!==oldId);existing=null}
     const now=Date.now(),t={id,title:'Cloud Conflict Test',date:localKey(new Date()),time:'',durationMinutes:30,priority:'normal',category:'Personal',projectId:'',recurrence:'none',recurrenceConfig:null,reminder:'none',notes:'Disposable 3.2 multi-client conflict test task',subtasks:[],addToCalendar:false,updatedAt:now,completed:false,pinned:false,googleEventId:'',calendarSync:'',createdAt:now};
-    await cloudInsertTask(t,true);clearPlanlyPendingWrite('task',id);state.tasks.push(t);persistPlanlyCloudCache();
+    setPlanlyConflictTestId(id);await cloudInsertTask(t,true);clearPlanlyPendingWrite('task',id);state.tasks=state.tasks.filter(x=>String(x.id)!==id);state.tasks.push(t);persistPlanlyCloudCache();
     state.tab='today';state.selectedDate=t.date;setPlanlyCloudLocalStatus({state:'cloud-write-test',taskCount:state.tasks.length,projectCount:state.projects.length});render();showToast('Conflict-test task ready');setTimeout(()=>openSheet(t),0);
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Create / open conflict-test task'}
