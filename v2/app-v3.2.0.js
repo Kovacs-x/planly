@@ -1123,6 +1123,7 @@ function resetPlanlyCloudRuntimeState(){
   editingSubtasks=[];activeSearchFilter='all';projectPanelMode='list';activeProjectId='';editingProjectId='';dayPlanDraft=null;dayPlanStep=0;dayPlanGroups={overdue:[],inbox:[],today:[]};timelineDrag=null;taskActionId='';
   clearInterval(focusTicker);focusTicker=null;focusTaskId='';focusElapsedMs=0;focusStartedAt=0;expandedTaskChecklists.clear();
   planlyCalendarSources=[];planlyExternalEvents=[];planlyCalendarDataError='';
+  planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';
   for(const id of ['sheetWrap','taskActionWrap','timelineWrap','planDayWrap','focusWrap','searchWrap','projectsWrap']){const el=$('#'+id);if(el){el.classList.remove('open');el.setAttribute('aria-hidden','true')}}
 }
 function adoptPlanlySession(session,{explicitSignOut=false}={}){
@@ -1421,7 +1422,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=332sheetfix','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330a1','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
@@ -1881,7 +1882,7 @@ async function startPlanlyAuth(){
     }
     await Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview(),loadPlanlyHousehold()])
   }catch(err){planlyCloudBootstrapPending=false;if(PLANLY_CLOUD_PREVIEW){const offline=isOfflineCloudError(err),pending=readPlanlyPendingWrites(),restored=(offline||pending.length>0)&&restorePlanlyCloudCache();if(restored){applyPlanlyPendingToState();planlyCloudReadOnly=pending.length?false:planlyCloudReadOnly}console.warn('Planly cloud bootstrap stopped safely',err);setPlanlyCloudLocalStatus({state:pending.length?'offline-retry-needed':offline?'offline-retry-needed':'error',error:String(err?.message||err),cacheRestored:restored,pendingWrites:pending.length});if(restored)render()}}
-  planlySupabase.auth.onAuthStateChange((_event,session)=>{adoptPlanlySession(session,{explicitSignOut:_event==='SIGNED_OUT'});if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()]).then(()=>render()).catch(()=>{})}else{render()}});
+  planlySupabase.auth.onAuthStateChange((_event,session)=>{adoptPlanlySession(session,{explicitSignOut:_event==='SIGNED_OUT'});if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview(),loadPlanlyHousehold()]).then(()=>render()).catch(()=>{})}else{render()}});
 }
 window.addEventListener('online',()=>{if(PLANLY_CLOUD_PREVIEW&&planlySession?.user)reconcilePlanlyCloud({replay:true,replayToast:'Offline changes synced'}).catch(err=>{if(!isOfflineCloudError(err))console.warn('Planly reconcile failed',err)})});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&PLANLY_CLOUD_PREVIEW&&planlySession?.user&&navigator.onLine)reconcilePlanlyCloud({minGapMs:15000,replay:true,replayToast:''}).catch(()=>{})});
