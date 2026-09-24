@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-330a8';
-const PLANLY_SW_PROBE='planly-v2-sw-330a8';
+const PLANLY_OFFLINE_CACHE='planly-v2-330a9';
+const PLANLY_SW_PROBE='planly-v2-sw-330a9';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -728,9 +728,9 @@ function rescheduleTaskWithUndo(t,newDate,message){
   showUndoToast(message,()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before);finishCalendarChange(state.tasks.find(x=>x.id===id))},()=>{queuePlanlyPendingReplay('Task synced');finishCalendarChange(state.tasks.find(x=>x.id===id))});
 }
 function deleteTaskWithUndo(t){
-  if(!t)return;
+  if(!t||t._planlyOwnedByMe===false)return;
   const before=cloneTasks(),isRecurringGoogle=!!(t.googleEventId&&t.recurrence&&t.recurrence!=='none'),eventId=isRecurringGoogle?'':(t.googleEventId||'');
-  state.tasks=state.tasks.filter(x=>x.id!==t.id);const baseVersion=Number(planlyCloudSyncMeta.tasks.get(String(t.id))||0);if(planlyCloudWritesEnabled())stagePlanlyPendingWrite('task','delete',t.id,baseVersion);save();render();
+  state.tasks=state.tasks.filter(x=>planlyLocalTaskKey(x)!==planlyLocalTaskKey(t));const baseVersion=Number(planlyCloudSyncMeta.tasks.get(String(t.id))||0);if(planlyCloudWritesEnabled())stagePlanlyPendingWrite('task','delete',t.id,baseVersion);save();render();
   showUndoToast(isRecurringGoogle?'Task removed from Planly · Google series unchanged':'Task deleted',()=>{clearPlanlyPendingWrite('task',t.id);restoreTaskSnapshot(before)},()=>{queuePlanlyPendingReplay('Task deletion synced');if(eventId)queueGoogleDelete(eventId);if(googleConnected())processPendingDeletes().catch(()=>{})});
 }
 function waitForGoogleIdentity(timeout=8000){
@@ -1346,12 +1346,12 @@ async function replayPlanlyPendingWrites(){
   render();
   return {replayed,conflicts:conflictCount,errors,deferred,pending:pendingCount};
 }
-function planlyCloudWritesEnabled(){return PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly&&!!planlyLastAccountId()}
+function planlyCloudWritesEnabled(){return PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly&&!!planlySession?.user&&String(planlyLastAccountId()||'')===String(planlySession.user.id||'')}
 function currentPlanlyCloudPreferences(){return {defaultCategory:state.defaultCategory,defaultDuration:Number(state.defaultDuration||30),autoCompleteParentSubtasks:!!state.autoCompleteParentSubtasks,planningStart:state.planningStart||'08:00',planningEnd:state.planningEnd||'23:00'}}
 function stageTaskMutation(t){if(!planlyCloudWritesEnabled()||!t?.id||t._planlyOwnedByMe===false)return '';const id=String(t.id),baseVersion=Number(planlyCloudSyncMeta.tasks.get(id)||0);stagePlanlyPendingWrite('task','upsert',t,baseVersion);return id}
 function stageProjectMutation(p){if(!planlyCloudWritesEnabled()||!p?.id)return '';const id=String(p.id),baseVersion=Number(planlyCloudSyncMeta.projects.get(id)||0);stagePlanlyPendingWrite('project','upsert',p,baseVersion);return id}
 function stagePreferenceMutation(){if(!planlyCloudWritesEnabled())return false;stagePlanlyPendingWrite('preference','upsert',currentPlanlyCloudPreferences(),Number(planlyCloudSyncMeta.preferences||0));return true}
-function stageChangedTasksFromSnapshot(before=[]){if(!planlyCloudWritesEnabled())return [];const prior=new Map((before||[]).map(t=>[String(t.id),t])),ids=[];for(const t of state.tasks){const old=prior.get(String(t.id));if(!old||canonicalJson(old)!==canonicalJson(t)){stageTaskMutation(t);ids.push(String(t.id))}}return ids}
+function stageChangedTasksFromSnapshot(before=[]){if(!planlyCloudWritesEnabled())return [];const prior=new Map((before||[]).filter(t=>t._planlyOwnedByMe!==false).map(t=>[String(t.id),t])),ids=[];for(const t of state.tasks){if(t._planlyOwnedByMe===false)continue;const old=prior.get(String(t.id));if(!old||canonicalJson(old)!==canonicalJson(t)){stageTaskMutation(t);ids.push(String(t.id))}}return ids}
 function clearPendingTaskIds(ids=[]){for(const id of ids)clearPlanlyPendingWrite('task',id)}
 function queuePlanlyPendingReplay(success='Planly Cloud synced'){if(!planlyCloudWritesEnabled())return Promise.resolve({replayed:0,deferred:true});return queueCloudWrite(()=>replayPlanlyPendingWrites(),success)}
 async function touchPlanlyLastSuccessfulSync(){if(!planlySession?.user)return;const {error}=await planlySupabase.from('planly_sync_state').update({last_successful_sync_at:new Date().toISOString()}).eq('owner_id',planlySession.user.id);if(error)throw error}
@@ -1501,7 +1501,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330a8','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330a9','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
@@ -1511,7 +1511,7 @@ async function planlyWithTimeout(promise,ms,label){let timer;try{return await Pr
 async function probePlanlyServiceWorker(){
   if(!navigator.serviceWorker?.controller)return {ok:false,reason:'no-controller'};
   try{
-    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?v=330a8',{cache:'no-store'}),3000,'Service worker probe');
+    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?v=330a9',{cache:'no-store'}),3000,'Service worker probe');
     const text=(await res.text()).trim();
     return {ok:res.ok&&text===PLANLY_SW_PROBE,reason:text||('HTTP '+res.status)};
   }catch(err){return {ok:false,reason:String(err?.message||err)}}
@@ -1959,9 +1959,9 @@ async function startPlanlyAuth(){
       const pending=readPlanlyPendingWrites(),cached=readPlanlyCloudCache();
       if(pending.length&&cached){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',cacheRestored:true,pendingWrites:pending.length});render()}
     }
-    await Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview(),loadPlanlyHousehold()])
+    await loadPlanlyHousehold();await Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()])
   }catch(err){planlyCloudBootstrapPending=false;if(PLANLY_CLOUD_PREVIEW){const offline=isOfflineCloudError(err),pending=readPlanlyPendingWrites(),restored=(offline||pending.length>0)&&restorePlanlyCloudCache();if(restored){applyPlanlyPendingToState();planlyCloudReadOnly=pending.length?false:planlyCloudReadOnly}console.warn('Planly cloud bootstrap stopped safely',err);setPlanlyCloudLocalStatus({state:pending.length?'offline-retry-needed':offline?'offline-retry-needed':'error',error:String(err?.message||err),cacheRestored:restored,pendingWrites:pending.length});if(restored)render()}}
-  planlySupabase.auth.onAuthStateChange((_event,session)=>{adoptPlanlySession(session,{explicitSignOut:_event==='SIGNED_OUT'});if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview(),loadPlanlyHousehold()]).then(()=>render()).catch(()=>{})}else{render()}});
+  planlySupabase.auth.onAuthStateChange((_event,session)=>{adoptPlanlySession(session,{explicitSignOut:_event==='SIGNED_OUT'});if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}loadPlanlyHousehold().then(()=>Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()])).then(()=>render()).catch(()=>{});}else{render()}});
 }
 window.addEventListener('online',()=>{if(PLANLY_CLOUD_PREVIEW&&planlySession?.user)reconcilePlanlyCloud({replay:true,replayToast:'Offline changes synced'}).catch(err=>{if(!isOfflineCloudError(err))console.warn('Planly reconcile failed',err)})});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&PLANLY_CLOUD_PREVIEW&&planlySession?.user&&navigator.onLine)reconcilePlanlyCloud({minGapMs:15000,replay:true,replayToast:''}).catch(()=>{})});
