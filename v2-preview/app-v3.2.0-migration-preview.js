@@ -20,8 +20,8 @@ let planlyOfflineReady=false,planlyOfflineStatus='Preparing offline mode…';
 const PLANLY_CLOUD_CACHE_PREFIX='planly-cloud-cache-v1:';
 const PLANLY_CLOUD_PENDING_PREFIX='planly-cloud-pending-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
-const PLANLY_OFFLINE_CACHE='planly-preview-v3-2-p31';
-const PLANLY_SW_PROBE='planly-preview-sw-p31';
+const PLANLY_OFFLINE_CACHE='planly-preview-v3-2-p32';
+const PLANLY_SW_PROBE='planly-preview-sw-p32';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1300,6 +1300,11 @@ async function preparePlanlyOfflineMode(force=false){
   try{
     planlyOfflineStatus='Checking isolated preview worker…';if(force)render();
     let reg=await navigator.serviceWorker.getRegistration('./').catch(()=>null);
+    if(reg&&!reg.installing&&!reg.waiting&&!reg.active){
+      await reg.unregister().catch(()=>{});
+      await planlyWait(250);
+      reg=null;
+    }
     if(!reg){
       try{
         reg=await planlyWithTimeout(navigator.serviceWorker.register('./sw.js',{scope:'./'}),6000,'Preview worker registration');
