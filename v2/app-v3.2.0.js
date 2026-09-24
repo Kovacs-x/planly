@@ -1156,28 +1156,79 @@ async function loadPlanlyHousehold(){
     const {data:house,error:houseError}=await planlySupabase.from('planly_households').select('id,name,created_by,created_at').eq('id',mine.household_id).single();if(houseError)throw houseError;
     const {data:members,error:membersError}=await planlySupabase.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('household_id',mine.household_id).order('joined_at',{ascending:true});if(membersError)throw membersError;
     planlyHousehold={...house,myRole:mine.role};planlyHouseholdMembers=members||[];
-    if(mine.role==='owner'){const {data:invites,error:inviteError}=await planlySupabase.from('planly_household_invites').select('id,household_id,invited_email,status,expires_at,created_at').eq('household_id',mine.household_id).eq('status','pending').order('created_at',{ascending:false});if(inviteError)throw inviteError;planlyHouseholdInvites=invites||[]}else planlyHouseholdInvites=[];
+    if(mine.role==='owner'){
+      const {data:invites,error:inviteError}=await planlySupabase.from('planly_household_invites').select('id,household_id,invited_email,status,expires_at,created_at,accepted_by,accepted_at').eq('household_id',mine.household_id).order('created_at',{ascending:false});
+      if(inviteError)throw inviteError;planlyHouseholdInvites=invites||[]
+    }else planlyHouseholdInvites=[];
     planlyHouseholdError='';return planlyHousehold
   }catch(err){planlyHouseholdError=err?.message||'Household could not be loaded.';return null}
 }
-function planlyHouseholdMemberRowsHtml(){if(!planlyHouseholdMembers.length)return '';return '<div class="muted settingsHelp"><strong>Members</strong></div>'+planlyHouseholdMembers.map(member=>{const isMe=String(member.user_id)===String(planlySession?.user?.id||''),label=isMe?'You':'Household member',role=member.role==='owner'?'Owner':'Member',joined=member.joined_at?new Date(member.joined_at).toLocaleDateString():'';return '<div class="calendarStatusRow"><strong>'+esc(label)+'</strong><span class="muted">'+esc(role)+(joined?' · joined '+esc(joined):'')+'</span></div>'}).join('')}
-function planlyHouseholdPendingInvitesHtml(){if(planlyHousehold?.myRole!=='owner'||!planlyHouseholdInvites.length)return '';return '<div class="muted settingsHelp"><strong>Pending invites</strong></div>'+planlyHouseholdInvites.map(invite=>{const expired=new Date(invite.expires_at).getTime()<=Date.now();return '<div class="calendarStatusRow"><div><strong>'+esc(invite.invited_email)+'</strong><div class="muted">'+(expired?'Expired':'Expires '+esc(new Date(invite.expires_at).toLocaleDateString()))+'</div></div><button type="button" class="smallbtn" data-planly-household-revoke="'+esc(invite.id)+'">Revoke</button></div>'}).join('')}
+function planlyHouseholdAcceptedInviteFor(member){return planlyHouseholdInvites.find(invite=>invite.status==='accepted'&&String(invite.accepted_by||'')===String(member?.user_id||''))}
+function planlyHouseholdMemberLabel(member){
+  const isMe=String(member?.user_id||'')===String(planlySession?.user?.id||'');
+  if(isMe)return 'You';
+  if(member?.role==='owner')return 'Household owner';
+  const invite=planlyHouseholdAcceptedInviteFor(member);
+  return invite?.invited_email||'Household member'
+}
+function planlyHouseholdMemberRowsHtml(){
+  if(!planlyHouseholdMembers.length)return '';
+  return '<div class="muted settingsHelp"><strong>Members</strong></div>'+planlyHouseholdMembers.map(member=>{const label=planlyHouseholdMemberLabel(member),role=member.role==='owner'?'Owner':'Member',joined=member.joined_at?new Date(member.joined_at).toLocaleDateString():'';return '<div class="calendarStatusRow"><strong>'+esc(label)+'</strong><span class="muted">'+esc(role)+(joined?' · joined '+esc(joined):'')+'</span></div>'}).join('')
+}
+function planlyHouseholdPendingInvitesHtml(){
+  if(planlyHousehold?.myRole!=='owner')return '';
+  const pending=planlyHouseholdInvites.filter(invite=>invite.status==='pending');
+  if(!pending.length)return '';
+  return '<div class="muted settingsHelp"><strong>Pending invites</strong></div>'+pending.map(invite=>{const expired=new Date(invite.expires_at).getTime()<=Date.now();return '<div class="calendarStatusRow"><div><strong>'+esc(invite.invited_email)+'</strong><div class="muted">'+(expired?'Expired':'Expires '+esc(new Date(invite.expires_at).toLocaleDateString()))+'</div></div><button type="button" class="smallbtn" data-planly-household-revoke="'+esc(invite.id)+'">Revoke</button></div>'}).join('')
+}
 function planlyFreshHouseholdInviteHtml(){if(!planlyFreshHouseholdInvite)return '';return '<div class="empty compactEmpty"><strong>Invite link ready</strong><br><span class="muted">For '+esc(planlyFreshHouseholdInvite.email)+'. Share it now — Planly stores only the token hash, not this link.</span><div class="row" style="margin-top:10px"><button id="planlyShareHouseholdInviteBtn" type="button" class="primary">Share invitation</button><button id="planlyCopyHouseholdInviteBtn" type="button" class="secondaryBtn">Copy link</button><button id="planlyDiscardHouseholdInviteBtn" type="button" class="secondaryBtn">Hide link</button></div></div>'}
+function planlyHouseholdTransferHtml(){
+  if(planlyHousehold?.myRole!=='owner')return '';
+  const candidates=planlyHouseholdMembers.filter(member=>member.role==='member'&&String(member.user_id)!==String(planlySession?.user?.id||''));
+  if(!candidates.length)return '<div class="muted settingsHelp">Invite another Planly account before transferring ownership.</div>';
+  return '<div class="field"><label>Transfer ownership</label><select id="planlyHouseholdTransferTarget" class="select">'+candidates.map(member=>'<option value="'+esc(member.user_id)+'">'+esc(planlyHouseholdMemberLabel(member))+'</option>').join('')+'</select></div><button id="planlyTransferHouseholdBtn" class="secondaryBtn" type="button">Transfer ownership</button>'
+}
 function planlyHouseholdHtml(){
   const inviteWaiting=!!planlyPendingHouseholdInviteToken;
   if(!planlySession?.user)return inviteWaiting?'<div class="empty compactEmpty"><strong>Household invitation ready</strong><br><span class="muted">Sign in with the email address this invitation was sent to. The invitation token stays only in this tab.</span></div>':'<div class="muted settingsHelp">Sign in to create or join a household.</div>';
   if(planlyHouseholdError)return '<div class="empty compactEmpty"><strong>Household unavailable</strong><br><span class="muted">'+esc(planlyHouseholdError)+'</span></div>';
   if(!planlyHousehold){const inviteCard=inviteWaiting?'<div class="empty compactEmpty"><strong>Household invitation ready</strong><br><span class="muted">Join using this signed-in account. The server will verify that your account email matches the invitation.</span><div class="row" style="margin-top:10px"><button id="planlyAcceptHouseholdLinkBtn" type="button" class="primary">Join household</button><button id="planlyDismissHouseholdInviteBtn" type="button" class="secondaryBtn">Dismiss</button></div></div>':'';return inviteCard+'<div class="muted settingsHelp">Create a household to prepare secure sharing with another Planly account.</div><div class="field"><label>Household name</label><input id="planlyHouseholdName" class="input" maxlength="80" placeholder="Our household"></div><button id="planlyCreateHouseholdBtn" class="primary" type="button">Create household</button><details class="advancedSettings"><summary>Have an invite code?</summary><div class="field"><label>Invite code</label><input id="planlyHouseholdInviteToken" class="input" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Paste invite code"></div><button id="planlyAcceptHouseholdBtn" class="secondaryBtn" type="button">Join household</button></details>'}
-  const owner=planlyHousehold.myRole==='owner',waitingNotice=inviteWaiting?'<div class="empty compactEmpty"><strong>Another invitation is waiting</strong><br><span class="muted">This account already belongs to a household. Leave first if appropriate, or dismiss the pending invitation.</span><button id="planlyDismissHouseholdInviteBtn" type="button" class="secondaryBtn" style="margin-top:10px">Dismiss invitation</button></div>':'',ownerControls=owner?planlyFreshHouseholdInviteHtml()+'<div class="field"><label>Invite by email</label><input id="planlyHouseholdInviteEmail" class="input" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="person@example.com"></div><button id="planlyCreateHouseholdInviteBtn" class="secondaryBtn" type="button">Create invitation link</button>':'<button id="planlyLeaveHouseholdBtn" class="dangerBtn" type="button">Leave household</button>',ownerNote=owner?'<div class="muted settingsHelp">As owner, leaving is disabled until ownership transfer/delete is implemented.</div>':'';
-  return waitingNotice+'<div class="calendarStatusRow"><span class="statusDot connected"></span><strong>'+esc(planlyHousehold.name)+'</strong><span class="muted">'+planlyHouseholdMembers.length+' member'+(planlyHouseholdMembers.length===1?'':'s')+'</span></div><div class="muted settingsHelp">Your role: '+esc(planlyHousehold.myRole)+'. Tasks and projects are still private unless a later 3.3 phase explicitly shares them.</div>'+planlyHouseholdMemberRowsHtml()+planlyHouseholdPendingInvitesHtml()+ownerControls+ownerNote
+  const owner=planlyHousehold.myRole==='owner',waitingNotice=inviteWaiting?'<div class="empty compactEmpty"><strong>Another invitation is waiting</strong><br><span class="muted">This account already belongs to a household. Leave first if appropriate, or dismiss the pending invitation.</span><button id="planlyDismissHouseholdInviteBtn" type="button" class="secondaryBtn" style="margin-top:10px">Dismiss invitation</button></div>':'';
+  const ownerControls=owner?planlyFreshHouseholdInviteHtml()+'<div class="field"><label>Invite by email</label><input id="planlyHouseholdInviteEmail" class="input" type="email" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="person@example.com"></div><button id="planlyCreateHouseholdInviteBtn" class="secondaryBtn" type="button">Create invitation link</button>'+planlyHouseholdTransferHtml()+'<div class="muted settingsHelp"><strong>Delete household</strong><br>Deletes the Household membership and invitations. Your private Planly tasks, projects and calendars are not deleted.</div><button id="planlyDeleteHouseholdBtn" class="dangerBtn" type="button">Delete household</button>':'<button id="planlyLeaveHouseholdBtn" class="dangerBtn" type="button">Leave household</button>';
+  return waitingNotice+'<div class="calendarStatusRow"><span class="statusDot connected"></span><strong>'+esc(planlyHousehold.name)+'</strong><span class="muted">'+planlyHouseholdMembers.length+' member'+(planlyHouseholdMembers.length===1?'':'s')+'</span></div><div class="muted settingsHelp">Your role: '+esc(planlyHousehold.myRole)+'. Tasks and projects are still private unless a later 3.3 phase explicitly shares them.</div>'+planlyHouseholdMemberRowsHtml()+planlyHouseholdPendingInvitesHtml()+ownerControls
 }
 async function createPlanlyHousehold(){const name=$('#planlyHouseholdName')?.value.trim();if(!name)throw new Error('Enter a household name.');const {error}=await planlySupabase.rpc('planly_create_household',{p_name:name});if(error)throw error;await loadPlanlyHousehold();showToast('Household created');render()}
-async function createPlanlyHouseholdInvite(){if(!planlyHousehold||planlyHousehold.myRole!=='owner')throw new Error('Only the household owner can create invitations.');const email=$('#planlyHouseholdInviteEmail')?.value.trim();if(!email)throw new Error('Enter an email address.');const {data,error}=await planlySupabase.rpc('planly_create_household_invite',{p_household_id:planlyHousehold.id,p_email:email});if(error)throw error;const token=normalizePlanlyHouseholdInviteToken(data);if(!token)throw new Error('Planly did not receive a valid invitation token.');const link=planlyHouseholdInviteLink(token);await loadPlanlyHousehold();const pending=planlyHouseholdInvites.find(invite=>String(invite.invited_email||'').toLowerCase()===email.toLowerCase());planlyFreshHouseholdInvite={email,link,inviteId:pending?.id||''};showToast('Invitation created');render()}
+async function createPlanlyHouseholdInvite(){if(!planlyHousehold||planlyHousehold.myRole!=='owner')throw new Error('Only the household owner can create invitations.');const email=$('#planlyHouseholdInviteEmail')?.value.trim();if(!email)throw new Error('Enter an email address.');const {data,error}=await planlySupabase.rpc('planly_create_household_invite',{p_household_id:planlyHousehold.id,p_email:email});if(error)throw error;const token=normalizePlanlyHouseholdInviteToken(data);if(!token)throw new Error('Planly did not receive a valid invitation token.');const link=planlyHouseholdInviteLink(token);await loadPlanlyHousehold();const pending=planlyHouseholdInvites.find(invite=>invite.status==='pending'&&String(invite.invited_email||'').toLowerCase()===email.toLowerCase());planlyFreshHouseholdInvite={email,link,inviteId:pending?.id||''};showToast('Invitation created');render()}
 async function sharePlanlyHouseholdInvite(){const invite=planlyFreshHouseholdInvite;if(!invite)return;if(typeof navigator.share==='function'){try{await navigator.share({title:'Planly household invitation',text:'Join my household in Planly.',url:invite.link});planlyFreshHouseholdInvite=null;showToast('Invitation shared');render();return}catch(err){if(err?.name==='AbortError')return}}await copyPlanlyHouseholdInvite()}
 async function copyPlanlyHouseholdInvite(){const invite=planlyFreshHouseholdInvite;if(!invite)return;try{if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');await navigator.clipboard.writeText(invite.link);planlyFreshHouseholdInvite=null;showToast('Invitation link copied');render()}catch{prompt('Copy this private Planly invitation link:',invite.link)}}
 function discardPlanlyHouseholdInvite(){planlyFreshHouseholdInvite=null;render()}
 async function revokePlanlyHouseholdInvite(inviteId){if(!inviteId||!planlyHousehold||planlyHousehold.myRole!=='owner')throw new Error('Only the household owner can revoke invitations.');const invite=planlyHouseholdInvites.find(item=>String(item.id)===String(inviteId));if(!confirm('Revoke the invitation'+(invite?.invited_email?' for '+invite.invited_email:'')+'?'))return;const {error}=await planlySupabase.rpc('planly_revoke_household_invite',{p_invite_id:inviteId});if(error)throw error;if(planlyFreshHouseholdInvite?.inviteId===inviteId)planlyFreshHouseholdInvite=null;await loadPlanlyHousehold();showToast('Invitation revoked');render()}
 async function acceptPlanlyHouseholdInvite(){const typed=$('#planlyHouseholdInviteToken')?.value||'',token=planlyPendingHouseholdInviteToken||normalizePlanlyHouseholdInviteToken(typed);if(!token)throw new Error('Enter a valid invitation code.');const {error}=await planlySupabase.rpc('planly_accept_household_invite',{p_token:token});if(error)throw error;planlyPendingHouseholdInviteToken='';if($('#planlyHouseholdInviteToken'))$('#planlyHouseholdInviteToken').value='';await loadPlanlyHousehold();showToast('Household joined');render()}
+async function transferPlanlyHouseholdOwnership(){
+  if(!planlyHousehold||planlyHousehold.myRole!=='owner')throw new Error('Only the household owner can transfer ownership.');
+  const targetId=$('#planlyHouseholdTransferTarget')?.value;
+  const member=planlyHouseholdMembers.find(item=>String(item.user_id)===String(targetId));
+  if(!targetId||!member)throw new Error('Choose a household member.');
+  const label=planlyHouseholdMemberLabel(member);
+  if(!confirm('Transfer ownership to '+label+'? You will become a household member and lose owner controls immediately.'))return;
+  const {error}=await planlySupabase.rpc('planly_transfer_household_ownership',{p_household_id:planlyHousehold.id,p_new_owner:targetId});
+  if(error)throw error;
+  planlyFreshHouseholdInvite=null;
+  await loadPlanlyHousehold();
+  showToast('Household ownership transferred');
+  render()
+}
+async function deletePlanlyHousehold(){
+  if(!planlyHousehold||planlyHousehold.myRole!=='owner')throw new Error('Only the household owner can delete the household.');
+  const expected=String(planlyHousehold.name||'').trim(),typed=prompt('Type “'+expected+'” to permanently delete this household.');
+  if(typed===null)return;
+  if(String(typed).trim()!==expected)throw new Error('Household name did not match. Nothing was deleted.');
+  const {error}=await planlySupabase.rpc('planly_delete_household',{p_household_id:planlyHousehold.id});
+  if(error)throw error;
+  planlyFreshHouseholdInvite=null;planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';
+  showToast('Household deleted');
+  render()
+}
 async function leavePlanlyHousehold(){if(!planlyHousehold||!confirm('Leave “'+planlyHousehold.name+'”? Shared access will end immediately.'))return;const {error}=await planlySupabase.rpc('planly_leave_household',{p_household_id:planlyHousehold.id});if(error)throw error;await loadPlanlyHousehold();showToast('Left household');render()}
 function planlyCloudStatusKey(){return PLANLY_CLOUD_STATUS_PREFIX+(planlyLastAccountId()||'anonymous')}
 function planlyCloudBackupKey(){return PLANLY_CLOUD_BACKUP_PREFIX+(planlyLastAccountId()||'anonymous')}
@@ -2001,6 +2052,8 @@ function settingsView(){
   if($('#planlyCreateHouseholdInviteBtn'))$('#planlyCreateHouseholdInviteBtn').onclick=()=>createPlanlyHouseholdInvite().catch(err=>alert(err.message));
   if($('#planlyAcceptHouseholdBtn'))$('#planlyAcceptHouseholdBtn').onclick=()=>acceptPlanlyHouseholdInvite().catch(err=>alert(err.message));
   if($('#planlyLeaveHouseholdBtn'))$('#planlyLeaveHouseholdBtn').onclick=()=>leavePlanlyHousehold().catch(err=>alert(err.message));
+  if($('#planlyTransferHouseholdBtn'))$('#planlyTransferHouseholdBtn').onclick=()=>transferPlanlyHouseholdOwnership().catch(err=>alert(err.message));
+  if($('#planlyDeleteHouseholdBtn'))$('#planlyDeleteHouseholdBtn').onclick=()=>deletePlanlyHousehold().catch(err=>alert(err.message));
   if($('#planlyAcceptHouseholdLinkBtn'))$('#planlyAcceptHouseholdLinkBtn').onclick=()=>acceptPlanlyHouseholdInvite().catch(err=>alert(err.message));
   if($('#planlyDismissHouseholdInviteBtn'))$('#planlyDismissHouseholdInviteBtn').onclick=clearPendingPlanlyHouseholdInvite;
   if($('#planlyShareHouseholdInviteBtn'))$('#planlyShareHouseholdInviteBtn').onclick=()=>sharePlanlyHouseholdInvite().catch(err=>alert(err.message));
