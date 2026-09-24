@@ -10,10 +10,10 @@
   <meta name="theme-color" content="#111215" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Planly 3.2" />
+  <meta name="apple-mobile-web-app-title" content="Planly" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="../icon-192.png" />
-  <title>Planly 3.2 Preview</title>
+  <title>Planly</title>
   <script>
     window.__planlySwBoot={status:'starting'};
     if('serviceWorker' in navigator){
@@ -44,8 +44,8 @@
     }
   </script>
   <style>
-    :root{--bg:#f7f7f9;--card:#fff;--text:#111215;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--accentText:#fff;--selected:#111827;--selectedText:#fff;--danger:#b91c1c;--success:#15803d;--warning:#b45309;--shadow:0 8px 30px rgba(0,0,0,.06)}
-    :root[data-theme="dark"]{--bg:#111215;--card:#191b20;--text:#f9fafb;--muted:#9ca3af;--line:#2b2e35;--accent:#f3f4f6;--accentText:#111215;--selected:#2b3039;--selectedText:#f9fafb;--danger:#f87171;--success:#4ade80;--warning:#fbbf24;--shadow:none}
+    :root{--bg:#f5f6f8;--card:#fff;--cardSoft:#fafafa;--text:#16181d;--muted:#747b88;--line:#e6e8ec;--accent:#20242c;--accentText:#fff;--selected:#20242c;--selectedText:#fff;--danger:#b42318;--success:#16824b;--warning:#b65d08;--shadow:0 8px 28px rgba(17,24,39,.055);--shadowLift:0 14px 40px rgba(17,24,39,.10);--radiusCard:20px;--radiusControl:13px}
+    :root[data-theme="dark"]{--bg:#0f1115;--card:#181b21;--cardSoft:#14171c;--text:#f6f7f9;--muted:#9aa1ad;--line:#292d35;--accent:#f3f4f6;--accentText:#111215;--selected:#292e37;--selectedText:#f9fafb;--danger:#ff8178;--success:#54d38b;--warning:#f6b85d;--shadow:none;--shadowLift:0 16px 42px rgba(0,0,0,.28)}
     *{box-sizing:border-box} html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif} body{min-height:100vh} html.sheetOpen{overflow:hidden;overscroll-behavior:none} body.sheetOpen{position:fixed;left:0;right:0;width:100%;overflow:hidden;overscroll-behavior:none}
     button,input,select,textarea{font:inherit} button{cursor:pointer}
     .app{max-width:720px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 12px) 16px calc(168px + env(safe-area-inset-bottom))}
@@ -66,6 +66,19 @@
     .calendarSourceDetails{border:1px solid var(--line);border-radius:15px;background:var(--bg);margin-bottom:9px;overflow:hidden}.calendarSourceDetails>summary{list-style:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:center;padding:12px;cursor:pointer}.calendarSourceDetails>summary::-webkit-details-marker{display:none}.calendarSourceSummaryText{min-width:0;display:grid;gap:2px}.calendarSourceSummaryText strong{font-size:13px}.calendarSourceSummaryText small{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.calendarSourceChevron{font-size:20px;color:var(--muted);transition:transform .15s}.calendarSourceDetails[open] .calendarSourceChevron{transform:rotate(90deg)}.calendarSourceBody{padding:0 12px 12px;border-top:1px solid var(--line)}.calendarSourceActions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}.calendarColourControl{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px;font-weight:700}.calendarColourControl input{width:34px;height:28px;padding:0;border:0;background:transparent}.calendarRemoveBtn{width:100%;margin-top:14px}
     @keyframes checklistPulse{0%{transform:scale(1)}35%{transform:scale(1.012)}100%{transform:scale(1)}}@media(max-width:390px){.compactCoreRow{gap:14px!important;column-gap:14px!important}.compactCoreRow>.field{flex-basis:calc((100% - 14px)/2);width:calc((100% - 14px)/2);max-width:calc((100% - 14px)/2)}.compactCoreRow input[type="date"],.compactCoreRow input[type="time"]{font-size:15px!important;padding-left:8px!important;padding-right:8px!important}.taskActionPrimary{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboardMetrics{gap:5px}.dashboardHero{padding:14px}.todayPlannerBar{align-items:flex-start;flex-direction:column}.todayPlannerActions{width:100%}.todayPlannerActions button{flex:1}.timelineMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.row2{gap:8px}.row2 input[type="date"],.row2 input[type="time"]{padding-left:8px;padding-right:6px}}
     @media(min-width:700px){.fab{right:calc((100vw - 720px)/2 + 22px)}}
+
+    /* Planly UI 4.0 foundation — hierarchy, spacing and touch ergonomics */
+    .app{max-width:760px;padding:calc(env(safe-area-inset-top) + 18px) 18px calc(154px + env(safe-area-inset-bottom))}
+    .topbar{align-items:center;margin-bottom:22px}.eyebrow{font-size:12px;font-weight:650;letter-spacing:.015em}.title{font-size:32px;letter-spacing:-.035em;font-weight:780}.topActions{gap:7px}.iconbtn{width:42px;height:42px;border-radius:var(--radiusControl);box-shadow:none}
+    .section{margin-top:22px}.sectionHead{margin-bottom:11px}.sectionHead h2{font-size:16px;letter-spacing:-.01em}.empty{border-radius:var(--radiusCard)}
+    .task{margin-bottom:8px;border-radius:var(--radiusCard);box-shadow:none}.taskSurface{border-radius:var(--radiusCard);padding:14px 14px;grid-template-columns:32px minmax(0,1fr) auto;border-color:var(--line)}.task:hover .taskSurface{border-color:color-mix(in srgb,var(--text) 14%,var(--line))}.taskTitle{font-size:15px;font-weight:680;letter-spacing:-.006em}.meta{margin-top:6px;font-size:11px;gap:5px}.pill,.projectTaskPill{padding:3px 7px}.check{width:24px;height:24px}.smallbtn{border-radius:11px}
+    .dashboardHero,.dashboardNextCard,.dashboardDeadlines,.todayPlannerBar,.progress{border-radius:var(--radiusCard);box-shadow:none}.dashboardHero{padding:17px}.dashboardMetrics>div{background:var(--cardSoft)}.dashboardActions button{border-radius:var(--radiusControl)}.todayDashboard{gap:9px}.todayPlannerBar{margin-bottom:15px}
+    .settingsCard{border-radius:var(--radiusCard)!important;box-shadow:none!important;margin-bottom:12px!important}.settingsCard h3{letter-spacing:-.015em}.input,.select,.primary,.secondaryBtn,.dangerBtn{border-radius:var(--radiusControl)!important}
+    .toolbar button,.calendarFilters button{border-radius:11px!important}
+    .nav{left:50%!important;right:auto!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;transform:translateX(-50%);width:min(calc(100% - 24px),736px);border:1px solid var(--line)!important;border-radius:22px!important;padding:6px!important;background:color-mix(in srgb,var(--card) 94%,transparent)!important;box-shadow:var(--shadowLift)!important;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+    .nav button{min-height:52px!important;border-radius:16px!important;font-size:12px!important;font-weight:680!important}.nav button.active{background:var(--selected)!important;color:var(--selectedText)!important}
+    #addBtn{bottom:calc(86px + env(safe-area-inset-bottom))!important;right:max(22px,calc((100vw - 760px)/2 + 22px))!important;box-shadow:var(--shadowLift)!important}
+    @media(max-width:520px){.app{padding-left:14px;padding-right:14px}.title{font-size:30px}.topbar{margin-bottom:18px}.dashboardMetrics{gap:5px}.nav{width:calc(100% - 16px);bottom:calc(8px + env(safe-area-inset-bottom))!important}.nav button{min-height:50px!important}.taskSurface{padding:13px 12px}}
   </style>
 </head>
 <body>
@@ -117,6 +130,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0.js?v=320"></script>
+<script src="./app-v3.2.0.js?v=321ui1"></script>
 </body>
 </html>
