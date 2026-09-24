@@ -1,16 +1,26 @@
-const CACHE='planly-preview-v3-2-p32';
-const VERSION='planly-preview-sw-p32';
-const REQUIRED=['./index.html','./app-v3.2.0-migration-preview.js','./supabase-config.js','./manifest.webmanifest'];
+const CACHE='planly-preview-v3-2-p46';
+const VERSION='planly-preview-sw-p46';
+const APP_URL='./app-v3.2.0-migration-preview.js?v=320p46';
+const REQUIRED=['./index.html',APP_URL,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
 async function cacheOne(cache,url){
   try{
-    const response=await fetch(url,{cache:'reload'});
+    const response=await fetch(url,{cache:'no-store'});
     if(response?.ok){await cache.put(url,response.clone());return true}
   }catch{}
   return false;
 }
-
+async function networkThenCache(request,cacheKey){
+  const cache=await caches.open(CACHE);
+  try{
+    const response=await fetch(request,{cache:'no-store'});
+    if(response?.ok)await cache.put(cacheKey,response.clone());
+    return response;
+  }catch{
+    return (await cache.match(cacheKey))||Response.error();
+  }
+}
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
@@ -18,7 +28,6 @@ self.addEventListener('install',event=>{
     await self.skipWaiting();
   })());
 });
-
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
@@ -26,11 +35,7 @@ self.addEventListener('activate',event=>{
     await self.clients.claim();
   })());
 });
-
-self.addEventListener('message',event=>{
-  if(event.data?.type==='SKIP_WAITING')self.skipWaiting();
-});
-
+self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting()});
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
@@ -40,28 +45,24 @@ self.addEventListener('fetch',event=>{
   }
   if(event.request.mode==='navigate'){
     event.respondWith((async()=>{
+      const fresh=await networkThenCache(event.request,'./index.html');
+      if(fresh.type!=='error')return fresh;
       const cache=await caches.open(CACHE);
-      const cached=await cache.match('./index.html',{ignoreSearch:true})||await cache.match('./',{ignoreSearch:true});
-      if(cached)return cached;
-      try{
-        const response=await fetch(event.request,{cache:'no-store'});
-        if(response?.ok)await cache.put('./index.html',response.clone());
-        return response;
-      }catch{
-        return new Response('<!doctype html><title>Planly offline</title><body>Planly offline cache is unavailable.</body>',{status:503,headers:{'Content-Type':'text/html'}});
-      }
+      return (await cache.match('./index.html'))||new Response('<!doctype html><title>Planly offline</title><body>Planly offline cache is unavailable.</body>',{status:503,headers:{'Content-Type':'text/html'}});
     })());
     return;
   }
   if(url.origin===self.location.origin){
+    const isApp=url.pathname.endsWith('/app-v3.2.0-migration-preview.js');
+    if(isApp){
+      event.respondWith(networkThenCache(event.request,APP_URL));
+      return;
+    }
     event.respondWith((async()=>{
-      const cached=await caches.match(event.request,{ignoreSearch:true});
+      const cache=await caches.open(CACHE);
+      const cached=await cache.match(event.request);
       if(cached)return cached;
-      try{
-        const response=await fetch(event.request,{cache:'no-store'});
-        if(response?.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>{});
-        return response;
-      }catch{return Response.error()}
+      return networkThenCache(event.request,event.request);
     })());
     return;
   }
