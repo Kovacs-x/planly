@@ -20,8 +20,8 @@ let planlyOfflineReady=false,planlyOfflineStatus='Preparing offline mode…';
 const PLANLY_CLOUD_CACHE_PREFIX='planly-cloud-cache-v1:';
 const PLANLY_CLOUD_PENDING_PREFIX='planly-cloud-pending-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
-const PLANLY_OFFLINE_CACHE='planly-preview-v3-2-p28';
-const PLANLY_SW_PROBE='planly-preview-sw-p28';
+const PLANLY_OFFLINE_CACHE='planly-preview-v3-2-p29';
+const PLANLY_SW_PROBE='planly-preview-sw-p29';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1283,7 +1283,7 @@ async function probePlanlyServiceWorker(){
 async function finishPlanlyOfflineReadiness(force=false){
   const probe=await probePlanlyServiceWorker(),cacheCheck=await verifyPlanlyOfflineCache();
   planlyOfflineReady=probe.ok&&cacheCheck.ok;
-  planlyOfflineStatus=planlyOfflineReady?'Ready for offline reload':!navigator.serviceWorker.controller?'Service worker installed · reload once online':!probe.ok?'Offline worker update pending · reload once online':cacheCheck.missing.length?'Missing cache: '+cacheCheck.missing.join(', '):'Offline cache not ready';
+  const reg=await navigator.serviceWorker.getRegistration('./').catch(()=>null),workerState=reg?.active?.state||reg?.waiting?.state||reg?.installing?.state||'none';planlyOfflineStatus=planlyOfflineReady?'Ready for offline reload':!navigator.serviceWorker.controller?'Worker '+workerState+' · not controlling this tab':!probe.ok?'Wrong worker controls tab · '+String(probe.reason||'probe failed'):cacheCheck.missing.length?'Missing cache: '+cacheCheck.missing.join(', '):'Offline cache not ready';
   setPlanlyCloudLocalStatus({offlineReady:planlyOfflineReady,offlineStatus:planlyOfflineStatus,offlineMissing:cacheCheck.missing||[],offlineProbe:probe.reason||''});
   render();if(force)showToast(planlyOfflineReady?'Offline mode ready':planlyOfflineStatus);
   return planlyOfflineReady;
@@ -1302,7 +1302,7 @@ async function preparePlanlyOfflineMode(force=false){
     await updateLegacyRootPlanlyWorker();
     const initial=await probePlanlyServiceWorker();
     if(initial.ok)return finishPlanlyOfflineReadiness(force);
-    const reg=await planlyWithTimeout(navigator.serviceWorker.register('./sw.js?v=p28'),5000,'Service worker registration').catch(()=>null);
+    const reg=await planlyWithTimeout(navigator.serviceWorker.register('./sw.js?v=p29',{scope:'./'}),5000,'Service worker registration').catch(()=>null);
     if(reg?.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
     await Promise.race([
       new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),
