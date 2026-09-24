@@ -37,7 +37,7 @@ function fmt(s,o={weekday:'short',day:'numeric',month:'short'}){return new Intl.
 function uid(){return `${Date.now()}-${Math.random().toString(16).slice(2)}`}
 function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function save(){if(PLANLY_CLOUD_PREVIEW&&(planlySession?.user||planlyLastAccountId())){persistPlanlyCloudCache();return}localStorage.setItem(STORE,JSON.stringify({tasks:state.tasks,projects:state.projects,theme:state.theme,showCompleted:state.showCompleted,defaultCategory:state.defaultCategory,defaultDuration:state.defaultDuration,autoCalendarTimed:state.autoCalendarTimed,autoCompleteParentSubtasks:state.autoCompleteParentSubtasks,planningStart:state.planningStart,planningEnd:state.planningEnd}))}
-function load(){try{const d=JSON.parse(localStorage.getItem(STORE)||'{}');state.tasks=Array.isArray(d.tasks)?d.tasks:[];state.projects=Array.isArray(d.projects)?d.projects:[];state.theme=d.theme||'system';state.showCompleted=d.showCompleted!==false;state.defaultCategory=d.defaultCategory||'Personal';state.defaultDuration=Number(d.defaultDuration||30);state.autoCalendarTimed=!!d.autoCalendarTimed;state.autoCompleteParentSubtasks=!!d.autoCompleteParentSubtasks;state.planningStart=d.planningStart||'08:00';state.planningEnd=d.planningEnd||'23:00';if(timeToMinutes(state.planningEnd)<=timeToMinutes(state.planningStart)){state.planningStart='08:00';state.planningEnd='23:00'}if(migrateRecurringCalendarState())save()}catch{}}
+function load(){try{const d=JSON.parse(localStorage.getItem(STORE)||'{}');state.tasks=Array.isArray(d.tasks)?d.tasks:[];state.projects=Array.isArray(d.projects)?d.projects:[];state.theme=d.theme||'system';state.showCompleted=d.showCompleted!==false;state.defaultCategory=d.defaultCategory||'Personal';state.defaultDuration=Number(d.defaultDuration||30);state.autoCalendarTimed=!!d.autoCalendarTimed;state.autoCompleteParentSubtasks=!!d.autoCompleteParentSubtasks;state.planningStart=d.planningStart||'08:00';state.planningEnd=d.planningEnd||'23:00';if(timeToMinutes(state.planningEnd)<=timeToMinutes(state.planningStart)){state.planningStart='08:00';state.planningEnd='23:00'}const recurrenceChanged=migrateRecurringCalendarState();if(recurrenceChanged&&!PLANLY_CLOUD_PREVIEW)save()}catch{}}
 function applyTheme(){let t=state.theme;if(t==='system')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}
 function isStandalone(){return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}
 function setHeader(title,dateText=''){ $('#pageTitle').textContent=title; $('#eyebrow').textContent=dateText }
@@ -298,7 +298,7 @@ function saveProjectEditor(){
   const now=Date.now();let p=projectById(editingProjectId);
   if(p){p.name=name;p.dueDate=$('#projectDueDate').value||'';p.notes=$('#projectNotes').value.trim();p.updatedAt=now}
   else{p={id:uid(),name,dueDate:$('#projectDueDate').value||'',notes:$('#projectNotes').value.trim(),archived:false,createdAt:now,updatedAt:now};state.projects.push(p)}
-  save();if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly)queueCloudWrite(()=>wasExisting?cloudUpdateProject(p):cloudInsertProject(p),'Project synced');activeProjectId=p.id;editingProjectId='';projectPanelMode='detail';renderProjectsPanel();render();
+  if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly){const baseVersion=wasExisting?Number(planlyCloudSyncMeta.projects.get(String(p.id))||0):0;stagePlanlyPendingWrite('project','upsert',p,baseVersion)}save();if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly)queueCloudWrite(()=>wasExisting?cloudUpdateProject(p,true,Number(planlyCloudSyncMeta.projects.get(String(p.id))||0)):cloudInsertProject(p,true),'Project synced');activeProjectId=p.id;editingProjectId='';projectPanelMode='detail';renderProjectsPanel();render();
 }
 function handleProjectsClick(e){
   const open=e.target.closest('[data-project-open]');if(open){activeProjectId=open.dataset.projectOpen;editingProjectId='';projectPanelMode='detail';renderProjectsPanel();return}
@@ -717,7 +717,7 @@ function rescheduleTaskWithUndo(t,newDate,message){
 function deleteTaskWithUndo(t){
   if(!t)return;
   const before=cloneTasks(),isRecurringGoogle=!!(t.googleEventId&&t.recurrence&&t.recurrence!=='none'),eventId=isRecurringGoogle?'':(t.googleEventId||'');
-  state.tasks=state.tasks.filter(x=>x.id!==t.id);save();if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly)queueCloudWrite(()=>cloudDeleteTaskById(t.id),'Task deletion synced');render();
+  state.tasks=state.tasks.filter(x=>x.id!==t.id);if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly){const baseVersion=Number(planlyCloudSyncMeta.tasks.get(String(t.id))||0);stagePlanlyPendingWrite('task','delete',t.id,baseVersion)}save();if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly)queueCloudWrite(()=>cloudDeleteTaskById(t.id,true,Number(planlyCloudSyncMeta.tasks.get(String(t.id))||0)),'Task deletion synced');render();
   showUndoToast(isRecurringGoogle?'Task removed from Planly · Google series unchanged':'Task deleted',()=>restoreTaskSnapshot(before),()=>{if(eventId)queueGoogleDelete(eventId);if(googleConnected())processPendingDeletes().catch(()=>{})});
 }
 function waitForGoogleIdentity(timeout=8000){
@@ -1915,7 +1915,7 @@ $('#taskForm').addEventListener('submit',async e=>{
     t.updatedAt=Date.now();
     createNextRecurring(t);
   }
-  save();if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly)queueCloudWrite(()=>wasExisting?cloudUpdateTask(t):cloudInsertTask(t),'Task synced');closeSheet();render();
+  if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly){const baseVersion=wasExisting?Number(planlyCloudSyncMeta.tasks.get(String(t.id))||0):0;stagePlanlyPendingWrite('task','upsert',t,baseVersion)}save();if(PLANLY_CLOUD_PREVIEW&&!planlyCloudReadOnly)queueCloudWrite(()=>wasExisting?cloudUpdateTask(t,true,Number(planlyCloudSyncMeta.tasks.get(String(t.id))||0)):cloudInsertTask(t,true),'Task synced');closeSheet();render();
   if(checklistAutoSnapshot){
     const finalizeChecklistCompletion=()=>{if(googleConnected())syncPendingGoogle().then(()=>render()).catch(()=>{})};
     showUndoToast('Checklist finished — task completed',()=>{restoreTaskSnapshot(checklistAutoSnapshot);finalizeChecklistCompletion()},finalizeChecklistCompletion);
