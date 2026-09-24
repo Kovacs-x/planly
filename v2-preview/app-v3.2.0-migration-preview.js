@@ -20,8 +20,8 @@ let planlyOfflineReady=false,planlyOfflineStatus='Preparing offline mode…';
 const PLANLY_CLOUD_CACHE_PREFIX='planly-cloud-cache-v1:';
 const PLANLY_CLOUD_PENDING_PREFIX='planly-cloud-pending-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
-const PLANLY_OFFLINE_CACHE='planly-preview-v3-2-p26';
-const PLANLY_SW_PROBE='planly-preview-sw-p26';
+const PLANLY_OFFLINE_CACHE='planly-preview-v3-2-p28';
+const PLANLY_SW_PROBE='planly-preview-sw-p28';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1288,13 +1288,21 @@ async function finishPlanlyOfflineReadiness(force=false){
   render();if(force)showToast(planlyOfflineReady?'Offline mode ready':planlyOfflineStatus);
   return planlyOfflineReady;
 }
+async function updateLegacyRootPlanlyWorker(){
+  try{
+    const regs=await navigator.serviceWorker.getRegistrations();
+    const root=regs.find(reg=>{try{return new URL(reg.scope).pathname.endsWith('/planly/')}catch{return false}});
+    if(root)await planlyWithTimeout(root.update(),3500,'Root worker update').catch(()=>{});
+  }catch{}
+}
 async function preparePlanlyOfflineMode(force=false){
   if(!PLANLY_CLOUD_PREVIEW||!('serviceWorker'in navigator)){planlyOfflineReady=false;planlyOfflineStatus='Unavailable in this browser';if(force)render();return false}
   try{
     planlyOfflineStatus='Checking offline support…';if(force)render();
+    await updateLegacyRootPlanlyWorker();
     const initial=await probePlanlyServiceWorker();
     if(initial.ok)return finishPlanlyOfflineReadiness(force);
-    const reg=await planlyWithTimeout(navigator.serviceWorker.register('./sw.js?v=p26'),5000,'Service worker registration').catch(()=>null);
+    const reg=await planlyWithTimeout(navigator.serviceWorker.register('./sw.js?v=p28'),5000,'Service worker registration').catch(()=>null);
     if(reg?.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
     await Promise.race([
       new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),
