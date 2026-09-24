@@ -1,0 +1,23 @@
+{
+  "id": "./",
+  "name": "Planly 3.2 Preview",
+  "short_name": "Planly 3.2",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f7f9",
+  "theme_color": "#f7f7f9",
+  "description": "Planly 3.2 cloud-sync preview.",
+  "icons": [
+    {
+      "src": "../icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
