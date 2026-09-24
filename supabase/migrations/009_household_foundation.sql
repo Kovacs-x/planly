@@ -49,12 +49,12 @@ alter table public.planly_household_invites enable row level security;
 create or replace function public.planly_is_household_member(p_household_id uuid, p_user_id uuid default auth.uid())
 returns boolean language sql stable security definer
 set search_path = pg_catalog, public
-as $$ select exists(select 1 from public.planly_household_members m where m.household_id=p_household_id and m.user_id=p_user_id) $$;
+as $$ select exists(select 1 from public.planly_household_members m where m.household_id=p_household_id and m.user_id=auth.uid()) $;
 
 create or replace function public.planly_is_household_owner(p_household_id uuid, p_user_id uuid default auth.uid())
 returns boolean language sql stable security definer
 set search_path = pg_catalog, public
-as $$ select exists(select 1 from public.planly_household_members m where m.household_id=p_household_id and m.user_id=p_user_id and m.role='owner') $$;
+as $$ select exists(select 1 from public.planly_household_members m where m.household_id=p_household_id and m.user_id=auth.uid() and m.role='owner') $;
 
 revoke all on function public.planly_is_household_member(uuid,uuid) from public, anon;
 revoke all on function public.planly_is_household_owner(uuid,uuid) from public, anon;
@@ -97,7 +97,7 @@ set search_path = pg_catalog, public, extensions
 as $$
 declare v_user uuid:=auth.uid(); v_email text:=lower(btrim(p_email)); v_token text; v_hash text;
 begin
-  if v_user is null or not public.planly_is_household_owner(p_household_id,v_user) then raise exception 'Not authorized'; end if;
+  if v_user is null or not public.planly_is_household_owner(p_household_id) then raise exception 'Not authorized'; end if;
   if v_email !~ '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' or char_length(v_email)>320 then raise exception 'Invalid email'; end if;
   update public.planly_household_invites set status='expired' where household_id=p_household_id and status='pending' and expires_at<=now();
   if exists(select 1 from auth.users u join public.planly_household_members m on m.user_id=u.id where m.household_id=p_household_id and lower(u.email)=v_email) then raise exception 'Already a member'; end if;
@@ -134,7 +134,7 @@ as $$
 declare v_h uuid;
 begin
   select household_id into v_h from public.planly_household_invites where id=p_invite_id;
-  if v_h is null or not public.planly_is_household_owner(v_h,auth.uid()) then raise exception 'Not authorized'; end if;
+  if v_h is null or not public.planly_is_household_owner(v_h) then raise exception 'Not authorized'; end if;
   update public.planly_household_invites set status='revoked' where id=p_invite_id and status='pending';
 end $$;
 
