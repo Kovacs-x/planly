@@ -1,5 +1,5 @@
-const CACHE='planly-v2-330d04';
-const VERSION='planly-v2-sw-330d04';
+const CACHE='planly-v2-330d05';
+const VERSION='planly-v2-sw-330d05';
 const APP_URL='./app-v3.2.0.js?v=330c02';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c02';
@@ -55,8 +55,6 @@ self.addEventListener('activate',event=>{
     const keys=await caches.keys();
     await Promise.all(keys.filter(key=>key.startsWith('planly-v2-')&&key!==CACHE).map(key=>caches.delete(key)));
     await self.clients.claim();
-    const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
-    await Promise.allSettled(clients.map(client=>client.navigate(client.url)));
   })());
 });
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting()});
