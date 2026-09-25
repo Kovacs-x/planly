@@ -42,3 +42,4 @@ jobs:
           git add v2/app-v3.2.0.js v2/index.html v2/sw.js
           git commit -m "Fix household tasks on fresh member sign-in"
           git push origin HEAD:planly-3.3b-assignment-polish
+# trigger: 2
