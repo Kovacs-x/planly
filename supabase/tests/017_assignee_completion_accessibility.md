@@ -1,0 +1,1 @@
+Accessibility: for an assigned incoming task, the existing completion button is enabled and its `aria-label` changes between `Complete assigned task` and `Mark assigned task incomplete`. Unassigned or differently assigned incoming Household tasks retain the disabled creator-owned status control.
