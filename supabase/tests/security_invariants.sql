@@ -12,7 +12,8 @@ begin
   foreach t in array array[
     'planly_tasks','planly_projects','planly_preferences','planly_sync_state',
     'calendar_sources','external_calendar_events','calendar_source_credentials',
-    'planly_households','planly_household_members','planly_household_invites'
+    'planly_households','planly_household_members','planly_household_invites',
+    'planly_budget_scopes','planly_budget_categories','planly_budget_targets','planly_budget_entries'
   ] loop
     select c.relrowsecurity into rls
     from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -34,7 +35,10 @@ begin
   select count(*) into bad_owner_updates
   from pg_policies
   where schemaname='public'
-    and tablename in ('planly_tasks','planly_projects','planly_preferences','planly_sync_state')
+    and tablename in (
+      'planly_tasks','planly_projects','planly_preferences','planly_sync_state',
+      'planly_budget_scopes','planly_budget_categories','planly_budget_targets','planly_budget_entries'
+    )
     and cmd='UPDATE'
     and (qual is null or with_check is null);
   if bad_owner_updates <> 0 then
@@ -44,8 +48,7 @@ end $$;
 
 -- Private external calendars must not gain a household-membership policy path.
 do $$
-declare
-  leaks integer;
+declare leaks integer;
 begin
   select count(*) into leaks
   from pg_policies
@@ -55,6 +58,34 @@ begin
   if leaks <> 0 then
     raise exception 'SECURITY TEST FAILED: household authorization detected on private external calendar data';
   end if;
+end $$;
+
+-- Budget tables must expose no anon privileges and every mutable budget table must
+-- retain cloud_version optimistic concurrency support.
+do $$
+declare
+  anon_budget_grants integer;
+  t text;
+  has_version boolean;
+begin
+  select count(*) into anon_budget_grants
+  from information_schema.role_table_grants
+  where table_schema='public'
+    and table_name in ('planly_budget_scopes','planly_budget_categories','planly_budget_targets','planly_budget_entries')
+    and grantee='anon';
+  if anon_budget_grants <> 0 then
+    raise exception 'SECURITY TEST FAILED: anon has direct budget table privileges';
+  end if;
+
+  foreach t in array array['planly_budget_scopes','planly_budget_categories','planly_budget_targets','planly_budget_entries'] loop
+    select exists(
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name=t and column_name='cloud_version' and data_type='bigint'
+    ) into has_version;
+    if not has_version then
+      raise exception 'SECURITY TEST FAILED: cloud_version missing on public.%', t;
+    end if;
+  end loop;
 end $$;
 
 select 'Planly database security invariant tests passed' as result;
