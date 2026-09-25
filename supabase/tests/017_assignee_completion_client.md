@@ -1,0 +1,1 @@
+Client interception: the hardening layer decorates only the `.check` button of an incoming task assigned to the authenticated user with `data-assignee-toggle=true`. A capture-phase click handler stops the core owner-only toggle path and invokes the completion RPC. Other incoming tasks never receive that marker and remain disabled.
