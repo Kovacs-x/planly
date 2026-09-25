@@ -1,0 +1,1 @@
+Data contract: cloud `completed` and JSON `data.completed` are updated together, matching the existing Planly task serialization contract. `client_updated_at` advances to the current epoch milliseconds so normal cloud reconciliation treats the completion as the newest authoritative task version.
