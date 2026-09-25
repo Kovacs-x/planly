@@ -14,13 +14,27 @@ taskHtml=function(t,top3Mode=false){
 };
 
 /* Authoritative assignment hydration. The DB column is the source of truth and
-   is merged into the runtime task before the bootstrap promise resolves. */
+   is merged into the runtime task before the bootstrap promise resolves.
+   A completed initial migration also means this authenticated account is an
+   established cloud account: writable sync is restored automatically instead
+   of depending on the legacy manual Enable cloud sync control. */
 const __planlyBaseLoadVerifiedCloudPreview=loadVerifiedCloudPreview;
 loadVerifiedCloudPreview=async function(){
   const loaded=await __planlyBaseLoadVerifiedCloudPreview();
   if(!loaded||!planlySession?.user||!initPlanlySupabase())return loaded;
+  const ownerId=String(planlySession.user.id||'');
+  const {data:syncState,error:syncStateError}=await planlySupabase.from('planly_sync_state')
+    .select('initial_migration_completed_at')
+    .eq('owner_id',ownerId)
+    .maybeSingle();
+  if(syncStateError)throw syncStateError;
+  if(syncState?.initial_migration_completed_at){
+    planlyCloudReadOnly=false;
+    const status=planlyCloudLocalStatus();
+    setPlanlyCloudLocalStatus({...status,state:'cloud-write-test',pendingWrites:readPlanlyPendingWrites().length});
+  }
   const incoming=state.tasks.filter(t=>t&&t.visibility==='household'&&t._planlyOwnedByMe===false&&t.id&&t._planlyOwnerId);
-  if(!incoming.length)return loaded;
+  if(!incoming.length){persistPlanlyCloudCache();return loaded;}
   const owners=[...new Set(incoming.map(t=>String(t._planlyOwnerId)).filter(Boolean))];
   const ids=[...new Set(incoming.map(t=>String(t.id)).filter(Boolean))];
   const {data:rows,error}=await planlySupabase.from('planly_tasks')
