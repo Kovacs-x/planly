@@ -1,11 +1,12 @@
-const CACHE='planly-v2-330c03';
-const VERSION='planly-v2-sw-330c03';
+const CACHE='planly-v2-330c04';
+const VERSION='planly-v2-sw-330c04';
 const APP_URL='./app-v3.2.0.js?v=330c02';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c02';
 const CORE_BUILD_URL='./core-build-v3.3c.js?v=330c02';
 const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=330c03';
-const REQUIRED=['./index.html',APP_URL,HARDENING_URL,CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,'./supabase-config.js','./manifest.webmanifest'];
+const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=330c04';
+const REQUIRED=['./index.html',APP_URL,HARDENING_URL,CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
 async function cacheOne(cache,url){
@@ -13,13 +14,13 @@ async function cacheOne(cache,url){
 }
 async function networkThenCache(request,cacheKey){const cache=await caches.open(CACHE);try{const response=await fetch(request,{cache:'no-store'});if(response?.ok)await cache.put(cacheKey,response.clone());return response}catch{return (await cache.match(cacheKey))||Response.error()}}
 async function hardenedAppResponse(request){
-  const cache=await caches.open(CACHE);let appResponse,hardeningResponse,coreProjectsResponse,coreBuildResponse,coreAssignmentResponse;
+  const cache=await caches.open(CACHE);let appResponse,hardeningResponse,coreProjectsResponse,coreBuildResponse,coreAssignmentResponse,coreProjectPlanningResponse;
   try{
-    [appResponse,hardeningResponse,coreProjectsResponse,coreBuildResponse,coreAssignmentResponse]=await Promise.all([fetch(request,{cache:'no-store'}),fetch(HARDENING_URL,{cache:'no-store'}),fetch(CORE_PROJECTS_URL,{cache:'no-store'}),fetch(CORE_BUILD_URL,{cache:'no-store'}),fetch(CORE_ASSIGNMENT_URL,{cache:'no-store'})]);
-    if(appResponse?.ok)await cache.put(APP_URL,appResponse.clone());if(hardeningResponse?.ok)await cache.put(HARDENING_URL,hardeningResponse.clone());if(coreProjectsResponse?.ok)await cache.put(CORE_PROJECTS_URL,coreProjectsResponse.clone());if(coreBuildResponse?.ok)await cache.put(CORE_BUILD_URL,coreBuildResponse.clone());if(coreAssignmentResponse?.ok)await cache.put(CORE_ASSIGNMENT_URL,coreAssignmentResponse.clone());
+    [appResponse,hardeningResponse,coreProjectsResponse,coreBuildResponse,coreAssignmentResponse,coreProjectPlanningResponse]=await Promise.all([fetch(request,{cache:'no-store'}),fetch(HARDENING_URL,{cache:'no-store'}),fetch(CORE_PROJECTS_URL,{cache:'no-store'}),fetch(CORE_BUILD_URL,{cache:'no-store'}),fetch(CORE_ASSIGNMENT_URL,{cache:'no-store'}),fetch(CORE_PROJECT_PLANNING_URL,{cache:'no-store'})]);
+    if(appResponse?.ok)await cache.put(APP_URL,appResponse.clone());if(hardeningResponse?.ok)await cache.put(HARDENING_URL,hardeningResponse.clone());if(coreProjectsResponse?.ok)await cache.put(CORE_PROJECTS_URL,coreProjectsResponse.clone());if(coreBuildResponse?.ok)await cache.put(CORE_BUILD_URL,coreBuildResponse.clone());if(coreAssignmentResponse?.ok)await cache.put(CORE_ASSIGNMENT_URL,coreAssignmentResponse.clone());if(coreProjectPlanningResponse?.ok)await cache.put(CORE_PROJECT_PLANNING_URL,coreProjectPlanningResponse.clone());
   }catch{}
-  if(!appResponse?.ok)appResponse=await cache.match(APP_URL);if(!hardeningResponse?.ok)hardeningResponse=await cache.match(HARDENING_URL);if(!coreProjectsResponse?.ok)coreProjectsResponse=await cache.match(CORE_PROJECTS_URL);if(!coreBuildResponse?.ok)coreBuildResponse=await cache.match(CORE_BUILD_URL);if(!coreAssignmentResponse?.ok)coreAssignmentResponse=await cache.match(CORE_ASSIGNMENT_URL);if(!appResponse)return Response.error();
-  let appText=await appResponse.text();const hardeningText=hardeningResponse?await hardeningResponse.text():'',coreProjectsText=coreProjectsResponse?await coreProjectsResponse.text():'',coreBuildText=coreBuildResponse?await coreBuildResponse.text():'',coreAssignmentText=coreAssignmentResponse?await coreAssignmentResponse.text():'',coreText=[coreProjectsText,coreBuildText,coreAssignmentText].filter(Boolean).join('\n');
+  if(!appResponse?.ok)appResponse=await cache.match(APP_URL);if(!hardeningResponse?.ok)hardeningResponse=await cache.match(HARDENING_URL);if(!coreProjectsResponse?.ok)coreProjectsResponse=await cache.match(CORE_PROJECTS_URL);if(!coreBuildResponse?.ok)coreBuildResponse=await cache.match(CORE_BUILD_URL);if(!coreAssignmentResponse?.ok)coreAssignmentResponse=await cache.match(CORE_ASSIGNMENT_URL);if(!coreProjectPlanningResponse?.ok)coreProjectPlanningResponse=await cache.match(CORE_PROJECT_PLANNING_URL);if(!appResponse)return Response.error();
+  let appText=await appResponse.text();const hardeningText=hardeningResponse?await hardeningResponse.text():'',coreProjectsText=coreProjectsResponse?await coreProjectsResponse.text():'',coreBuildText=coreBuildResponse?await coreBuildResponse.text():'',coreAssignmentText=coreAssignmentResponse?await coreAssignmentResponse.text():'',coreProjectPlanningText=coreProjectPlanningResponse?await coreProjectPlanningResponse.text():'',coreText=[coreProjectsText,coreBuildText,coreAssignmentText,coreProjectPlanningText].filter(Boolean).join('\n');
   if(coreText){const closeIndex=appText.lastIndexOf('})();');if(closeIndex<0)return new Response('Planly core injection point missing',{status:500,headers:{'Content-Type':'text/plain','Cache-Control':'no-store'}});appText=appText.slice(0,closeIndex)+'\n'+coreText+'\n'+appText.slice(closeIndex)}
   return new Response(appText+'\n;'+hardeningText,{status:200,headers:{'Content-Type':'application/javascript; charset=utf-8','Cache-Control':'no-store'}});
 }
