@@ -41,6 +41,34 @@ loadVerifiedCloudPreview=async function(){
   return loaded;
 };
 
+/* Supabase may emit SIGNED_IN while signInWithPassword is still resolving.
+   Both paths used to start household/cloud reads independently. On Safari this
+   could briefly race the newly established JWT and surface a transient household
+   auth error that disappeared after refresh. Share each authenticated bootstrap
+   read per account so both callers await the same authoritative work. */
+const __planlyBaseLoadHousehold=loadPlanlyHousehold;
+let __planlyHouseholdLoadFlight=null,__planlyHouseholdLoadOwner='';
+loadPlanlyHousehold=function(){
+  const owner=String(planlySession?.user?.id||'');
+  if(!owner)return __planlyBaseLoadHousehold();
+  if(__planlyHouseholdLoadFlight&&__planlyHouseholdLoadOwner===owner)return __planlyHouseholdLoadFlight;
+  __planlyHouseholdLoadOwner=owner;
+  const flight=Promise.resolve().then(()=>__planlyBaseLoadHousehold());
+  __planlyHouseholdLoadFlight=flight;
+  return flight.finally(()=>{if(__planlyHouseholdLoadFlight===flight){__planlyHouseholdLoadFlight=null;__planlyHouseholdLoadOwner=''}});
+};
+const __planlyAssignedLoadVerifiedCloudPreview=loadVerifiedCloudPreview;
+let __planlyCloudLoadFlight=null,__planlyCloudLoadOwner='';
+loadVerifiedCloudPreview=function(){
+  const owner=String(planlySession?.user?.id||'');
+  if(!owner)return __planlyAssignedLoadVerifiedCloudPreview();
+  if(__planlyCloudLoadFlight&&__planlyCloudLoadOwner===owner)return __planlyCloudLoadFlight;
+  __planlyCloudLoadOwner=owner;
+  const flight=Promise.resolve().then(()=>__planlyAssignedLoadVerifiedCloudPreview());
+  __planlyCloudLoadFlight=flight;
+  return flight.finally(()=>{if(__planlyCloudLoadFlight===flight){__planlyCloudLoadFlight=null;__planlyCloudLoadOwner=''}});
+};
+
 /* The original sign-in renders immediately after adoptPlanlySession(). That is
    too early for household assignment state. Replace the handler so the first
    authenticated UI waits for both household identity and cloud task hydration. */
