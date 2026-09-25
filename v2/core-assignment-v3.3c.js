@@ -13,21 +13,18 @@ taskHtml=function(t,top3Mode=false){
   return html;
 };
 
-/* Assignment metadata is hydrated as part of the same cloud bootstrap promise.
-   This makes the first post-login render deterministic instead of relying on a
-   later focus/visibility refresh to discover assignee_id. */
+/* Authoritative assignment hydration. The DB column is the source of truth and
+   is merged into the runtime task before the bootstrap promise resolves. */
 const __planlyBaseLoadVerifiedCloudPreview=loadVerifiedCloudPreview;
 loadVerifiedCloudPreview=async function(){
   const loaded=await __planlyBaseLoadVerifiedCloudPreview();
-  if(!loaded||!planlySession?.user||!planlyHousehold?.id||!initPlanlySupabase())return loaded;
+  if(!loaded||!planlySession?.user||!initPlanlySupabase())return loaded;
   const incoming=state.tasks.filter(t=>t&&t.visibility==='household'&&t._planlyOwnedByMe===false&&t.id&&t._planlyOwnerId);
   if(!incoming.length)return loaded;
   const owners=[...new Set(incoming.map(t=>String(t._planlyOwnerId)).filter(Boolean))];
   const ids=[...new Set(incoming.map(t=>String(t.id)).filter(Boolean))];
-  if(!owners.length||!ids.length)return loaded;
   const {data:rows,error}=await planlySupabase.from('planly_tasks')
     .select('owner_id,client_id,assignee_id')
-    .eq('household_id',planlyHousehold.id)
     .eq('visibility','household')
     .is('deleted_at',null)
     .in('owner_id',owners)
@@ -38,11 +35,31 @@ loadVerifiedCloudPreview=async function(){
     const key=String(task._planlyOwnerId)+'|'+String(task.id);
     if(!byKey.has(key))continue;
     const assigneeId=byKey.get(key);
-    if(assigneeId)task.assigneeId=assigneeId;
-    else delete task.assigneeId;
+    if(assigneeId)task.assigneeId=assigneeId;else delete task.assigneeId;
   }
   persistPlanlyCloudCache();
   return loaded;
+};
+
+/* The original sign-in renders immediately after adoptPlanlySession(). That is
+   too early for household assignment state. Replace the handler so the first
+   authenticated UI waits for both household identity and cloud task hydration. */
+planlySignIn=async function(){
+  if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
+  const email=$('#planlyAuthEmail')?.value.trim(),password=$('#planlyAuthPassword')?.value||'';
+  if(!email||!password)throw new Error('Enter your email and password.');
+  const {data,error}=await planlySupabase.auth.signInWithPassword({email,password});
+  if(error)throw error;
+  adoptPlanlySession(data.session);
+  try{
+    await loadPlanlyHousehold();
+    await loadVerifiedCloudPreview();
+  }catch(err){
+    console.warn('Planly authenticated bootstrap failed',err);
+    throw err;
+  }
+  showToast('Signed in to Planly');
+  render();
 };
 
 document.addEventListener('click',async e=>{
