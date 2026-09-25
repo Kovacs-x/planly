@@ -1,7 +1,7 @@
-const CACHE='planly-v2-330a12';
-const VERSION='planly-v2-sw-330a12';
-const APP_URL='./app-v3.2.0.js?v=330a12';
-const HARDENING_URL='./hardening-v3.3b.js?v=330a12';
+const CACHE='planly-v2-330a13';
+const VERSION='planly-v2-sw-330a13';
+const APP_URL='./app-v3.2.0.js?v=330a13';
+const HARDENING_URL='./hardening-v3.3b.js?v=330a13';
 const REQUIRED=['./index.html',APP_URL,HARDENING_URL,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
