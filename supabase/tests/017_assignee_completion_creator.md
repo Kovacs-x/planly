@@ -1,0 +1,1 @@
+Creator behavior: creator-owned tasks do not use the assignee RPC. Their completion/edit/delete flows continue through the core Planly mutation queue and existing RLS policies. The hardening layer only intercepts a completion click when `_planlyOwnedByMe === false` and `assigneeId` equals the authenticated user.
