@@ -1,0 +1,1 @@
+Owner reconciliation expectation: after Account B completes an assigned task, migration 015 emits the Household UPDATE broadcast. Account A's already-armed private Household channel invokes `kickHouseholdSync()`, which dispatches the core online reconciliation path. The owner therefore receives the authoritative cloud row instead of a peer-written local task mutation.
