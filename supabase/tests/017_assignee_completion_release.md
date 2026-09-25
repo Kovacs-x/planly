@@ -1,0 +1,1 @@
+Release scope is deliberately narrow: assignee complete/reopen only. Assignees do not receive edit, delete, reschedule, project, Top 3, subtask mutation, visibility, reassignment, Google Calendar, or creator ownership rights. Those remain future product decisions rather than implicit side effects of assignment.
