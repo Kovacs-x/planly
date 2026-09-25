@@ -1,8 +1,9 @@
-const CACHE='planly-v2-330a14';
-const VERSION='planly-v2-sw-330a14';
-const APP_URL='./app-v3.2.0.js?v=330a14';
-const HARDENING_URL='./hardening-v3.3b.js?v=330a14';
-const REQUIRED=['./index.html',APP_URL,HARDENING_URL,'./supabase-config.js','./manifest.webmanifest'];
+const CACHE='planly-v2-330a15';
+const VERSION='planly-v2-sw-330a15';
+const APP_URL='./app-v3.2.0.js?v=330a15';
+const HARDENING_URL='./hardening-v3.3b.js?v=330a15';
+const ASSIGNEE_URL='./assignee-v3.3b.js?v=330a15';
+const REQUIRED=['./index.html',APP_URL,HARDENING_URL,ASSIGNEE_URL,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
 async function cacheOne(cache,url){
@@ -24,18 +25,21 @@ async function networkThenCache(request,cacheKey){
 }
 async function hardenedAppResponse(request){
   const cache=await caches.open(CACHE);
-  let appResponse,hardeningResponse;
+  let appResponse,hardeningResponse,assigneeResponse;
   try{
-    [appResponse,hardeningResponse]=await Promise.all([fetch(request,{cache:'no-store'}),fetch(HARDENING_URL,{cache:'no-store'})]);
+    [appResponse,hardeningResponse,assigneeResponse]=await Promise.all([fetch(request,{cache:'no-store'}),fetch(HARDENING_URL,{cache:'no-store'}),fetch(ASSIGNEE_URL,{cache:'no-store'})]);
     if(appResponse?.ok)await cache.put(APP_URL,appResponse.clone());
     if(hardeningResponse?.ok)await cache.put(HARDENING_URL,hardeningResponse.clone());
+    if(assigneeResponse?.ok)await cache.put(ASSIGNEE_URL,assigneeResponse.clone());
   }catch{}
   if(!appResponse?.ok)appResponse=await cache.match(APP_URL);
   if(!hardeningResponse?.ok)hardeningResponse=await cache.match(HARDENING_URL);
+  if(!assigneeResponse?.ok)assigneeResponse=await cache.match(ASSIGNEE_URL);
   if(!appResponse)return Response.error();
   const appText=await appResponse.text();
   const hardeningText=hardeningResponse?await hardeningResponse.text():'';
-  return new Response(appText+'\n;'+hardeningText,{status:200,headers:{'Content-Type':'application/javascript; charset=utf-8','Cache-Control':'no-store'}});
+  const assigneeText=assigneeResponse?await assigneeResponse.text():'';
+  return new Response(appText+'\n;'+hardeningText+'\n;'+assigneeText,{status:200,headers:{'Content-Type':'application/javascript; charset=utf-8','Cache-Control':'no-store'}});
 }
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);await Promise.allSettled([...REQUIRED,...OPTIONAL].map(url=>cacheOne(cache,url)));await self.skipWaiting()})())});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(key=>key.startsWith('planly-v2-')&&key!==CACHE).map(key=>caches.delete(key)));await self.clients.claim()})())});
