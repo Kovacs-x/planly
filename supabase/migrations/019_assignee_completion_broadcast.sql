@@ -1,5 +1,0 @@
--- No additional broadcast function is required here.
--- Migration 015 already installs an AFTER INSERT/UPDATE/DELETE trigger on planly_tasks using
--- realtime.broadcast_changes('household:' || household_id, ...). The completion RPC updates
--- planly_tasks directly, so its UPDATE is automatically delivered through the same private
--- Household topic and the existing client reconciliation path.
