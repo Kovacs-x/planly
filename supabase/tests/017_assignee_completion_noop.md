@@ -1,0 +1,1 @@
+Idempotency: if the cloud task already has the requested completion state, the RPC returns the locked row without issuing an UPDATE. This avoids unnecessary sync-clock changes and Household broadcast traffic from repeated taps/retries.
