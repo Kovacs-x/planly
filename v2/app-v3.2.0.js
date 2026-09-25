@@ -24,8 +24,8 @@ const PLANLY_CLOUD_CONFLICT_PREFIX='planly-cloud-conflicts-v1:';
 const PLANLY_CLOUD_BULK_SAFETY_PREFIX='planly-cloud-bulk-safety-v1:';
 const PLANLY_CLOUD_LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const PLANLY_DEVICE_SETTINGS_KEY='planly-device-settings-v1';
-const PLANLY_OFFLINE_CACHE='planly-v2-330a9';
-const PLANLY_SW_PROBE='planly-v2-sw-330a9';
+const PLANLY_OFFLINE_CACHE='planly-v2-330a12';
+const PLANLY_SW_PROBE='planly-v2-sw-330a12';
 const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
@@ -1472,20 +1472,22 @@ async function loadVerifiedCloudPreview(){
   if(!PLANLY_CLOUD_PREVIEW||!planlySession?.user||!initPlanlySupabase()){planlyCloudBootstrapPending=false;return false;}
   const ownerId=planlySession.user.id;
   const {data:sync,error:syncError}=await planlySupabase.from('planly_sync_state').select('initial_migration_completed_at,migration_project_count,migration_task_count,migration_digest').eq('owner_id',ownerId).maybeSingle();
-  if(syncError)throw syncError;if(!sync?.initial_migration_completed_at)return false;
-  const [tasksRes,projectsRes,prefsRes]=await Promise.all([
-    planlySupabase.from('planly_tasks').select('owner_id,client_id,data,visibility,household_id,cloud_version,deleted_at').is('deleted_at',null),
-    planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).is('deleted_at',null),
-    planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle()
-  ]);
+  if(syncError)throw syncError;
+  const ownCloudReady=!!sync?.initial_migration_completed_at;
+  const tasksPromise=planlySupabase.from('planly_tasks').select('owner_id,client_id,data,visibility,household_id,cloud_version,deleted_at').is('deleted_at',null);
+  const projectsPromise=ownCloudReady?planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).is('deleted_at',null):Promise.resolve({data:[],error:null});
+  const prefsPromise=ownCloudReady?planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle():Promise.resolve({data:null,error:null});
+  const [tasksRes,projectsRes,prefsRes]=await Promise.all([tasksPromise,projectsPromise,prefsPromise]);
   for(const r of [tasksRes,projectsRes,prefsRes])if(r.error)throw r.error;
-  const taskRows=tasksRes.data||[],projectRows=projectsRes.data||[];
+  const visibleTaskRows=tasksRes.data||[];
+  const taskRows=ownCloudReady?visibleTaskRows:visibleTaskRows.filter(r=>String(r.owner_id||'')!==String(ownerId)&&r.visibility==='household');
+  const projectRows=projectsRes.data||[];
   const tasks=taskRows.map(r=>{if(!r.data||String(r.data.id)!==String(r.client_id))throw new Error('Cloud bootstrap stopped: task identity mismatch.');return planlyTaskFromCloudRow(r)});
   const projects=projectRows.map(r=>{if(!r.data||String(r.data.id)!==String(r.client_id))throw new Error('Cloud bootstrap stopped: project identity mismatch.');return r.data});
   assertUniqueLocalIds(tasks,'Cloud tasks');assertUniqueLocalIds(projects,'Cloud projects');rememberCloudVersions(taskRows,projectRows,prefsRes.data||null);
   state.tasks=tasks;state.projects=projects;
   const p=prefsRes.data;if(p){state.defaultCategory=p.default_category||'Personal';state.defaultDuration=Number(p.default_duration||30);state.autoCompleteParentSubtasks=!!p.auto_complete_parent_subtasks;state.planningStart=p.planning_start||'08:00';state.planningEnd=p.planning_end||'23:00'}
-  const previousStatus=planlyCloudLocalStatus(),pendingBeforeOverlay=readPlanlyPendingWrites();planlyCloudReadOnly=pendingBeforeOverlay.length?false:!['cloud-write-test','offline-retry-needed'].includes(previousStatus.state);planlyCloudBootstrapPending=false;applyPlanlyPendingToState();persistPlanlyCloudCache();planlyLastReconcileAt=Date.now();setPlanlyCloudLocalStatus({state:planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',taskCount:tasks.filter(t=>t._planlyOwnedByMe!==false).length,projectCount:projects.length,loadedAt:new Date().toISOString(),pendingWrites:readPlanlyPendingWrites().length});if(!planlyCloudReadOnly&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced');return true;
+  const previousStatus=planlyCloudLocalStatus(),pendingBeforeOverlay=readPlanlyPendingWrites();planlyCloudReadOnly=ownCloudReady?(pendingBeforeOverlay.length?false:!['cloud-write-test','offline-retry-needed'].includes(previousStatus.state)):true;planlyCloudBootstrapPending=false;if(ownCloudReady)applyPlanlyPendingToState();persistPlanlyCloudCache();planlyLastReconcileAt=Date.now();if(ownCloudReady)setPlanlyCloudLocalStatus({state:planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',taskCount:tasks.filter(t=>t._planlyOwnedByMe!==false).length,projectCount:projects.length,loadedAt:new Date().toISOString(),pendingWrites:readPlanlyPendingWrites().length});else setPlanlyCloudLocalStatus({...previousStatus,householdLoadedAt:new Date().toISOString(),householdTaskCount:tasks.length});if(ownCloudReady&&!planlyCloudReadOnly&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced');return true;
 }
 async function planlySignIn(){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
@@ -1501,7 +1503,7 @@ async function planlySignOut(){if(!initPlanlySupabase())return;await planlySupab
 async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330a9','./supabase-config.js','./manifest.webmanifest'],missing=[];
+    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330a12','./supabase-config.js','./manifest.webmanifest'],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
@@ -1511,7 +1513,7 @@ async function planlyWithTimeout(promise,ms,label){let timer;try{return await Pr
 async function probePlanlyServiceWorker(){
   if(!navigator.serviceWorker?.controller)return {ok:false,reason:'no-controller'};
   try{
-    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?v=330a9',{cache:'no-store'}),3000,'Service worker probe');
+    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?v=330a12',{cache:'no-store'}),3000,'Service worker probe');
     const text=(await res.text()).trim();
     return {ok:res.ok&&text===PLANLY_SW_PROBE,reason:text||('HTTP '+res.status)};
   }catch(err){return {ok:false,reason:String(err?.message||err)}}
