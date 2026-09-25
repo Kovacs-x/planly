@@ -1,307 +1,132 @@
--- Planly 3.3C — explicit Household project sharing and secure task/project scoping.
--- Projects remain creator-owned. Household members receive read-only visibility only
--- when a project is explicitly shared with their current Household.
+-- Planly 3.3C — shared project foundation.
+-- This file mirrors production migration shared_projects_foundation.
 
 alter table public.planly_projects
-  add column visibility text not null default 'private',
-  add column household_id uuid null references public.planly_households(id) on delete set null;
+  add column if not exists visibility text not null default 'private',
+  add column if not exists household_id uuid references public.planly_households(id) on delete set null;
 
 alter table public.planly_projects
-  add constraint planly_projects_visibility_chk
-  check (visibility in ('private','household')),
-  add constraint planly_projects_share_scope_chk
-  check (
-    (visibility='private' and household_id is null)
-    or
-    (visibility='household' and household_id is not null)
-  ),
-  add constraint planly_projects_visibility_data_chk
-  check (
-    coalesce(data->>'visibility','private')=visibility
-    and (
-      (visibility='private' and nullif(data->>'householdId','') is null)
-      or
-      (visibility='household' and data->>'householdId'=household_id::text)
-    )
-  );
+  drop constraint if exists planly_projects_visibility_check;
+alter table public.planly_projects
+  add constraint planly_projects_visibility_check
+  check (visibility in ('private','household'));
 
-create index planly_projects_household_updated_idx
-  on public.planly_projects(household_id,updated_at)
-  where visibility='household' and deleted_at is null;
+alter table public.planly_projects
+  drop constraint if exists planly_projects_household_visibility_check;
+alter table public.planly_projects
+  add constraint planly_projects_household_visibility_check
+  check ((visibility = 'private' and household_id is null) or (visibility = 'household' and household_id is not null));
 
-create or replace function public.planly_project_share_target_valid(
-  p_visibility text,
-  p_household_id uuid
-)
-returns boolean
-language sql
-stable
-security definer
-set search_path=pg_catalog,public
-as $function$
-select case
-  when p_visibility='private' then p_household_id is null
-  when p_visibility='household' then
-    p_household_id is not null
-    and exists (
-      select 1
-        from public.planly_household_members m
-       where m.household_id=p_household_id
-         and m.user_id=auth.uid()
-    )
-  else false
-end
-$function$;
+create index if not exists planly_projects_household_active_idx
+  on public.planly_projects (household_id, deleted_at)
+  where visibility = 'household';
 
-alter function public.planly_project_share_target_valid(text,uuid) owner to postgres;
-revoke all on function public.planly_project_share_target_valid(text,uuid) from public,anon;
-grant execute on function public.planly_project_share_target_valid(text,uuid) to authenticated;
+-- Existing projects remain private. Keep embedded JSON aligned with authoritative columns.
+update public.planly_projects
+set data = jsonb_set(jsonb_set(data, '{visibility}', '"private"'::jsonb, true), '{householdId}', 'null'::jsonb, true),
+    visibility = 'private',
+    household_id = null
+where visibility = 'private'
+  and ((data->>'visibility') is distinct from 'private' or data ? 'householdId');
 
+-- Household sharing is an additional read path only. Creator ownership remains the mutation boundary.
 drop policy if exists planly_projects_select_own on public.planly_projects;
-drop policy if exists planly_projects_insert_own on public.planly_projects;
-drop policy if exists planly_projects_update_own on public.planly_projects;
-
-create policy planly_projects_select_visible
+create policy planly_projects_select_authorized
 on public.planly_projects
 for select
 to authenticated
 using (
-  (select auth.uid())=owner_id
+  (select auth.uid()) = owner_id
   or (
-    visibility='household'
+    visibility = 'household'
     and household_id is not null
     and public.planly_is_household_member(household_id)
   )
 );
 
+-- Do not weaken creator-only writes. A creator may only mark a project household-visible
+-- when they are actually a member of that household.
+drop policy if exists planly_projects_insert_own on public.planly_projects;
 create policy planly_projects_insert_own
 on public.planly_projects
 for insert
 to authenticated
 with check (
-  (select auth.uid())=owner_id
-  and public.planly_project_share_target_valid(visibility,household_id)
+  (select auth.uid()) = owner_id
+  and (
+    (visibility = 'private' and household_id is null)
+    or (
+      visibility = 'household'
+      and household_id is not null
+      and public.planly_is_household_member(household_id)
+    )
+  )
 );
 
-create policy planly_projects_update_owner
+drop policy if exists planly_projects_update_own on public.planly_projects;
+create policy planly_projects_update_own
 on public.planly_projects
 for update
 to authenticated
-using ((select auth.uid())=owner_id)
+using ((select auth.uid()) = owner_id)
 with check (
-  (select auth.uid())=owner_id
-  and public.planly_project_share_target_valid(visibility,household_id)
+  (select auth.uid()) = owner_id
+  and (
+    (visibility = 'private' and household_id is null)
+    or (
+      visibility = 'household'
+      and household_id is not null
+      and public.planly_is_household_member(household_id)
+    )
+  )
 );
 
--- Keep the duplicated task project column and JSON data in lockstep. This prevents
--- a malicious or stale client from hiding a private project reference in one form.
-alter table public.planly_tasks
-  add constraint planly_tasks_project_reference_consistency_chk
-  check (
-    nullif(btrim(project_client_id),'')
-    is not distinct from
-    nullif(btrim(data->>'projectId'),'')
-  );
-
-create or replace function public.planly_validate_task_project_scope()
+-- Cross-entity invariant: a household-shared task may reference only a household-shared
+-- project in the same household, owned by the same creator. This prevents private-project
+-- identifiers/metadata from leaking through shared tasks.
+create or replace function public.planly_validate_task_project_visibility()
 returns trigger
 language plpgsql
-security definer
-set search_path=pg_catalog,public
-as $function$
+security invoker
+set search_path = public, pg_temp
+as $$
 declare
-  v_project public.planly_projects;
+  p_visibility text;
+  p_household_id uuid;
+  p_owner_id uuid;
 begin
-  if new.deleted_at is not null or new.project_client_id is null then
+  if new.project_client_id is null or btrim(new.project_client_id) = '' then
     return new;
   end if;
 
-  select p.*
-    into v_project
-    from public.planly_projects p
-   where p.owner_id=new.owner_id
-     and p.client_id=new.project_client_id
-     and p.deleted_at is null;
+  select p.visibility, p.household_id, p.owner_id
+    into p_visibility, p_household_id, p_owner_id
+  from public.planly_projects p
+  where p.owner_id = new.owner_id
+    and p.client_id = new.project_client_id
+    and p.deleted_at is null;
 
   if not found then
-    raise exception 'Task project must be an active project owned by the task creator'
-      using errcode='23514';
+    raise exception 'Referenced Planly project is unavailable';
   end if;
 
-  if new.visibility='household'
-     and (
-       v_project.visibility<>'household'
-       or v_project.household_id is null
-       or v_project.household_id is distinct from new.household_id
-     ) then
-    raise exception 'Household tasks may only reference a household-shared project in the same household'
-      using errcode='23514';
+  if new.visibility = 'household'
+     and not (p_visibility = 'household'
+              and p_household_id = new.household_id
+              and p_owner_id = new.owner_id) then
+    raise exception 'Household tasks may reference only household projects in the same household';
   end if;
 
   return new;
-end
-$function$;
+end;
+$$;
 
-alter function public.planly_validate_task_project_scope() owner to postgres;
-revoke all on function public.planly_validate_task_project_scope() from public,anon,authenticated;
+revoke all on function public.planly_validate_task_project_visibility() from public, anon, authenticated;
 
-drop trigger if exists planly_validate_task_project_scope on public.planly_tasks;
-create trigger planly_validate_task_project_scope
-before insert or update of owner_id,project_client_id,data,visibility,household_id,deleted_at
+-- Internal trigger function only; callers never execute it directly.
+drop trigger if exists planly_tasks_validate_project_visibility on public.planly_tasks;
+create trigger planly_tasks_validate_project_visibility
+before insert or update of owner_id, project_client_id, visibility, household_id
 on public.planly_tasks
-for each row execute function public.planly_validate_task_project_scope();
-
--- If a shared project becomes private, moves Household, or is tombstoned, shared
--- tasks must stop carrying its project identifier before the project restriction lands.
--- Tombstoning a project detaches all remaining active task references.
-create or replace function public.planly_detach_tasks_before_project_restrict()
-returns trigger
-language plpgsql
-security definer
-set search_path=pg_catalog,public
-as $function$
-declare
-  v_now bigint := (extract(epoch from clock_timestamp())*1000)::bigint;
-begin
-  if old.deleted_at is null and new.deleted_at is not null then
-    update public.planly_tasks
-       set project_client_id=null,
-           data=data-'projectId',
-           client_updated_at=greatest(client_updated_at,v_now)
-     where owner_id=old.owner_id
-       and project_client_id=old.client_id
-       and deleted_at is null;
-  elsif old.visibility='household'
-        and (
-          new.visibility<>'household'
-          or new.household_id is distinct from old.household_id
-        ) then
-    update public.planly_tasks
-       set project_client_id=null,
-           data=data-'projectId',
-           client_updated_at=greatest(client_updated_at,v_now)
-     where owner_id=old.owner_id
-       and project_client_id=old.client_id
-       and visibility='household'
-       and household_id is not distinct from old.household_id
-       and deleted_at is null;
-  end if;
-  return new;
-end
-$function$;
-
-alter function public.planly_detach_tasks_before_project_restrict() owner to postgres;
-revoke all on function public.planly_detach_tasks_before_project_restrict() from public,anon,authenticated;
-
-drop trigger if exists planly_detach_tasks_before_project_restrict on public.planly_projects;
-create trigger planly_detach_tasks_before_project_restrict
-before update of visibility,household_id,deleted_at
-on public.planly_projects
-for each row execute function public.planly_detach_tasks_before_project_restrict();
-
--- Reuse the Household private Broadcast channel as an invalidation signal. Payload
--- data is never trusted by the client; Planly re-reads projects through RLS.
-create or replace function public.planly_broadcast_household_project_change()
-returns trigger
-language plpgsql
-security definer
-set search_path=''
-as $function$
-declare
-  v_household uuid;
-begin
-  v_household:=case
-    when tg_op='DELETE' then old.household_id
-    else coalesce(new.household_id,old.household_id)
-  end;
-
-  if v_household is not null then
-    perform realtime.broadcast_changes(
-      'household:'||v_household::text,
-      tg_op,
-      tg_op,
-      tg_table_name,
-      tg_table_schema,
-      case when tg_op='DELETE' then null else new end,
-      case when tg_op='INSERT' then null else old end
-    );
-  end if;
-
-  return case when tg_op='DELETE' then old else new end;
-end
-$function$;
-
-alter function public.planly_broadcast_household_project_change() owner to postgres;
-revoke all on function public.planly_broadcast_household_project_change() from public,anon,authenticated;
-
-drop trigger if exists planly_household_project_broadcast on public.planly_projects;
-create trigger planly_household_project_broadcast
-after insert or update or delete on public.planly_projects
-for each row execute function public.planly_broadcast_household_project_change();
-
--- A member who leaves keeps ownership of their project, but the former Household
--- must immediately lose access to projects that member created and shared.
-create or replace function public.planly_private_departing_member_projects()
-returns trigger
-language plpgsql
-security definer
-set search_path=pg_catalog,public
-as $function$
-declare
-  v_now bigint := (extract(epoch from clock_timestamp())*1000)::bigint;
-begin
-  update public.planly_projects
-     set visibility='private',
-         household_id=null,
-         data=(data-'householdId') || jsonb_build_object('visibility','private'),
-         client_updated_at=greatest(client_updated_at,v_now)
-   where owner_id=old.user_id
-     and household_id=old.household_id
-     and visibility='household'
-     and deleted_at is null;
-  return old;
-end
-$function$;
-
-alter function public.planly_private_departing_member_projects() owner to postgres;
-revoke all on function public.planly_private_departing_member_projects() from public,anon,authenticated;
-
-drop trigger if exists planly_private_departing_member_projects_before_delete on public.planly_household_members;
-create trigger planly_private_departing_member_projects_before_delete
-before delete on public.planly_household_members
-for each row execute function public.planly_private_departing_member_projects();
-
--- Preserve existing Household-delete task hardening and add project privacy in the
--- same BEFORE DELETE path, before the Household foreign key is removed.
-create or replace function public.planly_private_tasks_on_household_delete()
-returns trigger
-language plpgsql
-security definer
-set search_path=pg_catalog,public
-as $function$
-declare
-  v_now bigint := (extract(epoch from clock_timestamp())*1000)::bigint;
-begin
-  update public.planly_tasks
-     set visibility='private',
-         household_id=null,
-         assignee_id=null,
-         data=(data-'visibility'-'householdId'-'assigneeId')||jsonb_build_object('visibility','private'),
-         client_updated_at=greatest(client_updated_at,v_now)
-   where household_id=old.id;
-
-  update public.planly_projects
-     set visibility='private',
-         household_id=null,
-         data=(data-'householdId')||jsonb_build_object('visibility','private'),
-         client_updated_at=greatest(client_updated_at,v_now)
-   where household_id=old.id;
-
-  return old;
-end
-$function$;
-
-alter function public.planly_private_tasks_on_household_delete() owner to postgres;
-revoke all on function public.planly_private_tasks_on_household_delete() from public,anon,authenticated;
-
-notify pgrst,'reload schema';
+for each row
+execute function public.planly_validate_task_project_visibility();
