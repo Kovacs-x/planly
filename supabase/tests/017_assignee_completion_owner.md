@@ -1,0 +1,1 @@
+RPC ownership: migration 017 explicitly sets the SECURITY DEFINER function owner to `postgres`, the database owner role used by the migration environment. The caller receives EXECUTE only. This lets the function perform its narrowly coded UPDATE without broadening the authenticated role's direct table UPDATE permissions.
