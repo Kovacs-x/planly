@@ -1,10 +1,10 @@
-const CACHE='planly-v2-330c02';
-const VERSION='planly-v2-sw-330c02';
+const CACHE='planly-v2-330c03';
+const VERSION='planly-v2-sw-330c03';
 const APP_URL='./app-v3.2.0.js?v=330c02';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c02';
 const CORE_BUILD_URL='./core-build-v3.3c.js?v=330c02';
-const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=330c02';
+const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=330c03';
 const REQUIRED=['./index.html',APP_URL,HARDENING_URL,CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
