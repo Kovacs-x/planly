@@ -1,4 +1,4 @@
-name: Planly JS regression
+name: Planly regression and security gates
 
 on:
   pull_request:
@@ -20,3 +20,23 @@ jobs:
           node-version: '22'
       - name: Validate final generated Planly JavaScript
         run: node scripts/validate-planly-js.mjs
+      - name: Validate Planly security invariants
+        run: node scripts/validate-planly-security.mjs
+      - name: Reject unresolved merge markers
+        shell: bash
+        run: |
+          if grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' v2 supabase scripts --include='*.js' --include='*.mjs' --include='*.sql'; then
+            echo 'Unresolved merge marker detected.' >&2
+            exit 1
+          fi
+      - name: Validate migration naming and uniqueness
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(supabase/migrations/*.sql)
+          for f in "${files[@]}"; do
+            base="$(basename "$f")"
+            [[ "$base" =~ ^[0-9]{3}_[a-z0-9_]+\.sql$ ]] || { echo "Invalid migration name: $base" >&2; exit 1; }
+          done
+          dupes="$(printf '%s\n' "${files[@]}" | sed -E 's#^.*/([0-9]{3})_.*#\1#' | sort | uniq -d)"
+          [[ -z "$dupes" ]] || { echo "Duplicate migration numbers: $dupes" >&2; exit 1; }
