@@ -1,15 +1,16 @@
-const CACHE='planly-v2-330c06';
-const VERSION='planly-v2-sw-330c06';
+const CACHE='planly-v2-330d01';
+const VERSION='planly-v2-sw-330d01';
 const APP_URL='./app-v3.2.0.js?v=330c02';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c02';
-const CORE_BUILD_URL='./core-build-v3.3c.js?v=330c06';
+const CORE_BUILD_URL='./core-build-v3.3c.js?v=330d01';
 const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=330c03';
 const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=330c04';
 const CORE_HOUSEHOLD_CALENDAR_URL='./core-household-calendar-v3.3c.js?v=330c05';
 const CORE_HOUSEHOLD_PLANNING_SAFETY_URL='./core-household-planning-safety-v3.3c.js?v=330c05';
 const CORE_CLOSEOUT_URL='./core-closeout-v3.3c.js?v=330c06';
-const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_HOUSEHOLD_PLANNING_SAFETY_URL,CORE_CLOSEOUT_URL];
+const CORE_RELEASE_GATE_URL='./core-release-gate-v3.3d.js?v=330d01';
+const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_HOUSEHOLD_PLANNING_SAFETY_URL,CORE_CLOSEOUT_URL,CORE_RELEASE_GATE_URL];
 const REQUIRED=['./index.html',APP_URL,HARDENING_URL,...CORE_URLS,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 
