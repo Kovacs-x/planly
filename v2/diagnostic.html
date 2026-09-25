@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Planly diagnostic boot</title>
+<script>
+(async()=>{
+  try{
+    const response=await fetch('./index.html?bootdiag=330d01',{cache:'no-store',credentials:'same-origin'});
+    if(!response.ok) throw new Error(`index fetch ${response.status}`);
+    let html=await response.text();
+    const injection='<base href="./"><script src="./boot-diagnostic-v3.3d.js?330d01"><\/script>';
+    if(!/<head(?:\s[^>]*)?>/i.test(html)) throw new Error('index head missing');
+    html=html.replace(/<head(?:\s[^>]*)?>/i,match=>match+injection);
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(err){
+    document.documentElement.innerHTML='<head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Planly diagnostic error</title></head><body style="font-family:-apple-system;padding:24px"><h1>Diagnostic boot failed</h1><pre id="e" style="white-space:pre-wrap"></pre></body>';
+    document.getElementById('e').textContent=err?.stack||err?.message||String(err);
+  }
+})();
+</script>
+</head>
+<body></body>
+</html>
