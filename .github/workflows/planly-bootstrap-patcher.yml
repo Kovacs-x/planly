@@ -1,0 +1,44 @@
+name: One-shot Planly household bootstrap patcher
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/planly-bootstrap-patcher.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: planly-3.3b-assignment-polish
+          fetch-depth: 0
+      - name: Patch bootstrap safely
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('v2/app-v3.2.0.js'); s=p.read_text()
+          old="""  if(syncError)throw syncError;if(!sync?.initial_migration_completed_at)return false;\n  const [tasksRes,projectsRes,prefsRes]=await Promise.all([\n    planlySupabase.from('planly_tasks').select('owner_id,client_id,data,visibility,household_id,cloud_version,deleted_at').is('deleted_at',null),\n    planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).is('deleted_at',null),\n    planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle()\n  ]);\n  for(const r of [tasksRes,projectsRes,prefsRes])if(r.error)throw r.error;\n  const taskRows=tasksRes.data||[],projectRows=projectsRes.data||[];\n"""
+          new="""  if(syncError)throw syncError;\n  const ownCloudReady=!!sync?.initial_migration_completed_at;\n  const tasksPromise=planlySupabase.from('planly_tasks').select('owner_id,client_id,data,visibility,household_id,cloud_version,deleted_at').is('deleted_at',null);\n  const projectsPromise=ownCloudReady?planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).is('deleted_at',null):Promise.resolve({data:[],error:null});\n  const prefsPromise=ownCloudReady?planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle():Promise.resolve({data:null,error:null});\n  const [tasksRes,projectsRes,prefsRes]=await Promise.all([tasksPromise,projectsPromise,prefsPromise]);\n  for(const r of [tasksRes,projectsRes,prefsRes])if(r.error)throw r.error;\n  const visibleTaskRows=tasksRes.data||[];\n  const taskRows=ownCloudReady?visibleTaskRows:visibleTaskRows.filter(r=>String(r.owner_id||'')!==String(ownerId)&&r.visibility==='household');\n  const projectRows=projectsRes.data||[];\n"""
+          if old not in s: raise SystemExit('Expected bootstrap block not found; refusing unsafe patch')
+          s=s.replace(old,new,1)
+          old2="""  const previousStatus=planlyCloudLocalStatus(),pendingBeforeOverlay=readPlanlyPendingWrites();planlyCloudReadOnly=pendingBeforeOverlay.length?false:!['cloud-write-test','offline-retry-needed'].includes(previousStatus.state);planlyCloudBootstrapPending=false;applyPlanlyPendingToState();persistPlanlyCloudCache();planlyLastReconcileAt=Date.now();setPlanlyCloudLocalStatus({state:planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',taskCount:tasks.filter(t=>t._planlyOwnedByMe!==false).length,projectCount:projects.length,loadedAt:new Date().toISOString(),pendingWrites:readPlanlyPendingWrites().length});if(!planlyCloudReadOnly&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced');return true;\n"""
+          new2="""  const previousStatus=planlyCloudLocalStatus(),pendingBeforeOverlay=readPlanlyPendingWrites();planlyCloudReadOnly=ownCloudReady?(pendingBeforeOverlay.length?false:!['cloud-write-test','offline-retry-needed'].includes(previousStatus.state)):true;planlyCloudBootstrapPending=false;if(ownCloudReady)applyPlanlyPendingToState();persistPlanlyCloudCache();planlyLastReconcileAt=Date.now();if(ownCloudReady)setPlanlyCloudLocalStatus({state:planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',taskCount:tasks.filter(t=>t._planlyOwnedByMe!==false).length,projectCount:projects.length,loadedAt:new Date().toISOString(),pendingWrites:readPlanlyPendingWrites().length});else setPlanlyCloudLocalStatus({...previousStatus,householdLoadedAt:new Date().toISOString(),householdTaskCount:tasks.length});if(ownCloudReady&&!planlyCloudReadOnly&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced');return true;\n"""
+          if old2 not in s: raise SystemExit('Expected bootstrap status block not found; refusing unsafe patch')
+          s=s.replace(old2,new2,1)
+          s=s.replace('330a9','330a12')
+          p.write_text(s)
+          for name in ['v2/index.html','v2/sw.js']:
+              q=Path(name); q.write_text(q.read_text().replace('330a9','330a12'))
+          PY
+          node --check v2/app-v3.2.0.js
+          grep -q "const ownCloudReady=!!sync?.initial_migration_completed_at" v2/app-v3.2.0.js
+          grep -q "householdTaskCount:tasks.length" v2/app-v3.2.0.js
+          grep -q "app-v3.2.0.js?v=330a12" v2/index.html
+      - name: Commit fix to feature branch
+        run: |
+          git config user.name "Planly CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add v2/app-v3.2.0.js v2/index.html v2/sw.js
+          git commit -m "Fix household tasks on fresh member sign-in"
+          git push origin HEAD:planly-3.3b-assignment-polish
