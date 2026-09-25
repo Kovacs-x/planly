@@ -1,0 +1,1 @@
+Product decision for this slice: assignment means responsibility plus the ability to mark that responsibility done. It does not mean co-ownership. This preserves Planly's existing creator authority model while making assignment actionable for the person receiving the task.

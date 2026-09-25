@@ -1,0 +1,1 @@
+Deleted-task boundary: the RPC query requires `deleted_at is null`. A deleted task therefore behaves as not found and cannot be resurrected or modified by an assignee completion call.

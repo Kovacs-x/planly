@@ -1,0 +1,1 @@
+Render behavior: after a successful RPC the local incoming task's `completed` field is updated and the normal Planly `render()` path runs. No separate assignee-only completed UI is introduced; Today/Upcoming/Month/completed sections continue using the same task grouping logic as creator-owned tasks.

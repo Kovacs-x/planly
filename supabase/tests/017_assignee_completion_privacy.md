@@ -1,0 +1,1 @@
+Privacy boundary: the completion RPC does not grant visibility. The task must already be Household-visible, the caller must already be a current member of that Household, and `assignee_id` must already equal the caller. Private tasks cannot be targeted successfully even if a stale client still has their identity.

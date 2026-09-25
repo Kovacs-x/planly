@@ -1,0 +1,1 @@
+Reassignment boundary: the creator remains the only user able to change `assignee_id`. Once the creator reassigns the task, the RPC's row-locked assignee check means the previous assignee can no longer complete/reopen it and the newly assigned member gains that narrow authority.

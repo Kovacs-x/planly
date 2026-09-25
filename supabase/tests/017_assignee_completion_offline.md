@@ -1,0 +1,1 @@
+Offline boundary: creator-owned task changes continue to use Planly's existing pending mutation queue. Assignee completion does not enter that queue because doing so would stage a foreign-owned row under the current account. The UI only commits local completion after the RPC succeeds; a failed/offline RPC leaves the task unchanged and asks the user to retry.

@@ -1,0 +1,1 @@
+Membership revalidation: `assignee_id` alone is insufficient. Every RPC call checks that `auth.uid()` is still present in `planly_household_members` for the task's current `household_id`, so removal from the Household immediately removes completion authority even before a stale client UI has reconciled.
