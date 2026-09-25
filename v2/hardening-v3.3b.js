@@ -4,151 +4,39 @@ const STATUS_PREFIX='planly-cloud-migration-status-v1:';
 const LAST_ACCOUNT_KEY='planly-cloud-last-account-v1';
 const WRITABLE_STATES=new Set(['cloud-write-test','offline-retry-needed','conflict']);
 let refreshTimer=0,lastForegroundKick=0,realtimeClient=null,realtimeChannel=null,realtimeHouseholdId='',realtimeArmPromise=null;
-let assignmentClient=null,assignmentContext={householdId:'',userId:'',members:[],labels:new Map()},assignmentLoadPromise=null,pendingAssignment=null;
+let assignmentClient=null,assignmentContext={householdId:'',userId:'',members:[],labels:new Map()},assignmentLoadPromise=null,pendingAssignment=null,authSyncBound=false;
 
-function cloudStatus(){
-  const ownerId=String(localStorage.getItem(LAST_ACCOUNT_KEY)||'');
-  if(!ownerId)return {};
-  try{return JSON.parse(localStorage.getItem(STATUS_PREFIX+ownerId)||'{}')||{}}catch{return {}}
-}
+function cloudStatus(){const ownerId=String(localStorage.getItem(LAST_ACCOUNT_KEY)||'');if(!ownerId)return {};try{return JSON.parse(localStorage.getItem(STATUS_PREFIX+ownerId)||'{}')||{}}catch{return {}}}
 function householdWritesReady(){return WRITABLE_STATES.has(String(cloudStatus().state||''))}
-function clientForAssignment(){
-  if(assignmentClient)return assignmentClient;
-  const cfg=window.PLANLY_SUPABASE_CONFIG;
-  if(!window.supabase?.createClient||!cfg?.url||!cfg?.publishableKey)return null;
-  assignmentClient=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false}});
-  return assignmentClient;
-}
+function clientForAssignment(){if(assignmentClient)return assignmentClient;const cfg=window.PLANLY_SUPABASE_CONFIG;if(!window.supabase?.createClient||!cfg?.url||!cfg?.publishableKey)return null;assignmentClient=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false}});return assignmentClient}
 async function loadAssignmentContext(force=false){
   if(assignmentLoadPromise&&!force)return assignmentLoadPromise;
-  assignmentLoadPromise=(async()=>{
-    const client=clientForAssignment();if(!client)return assignmentContext;
-    const {data:{session}={}}=await client.auth.getSession();
-    const userId=String(session?.user?.id||'');if(!userId){assignmentContext={householdId:'',userId:'',members:[],labels:new Map()};return assignmentContext}
-    const {data:mine,error:mineError}=await client.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('user_id',userId).limit(1);
-    if(mineError||!mine?.[0]){assignmentContext={householdId:'',userId,members:[],labels:new Map()};return assignmentContext}
-    const householdId=String(mine[0].household_id);
-    const {data:members,error:memberError}=await client.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('household_id',householdId).order('joined_at',{ascending:true});
-    if(memberError)throw memberError;
-    const labels=new Map([[userId,'You']]);
-    try{
-      const {data:invites}=await client.from('planly_household_invites').select('invited_email,accepted_by,status').eq('household_id',householdId).eq('status','accepted');
-      for(const invite of invites||[])if(invite.accepted_by&&invite.invited_email)labels.set(String(invite.accepted_by),String(invite.invited_email));
-    }catch{}
-    for(const member of members||[]){const id=String(member.user_id);if(labels.has(id))continue;labels.set(id,member.role==='owner'?'Household owner':'Household member')}
-    assignmentContext={householdId,userId,members:members||[],labels};return assignmentContext;
-  })().catch(()=>assignmentContext).finally(()=>{assignmentLoadPromise=null});
-  return assignmentLoadPromise;
-}
-function ensureAssignmentField(){
-  const visibility=document.getElementById('taskVisibility');if(!visibility)return null;
-  let wrap=document.getElementById('taskAssigneeField');
-  if(!wrap){
-    wrap=document.createElement('div');wrap.id='taskAssigneeField';wrap.className='field taskAssigneeField';wrap.hidden=true;
-    wrap.innerHTML='<label for="taskAssignee">Assign to</label><select id="taskAssignee" class="select"><option value="">Anyone in household</option></select><div class="fieldHint">Assignment shows who is responsible. The task creator still owns editing and deletion.</div>';
-    visibility.closest('.taskSharingField')?.insertAdjacentElement('afterend',wrap);
-  }
-  return wrap;
-}
-async function refreshAssignmentField({loadTask=true}={}){
-  const visibility=document.getElementById('taskVisibility'),wrap=ensureAssignmentField(),select=document.getElementById('taskAssignee');if(!visibility||!wrap||!select)return;
-  const shared=visibility.value==='household';wrap.hidden=!shared;if(!shared){select.value='';return}
-  const ctx=await loadAssignmentContext();
-  const current=select.value;
-  select.innerHTML='<option value="">Anyone in household</option>'+ctx.members.map(m=>'<option value="'+String(m.user_id).replace(/"/g,'&quot;')+'">'+escapeHtml(ctx.labels.get(String(m.user_id))||'Household member')+'</option>').join('');
-  if(current&&ctx.members.some(m=>String(m.user_id)===current))select.value=current;
-  if(loadTask){
-    const taskId=String(document.getElementById('taskId')?.value||'');
-    if(taskId){
-      const client=clientForAssignment();
-      const {data}=await client.from('planly_tasks').select('assignee_id').eq('owner_id',ctx.userId).eq('client_id',taskId).maybeSingle();
-      if(data?.assignee_id&&ctx.members.some(m=>String(m.user_id)===String(data.assignee_id)))select.value=String(data.assignee_id);else select.value='';
-    }else select.value='';
-  }
+  assignmentLoadPromise=(async()=>{const client=clientForAssignment();if(!client)return assignmentContext;const {data:{session}={}}=await client.auth.getSession();const userId=String(session?.user?.id||'');if(!userId){assignmentContext={householdId:'',userId:'',members:[],labels:new Map()};return assignmentContext}const {data:mine,error:mineError}=await client.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('user_id',userId).limit(1);if(mineError||!mine?.[0]){assignmentContext={householdId:'',userId,members:[],labels:new Map()};return assignmentContext}const householdId=String(mine[0].household_id);const {data:members,error:memberError}=await client.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('household_id',householdId).order('joined_at',{ascending:true});if(memberError)throw memberError;const labels=new Map([[userId,'You']]);try{const {data:invites}=await client.from('planly_household_invites').select('invited_email,accepted_by,status').eq('household_id',householdId).eq('status','accepted');for(const invite of invites||[])if(invite.accepted_by&&invite.invited_email)labels.set(String(invite.accepted_by),String(invite.invited_email))}catch{}for(const member of members||[]){const id=String(member.user_id);if(labels.has(id))continue;labels.set(id,member.role==='owner'?'Household owner':'Household member')}assignmentContext={householdId,userId,members:members||[],labels};return assignmentContext})().catch(()=>assignmentContext).finally(()=>{assignmentLoadPromise=null});return assignmentLoadPromise;
 }
 function escapeHtml(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function refreshSharingGate(){
-  const select=document.getElementById('taskVisibility');
-  if(!select)return;
-  const option=[...select.options].find(o=>o.value==='household');
-  if(!option)return;
-  const ready=householdWritesReady();
-  option.disabled=!ready;
-  const editingShared=!!document.getElementById('taskId')?.value&&select.value==='household';
-  if(!ready&&select.value==='household'&&!editingShared)select.value='private';
-  const help=document.getElementById('taskVisibilityHelp');
-  if(help&&!ready)help.textContent='Household sharing becomes available once Planly Cloud Sync is active. This prevents a task looking shared before it can be safely synced.';
-  void refreshAssignmentField({loadTask:false});
-}
+function ensureAssignmentField(){const visibility=document.getElementById('taskVisibility');if(!visibility)return null;let wrap=document.getElementById('taskAssigneeField');if(!wrap){wrap=document.createElement('div');wrap.id='taskAssigneeField';wrap.className='field taskAssigneeField';wrap.hidden=true;wrap.innerHTML='<label for="taskAssignee">Assign to</label><select id="taskAssignee" class="select"><option value="">Anyone in household</option></select><div class="fieldHint">Assignment shows who is responsible. The task creator still owns editing and deletion.</div>';visibility.closest('.taskSharingField')?.insertAdjacentElement('afterend',wrap)}return wrap}
+async function refreshAssignmentField({loadTask=true}={}){const visibility=document.getElementById('taskVisibility'),wrap=ensureAssignmentField(),select=document.getElementById('taskAssignee');if(!visibility||!wrap||!select)return;const shared=visibility.value==='household';wrap.hidden=!shared;if(!shared){select.value='';return}const ctx=await loadAssignmentContext();const current=select.value;select.innerHTML='<option value="">Anyone in household</option>'+ctx.members.map(m=>'<option value="'+String(m.user_id).replace(/"/g,'&quot;')+'">'+escapeHtml(ctx.labels.get(String(m.user_id))||'Household member')+'</option>').join('');if(current&&ctx.members.some(m=>String(m.user_id)===current))select.value=current;if(loadTask){const taskId=String(document.getElementById('taskId')?.value||'');if(taskId){const client=clientForAssignment();const {data}=await client.from('planly_tasks').select('assignee_id').eq('owner_id',ctx.userId).eq('client_id',taskId).maybeSingle();if(data?.assignee_id&&ctx.members.some(m=>String(m.user_id)===String(data.assignee_id)))select.value=String(data.assignee_id);else select.value=''}else select.value=''}}
+function refreshSharingGate(){const select=document.getElementById('taskVisibility');if(!select)return;const option=[...select.options].find(o=>o.value==='household');if(!option)return;const ready=householdWritesReady();option.disabled=!ready;const editingShared=!!document.getElementById('taskId')?.value&&select.value==='household';if(!ready&&select.value==='household'&&!editingShared)select.value='private';const help=document.getElementById('taskVisibilityHelp');if(help&&!ready)help.textContent='Household sharing becomes available once Planly Cloud Sync is active. This prevents a task looking shared before it can be safely synced.';void refreshAssignmentField({loadTask:false});void decorateAssignments()}
 function scheduleGateRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refreshSharingGate,0)}
-function kickHouseholdSync(){
-  if(!navigator.onLine)return;
-  window.dispatchEvent(new Event('online'));
-  setTimeout(scheduleGateRefresh,250);
-}
-function kickForegroundHouseholdSync(){
-  if(!navigator.onLine)return;
-  const now=Date.now();if(now-lastForegroundKick<1200)return;lastForegroundKick=now;kickHouseholdSync();void armHouseholdRealtime();
-}
+function kickHouseholdSync(){if(!navigator.onLine)return;window.dispatchEvent(new Event('online'));setTimeout(scheduleGateRefresh,250)}
+function kickForegroundHouseholdSync(){if(!navigator.onLine)return;const now=Date.now();if(now-lastForegroundKick<1200)return;lastForegroundKick=now;kickHouseholdSync();void armHouseholdRealtime()}
 async function stopHouseholdRealtime(){const client=realtimeClient,channel=realtimeChannel;realtimeChannel=null;realtimeHouseholdId='';if(client&&channel){try{await client.removeChannel(channel)}catch{}}}
-async function armHouseholdRealtime(){
-  if(realtimeArmPromise)return realtimeArmPromise;
-  realtimeArmPromise=(async()=>{
-    if(!navigator.onLine||!window.supabase?.createClient||!window.PLANLY_SUPABASE_CONFIG)return;
-    const cfg=window.PLANLY_SUPABASE_CONFIG;
-    if(!realtimeClient)realtimeClient=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false}});
-    const {data:{session}={},error:sessionError}=await realtimeClient.auth.getSession();if(sessionError||!session?.access_token){await stopHouseholdRealtime();return}
-    const ownerId=String(localStorage.getItem(LAST_ACCOUNT_KEY)||'');if(!ownerId||ownerId!==String(session.user?.id||'')){await stopHouseholdRealtime();return}
-    const {data:memberships,error:membershipError}=await realtimeClient.from('planly_household_members').select('household_id').eq('user_id',session.user.id).limit(1);if(membershipError||!memberships?.[0]?.household_id){await stopHouseholdRealtime();return}
-    const householdId=String(memberships[0].household_id);if(realtimeChannel&&realtimeHouseholdId===householdId)return;
-    await stopHouseholdRealtime();await realtimeClient.realtime.setAuth(session.access_token);realtimeHouseholdId=householdId;
-    realtimeChannel=realtimeClient.channel(`household:${householdId}`,{config:{private:true}}).on('broadcast',{event:'*'},()=>kickHouseholdSync()).subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){if(realtimeChannel){void realtimeClient.removeChannel(realtimeChannel).catch(()=>{});realtimeChannel=null;realtimeHouseholdId=''}}});
-  })().catch(()=>{}).finally(()=>{realtimeArmPromise=null});return realtimeArmPromise;
+async function armHouseholdRealtime(){if(realtimeArmPromise)return realtimeArmPromise;realtimeArmPromise=(async()=>{if(!navigator.onLine||!window.supabase?.createClient||!window.PLANLY_SUPABASE_CONFIG)return;const cfg=window.PLANLY_SUPABASE_CONFIG;if(!realtimeClient)realtimeClient=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false}});const {data:{session}={},error:sessionError}=await realtimeClient.auth.getSession();if(sessionError||!session?.access_token){await stopHouseholdRealtime();return}const ownerId=String(localStorage.getItem(LAST_ACCOUNT_KEY)||'');if(!ownerId||ownerId!==String(session.user?.id||'')){await stopHouseholdRealtime();return}const {data:memberships,error:membershipError}=await realtimeClient.from('planly_household_members').select('household_id').eq('user_id',session.user.id).limit(1);if(membershipError||!memberships?.[0]?.household_id){await stopHouseholdRealtime();return}const householdId=String(memberships[0].household_id);if(realtimeChannel&&realtimeHouseholdId===householdId)return;await stopHouseholdRealtime();await realtimeClient.realtime.setAuth(session.access_token);realtimeHouseholdId=householdId;realtimeChannel=realtimeClient.channel(`household:${householdId}`,{config:{private:true}}).on('broadcast',{event:'*'},()=>kickHouseholdSync()).subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){if(realtimeChannel){void realtimeClient.removeChannel(realtimeChannel).catch(()=>{});realtimeChannel=null;realtimeHouseholdId=''}}})})().catch(()=>{}).finally(()=>{realtimeArmPromise=null});return realtimeArmPromise}
+async function applyPendingAssignment(){const p=pendingAssignment;pendingAssignment=null;if(!p||p.visibility!=='household')return;const client=clientForAssignment(),ctx=await loadAssignmentContext();if(!client||!ctx.userId||!ctx.householdId)return;let row=null;for(let attempt=0;attempt<8&&!row;attempt++){if(attempt)await new Promise(r=>setTimeout(r,350));let q=client.from('planly_tasks').select('owner_id,client_id,data,assignee_id,household_id,visibility,client_updated_at').eq('owner_id',ctx.userId).eq('visibility','household').is('deleted_at',null);if(p.taskId)q=q.eq('client_id',p.taskId);else{q=q.eq('title',p.title);if(p.date)q=q.eq('task_date',p.date);q=q.order('client_updated_at',{ascending:false}).limit(1)}const {data,error}=await q.maybeSingle();if(!error&&data)row=data}if(!row)return;const assigneeId=p.assigneeId||null;const nextData={...(row.data||{}),visibility:'household',householdId:ctx.householdId};if(assigneeId)nextData.assigneeId=assigneeId;else delete nextData.assigneeId;const {error}=await client.from('planly_tasks').update({assignee_id:assigneeId,data:nextData,client_updated_at:Date.now()}).eq('owner_id',ctx.userId).eq('client_id',row.client_id);if(error){console.warn('Planly assignment update failed',error);return}kickHouseholdSync()}
+async function decorateAssignments(){
+  let ctx;try{ctx=await loadAssignmentContext()}catch{return}if(!ctx?.userId)return;
+  document.querySelectorAll('.task[data-id]').forEach(card=>{const id=String(card.dataset.id||''),owner=String(card.dataset.owner||'');const task=typeof state!=='undefined'?state.tasks.find(t=>String(t.id)===id&&String(t._planlyOwnerId||planlySession?.user?.id||'')===owner):null;const meta=card.querySelector('.meta');if(!task||!meta)return;meta.querySelectorAll('.taskAssigneePill').forEach(x=>x.remove());const assigneeId=String(task.assigneeId||'');if(!assigneeId)return;const label=assigneeId===ctx.userId?'Assigned to you':'Assigned to '+(ctx.labels.get(assigneeId)||'household member');const pill=document.createElement('span');pill.className='pill taskAssigneePill';pill.textContent='✓ '+label;meta.appendChild(pill)})
 }
-async function applyPendingAssignment(){
-  const p=pendingAssignment;pendingAssignment=null;if(!p||p.visibility!=='household')return;
-  const client=clientForAssignment(),ctx=await loadAssignmentContext();if(!client||!ctx.userId||!ctx.householdId)return;
-  let row=null;
-  for(let attempt=0;attempt<8&&!row;attempt++){
-    if(attempt)await new Promise(r=>setTimeout(r,350));
-    let q=client.from('planly_tasks').select('owner_id,client_id,data,assignee_id,household_id,visibility,client_updated_at').eq('owner_id',ctx.userId).eq('visibility','household').is('deleted_at',null);
-    if(p.taskId)q=q.eq('client_id',p.taskId);else{q=q.eq('title',p.title);if(p.date)q=q.eq('task_date',p.date);q=q.order('client_updated_at',{ascending:false}).limit(1)}
-    const {data,error}=await q.maybeSingle();if(!error&&data)row=data;
-  }
-  if(!row)return;
-  const assigneeId=p.assigneeId||null;
-  const nextData={...(row.data||{}),visibility:'household',householdId:ctx.householdId};if(assigneeId)nextData.assigneeId=assigneeId;else delete nextData.assigneeId;
-  const {error}=await client.from('planly_tasks').update({assignee_id:assigneeId,data:nextData,client_updated_at:Date.now()}).eq('owner_id',ctx.userId).eq('client_id',row.client_id);
-  if(error){console.warn('Planly assignment update failed',error);return}
-  kickHouseholdSync();
-}
+function installAssignmentStyle(){if(document.getElementById('planlyAssignmentPolish'))return;const style=document.createElement('style');style.id='planlyAssignmentPolish';style.textContent='.taskAssigneePill{font-weight:750;white-space:normal;overflow-wrap:anywhere}.taskAssigneeField select{overflow-wrap:normal;word-break:normal}.taskAssigneeField option{word-break:normal}';document.head.appendChild(style)}
+function bindPostLoginSync(){if(authSyncBound)return;const client=clientForAssignment();if(!client)return;authSyncBound=true;client.auth.onAuthStateChange((event,session)=>{if(!session?.user)return;assignmentContext={householdId:'',userId:String(session.user.id),members:[],labels:new Map()};setTimeout(()=>{void loadAssignmentContext(true).then(()=>{kickHouseholdSync();void armHouseholdRealtime();void decorateAssignments()})},150);setTimeout(kickHouseholdSync,900)})}
 
-document.addEventListener('submit',e=>{
-  if(e.target?.id!=='taskForm')return;
-  const visibility=document.getElementById('taskVisibility');
-  if(visibility?.value==='household'&&!householdWritesReady()){
-    e.preventDefault();e.stopImmediatePropagation();alert('Household sharing is not ready yet. Enable Planly Cloud Sync in Settings, then save the task again.');scheduleGateRefresh();return;
-  }
-  pendingAssignment={taskId:String(document.getElementById('taskId')?.value||''),title:String(document.getElementById('taskTitle')?.value||'').trim(),date:String(document.getElementById('taskDate')?.value||''),visibility:visibility?.value||'private',assigneeId:String(document.getElementById('taskAssignee')?.value||'')};
-  setTimeout(()=>void applyPendingAssignment(),80);
-},true);
-
-document.addEventListener('change',e=>{
-  if(e.target?.id!=='taskVisibility')return;
-  if(e.target.value==='household'&&!householdWritesReady()){e.target.value='private';alert('Enable Planly Cloud Sync in Settings before sharing a task with your household.');}
-  void refreshAssignmentField({loadTask:false});scheduleGateRefresh();
-},true);
-
-document.addEventListener('click',e=>{
-  if(e.target.closest('#addBtn'))setTimeout(()=>void refreshAssignmentField({loadTask:false}),20);
-  if(e.target.closest('[data-action="edit"]'))setTimeout(()=>void refreshAssignmentField({loadTask:true}),80);
-  if(e.target.closest('#duplicateTask'))setTimeout(()=>{const a=document.getElementById('taskAssignee');if(a)a.value='';void refreshAssignmentField({loadTask:false})},20);
-},true);
-
+document.addEventListener('submit',e=>{if(e.target?.id!=='taskForm')return;const visibility=document.getElementById('taskVisibility');if(visibility?.value==='household'&&!householdWritesReady()){e.preventDefault();e.stopImmediatePropagation();alert('Household sharing is not ready yet. Enable Planly Cloud Sync in Settings, then save the task again.');scheduleGateRefresh();return}pendingAssignment={taskId:String(document.getElementById('taskId')?.value||''),title:String(document.getElementById('taskTitle')?.value||'').trim(),date:String(document.getElementById('taskDate')?.value||''),visibility:visibility?.value||'private',assigneeId:String(document.getElementById('taskAssignee')?.value||'')};setTimeout(()=>void applyPendingAssignment(),80)},true);
+document.addEventListener('change',e=>{if(e.target?.id!=='taskVisibility')return;if(e.target.value==='household'&&!householdWritesReady()){e.target.value='private';alert('Enable Planly Cloud Sync in Settings before sharing a task with your household.')}void refreshAssignmentField({loadTask:false});scheduleGateRefresh()},true);
+document.addEventListener('click',e=>{if(e.target.closest('#addBtn'))setTimeout(()=>void refreshAssignmentField({loadTask:false}),20);if(e.target.closest('[data-action="edit"]'))setTimeout(()=>void refreshAssignmentField({loadTask:true}),80);if(e.target.closest('#duplicateTask'))setTimeout(()=>{const a=document.getElementById('taskAssignee');if(a)a.value='';void refreshAssignmentField({loadTask:false})},20)},true);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')kickForegroundHouseholdSync()});
 window.addEventListener('focus',kickForegroundHouseholdSync);
 window.addEventListener('online',()=>{setTimeout(scheduleGateRefresh,300);setTimeout(()=>void armHouseholdRealtime(),350)});
 window.addEventListener('pagehide',()=>void stopHouseholdRealtime());
-new MutationObserver(scheduleGateRefresh).observe(document.documentElement,{subtree:true,childList:true});
-refreshSharingGate();setTimeout(()=>void armHouseholdRealtime(),500);
+new MutationObserver(()=>{scheduleGateRefresh();queueMicrotask(()=>void decorateAssignments())}).observe(document.documentElement,{subtree:true,childList:true});
+installAssignmentStyle();bindPostLoginSync();refreshSharingGate();setTimeout(()=>{void loadAssignmentContext(true).then(()=>void decorateAssignments());void armHouseholdRealtime()},500);
 })();
