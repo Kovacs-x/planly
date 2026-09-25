@@ -1,0 +1,1 @@
+Trigger dependency: migration 015 defines an AFTER INSERT OR UPDATE OR DELETE trigger on `public.planly_tasks`. Migration 017 deliberately does not add a second notification mechanism; the RPC's UPDATE therefore follows the same private Household broadcast path already exercised by creator-originated task changes.
