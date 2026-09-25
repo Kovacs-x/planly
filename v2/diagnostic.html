@@ -10,7 +10,7 @@
     const response=await fetch('./index.html?bootdiag=330d01',{cache:'no-store',credentials:'same-origin'});
     if(!response.ok) throw new Error(`index fetch ${response.status}`);
     let html=await response.text();
-    const injection='<base href="./"><script src="./boot-diagnostic-v3.3d.js?330d01"><\\/script>';
+    const injection='<base href="./"><script src="./boot-diagnostic-v3.3d.js?330d01"><\/script>';
     if(!/<head(?:\s[^>]*)?>/i.test(html)) throw new Error('index head missing');
     html=html.replace(/<head(?:\s[^>]*)?>/i,match=>match+injection);
     document.open();
