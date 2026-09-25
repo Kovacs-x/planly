@@ -1,0 +1,1 @@
+Task identity: incoming shared tasks preserve the creator UUID in `_planlyOwnerId` and the cloud task's `client_id` in the local task `id`. The client passes both to the RPC, avoiding ambiguous title/date lookup and preserving the owner-aware identity model introduced by the 3.3B shared-task hotfix.
