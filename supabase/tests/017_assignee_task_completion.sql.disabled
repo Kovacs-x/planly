@@ -1,9 +1,0 @@
--- Documentation-only authorization checklist. Not executed by migration tooling.
--- 1. Current assignee can toggle completion true/false through planly_set_assigned_task_completed.
--- 2. Another Household member receives 42501.
--- 3. Non-member receives 42501.
--- 4. Direct task UPDATE remains creator-only under RLS.
--- 5. RPC cannot mutate title/date/visibility/assignee/delete; only completion fields are changed.
--- 6. Reassignment immediately revokes previous assignee completion authority.
--- 7. Private/unshared task rejects assignee completion.
--- 8. Deleted task returns P0002.
