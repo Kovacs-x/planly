@@ -3,7 +3,7 @@ const VERSION='planly-v2-sw-330d03';
 const APP_URL='./app-v3.2.0.js?v=330c02';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c02';
-const CORE_BUILD_URL='./core-build-v3.3c.js?v=330d02';
+const CORE_BUILD_URL='./core-build-v3.3c.js?v=330d03';
 const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=330c03';
 const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=330c04';
 const CORE_HOUSEHOLD_CALENDAR_URL='./core-household-calendar-v3.3c.js?v=330c05';
