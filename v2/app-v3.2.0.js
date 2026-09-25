@@ -1322,7 +1322,22 @@ function clearPlanlyConflict(kind,id){const list=readPlanlyConflicts().filter(x=
 function pendingPlanlyWrite(kind,id){return readPlanlyPendingWrites().find(x=>x.kind===kind&&x.id===String(id))||null}
 function persistPlanlyCloudCache(){const key=planlyCloudAccountKey(PLANLY_CLOUD_CACHE_PREFIX);if(!key)return;localStorage.setItem(key,JSON.stringify({version:1,savedAt:new Date().toISOString(),tasks:state.tasks,projects:state.projects,preferences:{defaultCategory:state.defaultCategory,defaultDuration:state.defaultDuration,autoCompleteParentSubtasks:state.autoCompleteParentSubtasks,planningStart:state.planningStart,planningEnd:state.planningEnd},taskVersions:Object.fromEntries(planlyCloudSyncMeta.tasks),projectVersions:Object.fromEntries(planlyCloudSyncMeta.projects),preferenceVersion:Number(planlyCloudSyncMeta.preferences||0)}))}
 function restorePlanlyCloudCache(){const c=readPlanlyCloudCache();if(!c)return false;state.tasks=Array.isArray(c.tasks)?c.tasks:[];state.projects=Array.isArray(c.projects)?c.projects:[];const p=c.preferences||{};state.defaultCategory=p.defaultCategory||state.defaultCategory;state.defaultDuration=Number(p.defaultDuration||state.defaultDuration);state.autoCompleteParentSubtasks=!!p.autoCompleteParentSubtasks;state.planningStart=p.planningStart||state.planningStart;state.planningEnd=p.planningEnd||state.planningEnd;planlyCloudSyncMeta.tasks=new Map(Object.entries(c.taskVersions||{}).map(([k,v])=>[k,Number(v)]));planlyCloudSyncMeta.projects=new Map(Object.entries(c.projectVersions||{}).map(([k,v])=>[k,Number(v)]));planlyCloudSyncMeta.preferences=Number(c.preferenceVersion||0);planlyCloudBootstrapPending=false;return true}
-function applyPlanlyPendingToState(){for(const op of readPlanlyPendingWrites()){if(op.kind==='task'){if(op.action==='delete')state.tasks=state.tasks.filter(x=>String(x.id)!==op.id);else if(op.data){const i=state.tasks.findIndex(x=>String(x.id)===op.id);if(i>=0)state.tasks[i]=op.data;else state.tasks.push(op.data)}}else if(op.kind==='project'){if(op.action==='delete')state.projects=state.projects.filter(x=>String(x.id)!==op.id);else if(op.data){const i=state.projects.findIndex(x=>String(x.id)===op.id);if(i>=0)state.projects[i]=op.data;else state.projects.push(op.data)}}else if(op.kind==='preference'&&op.data){const p=op.data;state.defaultCategory=p.defaultCategory||state.defaultCategory;state.defaultDuration=Number(p.defaultDuration||state.defaultDuration);state.autoCompleteParentSubtasks=!!p.autoCompleteParentSubtasks;state.planningStart=p.planningStart||state.planningStart;state.planningEnd=p.planningEnd||state.planningEnd}}}
+function applyPlanlyPendingToState(){
+  const ownerId=String(planlySession?.user?.id||planlyLastAccountId()||'');
+  for(const op of readPlanlyPendingWrites()){
+    if(op.kind==='task'){
+      const key=ownerId+'|'+op.id;
+      if(op.action==='delete')state.tasks=state.tasks.filter(x=>planlyLocalTaskKey(x)!==key);
+      else if(op.data){const local={...op.data,_planlyOwnerId:ownerId,_planlyOwnedByMe:true},i=state.tasks.findIndex(x=>planlyLocalTaskKey(x)===key);if(i>=0)state.tasks[i]=local;else state.tasks.push(local)}
+    }else if(op.kind==='project'){
+      const key=ownerId+'|'+op.id;
+      if(op.action==='delete')state.projects=state.projects.filter(x=>planlyLocalProjectKey(x)!==key);
+      else if(op.data){const local={...op.data,_planlyOwnerId:ownerId,_planlyOwnedByMe:true},i=state.projects.findIndex(x=>planlyLocalProjectKey(x)===key);if(i>=0)state.projects[i]=local;else state.projects.push(local)}
+    }else if(op.kind==='preference'&&op.data){
+      const p=op.data;state.defaultCategory=p.defaultCategory||state.defaultCategory;state.defaultDuration=Number(p.defaultDuration||state.defaultDuration);state.autoCompleteParentSubtasks=!!p.autoCompleteParentSubtasks;state.planningStart=p.planningStart||state.planningStart;state.planningEnd=p.planningEnd||state.planningEnd
+    }
+  }
+}
 function stagePlanlyPendingWrite(kind,action,item,baseVersion){const id=kind==='preference'?'preferences':String(item?.id||item||'');if(!id)return;const current=readPlanlyPendingWrites(),existing=current.find(x=>x.kind===kind&&x.id===id),list=current.filter(x=>!(x.kind===kind&&x.id===id)),stableBase=existing?Number(existing.baseVersion||0):Number(baseVersion||0),now=new Date().toISOString();list.push({kind,action,id,data:action==='delete'?null:item,baseVersion:stableBase,operationId:existing?.operationId||uid(),stagedAt:existing?.stagedAt||now,lastEditedAt:now,attempts:Number(existing?.attempts||0),lastAttemptAt:existing?.lastAttemptAt||'',lastError:'',status:'queued'});writePlanlyPendingWrites(list);persistPlanlyCloudCache()}
 function clearPlanlyPendingWrite(kind,id){writePlanlyPendingWrites(readPlanlyPendingWrites().filter(x=>!(x.kind===kind&&x.id===String(id))));persistPlanlyCloudCache()}
 function updatePlanlyPendingWrite(kind,id,patch){const list=readPlanlyPendingWrites(),i=list.findIndex(x=>x.kind===kind&&x.id===String(id));if(i<0)return null;list[i]={...list[i],...patch};writePlanlyPendingWrites(list);persistPlanlyCloudCache();return list[i]}
@@ -1407,8 +1422,8 @@ async function fetchPlanlyServerConflict(kind,id){
     if(error)throw error;return data?{serverData:data.data||null,serverVersion:Number(data.cloud_version||0),serverDeleted:!!data.deleted_at}:null;
   }
   if(kind==='project'){
-    const {data,error}=await planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).eq('client_id',String(id)).maybeSingle();
-    if(error)throw error;return data?{serverData:data.data||null,serverVersion:Number(data.cloud_version||0),serverDeleted:!!data.deleted_at}:null;
+    const {data,error}=await planlySupabase.from('planly_projects').select('client_id,data,visibility,household_id,cloud_version,deleted_at').eq('owner_id',ownerId).eq('client_id',String(id)).maybeSingle();
+    if(error)throw error;return data?{serverData:{...(data.data||{}),visibility:data.visibility==='household'?'household':'private',householdId:data.visibility==='household'?(data.household_id||null):null},serverVersion:Number(data.cloud_version||0),serverDeleted:!!data.deleted_at}:null;
   }
   if(kind==='preference'){
     const {data,error}=await planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle();
@@ -1517,6 +1532,9 @@ function planlyCloudProjectKey(row){return String(row?.owner_id||'')+'|'+String(
 function planlyLocalProjectKey(project){return String(project?._planlyOwnerId||planlySession?.user?.id||'')+'|'+String(project?.id||'')}
 function planlyOwnedTasks(){return state.tasks.filter(t=>t._planlyOwnedByMe!==false)}
 function planlyOwnedProjects(){return state.projects.filter(p=>p._planlyOwnedByMe!==false)}
+function planlySerializableEntity(item){if(!item||typeof item!=='object')return item;const {_planlyOwnerId,_planlyOwnedByMe,...clean}=item;return clean}
+function planlyOwnedTasksForBackup(){return planlyOwnedTasks().map(planlySerializableEntity)}
+function planlyOwnedProjectsForBackup(){return planlyOwnedProjects().map(planlySerializableEntity)}
 async function loadVerifiedCloudPreview(){
   if(!PLANLY_CLOUD_PREVIEW||!planlySession?.user||!initPlanlySupabase()){planlyCloudBootstrapPending=false;return false;}
   const ownerId=planlySession.user.id;
@@ -1851,7 +1869,7 @@ async function runPlanlySyncIntegritySuite(btn){
   let childId='',projectVersion=0,taskVersion=0,preferenceVersionBefore=0;
   const removeLocalTestRows=()=>{
     state.tasks=state.tasks.filter(x=>!String(x.id).startsWith('planly-integrity-task-'+stamp));
-    state.projects=state.projects.filter(x=>String(x.id)!==projectId);
+    state.projects=state.projects.filter(x=>!(x._planlyOwnedByMe!==false&&String(x.id)===projectId));
     for(const id of [taskId,childId].filter(Boolean)){planlyCloudSyncMeta.tasks.delete(id);clearPlanlyPendingWrite('task',id);clearPlanlyConflict('task',id)}
     planlyCloudSyncMeta.projects.delete(projectId);clearPlanlyPendingWrite('project',projectId);clearPlanlyConflict('project',projectId);
   };
@@ -2746,7 +2764,7 @@ function normalizePlanlyBackupFile(d){
   return {tasks,projects,preferences,device,version:2};
 }
 function currentPlanlyBackupObject(){
-  return {version:2,exportedAt:new Date().toISOString(),tasks:JSON.parse(JSON.stringify(planlyOwnedTasks())),projects:JSON.parse(JSON.stringify(planlyOwnedProjects())),settings:{theme:state.theme,showCompleted:!!state.showCompleted,defaultCategory:state.defaultCategory,defaultDuration:Number(state.defaultDuration||30),autoCalendarTimed:!!state.autoCalendarTimed,autoCompleteParentSubtasks:!!state.autoCompleteParentSubtasks,planningStart:state.planningStart||'08:00',planningEnd:state.planningEnd||'23:00'}};
+  return {version:2,exportedAt:new Date().toISOString(),tasks:JSON.parse(JSON.stringify(planlyOwnedTasksForBackup())),projects:JSON.parse(JSON.stringify(planlyOwnedProjectsForBackup())),settings:{theme:state.theme,showCompleted:!!state.showCompleted,defaultCategory:state.defaultCategory,defaultDuration:Number(state.defaultDuration||30),autoCalendarTimed:!!state.autoCalendarTimed,autoCompleteParentSubtasks:!!state.autoCompleteParentSubtasks,planningStart:state.planningStart||'08:00',planningEnd:state.planningEnd||'23:00'}};
 }
 function retainPlanlyBulkSafetySnapshot(action){
   const key=planlyCloudAccountKey(PLANLY_CLOUD_BULK_SAFETY_PREFIX);if(!key)throw new Error('Cannot create a safety snapshot without an account.');
@@ -2875,7 +2893,7 @@ async function clearAllPlanlyCloudData(){
   persistPlanlyCloudCache();render();showToast('Planly account tasks and projects cleared');
   return true;
 }
-function exportData(){const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),tasks:planlyOwnedTasks(),projects:planlyOwnedProjects(),settings:{theme:state.theme,showCompleted:state.showCompleted,defaultCategory:state.defaultCategory,defaultDuration:state.defaultDuration,autoCalendarTimed:state.autoCalendarTimed,autoCompleteParentSubtasks:state.autoCompleteParentSubtasks,planningStart:state.planningStart,planningEnd:state.planningEnd}},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`planly-backup-${localKey(new Date())}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function exportData(){const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),tasks:planlyOwnedTasksForBackup(),projects:planlyOwnedProjectsForBackup(),settings:{theme:state.theme,showCompleted:state.showCompleted,defaultCategory:state.defaultCategory,defaultDuration:state.defaultDuration,autoCalendarTimed:state.autoCalendarTimed,autoCompleteParentSubtasks:state.autoCompleteParentSubtasks,planningStart:state.planningStart,planningEnd:state.planningEnd}},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`planly-backup-${localKey(new Date())}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 $('#importFile').addEventListener('change',async e=>{
   const f=e.target.files?.[0];if(!f)return;
   try{
