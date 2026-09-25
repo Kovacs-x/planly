@@ -1,0 +1,1 @@
+PWA release marker: `planly-v2-330a13` / `planly-v2-sw-330a13`. Both the core app request key and appended hardening bundle URL use `v=330a13`, preventing the previous 330a12 assignment UI from remaining cached during the phone test.
