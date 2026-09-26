@@ -11,4 +11,13 @@ window.PlanlyBudgetMonth={get,set,date};
 set(get());
 async function renderTab(target){host=target||host;set(get());return base.renderTab(host)}
 window.PlanlyBudgetUI={...base,renderTab};
+
+// Successful payment creation returns to the Budget tab. Persistence and sync
+// stay in the existing Budget runtime; this only fixes the post-save UI route.
+document.addEventListener('planly:budget-entry-saved',event=>{
+  if(event.detail?.kind!=='expense')return;
+  const budgetButton=document.querySelector('[data-tab="budget"]');
+  if(budgetButton instanceof HTMLElement)budgetButton.click();
+  else if(host)renderTab(host);
+});
 })();
