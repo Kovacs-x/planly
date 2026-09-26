@@ -16,6 +16,18 @@ probePlanlyServiceWorker=async function(){
   }catch(err){return {ok:false,reason:String(err?.message||err)}}
 };
 
+/* Collapse same-turn duplicate full renders. Cloud/auth/bootstrap callbacks can
+   request render repeatedly while resolving one logical state transition; only
+   the first render mutates the DOM and later same-turn calls are coalesced. */
+const __planlyStableRender=render;
+let __planlyRenderTurn=false;
+render=function(){
+  if(__planlyRenderTurn)return;
+  __planlyRenderTurn=true;
+  try{return __planlyStableRender.apply(this,arguments)}
+  finally{queueMicrotask(()=>{__planlyRenderTurn=false})}
+};
+
 /* Opt-in diagnostics only: ?planlydiag=1. No behaviour changes when disabled. */
 if(new URLSearchParams(location.search).get('planlydiag')==='1'){
   const diag={startedAt:new Date().toISOString(),events:[],max:700};
