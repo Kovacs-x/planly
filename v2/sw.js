@@ -1,5 +1,5 @@
-const CACHE='planly-v2-400f-04';
-const VERSION='planly-v2-sw-400f-04';
+const CACHE='planly-v2-400f-05';
+const VERSION='planly-v2-sw-400f-05';
 const APP_URL='./app-v3.2.0.js?v=330c02';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c02';
@@ -16,7 +16,7 @@ const BUDGET_RUNTIME_URL='./core-budget-v4.0b.js?v=400c01';
 const BUDGET_UI_URL='./core-budget-ui-v4.0b.js?v=400b401';
 const BUDGET_SCOPE_URL='./core-budget-scope-v4.0c.js?v=400c02';
 const BUDGET_LIFECYCLE_URL='./core-budget-lifecycle-v4.0d.js?v=400e01';
-const BUDGET_MONTHLY_URL='./core-budget-monthly-v4.0e.js?v=400e03';
+const BUDGET_MONTHLY_URL='./core-budget-monthly-v4.0e.js?v=400e04';
 const BUDGET_MONTH_STATE_URL='./core-budget-month-state-v4.0f.js?v=400f01';
 const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_HOUSEHOLD_PLANNING_SAFETY_URL,CORE_CLOSEOUT_URL,CORE_CLOUD_READINESS_URL,CORE_RELEASE_GATE_URL,CORE_BUDGET_NAV_URL];
 const APPEND_URLS=[BUDGET_RUNTIME_URL,BUDGET_UI_URL,BUDGET_SCOPE_URL,BUDGET_LIFECYCLE_URL,BUDGET_MONTHLY_URL,BUDGET_MONTH_STATE_URL];
