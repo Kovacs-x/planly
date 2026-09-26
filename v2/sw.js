@@ -1,9 +1,9 @@
-const CACHE='planly-v2-400e-01';
-const VERSION='planly-v2-sw-400e-01';
+const CACHE='planly-v2-400f-01';
+const VERSION='planly-v2-sw-400f-01';
 const APP_URL='./app-v3.2.0.js?v=330c02';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c02';
-const CORE_BUILD_URL='./core-build-v3.3c.js?v=400e01';
+const CORE_BUILD_URL='./core-build-v3.3c.js?v=400f01';
 const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=330d06';
 const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=330c04';
 const CORE_HOUSEHOLD_CALENDAR_URL='./core-household-calendar-v3.3c.js?v=330c05';
@@ -17,8 +17,9 @@ const BUDGET_UI_URL='./core-budget-ui-v4.0b.js?v=400b401';
 const BUDGET_SCOPE_URL='./core-budget-scope-v4.0c.js?v=400c02';
 const BUDGET_LIFECYCLE_URL='./core-budget-lifecycle-v4.0d.js?v=400e01';
 const BUDGET_MONTHLY_URL='./core-budget-monthly-v4.0e.js?v=400e01';
+const BUDGET_MONTH_STATE_URL='./core-budget-month-state-v4.0f.js?v=400f01';
 const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_HOUSEHOLD_PLANNING_SAFETY_URL,CORE_CLOSEOUT_URL,CORE_CLOUD_READINESS_URL,CORE_RELEASE_GATE_URL,CORE_BUDGET_NAV_URL];
-const APPEND_URLS=[BUDGET_RUNTIME_URL,BUDGET_UI_URL,BUDGET_SCOPE_URL,BUDGET_LIFECYCLE_URL,BUDGET_MONTHLY_URL];
+const APPEND_URLS=[BUDGET_RUNTIME_URL,BUDGET_UI_URL,BUDGET_SCOPE_URL,BUDGET_LIFECYCLE_URL,BUDGET_MONTHLY_URL,BUDGET_MONTH_STATE_URL];
 const REQUIRED=['./index.html',APP_URL,HARDENING_URL,...CORE_URLS,...APPEND_URLS,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 async function cacheOne(cache,url){try{const response=await fetch(url,{cache:'no-store'});if(response?.ok){await cache.put(url,response.clone());return true}}catch{}return false}
