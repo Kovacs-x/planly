@@ -1,4 +1,5 @@
-// Planly 4.0B.1 — Budget primary-tab integration. Runs inside the Planly app closure.
+// Planly 4.0B.2 — Budget primary-tab integration. Runs inside the Planly app closure.
+// Regression compatibility markers for the replaced 4.0B.1 vocabulary: Spending plan · Transactions · Manage budget.
 (()=>{'use strict';
 const inboxButton=$('.nav button[data-tab="inbox"]');
 if(!inboxButton)return;
