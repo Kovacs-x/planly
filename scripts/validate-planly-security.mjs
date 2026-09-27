@@ -12,6 +12,15 @@ if(!/planly_budget_entries_update_own[\s\S]{0,500}auth\.uid\(\)[\s\S]{0,500}owne
 if(!/scope_type='personal'\s+and\s+household_id\s+is\s+null/i.test(migrations))fail('Private budget scope isolation constraint missing');
 if(!/scope_type='household'[\s\S]{0,500}household_id\s+is\s+not\s+null/i.test(migrations))fail('Household budget scope constraint missing');
 if(!/Household already has two members/.test(migrations))fail('Two-member household server guard missing');
+for(const marker of [
+  "update public.planly_budget_scopes\n     set owner_id = p_new_owner",
+  "update public.planly_budget_categories c\n     set owner_id = p_new_owner",
+  "update public.planly_budget_targets t\n     set owner_id = p_new_owner",
+  "delete from public.planly_budget_entries e",
+  "delete from public.planly_budget_scopes",
+  "Budget entry identity is immutable"
+])if(!migrations.includes(marker))fail('Household/Budget lifecycle security invariant missing: '+marker);
+if(!client.includes('shared Household Budget')||!client.includes('Personal budgets and private Planly data'))fail('Household deletion must warn about shared Budget destruction');
 if(!client.includes(".eq('cloud_version',version)")&&!client.includes(".eq('cloud_version',op.baseVersion)"))fail('Optimistic cloud_version write guard missing');
 if(!client.includes('PLANLY_HOUSEHOLD_EXTERNAL_CALENDAR_SHARING'))fail('External-calendar household privacy guard missing');
 for(const needle of ["scope_type:'personal'","scope_type:'household'","membership.role!=='owner'","scopeKey=(p,type=activeType)",'row.owner_id!==owner'])if(!client.includes(needle))fail('Budget scope/ownership client guard missing: '+needle);
