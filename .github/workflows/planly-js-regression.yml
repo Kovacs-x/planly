@@ -24,6 +24,8 @@ jobs:
         run: node scripts/validate-planly-security.mjs
       - name: Validate Budget 4.0 release invariants
         run: node scripts/validate-budget-release.mjs
+      - name: Validate Budget 4.0 functional acceptance
+        run: node scripts/validate-budget-acceptance.mjs
       - name: Reject unresolved merge markers
         shell: bash
         run: |
