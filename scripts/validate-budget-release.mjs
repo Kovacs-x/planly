@@ -18,6 +18,7 @@ const budgetFiles=[
 ];
 for(const f of budgetFiles)if(!exists(f))fail(`Missing Budget runtime file: ${f}`);
 const budget=budgetFiles.map(read).join('\n');
+const budgetScope=read('v2/core-budget-scope-v4.0c.js');
 const migrations=fs.readdirSync(path.join(root,'supabase/migrations')).filter(f=>f.endsWith('.sql')).sort().map(f=>read(`supabase/migrations/${f}`)).join('\n');
 const sw=read('v2/sw.js'),build=read('v2/core-build-v3.3c.js');
 
@@ -31,6 +32,17 @@ for(const marker of ["scope_type='personal' and household_id is null","scope_typ
 
 for(const marker of ['x.owner_id===viewer','Carry forward only recurring items you created',"allocationStatus:'planned'",'window.PlanlyBudgetMonth={get,set,date}','Monthly snapshot',"Derived from this month's budget only"])if(!budget.includes(marker))fail(`Missing monthly Budget invariant: ${marker}`);
 if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(budget))fail('Budget runtime monkeypatches Date');
+
+for(const marker of [
+  'const composed=window.PlanlyBudgetUI?.renderTab',
+  "if(typeof composed==='function'&&composed!==render)return composed(host)",
+  'await window.PlanlyBudget.switchScope(next);await rerender(host)',
+  'await window.PlanlyBudget.ensureHouseholdScope();await rerender(host)'
+])if(!budgetScope.includes(marker))fail(`Budget scope round-trip must re-enter the fully composed renderer: ${marker}`);
+for(const stale of [
+  'await window.PlanlyBudget.switchScope(next);await render(host,{bootstrap:false})',
+  'await window.PlanlyBudget.ensureHouseholdScope();await render(host,{bootstrap:false})'
+])if(budgetScope.includes(stale))fail(`Budget scope switch regressed to the partial local renderer: ${stale}`);
 
 for(const file of budgetFiles){const name=path.basename(file);if(!sw.includes(name))fail(`Service worker composition missing ${name}`);if(!build.includes(name))fail(`Build diagnostics/cache list missing ${name}`)}
 if(!sw.includes('...APPEND_URLS.map(url=>freshOrCached(cache,url))'))fail('Budget append runtime is not covered by offline fresh-or-cache composition');
