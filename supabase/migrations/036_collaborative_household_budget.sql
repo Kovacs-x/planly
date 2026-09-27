@@ -15,7 +15,7 @@ as $$
   where s.id = p_scope_id
     and s.scope_type = 'household'
     and s.household_id is not null
-    and public.planly_private.is_household_member(s.household_id)
+    and planly_private.is_household_member(s.household_id)
   limit 1
 $$;
 
