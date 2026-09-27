@@ -12,24 +12,20 @@ const files=[
 const budget=files.map(read).join('\n');
 const html=read('v2/index.html'),sw=read('v2/sw.js');
 
-// Acceptance: the shipped page must expose the Budget route and all runtime layers.
 for(const f of files){const name=path.basename(f);if(!html.includes(name)&&!sw.includes(name))fail(`Budget layer is not shipped: ${name}`)}
 for(const marker of ['Budget','PlanlyBudget','PlanlyBudgetMonth'])if(!budget.includes(marker)&&!html.includes(marker))fail(`Missing Budget acceptance surface: ${marker}`);
 
-// Core user journeys: scope, CRUD, month planning, recurring carry-forward, insights and conflict recovery.
 for(const marker of [
-  'ensurePersonalScope','ensureHouseholdScope','createEntry','updateEntry','deleteEntry',
+  'createPersonal','ensureHouseholdScope','addEntry','updateEntry','deleteEntry','addCategory','updateCategory','setTarget',
   'Carry forward','window.PlanlyBudgetMonth','Monthly snapshot','conflict','cloud_version'
 ])if(!budget.includes(marker))fail(`Missing Budget user journey marker: ${marker}`);
 
-// Privacy/security acceptance: personal is private; household is explicit; creator mutation boundaries remain enforced.
 for(const marker of [
   "scope_type:'personal'","scope_type:'household'",'membership.role',
   'You can only edit budget entries you added.','You can only delete budget entries you added.'
 ])if(!budget.includes(marker))fail(`Missing Budget authorization acceptance marker: ${marker}`);
 if(/service_role|SUPABASE_SERVICE_ROLE|sb_secret_/i.test(budget))fail('Privileged credential marker in Budget browser runtime');
 
-// Offline acceptance: owner+scope isolation, pending operations and conflicts must survive reload composition.
 for(const marker of ['planly-budget-cache-v2:','planly-budget-pending-v2:','planly-budget-conflicts-v2:','operationId:uuid()'])if(!budget.includes(marker))fail(`Missing Budget offline acceptance marker: ${marker}`);
 for(const f of files){const name=path.basename(f);if(!sw.includes(name))fail(`Budget runtime missing from service-worker composition: ${name}`)}
 
