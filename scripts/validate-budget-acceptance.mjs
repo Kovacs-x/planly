@@ -21,7 +21,7 @@ for(const marker of ['planly-budget-cache-v2:','planly-budget-pending-v2:','plan
 for(const f of files){const name=path.basename(f);if(!sw.includes(name))fail(`Budget runtime missing from service-worker composition: ${name}`)}
 for(const marker of ['budgetComplete(view)','budgetInvalidated','planly:budget-invalidated','.budgetMonthBar'])if(!nav.includes(marker))fail(`Budget deterministic render gate missing: ${marker}`);
 if(nav.includes('budgetRenderedView===view'))fail('Legacy DOM-presence Budget short-circuit can suppress composed render layers');
-for(const marker of ["id='planlyListsBtn'",'aria-label','Lists','actions.prepend(b)','data-lists-create'])if(!lists.includes(marker))fail(`Shared Lists production entry point missing: ${marker}`);
+for(const marker of ["b.id='planlyListsBtn'","setAttribute('aria-label','Lists')",'actions.prepend(b)','data-lists-create'])if(!lists.includes(marker))fail(`Shared Lists production entry point missing: ${marker}`);
 if(!sw.includes("APPEND_URLS.push(LISTS_RUNTIME_URL)"))fail('Shared Lists runtime is not shipped in generated production JS');
 
 console.log('Planly Budget 4.0 functional acceptance checks passed.');
