@@ -1,5 +1,5 @@
-const CACHE='planly-v2-420b-01';
-const VERSION='planly-v2-sw-420b-01';
+const CACHE='planly-v2-420a-01';
+const VERSION='planly-v2-sw-420a-01';
 const APP_URL='./app-v3.2.0.js?v=400j01';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
