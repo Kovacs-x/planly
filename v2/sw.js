@@ -19,8 +19,10 @@ const BUDGET_LIFECYCLE_URL='./core-budget-lifecycle-v4.0d.js?v=400e01';
 const BUDGET_MONTHLY_URL='./core-budget-monthly-v4.0e.js?v=400e04';
 const BUDGET_MONTH_STATE_URL='./core-budget-month-state-v4.0f.js?v=400f01';
 const BUDGET_INSIGHTS_URL='./core-budget-insights-v4.0g.js?v=400g01';
+const LISTS_RUNTIME_URL='./core-lists-v4.1.js?v=410a01';
 const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_HOUSEHOLD_PLANNING_SAFETY_URL,CORE_CLOSEOUT_URL,CORE_CLOUD_READINESS_URL,CORE_RELEASE_GATE_URL,CORE_BUDGET_NAV_URL];
 const APPEND_URLS=[BUDGET_RUNTIME_URL,BUDGET_UI_URL,BUDGET_SCOPE_URL,BUDGET_LIFECYCLE_URL,BUDGET_MONTHLY_URL,BUDGET_MONTH_STATE_URL,BUDGET_INSIGHTS_URL];
+APPEND_URLS.push(LISTS_RUNTIME_URL);
 const REQUIRED=['./index.html',APP_URL,HARDENING_URL,...CORE_URLS,...APPEND_URLS,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','../icon-192.png','../icon-512.png'];
 async function cacheOne(cache,url){try{const response=await fetch(url,{cache:'no-store'});if(response?.ok){await cache.put(url,response.clone());return true}}catch{}return false}
