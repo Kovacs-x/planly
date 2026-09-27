@@ -16,16 +16,21 @@ probePlanlyServiceWorker=async function(){
   }catch(err){return {ok:false,reason:String(err?.message||err)}}
 };
 
-/* Collapse same-turn duplicate full renders. Cloud/auth/bootstrap callbacks can
-   request render repeatedly while resolving one logical state transition; only
-   the first render mutates the DOM and later same-turn calls are coalesced. */
+/* Collapse same-turn duplicate full renders, and do not replay the page-entry
+   animation when async bootstrap/sync work refreshes the surface already shown.
+   State still renders normally; only redundant same-surface animation is removed. */
 const __planlyStableRender=render;
-let __planlyRenderTurn=false;
+let __planlyRenderTurn=false,__planlyRenderedTab='';
 render=function(){
   if(__planlyRenderTurn)return;
   __planlyRenderTurn=true;
-  try{return __planlyStableRender.apply(this,arguments)}
-  finally{queueMicrotask(()=>{__planlyRenderTurn=false})}
+  const view=$('#view'),tab=String(state?.tab||''),sameSurface=!!view?.childElementCount&&__planlyRenderedTab===tab;
+  try{
+    const result=__planlyStableRender.apply(this,arguments);
+    __planlyRenderedTab=tab;
+    if(sameSurface&&tab!=='budget')view?.classList.remove('viewEntering');
+    return result;
+  }finally{queueMicrotask(()=>{__planlyRenderTurn=false})}
 };
 
 /* Opt-in diagnostics only: ?planlydiag=1. No behaviour changes when disabled. */
