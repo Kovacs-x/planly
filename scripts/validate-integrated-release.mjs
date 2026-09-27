@@ -14,7 +14,7 @@ for(const f of ['core-budget-v4.0b.js','core-budget-ui-v4.0b.js','core-budget-sc
 }
 
 const sw=read('v2/sw.js'), build=read('v2/core-build-v3.3c.js');
-for(const marker of ['runtime-modules.json','networkFirstRuntimeModules','STATIC_APPEND_URLS']) if(!sw.includes(marker)) fail(`Service-worker upgrade/reachability guard missing: ${marker}`);
+for(const marker of ['RUNTIME_MANIFEST_URL','runtimeModuleUrls(cache)',"freshOrCached(cache,RUNTIME_MANIFEST_URL)",'validRuntimeModule','appendUrls=await runtimeModuleUrls(cache)']) if(!sw.includes(marker)) fail(`Service-worker upgrade/reachability guard missing: ${marker}`);
 for(const marker of ['verifyPlanlyOfflineCache','probePlanlyServiceWorker']) if(!build.includes(marker)) fail(`Offline/release probe missing: ${marker}`);
 
 const budget=read('v2/core-budget-v4.0b.js');
@@ -29,7 +29,6 @@ for(const marker of ['cloud_version','household','owner_id','planlyListsBtn']) i
 const dash=read('v2/core-household-dashboard-v4.2.js');
 for(const marker of [".eq('visibility','household')",'private calendar sources','planlyHouseholdDashboardBtn']) if(!dash.includes(marker)) fail(`Household Dashboard privacy/reachability invariant missing: ${marker}`);
 
-// The private external-calendar rule is a release invariant, not a convention.
 const calendar=read('v2/core-household-calendar-v3.3c.js');
 if(!calendar.includes('PLANLY_HOUSEHOLD_EXTERNAL_CALENDAR_SHARING=false')) fail('Private external-calendar household boundary missing');
 
