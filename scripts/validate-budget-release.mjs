@@ -44,6 +44,14 @@ for(const stale of [
   'await window.PlanlyBudget.ensureHouseholdScope();await render(host,{bootstrap:false})'
 ])if(budgetScope.includes(stale))fail(`Budget scope switch regressed to the partial local renderer: ${stale}`);
 
+for(const marker of [
+  "cachedScope?.id&&!create",
+  "Promise.all([sb.from('planly_budget_scopes')",
+  '...budgetChildTables.map',
+  'getViewerId:()=>owner',
+  "viewer=api()?.getViewerId?.()||viewer"
+])if(!budget.includes(marker))fail(`Budget scope performance invariant missing: ${marker}`);
+
 for(const file of budgetFiles){const name=path.basename(file);if(!sw.includes(name))fail(`Service worker composition missing ${name}`);if(!build.includes(name))fail(`Build diagnostics/cache list missing ${name}`)}
 if(!sw.includes('...APPEND_URLS.map(url=>freshOrCached(cache,url))'))fail('Budget append runtime is not covered by offline fresh-or-cache composition');
 
