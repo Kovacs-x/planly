@@ -21,6 +21,13 @@ for(const marker of [
   "Budget entry identity is immutable"
 ])if(!migrations.includes(marker))fail('Household/Budget lifecycle security invariant missing: '+marker);
 if(!client.includes('shared Household Budget')||!client.includes('Personal budgets and private Planly data'))fail('Household deletion must warn about shared Budget destruction');
+for(const marker of [
+  'planly_private_departing_member_tasks',
+  "set visibility='private'",
+  "household_id=null",
+  "drop policy if exists planly_budget_entries_select_authorized",
+  "where s.id=scope_id"
+])if(!migrations.includes(marker))fail('Departing-member privacy invariant missing: '+marker);
 if(!client.includes(".eq('cloud_version',version)")&&!client.includes(".eq('cloud_version',op.baseVersion)"))fail('Optimistic cloud_version write guard missing');
 if(!client.includes('PLANLY_HOUSEHOLD_EXTERNAL_CALENDAR_SHARING'))fail('External-calendar household privacy guard missing');
 for(const needle of ["scope_type:'personal'","scope_type:'household'","membership.role!=='owner'","scopeKey=(p,type=activeType)",'row.owner_id!==owner'])if(!client.includes(needle))fail('Budget scope/ownership client guard missing: '+needle);
