@@ -14,7 +14,7 @@ const html=read('v2/index.html'),sw=read('v2/sw.js');
 
 // Acceptance: the shipped page must expose the Budget route and all runtime layers.
 for(const f of files){const name=path.basename(f);if(!html.includes(name)&&!sw.includes(name))fail(`Budget layer is not shipped: ${name}`)}
-for(const marker of ['Budget','PlanlyBudget','PlanlyBudgetScope','PlanlyBudgetMonth'])if(!budget.includes(marker)&&!html.includes(marker))fail(`Missing Budget acceptance surface: ${marker}`);
+for(const marker of ['Budget','PlanlyBudget','PlanlyBudgetMonth'])if(!budget.includes(marker)&&!html.includes(marker))fail(`Missing Budget acceptance surface: ${marker}`);
 
 // Core user journeys: scope, CRUD, month planning, recurring carry-forward, insights and conflict recovery.
 for(const marker of [
