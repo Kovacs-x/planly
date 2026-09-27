@@ -1,0 +1,36 @@
+name: Shared Lists release gate
+on:
+  pull_request:
+    paths:
+      - 'v2/**'
+      - 'supabase/migrations/**'
+      - 'scripts/**'
+      - '.github/workflows/shared-lists-release.yml'
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse final JavaScript modules
+        run: |
+          node --check v2/app-v3.2.0.js
+          node --check v2/core-build-v3.3c.js
+          node --check v2/core-budget-nav-v4.0b1.js
+          node --check v2/core-budget-v4.0b.js
+          node --check v2/core-lists-v4.1.js
+          node --check v2/sw.js
+      - name: Existing Planly regression gates
+        run: |
+          node scripts/validate-planly-js.mjs
+          node scripts/validate-planly-security.mjs
+          node scripts/validate-budget-release.mjs
+          node scripts/validate-budget-acceptance.mjs
+      - name: Shared Lists release gate
+        run: node scripts/validate-shared-lists.mjs
