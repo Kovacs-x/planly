@@ -28,9 +28,11 @@ for(const marker of [
   "drop policy if exists planly_budget_entries_select_authorized",
   "where s.id=scope_id"
 ])if(!migrations.includes(marker))fail('Departing-member privacy invariant missing: '+marker);
+for(const marker of ['planly_budget_shared_structure_owner','public.planly_private.is_household_member(s.household_id)','owner_id = public.planly_budget_shared_structure_owner(scope_id)'])if(!migrations.includes(marker))fail('Collaborative Household Budget authorization missing: '+marker);
 if(!client.includes(".eq('cloud_version',version)")&&!client.includes(".eq('cloud_version',op.baseVersion)"))fail('Optimistic cloud_version write guard missing');
 if(!client.includes('PLANLY_HOUSEHOLD_EXTERNAL_CALENDAR_SHARING'))fail('External-calendar household privacy guard missing');
 for(const needle of ["scope_type:'personal'","scope_type:'household'","membership.role!=='owner'","scopeKey=(p,type=activeType)",'row.owner_id!==owner'])if(!client.includes(needle))fail('Budget scope/ownership client guard missing: '+needle);
+for(const needle of ["state.scope?.scope_type==='personal'?state.scope?.owner_id===owner:state.scope?.scope_type==='household'","function structureOwner(){return state.scope?.scope_type==='household'?state.scope.owner_id:owner}"])if(!client.includes(needle))fail('Collaborative Budget client authorization missing: '+needle);
 for(const needle of ['api().updateEntry','api().deleteEntry','only the person who added an entry'])if(!client.includes(needle))fail('Budget lifecycle ownership path missing: '+needle);
 for(const needle of ['x.owner_id===viewer','Carry forward only recurring items you created','api().setTarget','window.PlanlyBudgetActiveMonth'])if(!client.includes(needle))fail('Monthly budget ownership/scope guard missing: '+needle);
 if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(client))fail('Budget monthly workflow must not monkeypatch Date runtime');
