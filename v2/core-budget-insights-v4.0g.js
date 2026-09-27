@@ -1,4 +1,4 @@
-// Planly 4.0G — derived monthly Budget insights. Read-only: no ownership or sync mutation.
+// Planly 4.0G.1 — derived monthly Budget insights. Read-only: no ownership or sync mutation.
 (()=>{'use strict';
 const base=window.PlanlyBudgetUI,money=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format((Number(n)||0)/100),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let host=null;
@@ -9,4 +9,8 @@ function build(){const s=api()?.getState?.();if(!s)return null;const month=selec
 function inject(){if(!host||host.querySelector('.budgetInsights')||!host.querySelector('.budgetHero')||host.querySelector('[data-target-back]'))return;const d=build();if(!d)return;const after=host.querySelector('.budgetMonthSummary')||host.querySelector('.budgetHero'),budgetUse=d.income?Math.min(100,Math.round(d.planned/d.income*100)):0;after.insertAdjacentHTML('afterend',`<section class="budgetCard budgetInsights"><div class="budgetSectionHead"><div><strong>Monthly snapshot</strong><div class="budgetMuted">Derived from this month's budget only</div></div></div><div class="budgetInsightGrid"><div class="budgetInsight"><strong>${money(d.remaining)}</strong><span>Left after planned payments</span></div><div class="budgetInsight"><strong>${d.coverage}%</strong><span>Planned payments marked paid</span></div><div class="budgetInsight wide"><strong>${money(d.planned)} of ${money(d.income)}</strong><span>${budgetUse}% of income currently planned${d.targetTotal?' · '+money(d.targetTotal)+' category targets':''}</span><div class="budgetInsightProgress"><i style="width:${budgetUse}%"></i></div></div></div>${d.top.length?`<div class="budgetInsightList">${d.top.map(x=>`<div class="budgetInsightRow"><span>${esc(x.name)}</span><strong>${money(x.total)}</strong></div>`).join('')}</div>`:''}</section>`)}
 async function renderTab(target){style();host=target||host;await base.renderTab(host);inject()}
 window.PlanlyBudgetUI={...base,renderTab};
+// The app can restore directly into Budget before appended modules have finished composing.
+// Signal the in-closure Budget navigator only after this final renderer is installed so the
+// already-open tab is deterministically rebuilt with scope, month and insights on first load.
+window.dispatchEvent(new CustomEvent('planly:budget-invalidated',{detail:{reason:'ui-composed',version:'4.0G.1'}}));
 })();
