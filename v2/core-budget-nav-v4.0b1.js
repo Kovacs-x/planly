@@ -1,4 +1,4 @@
-// Planly 4.0B.4 — Budget primary-tab integration with stable async rendering. Runs inside the Planly app closure.
+// Planly 4.0B.5 — Budget primary-tab integration with stable async rendering. Runs inside the Planly app closure.
 // Regression compatibility markers for the replaced 4.0B.1 vocabulary: Spending plan · Transactions · Manage budget.
 (()=>{'use strict';
 const inboxButton=$('.nav button[data-tab="inbox"]');
@@ -22,7 +22,10 @@ async function renderBudgetStable(view){
   const generation=++budgetRenderGeneration;
   const ui=window.PlanlyBudgetUI;
   if(!ui?.renderTab){view.innerHTML='<section class="budgetCard"><strong>Budget unavailable</strong><div class="budgetStatus">Budget UI is not ready.</div></section>';return}
-  if(budgetRenderedView!==view||!view.querySelector('.budgetHero,.budgetScopeSetup,.budgetCard'))view.innerHTML='<div class="budgetTabLoading">Loading your budget…</div>';
+  // Do not paint a transient loading screen here. The Budget renderer is asynchronous,
+  // but on normal navigation it resolves quickly; retaining the existing view until its
+  // first complete Budget DOM is ready avoids a visible loading flash without adding a
+  // second renderer or disturbing Budget's Safari scroll/DOM-ownership protections.
   budgetRenderPromise=Promise.resolve(ui.renderTab(view)).then(()=>{if(generation===budgetRenderGeneration&&state.tab==='budget')budgetRenderedView=view}).catch(err=>{if(generation===budgetRenderGeneration&&state.tab==='budget')view.innerHTML='<section class="budgetCard"><strong>Budget unavailable</strong><div class="budgetStatus">'+esc(err?.message||String(err))+'</div></section>'}).finally(()=>{budgetRenderPromise=null});
   return budgetRenderPromise;
 }
