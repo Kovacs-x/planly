@@ -1,9 +1,9 @@
-const CACHE='planly-v2-400g-02';
-const VERSION='planly-v2-sw-400g-02';
-const APP_URL='./app-v3.2.0.js?v=330c02';
+const CACHE='planly-v2-400j-01';
+const VERSION='planly-v2-sw-400j-01';
+const APP_URL='./app-v3.2.0.js?v=400j01';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c02';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c02';
-const CORE_BUILD_URL='./core-build-v3.3c.js?v=400g02';
+const CORE_BUILD_URL='./core-build-v3.3c.js?v=400j01';
 const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=330d06';
 const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=330c04';
 const CORE_HOUSEHOLD_CALENDAR_URL='./core-household-calendar-v3.3c.js?v=330c05';

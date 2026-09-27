@@ -53,6 +53,24 @@ for(const marker of [
 ])if(!budget.includes(marker))fail(`Budget scope performance invariant missing: ${marker}`);
 
 for(const file of budgetFiles){const name=path.basename(file);if(!sw.includes(name))fail(`Service worker composition missing ${name}`);if(!build.includes(name))fail(`Build diagnostics/cache list missing ${name}`)}
+for(const marker of [
+  "update public.planly_budget_scopes\n     set owner_id = p_new_owner",
+  "update public.planly_budget_categories c\n     set owner_id = p_new_owner",
+  "update public.planly_budget_targets t\n     set owner_id = p_new_owner",
+  "delete from public.planly_budget_entries e",
+  "delete from public.planly_budget_targets t",
+  "delete from public.planly_budget_categories c",
+  "delete from public.planly_budget_scopes",
+  "Budget scope owner can change only with Household ownership",
+  "Budget entry identity is immutable"
+])if(!migrations.includes(marker))fail(`Household/Budget lifecycle closeout invariant missing: ${marker}`);
+
+for(const marker of [
+  'planly_private_departing_member_tasks',
+  "drop policy if exists planly_budget_entries_select_authorized",
+  "select 1\n      from public.planly_budget_scopes s\n     where s.id=scope_id"
+])if(!migrations.includes(marker))fail(`Departing-member Budget privacy invariant missing: ${marker}`);
+
 if(!sw.includes('...APPEND_URLS.map(url=>freshOrCached(cache,url))'))fail('Budget append runtime is not covered by offline fresh-or-cache composition');
 
 console.log('Planly Budget 4.0 release-hardening checks passed.');
