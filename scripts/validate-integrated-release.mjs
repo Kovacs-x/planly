@@ -2,8 +2,8 @@ import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8');
 const exists=p=>fs.existsSync(p);
 const fail=m=>{throw new Error(m)};
-for(const f of fs.readdirSync('.').filter(x=>/^loader-v\d/.test(x))) fail(`Dead legacy loader remains at repo root: ${f}`);
-for(const f of ['README.md','docs/ARCHITECTURE.md','docs/SECURITY.md','v2/runtime-modules.json']) if(!exists(f)) fail(`Required release documentation/runtime file missing: ${f}`);
+for(const f of fs.readdirSync('.').filter(x=>/^loader-v\d/.test(x)))fail(`Dead legacy loader remains at repo root: ${f}`);
+for(const f of ['README.md','docs/ARCHITECTURE.md','docs/SECURITY.md','v2/runtime-modules.json'])if(!exists(f))fail(`Required release documentation/runtime file missing: ${f}`);
 const runtime=JSON.parse(read('v2/runtime-modules.json')),modules=runtime.modules||[];
 for(const f of ['core-budget-v4.0b.js','core-budget-ui-v4.0b.js','core-budget-scope-v4.0c.js','core-budget-monthly-v4.0e.js','core-budget-insights-v4.0g.js','core-lists-v4.1.js','core-household-dashboard-v4.2.js'])if(!modules.some(x=>String(x).includes(f)))fail(`Production runtime manifest missing ${f}`);
 const sw=read('v2/sw.js'),build=read('v2/core-build-v3.3c.js');
@@ -15,5 +15,5 @@ for(const marker of ['Monthly snapshot',"planly:budget-invalidated",'ui-composed
 for(const marker of ['Carry forward only recurring items you created','installEntryMonthGuard'])if(!budgetMonthly.includes(marker))fail(`Budget member ownership/month guard missing: ${marker}`);
 const lists=read('v2/core-lists-v4.1.js');for(const marker of ['cloud_version','household','owner_id','planlyListsBtn'])if(!lists.includes(marker))fail(`Lists integrated release invariant missing: ${marker}`);
 const dash=read('v2/core-household-dashboard-v4.2.js');for(const marker of [".eq('visibility','household')",'private calendar sources','planlyHouseholdDashboardBtn'])if(!dash.includes(marker))fail(`Household Dashboard privacy/reachability invariant missing: ${marker}`);
-const calendar=read('v2/core-household-calendar-v3.3c.js');if(!calendar.includes('PLANLY_HOUSEHOLD_EXTERNAL_CALENDAR_SHARING=false'))fail('Private external-calendar household boundary missing');
+const calendar=read('v2/core-household-calendar-v3.3c.js');for(const marker of ["if(filter==='shared')return items.filter(planlyTaskHouseholdVisible)","return filter==='all'||filter==='wife'?externalEventsForDate(key,context):[]",'Private calendar · read only'])if(!calendar.includes(marker))fail(`Private external-calendar household boundary missing: ${marker}`);
 console.log('Planly integrated Household release gate passed.');
