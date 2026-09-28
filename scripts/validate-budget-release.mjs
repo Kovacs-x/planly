@@ -14,7 +14,9 @@ const budgetFiles=[
   'v2/core-budget-lifecycle-v4.0d.js',
   'v2/core-budget-monthly-v4.0e.js',
   'v2/core-budget-month-state-v4.0f.js',
-  'v2/core-budget-insights-v4.0g.js'
+  'v2/core-budget-insights-v4.0g.js',
+  'v2/core-budget-actions-v4.0l.js',
+  'v2/core-budget-scroll-v4.0m.js'
 ];
 for(const f of budgetFiles)if(!exists(f))fail(`Missing Budget runtime file: ${f}`);
 const budget=budgetFiles.map(read).join('\n');
@@ -38,5 +40,6 @@ for(const marker of ["cachedScope?.id&&!create","Promise.all([sb.from('planly_bu
 for(const file of budgetFiles){const name=path.basename(file);if(!sw.includes(name))fail(`Service worker composition missing ${name}`);if(!build.includes(name))fail(`Build diagnostics/cache list missing ${name}`)}
 for(const marker of ["update public.planly_budget_scopes\n     set owner_id = p_new_owner","update public.planly_budget_categories c\n     set owner_id = p_new_owner","update public.planly_budget_targets t\n     set owner_id = p_new_owner","delete from public.planly_budget_entries e","delete from public.planly_budget_targets t","delete from public.planly_budget_categories c","delete from public.planly_budget_scopes","Budget scope owner can change only with Household ownership","Budget entry identity is immutable"])if(!migrations.includes(marker))fail(`Household/Budget lifecycle closeout invariant missing: ${marker}`);
 for(const marker of ['planly_private_departing_member_tasks',"drop policy if exists planly_budget_entries_select_authorized","select 1\n      from public.planly_budget_scopes s\n     where s.id=scope_id"])if(!migrations.includes(marker))fail(`Departing-member Budget privacy invariant missing: ${marker}`);
+for(const marker of ['planly:budget-view-changed','data-manage-category','budgetManageCategoryActions','data-life-quick-delete','persistedCategoryUpdate','scrollTopNow','beforeSurface===afterSurface'])if(!budget.includes(marker))fail(`Budget navigation/action release invariant missing: ${marker}`);
 if(!sw.includes('...APPEND_URLS.map(url=>freshOrCached(cache,url))'))fail('Budget append runtime is not covered by offline fresh-or-cache composition');
 console.log('Planly Budget 4.0 release-hardening checks passed.');
