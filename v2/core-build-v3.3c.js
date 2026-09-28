@@ -1,18 +1,23 @@
-/* Planly 4.2 Household Dashboard build markers. Injected inside the primary app closure. */
+/* Planly 4.3 offline/readiness probes plus stable render/diagnostics. Injected inside the primary app closure. */
 verifyPlanlyOfflineCache=async function(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
-    const cache=await caches.open('planly-v2-420a-07'),assets=['./index.html','./app-v3.2.0.js?v=400j01','./supabase-config.js','./manifest.webmanifest','./core-projects-v3.3c.js?v=330c02','./core-build-v3.3c.js?v=400k01','./core-assignment-v3.3c.js?v=330d06','./core-project-planning-v3.3c.js?v=330c04','./core-household-calendar-v3.3c.js?v=330c06','./core-household-planning-safety-v3.3c.js?v=330c05','./core-closeout-v3.3c.js?v=330c06','./core-cloud-readiness-v3.3d.js?v=330d03','./core-release-gate-v3.3d.js?v=330d01','./core-budget-nav-v4.0b1.js?v=400b106','./core-budget-v4.0b.js?v=400k01','./core-budget-ui-v4.0b.js?v=400b402','./core-budget-scope-v4.0c.js?v=400c02','./core-budget-lifecycle-v4.0d.js?v=400n01','./core-budget-monthly-v4.0e.js?v=400e04','./core-budget-month-state-v4.0f.js?v=400f01','./core-budget-insights-v4.0g.js?v=400g02','./core-budget-actions-v4.0l.js?v=400n01','./core-budget-scroll-v4.0m.js?v=400m02','./core-lists-v4.1.js?v=410a03','./core-household-dashboard-v4.2.js?v=420a01'],missing=[];
+    const probe=await probePlanlyServiceWorker();
+    if(!probe.ok)return {ok:false,missing:['Active Planly service worker unavailable: '+probe.reason]};
+    const keys=await caches.keys(),planlyKeys=keys.filter(k=>k.startsWith('planly-v2-')).sort().reverse();
+    if(!planlyKeys.length)return {ok:false,missing:['Planly offline cache unavailable']};
+    const cache=await caches.open(planlyKeys[0]),manifestRes=await cache.match('./runtime-modules.json'),manifest=manifestRes?await manifestRes.clone().json():null;
+    const modules=Array.isArray(manifest?.modules)?manifest.modules:[],assets=['./index.html','./supabase-config.js','./manifest.webmanifest',...modules],missing=[];
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
-    return {ok:missing.length===0,missing};
+    return {ok:missing.length===0,missing,cache:planlyKeys[0],serviceWorker:probe.reason};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
 };
 probePlanlyServiceWorker=async function(){
   if(!navigator.serviceWorker?.controller)return {ok:false,reason:'no-controller'};
   try{
-    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?v=420a07',{cache:'no-store'}),3000,'Service worker probe');
+    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?t='+Date.now(),{cache:'no-store'}),3000,'Service worker probe');
     const text=(await res.text()).trim();
-    return {ok:res.ok&&text==='planly-v2-sw-420a-07',reason:text||('HTTP '+res.status)};
+    return {ok:res.ok&&/^planly-v2-sw-[a-z0-9.-]+$/i.test(text),reason:text||('HTTP '+res.status)};
   }catch(err){return {ok:false,reason:String(err?.message||err)}}
 };
 
