@@ -17,7 +17,7 @@ const BUDGET_RUNTIME_URL='./core-budget-v4.0b.js?v=400k02';
 const BUDGET_UI_URL='./core-budget-ui-v4.0b.js?v=400b403';
 const BUDGET_SCOPE_URL='./core-budget-scope-v4.0c.js?v=400c05';
 const BUDGET_LIFECYCLE_URL='./core-budget-lifecycle-v4.0d.js?v=400n05';
-const BUDGET_MONTHLY_URL='./core-budget-monthly-v4.0e.js?v=400e05';
+const BUDGET_MONTHLY_URL='./core-budget-monthly-v4.0e.js?v=400e07';
 const BUDGET_MONTH_STATE_URL='./core-budget-month-state-v4.0f.js?v=400f01';
 const BUDGET_INSIGHTS_URL='./core-budget-insights-v4.0g.js?v=400g03';
 const BUDGET_ACTIONS_URL='./core-budget-actions-v4.0l.js?v=400n03';
