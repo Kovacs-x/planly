@@ -12,6 +12,6 @@ for(const marker of ['readPreference(owner)',"api.switchScope('household')",'dat
 if(lifecycle.includes('decorateCategory(')||lifecycle.includes('data-life-quick-delete'))fail('Legacy index-mapped expense action owner remains active');
 for(const marker of ['api.updateEntry=','api.deleteEntry=','api.updateCategory=','__legacyMutationGuard'])if(!guard.includes(marker))fail(`Missing legacy mutation guard: ${marker}`);
 for(const file of budgetFiles){const name=path.basename(file);if(!sw.includes(name))fail(`Service worker composition missing ${name}`)}
-for(const marker of ["const CACHE='planly-v2-420a-09'","const VERSION='planly-v2-sw-420a-09'",'BUDGET_REVIEW_URL','BUDGET_CORE_GUARD_URL','...APPEND_URLS.map(url=>freshOrCached(cache,url))'])if(!sw.includes(marker))fail(`Offline composition invariant missing: ${marker}`);
+for(const marker of ["const CACHE='planly-v2-420a-10'","const VERSION='planly-v2-sw-420a-10'",'BUDGET_REVIEW_URL','BUDGET_CORE_GUARD_URL','...APPEND_URLS.map(url=>freshOrCached(cache,url))'])if(!sw.includes(marker))fail(`Offline composition invariant missing: ${marker}`);
 if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(budget))fail('Budget runtime monkeypatches Date');
 console.log('Planly Budget 4.0 release-hardening checks passed.');

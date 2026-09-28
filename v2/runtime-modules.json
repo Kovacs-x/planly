@@ -1,9 +1,9 @@
 {
-  "version": 12,
+  "version": 13,
   "modules": [
-    "./core-budget-v4.0b.js?v=400k01",
+    "./core-budget-v4.0b.js?v=400k02",
     "./core-budget-ui-v4.0b.js?v=400b402",
-    "./core-budget-scope-v4.0c.js?v=400c02",
+    "./core-budget-scope-v4.0c.js?v=400c03",
     "./core-budget-lifecycle-v4.0d.js?v=400n02",
     "./core-budget-monthly-v4.0e.js?v=400e04",
     "./core-budget-month-state-v4.0f.js?v=400f01",
@@ -13,6 +13,6 @@
     "./core-lists-v4.1.js?v=410a03",
     "./core-household-dashboard-v4.2.js?v=420a01",
     "./core-budget-review-hardening-v4.0p.js?v=400p03",
-    "./core-budget-core-guard-v4.0q.js?v=400q02"
+    "./core-budget-core-guard-v4.0q.js?v=400q03"
   ]
 }

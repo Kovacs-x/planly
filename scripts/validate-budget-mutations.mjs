@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8');
+const core=read('v2/core-budget-v4.0b.js');
+const scope=read('v2/core-budget-scope-v4.0c.js');
 const actions=read('v2/core-budget-actions-v4.0l.js');
 const lifecycle=read('v2/core-budget-lifecycle-v4.0d.js');
 const hardening=read('v2/core-budget-review-hardening-v4.0p.js');
@@ -8,6 +10,9 @@ const monthly=read('v2/core-budget-monthly-v4.0e.js');
 const insights=read('v2/core-budget-insights-v4.0g.js');
 const migration=read('supabase/migrations/041_collaborative_household_budget_entries.sql');
 const fail=m=>{throw new Error(m)};
+for(const marker of ["const versionBucket=k=>({category:'categories',target:'targets',entry:'entries'})[k]||null",'function acceptServer(op,server)','rows[i]={...rows[i],...server}','clearPending(op);clearConflict(op.kind,op.id);persist()'])if(!core.includes(marker))fail('Authoritative create reconciliation invariant missing: '+marker);
+if(core.includes("const bucket=k+'s'"))fail('Legacy misspelled Budget version bucket derivation is still active');
+for(const marker of ["state.scope.owner_id===viewer","isOwner?'owner':'member'"])if(!scope.includes(marker))fail('Household Budget viewer-role label invariant missing: '+marker);
 for(const marker of ['persistedEntryUpdate','classifyZero','cloud_version',"code:'conflict'","code:'denied'",'select(\'*\').maybeSingle','await a.bootstrap()','planly:budget-mutation-confirmed','persistedCategoryUpdate','persistedDelete'])if(!actions.includes(marker))fail('Missing authoritative Budget mutation invariant: '+marker);
 for(const marker of ['const used=state.entries.some','if(used){'])if(!actions.includes(marker))fail('Budget category removal note invariant missing: '+marker);
 if(lifecycle.includes('decorateCategory(')||lifecycle.includes('data-life-quick-delete'))fail('Legacy index-mapped expense action owner is still active');
@@ -18,5 +23,5 @@ for(const marker of ['api.updateEntry=','api.deleteEntry=','api.updateCategory='
 for(const marker of ['planly_budget_entries_update_authorized',"s.scope_type = 'personal'","s.scope_type = 'household'",'planly_private.is_household_member','planly_budget_entry_immutable_guard'])if(!migration.includes(marker))fail('Collaborative Household Budget RLS invariant missing: '+marker);
 for(const forbidden of ['data-month-targets','targetsView','setTarget('])if(monthly.includes(forbidden))fail('Removed Set Budget surface is still reachable: '+forbidden);
 if(insights.includes("+' category targets'"))fail('Budget insights still expose removed category targets');
-for(const source of [actions,lifecycle,hardening,coreGuard,monthly,insights]){new Function(source);if(source.includes('$$$'))fail('Generated Budget JS contains $$$');if(source.includes('$().forEach'))fail('Generated Budget JS contains accidental $().forEach')}
+for(const source of [core,scope,actions,lifecycle,hardening,coreGuard,monthly,insights]){new Function(source);if(source.includes('$$$'))fail('Generated Budget JS contains $$$');if(source.includes('$().forEach'))fail('Generated Budget JS contains accidental $().forEach')}
 console.log('Authoritative collaborative Budget mutation validation passed');
