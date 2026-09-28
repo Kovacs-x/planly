@@ -1,10 +1,12 @@
-// Planly 4.0L.1 — reliable Budget removal/edit actions that follow internal Budget navigation.
+// Planly 4.0L.2 — persistence-confirmed Budget edit/remove actions.
 (()=>{'use strict';
 const api=()=>window.PlanlyBudget;
 let host=null;
 function style(){if(document.getElementById('planlyBudgetActions40lStyle'))return;const s=document.createElement('style');s.id='planlyBudgetActions40lStyle';s.textContent=`.budgetLifecycleBtn.danger{color:var(--danger,#c43b4d)}.budgetCategoryRemove{width:100%;margin-top:10px;color:var(--danger,#c43b4d);border-color:color-mix(in srgb,var(--danger,#c43b4d) 28%,var(--line))}.budgetRemoveNote{font-size:10px;color:var(--muted);line-height:1.4;margin-top:8px}.budgetManageCategoryActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.budgetManageCategoryActions button{min-height:30px;padding:0 9px;font-size:9px}.budgetCategoryInlineEdit{width:min(220px,100%);min-height:36px;border:1px solid var(--line);border-radius:10px;background:var(--cardSoft);color:var(--text);padding:0 9px;font-weight:760}`;document.head.appendChild(s)}
-async function persistedDelete(id){const a=api();a.deleteEntry(id);await a.replay();const pending=a.getPending().find(x=>x.kind==='entry'&&x.id===id),conflict=a.getConflicts().find(x=>x.kind==='entry'&&x.id===id);if(conflict)throw Error('This payment changed on another device. Refresh Budget before deleting it.');if(navigator.onLine&&pending)throw Error('The payment could not be removed from the cloud. It is still queued for sync.');return true}
-async function persistedCategoryUpdate(id,patch){const a=api();a.updateCategory(id,patch);await a.replay();const pending=a.getPending().find(x=>x.kind==='category'&&x.id===id),conflict=a.getConflicts().find(x=>x.kind==='category'&&x.id===id);if(conflict)throw Error('This category changed on another device. Refresh Budget before changing it.');if(navigator.onLine&&pending)throw Error('The category change could not be saved to the cloud. It is still queued for sync.');return true}
+function mutationError(kind,id,label){const a=api(),pending=a.getPending().find(x=>x.kind===kind&&x.id===id),conflict=a.getConflicts().find(x=>x.kind===kind&&x.id===id);if(conflict)throw Error(`${label} changed on another device. Refresh Budget and try again.`);if(navigator.onLine&&pending)throw Error(`${label} could not be saved to the cloud. It is still queued for sync.`)}
+async function persistedEntryUpdate(id,patch){const a=api();a.updateEntry(id,patch);await a.replay();mutationError('entry',id,'This payment');return true}
+async function persistedDelete(id){const a=api();a.deleteEntry(id);await a.replay();mutationError('entry',id,'This payment');return true}
+async function persistedCategoryUpdate(id,patch){const a=api();a.updateCategory(id,patch);await a.replay();mutationError('category',id,'This category');return true}
 async function persistedCategoryArchive(id){return persistedCategoryUpdate(id,{archived:true})}
 function selectedCategory(){const el=host?.querySelector('[data-act="allocation"][data-category]');return el?.dataset.category||''}
 function rerender(){return window.PlanlyBudgetUI?.renderTab?.(host)}
@@ -14,5 +16,5 @@ function decorateManage(){if(!host?.querySelector('#budgetCategoryForm'))return;
 function decorate(){queueMicrotask(()=>{decorateCategory();decorateManage()})}
 const base=window.PlanlyBudgetUI;if(!base?.renderTab)return;const baseRender=base.renderTab.bind(base);async function renderTab(target){style();host=target||host;const result=await baseRender(host);decorate();return result}
 window.addEventListener('planly:budget-view-changed',()=>decorate());
-window.PlanlyBudgetUI={...base,renderTab};window.PlanlyBudgetActions={persistedDelete,persistedCategoryUpdate,persistedCategoryArchive};
+window.PlanlyBudgetUI={...base,renderTab};window.PlanlyBudgetActions={persistedEntryUpdate,persistedDelete,persistedCategoryUpdate,persistedCategoryArchive};
 })();
