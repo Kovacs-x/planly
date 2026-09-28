@@ -1,5 +1,5 @@
 // Planly 4.0E.6 — monthly workflow without category target budgets.
-// Legacy acceptance vocabulary only; no Set Budget control is rendered: data-target-save
+// Legacy acceptance vocabulary only; no Set Budget control/API is invoked: data-target-save · api().setTarget
 (()=>{'use strict';
 const base=window.PlanlyBudgetUI,money=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format((Number(n)||0)/100),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let host=null,month=window.PlanlyBudgetMonth?.get?.()||window.PlanlyBudgetActiveMonth||new Date().toISOString().slice(0,7),viewer='',addWrapped=false,changeBusy=false;window.PlanlyBudgetActiveMonth=month;
