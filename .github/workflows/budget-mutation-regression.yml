@@ -1,0 +1,22 @@
+name: Budget mutation regression
+on:
+  pull_request:
+    paths:
+      - 'v2/core-budget-*.js'
+      - 'scripts/validate-budget-mutations.mjs'
+      - '.github/workflows/budget-mutation-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'v2/core-budget-*.js'
+      - 'scripts/validate-budget-mutations.mjs'
+      - '.github/workflows/budget-mutation-regression.yml'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/validate-budget-mutations.mjs
