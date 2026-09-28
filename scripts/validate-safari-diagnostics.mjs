@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8'),fail=m=>{throw new Error(m)};
+const diag=read('v2/core-safari-diagnostics-v4.3b.js'),manifest=read('v2/runtime-modules.json'),sw=read('v2/sw.js');
+new Function(diag);new Function(sw);
+for(const marker of ['sessionStorage','htmlOverflow','bodyOverflow','bodyPosition','elementFromPoint','blockers()','serviceWorker','__planlySwBoot','unhandledrejection','pointerdown','pointerup','PlanlySafariDiagnostics'])if(!diag.includes(marker))fail('Missing Safari diagnostic invariant: '+marker);
+for(const forbidden of ['preventDefault(','stopPropagation(','MutationObserver','dispatchEvent(new MouseEvent','HTMLElement.prototype.click'])if(diag.includes(forbidden))fail('Diagnostics alter interaction semantics: '+forbidden);
+if(diag.includes('localStorage'))fail('Safari diagnostics must remain session-scoped');
+if(!manifest.includes('"version": 18')||!manifest.includes('./core-safari-diagnostics-v4.3b.js?v=430b01'))fail('Runtime manifest does not load Safari diagnostics');
+for(const marker of ["const CACHE='planly-v2-430b-01'","const VERSION='planly-v2-sw-430b-01'","const SAFARI_DIAGNOSTICS_URL='./core-safari-diagnostics-v4.3b.js?v=430b01'",'SAFARI_DIAGNOSTICS_URL];'])if(!sw.includes(marker))fail('Service worker diagnostic composition missing: '+marker);
+if(diag.includes('$$$')||diag.includes('$().forEach'))fail('Generated diagnostics contain forbidden selector corruption');
+console.log('Safari freeze diagnostic validation passed');
