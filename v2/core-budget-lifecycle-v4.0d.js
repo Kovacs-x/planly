@@ -1,4 +1,4 @@
-// Planly 4.0N.2 — income lifecycle only; expense-row actions are owned by the identity-bound Budget hardening layer.
+// Planly 4.0N.3 — income lifecycle only; expense-row actions are owned by the identity-bound Budget hardening layer.
 (()=>{'use strict';
 const base=window.PlanlyBudgetUI,money=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format((Number(n)||0)/100),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let host=null;
@@ -8,7 +8,7 @@ async function persistedUpdate(id,patch){const helper=window.PlanlyBudgetActions
 async function persistedDelete(id){const helper=window.PlanlyBudgetActions?.persistedDelete;if(!helper)throw Error('Budget persistence layer is unavailable.');return helper(id)}
 function viewChanged(from,to){window.dispatchEvent(new CustomEvent('planly:budget-view-changed',{detail:{from,to}}))}
 function currentMonthEntries(){const m=window.PlanlyBudgetActiveMonth||new Date().toISOString().slice(0,7);return state().entries.filter(x=>String(x.entry_date).slice(0,7)===m)}
-function dashboard(){base.showDashboard?.();return base.renderTab(host)}
+function dashboard(){const composed=window.PlanlyBudgetUI?.renderTab;if(typeof composed==='function'&&composed!==renderTab)return composed(host);base.showDashboard?.();return base.renderTab(host)}
 function canChangeEntry(entry){const s=state(),scope=s.scope,viewer=api().getViewerId?.()||'';return !!entry&&!!scope&&(scope.scope_type==='household'||(scope.scope_type==='personal'&&entry.owner_id===viewer&&scope.owner_id===viewer))}
 function decorateIncome(){if(!host)return;const entries=currentMonthEntries().filter(x=>x.kind==='income'),card=[...host.querySelectorAll('.budgetCard')].find(x=>x.querySelector('.budgetIncomeBadge'));if(!card)return;const rows=[...card.querySelectorAll('.budgetAllocation')];rows.forEach((row,i)=>{const entry=entries[i];if(!entry||row.dataset.lifecycle==='1'||!canChangeEntry(entry))return;row.dataset.lifecycle='1';row.classList.add('budgetLifecycleOwned');row.onclick=()=>edit(entry.id)})}
 function status(text,type='saved'){let el=host.querySelector('[data-life-mutation-state]');if(!el){el=document.createElement('div');el.dataset.lifeMutationState='1';el.className='budgetMutationState';host.querySelector('#budgetLifecycleForm')?.appendChild(el)}if(el){el.className='budgetMutationState '+type;el.textContent=text}}

@@ -1,13 +1,13 @@
 {
-  "version": 16,
+  "version": 17,
   "modules": [
     "./core-budget-v4.0b.js?v=400k02",
     "./core-budget-ui-v4.0b.js?v=400b403",
-    "./core-budget-scope-v4.0c.js?v=400c04",
-    "./core-budget-lifecycle-v4.0d.js?v=400n04",
-    "./core-budget-monthly-v4.0e.js?v=400e04",
+    "./core-budget-scope-v4.0c.js?v=400c05",
+    "./core-budget-lifecycle-v4.0d.js?v=400n05",
+    "./core-budget-monthly-v4.0e.js?v=400e07",
     "./core-budget-month-state-v4.0f.js?v=400f01",
-    "./core-budget-insights-v4.0g.js?v=400g02",
+    "./core-budget-insights-v4.0g.js?v=400g03",
     "./core-budget-actions-v4.0l.js?v=400n03",
     "./core-budget-scroll-v4.0m.js?v=400m02",
     "./core-lists-v4.1.js?v=410a03",
