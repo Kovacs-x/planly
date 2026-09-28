@@ -17,6 +17,6 @@ for(const marker of ['planly:budget-ui-rendered','decorateManage()'])if(!actions
 for(const file of budgetFiles){const name=path.basename(file);if(!sw.includes(name))fail(`Service worker composition missing ${name}`)}
 const cache=sw.match(/const CACHE='([^']+)'/)?.[1],version=sw.match(/const VERSION='([^']+)'/)?.[1];if(!cache||!version)fail('Offline composition cache/version marker missing');
 for(const module of manifest.modules||[])if(!sw.includes(module))fail(`Service worker missing runtime manifest module: ${module}`);
-for(const marker of ['BUDGET_REVIEW_URL','BUDGET_CORE_GUARD_URL','...APPEND_URLS.map(url=>freshOrCached(cache,url))'])if(!sw.includes(marker))fail(`Offline composition invariant missing: ${marker}`);
+for(const marker of ['BUDGET_REVIEW_URL','BUDGET_CORE_GUARD_URL','Promise.all(REQUIRED.map(url=>cacheOne(cache,url)))','results.some(ok=>!ok)','await caches.delete(CACHE)'])if(!sw.includes(marker))fail(`Offline composition invariant missing: ${marker}`);
 if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(budget))fail('Budget runtime monkeypatches Date');
 console.log(`Planly Budget 4.0 release-hardening checks passed (${cache} / ${version}).`);
