@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const files=['v2/core-budget-v4.0b.js','v2/core-budget-ui-v4.0b.js','v2/core-budget-scope-v4.0c.js','v2/core-budget-lifecycle-v4.0d.js','v2/core-budget-monthly-v4.0e.js','v2/core-budget-month-state-v4.0f.js','v2/core-budget-insights-v4.0g.js','v2/core-budget-actions-v4.0l.js','v2/core-budget-scroll-v4.0m.js'];
+const src=files.map(f=>fs.readFileSync(f,'utf8')).join('\n');
+for(const f of files)new Function(fs.readFileSync(f,'utf8'));
+if(src.includes('$$$'))throw Error('Generated Budget JS contains $$$');
+if(src.includes('$().forEach'))throw Error('Generated Budget JS contains accidental $().forEach');
+const app=fs.readFileSync('v2/app-v3.2.0.js','utf8');
+for(const marker of ['$$(', 'Quick Dates', 'Calendar Source'])if(!app.includes(marker))throw Error('Critical generated app handler marker missing: '+marker);
+const sw=fs.readFileSync('v2/sw.js','utf8'),manifest=fs.readFileSync('v2/runtime-modules.json','utf8');
+for(const marker of ['core-budget-lifecycle-v4.0d.js','core-budget-monthly-v4.0e.js','core-budget-actions-v4.0l.js'])if(!sw.includes(marker)&&!manifest.includes(marker))throw Error('Budget runtime/cache marker missing: '+marker);
+console.log('Final Budget JS validation passed');
