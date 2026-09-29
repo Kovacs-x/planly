@@ -2059,6 +2059,7 @@ function settingsView(){
   <section class="settingsGroup"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">App</span><h2>Appearance & data</h2><p>Device appearance, backups and destructive actions.</p></div></div>
     <div class="settingsCard"><h3>Appearance</h3><select id="themeSetting" class="select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
     <div class="settingsCard settingsDanger"><h3>Data</h3><button id="exportBtn" class="primary">Export backup</button><button id="importBtn" class="secondaryBtn">Import backup</button><button id="clearBtn" class="dangerBtn">Clear all data</button></div>
+    <div class="settingsCard"><h3>Diagnostics</h3><div class="muted settingsHelp">Freeze diagnostics stay on this device until you copy or clear them.</div><button id="planlyCopyFreezeDiagnosticsBtn" class="secondaryBtn">Copy freeze report</button><button id="planlyClearFreezeDiagnosticsBtn" class="secondaryBtn">Clear freeze diagnostics</button><textarea id="planlyFreezeDiagnosticsFallback" class="textarea" readonly hidden aria-label="Freeze diagnostics report" style="min-height:180px;margin-top:10px"></textarea></div>
     ${isStandalone()?'':'<div class="settingsCard"><h3>Install on iPhone</h3><div class="muted settingsHelp">Open Planly in Safari, tap Share, then Add to Home Screen.</div></div>'}
   </section>
   <div class="settingsAbout">Planly 3.2 · Private local-first planner with account sync and offline support.</div>`
@@ -2103,6 +2104,8 @@ function settingsView(){
   $('#googleConnectBtn').onclick=async()=>{setGoogleClientId($('#googleClientId').value);try{await connectGoogle();render()}catch(err){alert(err.message)}};
   $('#googleSyncBtn').onclick=async()=>{setGoogleClientId($('#googleClientId').value);try{if(!googleConnected())await requestGoogleAccess('consent');await syncPendingGoogle();showToast('Google Calendar sync complete');render()}catch(err){alert(err.message)}};
   if($('#googleDisconnectBtn'))$('#googleDisconnectBtn').onclick=()=>{disconnectGoogle();render()};
+  if($('#planlyCopyFreezeDiagnosticsBtn'))$('#planlyCopyFreezeDiagnosticsBtn').onclick=async()=>{const d=window.PlanlySafariDiagnostics,btn=$('#planlyCopyFreezeDiagnosticsBtn'),fallback=$('#planlyFreezeDiagnosticsFallback');if(!d){showToast('Diagnostics unavailable');return}const text=await d.report();let copied=false;try{await navigator.clipboard.writeText(text);copied=true}catch{}if(copied){btn.textContent='Copied';fallback.hidden=true;showToast('Freeze report copied')}else{fallback.value=text;fallback.hidden=false;fallback.focus();fallback.select();btn.textContent='Select report below';showToast('Copy blocked · select the report below')}setTimeout(()=>{if(btn)btn.textContent='Copy freeze report'},1800)};
+  if($('#planlyClearFreezeDiagnosticsBtn'))$('#planlyClearFreezeDiagnosticsBtn').onclick=()=>{window.PlanlySafariDiagnostics?.clear();const fallback=$('#planlyFreezeDiagnosticsFallback');if(fallback){fallback.value='';fallback.hidden=true}showToast('Freeze diagnostics cleared')};
   $('#exportBtn').onclick=exportData;
   $('#importBtn').onclick=()=>$('#importFile').click();
   $('#clearBtn').onclick=async()=>{
