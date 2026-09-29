@@ -1125,7 +1125,7 @@ function resetPlanlyCloudRuntimeState(){
   editingSubtasks=[];activeSearchFilter='all';projectPanelMode='list';activeProjectId='';editingProjectId='';dayPlanDraft=null;dayPlanStep=0;dayPlanGroups={overdue:[],inbox:[],today:[]};timelineDrag=null;taskActionId='';
   clearInterval(focusTicker);focusTicker=null;focusTaskId='';focusElapsedMs=0;focusStartedAt=0;expandedTaskChecklists.clear();
   planlyCalendarSources=[];planlyExternalEvents=[];planlyCalendarDataError='';planlyCalendarLoadPromise=null;planlyCalendarLoadedAt=0;planlyCalendarLoadedUser='';
-  planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';planlyFreshHouseholdInvite=null;planlyHouseholdLoadPromise=null;planlyHouseholdLoadedAt=0;planlyHouseholdLoadedUser='';
+  planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';planlyFreshHouseholdInvite=null;planlyHouseholdLoadPromise=null;planlyHouseholdLoadedAt=0;planlyHouseholdLoadedUser='';window.PlanlyHouseholdContext=null;
   for(const id of ['sheetWrap','taskActionWrap','timelineWrap','planDayWrap','focusWrap','searchWrap','projectsWrap']){const el=$('#'+id);if(el){el.classList.remove('open');el.setAttribute('aria-hidden','true')}}
 }
 function adoptPlanlySession(session,{explicitSignOut=false}={}){
@@ -1150,6 +1150,7 @@ const PLANLY_HOUSEHOLD_INVITE_SESSION_KEY='planly-household-invite-session-v1';
 const PLANLY_HOUSEHOLD_MANAGE_SESSION_KEY='planly-household-manage-open-v1';
 let planlyHousehold=null,planlyHouseholdMembers=[],planlyHouseholdInvites=[],planlyHouseholdError='',planlyPendingHouseholdInviteToken='',planlyFreshHouseholdInvite=null,planlyHouseholdLoadPromise=null,planlyHouseholdLoadedAt=0,planlyHouseholdLoadedUser='';
 const PLANLY_HOUSEHOLD_TTL_MS=60000;
+function publishPlanlyHouseholdContext(){const userId=String(planlySession?.user?.id||''),householdId=String(planlyHousehold?.id||''),members=householdId?planlyHouseholdMembers.map(m=>({user_id:String(m.user_id||''),role:String(m.role||''),joined_at:m.joined_at||null})):[],acceptedInvites=householdId&&planlyHousehold?.myRole==='owner'?planlyHouseholdInvites.filter(i=>i.status==='accepted'&&i.accepted_by&&i.invited_email).map(i=>({accepted_by:String(i.accepted_by),invited_email:String(i.invited_email)})):[];const detail={householdId,userId,members,acceptedInvites};window.PlanlyHouseholdContext=detail;window.dispatchEvent(new CustomEvent('planly:household-ready',{detail}));return detail}
 function normalizePlanlyHouseholdInviteToken(value){const token=String(value||'').trim().toLowerCase();return /^[0-9a-f]{64}$/.test(token)?token:''}
 function readPendingPlanlyHouseholdInvite(){try{const token=normalizePlanlyHouseholdInviteToken(sessionStorage.getItem(PLANLY_HOUSEHOLD_INVITE_SESSION_KEY));if(!token)sessionStorage.removeItem(PLANLY_HOUSEHOLD_INVITE_SESSION_KEY);return token}catch{return ''}}
 function setPendingPlanlyHouseholdInvite(value){const token=normalizePlanlyHouseholdInviteToken(value);planlyPendingHouseholdInviteToken=token;try{if(token)sessionStorage.setItem(PLANLY_HOUSEHOLD_INVITE_SESSION_KEY,token);else sessionStorage.removeItem(PLANLY_HOUSEHOLD_INVITE_SESSION_KEY)}catch{}return token}
@@ -1160,12 +1161,12 @@ function planlyHouseholdManageOpen(){try{return sessionStorage.getItem(PLANLY_HO
 function setPlanlyHouseholdManageOpen(open){try{sessionStorage.setItem(PLANLY_HOUSEHOLD_MANAGE_SESSION_KEY,open?'1':'0')}catch{}}
 function planlyHouseholdInviteLink(token){const base=location.origin+location.pathname.replace(/index[.]html$/i,'');return base+'#household-invite='+encodeURIComponent(token)}
 async function loadPlanlyHousehold(force=false){
-  if(!planlySession?.user||!initPlanlySupabase()){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';planlyHouseholdLoadedAt=0;planlyHouseholdLoadedUser='';return null}
+  if(!planlySession?.user||!initPlanlySupabase()){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';planlyHouseholdLoadedAt=0;planlyHouseholdLoadedUser='';publishPlanlyHouseholdContext();return null}
   const userId=String(planlySession.user.id||''),fresh=!force&&planlyHouseholdLoadedUser===userId&&planlyHouseholdLoadedAt&&Date.now()-planlyHouseholdLoadedAt<PLANLY_HOUSEHOLD_TTL_MS;
   if(fresh)return planlyHousehold;if(planlyHouseholdLoadPromise){if(!force)return planlyHouseholdLoadPromise;try{await planlyHouseholdLoadPromise}catch{}}
   planlyHouseholdLoadPromise=(async()=>{try{
     const {data:memberships,error:membershipError}=await planlySupabase.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('user_id',planlySession.user.id).limit(1);if(membershipError)throw membershipError;
-    const mine=(memberships||[])[0];if(!mine){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';return null}
+    const mine=(memberships||[])[0];if(!mine){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';planlyHouseholdLoadedAt=Date.now();planlyHouseholdLoadedUser=userId;publishPlanlyHouseholdContext();return null}
     const {data:house,error:houseError}=await planlySupabase.from('planly_households').select('id,name,created_by,created_at').eq('id',mine.household_id).single();if(houseError)throw houseError;
     const {data:members,error:membersError}=await planlySupabase.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('household_id',mine.household_id).order('joined_at',{ascending:true});if(membersError)throw membersError;
     planlyHousehold={...house,myRole:mine.role};planlyHouseholdMembers=members||[];
@@ -1173,7 +1174,7 @@ async function loadPlanlyHousehold(force=false){
       const {data:invites,error:inviteError}=await planlySupabase.from('planly_household_invites').select('id,household_id,invited_email,status,expires_at,created_at,accepted_by,accepted_at').eq('household_id',mine.household_id).order('created_at',{ascending:false});
       if(inviteError)throw inviteError;planlyHouseholdInvites=invites||[]
     }else planlyHouseholdInvites=[];
-    planlyHouseholdError='';planlyHouseholdLoadedAt=Date.now();planlyHouseholdLoadedUser=userId;window.dispatchEvent(new CustomEvent('planly:household-ready',{detail:{householdId:String(planlyHousehold.id||''),userId}}));return planlyHousehold
+    planlyHouseholdError='';planlyHouseholdLoadedAt=Date.now();planlyHouseholdLoadedUser=userId;publishPlanlyHouseholdContext();return planlyHousehold
   }catch(err){planlyHouseholdError=err?.message||'Household could not be loaded.';return null}})().finally(()=>{planlyHouseholdLoadPromise=null});return planlyHouseholdLoadPromise
 }
 function planlyHouseholdAcceptedInviteFor(member){return planlyHouseholdInvites.find(invite=>invite.status==='accepted'&&String(invite.accepted_by||'')===String(member?.user_id||''))}
