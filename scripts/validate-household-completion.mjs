@@ -77,3 +77,27 @@ for(const file of ['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-cloud
   }
 }
 if(!read('v2/core-projects-v3.3c.js').includes("from('planly_projects').select(PLANLY_PROJECT_SELECT)"))fail('core-projects must use PLANLY_PROJECT_SELECT');
+
+const hardening=read('v2/hardening-v3.3b.js');
+if(/new MutationObserver\([\s\S]*hydrateIncomingAssignments/.test(hardening))fail('assignment hydration must not be driven by MutationObserver');
+if(!hardening.includes('ASSIGNMENT_CONTEXT_TTL_MS=60000'))fail('assignment context TTL cache missing');
+if(!hardening.includes("window.addEventListener('planly:household-ready'"))fail('household-ready assignment context invalidation missing');
+if(hardening.includes("if(!assigneeId){if(existing)existing.remove()}"))fail('hardening must not remove B2 unassigned task pill');
+
+const hardeningPhase3=read('v2/hardening-v3.3b.js');
+if(hardeningPhase3.includes("dispatchEvent(new Event('online'))"))fail('assignment sync must not dispatch synthetic online events');
+if(!hardeningPhase3.includes("if(userId===authUserId)return"))fail('assignment auth sync must ignore repeated same-user auth events');
+if(hardeningPhase3.includes("loadAssignmentContext(true).then(()=>{kickHouseholdSync()"))fail('same-user auth path must not force assignment context reload');
+if(!read('v2/app-v3.2.0.js').includes("new CustomEvent('planly:household-ready'"))fail('household-ready must be dispatched after household load');
+
+const hardeningRealtime=read('v2/hardening-v3.3b.js');
+if(!hardeningRealtime.includes("new CustomEvent('planly:household-remote-change')"))fail('hardening must bridge household broadcasts with a specific event');
+const appRealtime=read('v2/app-v3.2.0.js');
+if(!appRealtime.includes("window.addEventListener('planly:household-remote-change'"))fail('app closure must handle household remote-change event');
+if(!appRealtime.includes("reconcilePlanlyCloud({render:true})"))fail('household remote-change handler must reconcile cloud tasks');
+if(hardeningRealtime.includes("typeof reconcilePlanlyCloud")||hardeningRealtime.includes("typeof state")||hardeningRealtime.includes("typeof render"))fail('hardening must not reference app-closure-only runtime symbols');
+if(!hardeningRealtime.includes("householdId===assignmentContext.householdId&&assignmentContextLoadedAt"))fail('unchanged household-ready events must not force assignment reload');
+
+const hardeningNoUndef=read('v2/hardening-v3.3b.js');
+if(hardeningNoUndef.includes('hydrateIncomingAssignments'))fail('deleted hydrateIncomingAssignments must have no remaining references');
+if(!hardeningNoUndef.includes('if(realtimeChannel&&realtimeHouseholdId)return'))fail('armed realtime channel must not re-read membership on each broadcast');
