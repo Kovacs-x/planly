@@ -1170,7 +1170,7 @@ async function loadPlanlyHousehold(){
       const {data:invites,error:inviteError}=await planlySupabase.from('planly_household_invites').select('id,household_id,invited_email,status,expires_at,created_at,accepted_by,accepted_at').eq('household_id',mine.household_id).order('created_at',{ascending:false});
       if(inviteError)throw inviteError;planlyHouseholdInvites=invites||[]
     }else planlyHouseholdInvites=[];
-    planlyHouseholdError='';return planlyHousehold
+    planlyHouseholdError='';window.dispatchEvent(new CustomEvent('planly:household-ready',{detail:{householdId:String(planlyHousehold.id||''),userId:String(planlySession.user.id||'')}}));return planlyHousehold
   }catch(err){planlyHouseholdError=err?.message||'Household could not be loaded.';return null}
 }
 function planlyHouseholdAcceptedInviteFor(member){return planlyHouseholdInvites.find(invite=>invite.status==='accepted'&&String(invite.accepted_by||'')===String(member?.user_id||''))}
