@@ -1131,6 +1131,7 @@ function resetPlanlyCloudRuntimeState(){
 function adoptPlanlySession(session,{explicitSignOut=false}={}){
   const previousOwner=String(planlySession?.user?.id||localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||''),nextOwner=String(session?.user?.id||''),ownerChanged=!!previousOwner&&!!nextOwner&&previousOwner!==nextOwner;
   planlySession=session||null;
+  ['planlyHouseholdDashboardBtn','planlyListsBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.hidden=!nextOwner});
   if(ownerChanged||explicitSignOut)resetPlanlyCloudRuntimeState();
   if(nextOwner)localStorage.setItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY,nextOwner);
   else if(explicitSignOut)localStorage.removeItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY);
