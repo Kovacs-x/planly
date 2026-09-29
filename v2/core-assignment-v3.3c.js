@@ -40,40 +40,7 @@ taskHtml=function(t,top3Mode=false){
 
 /* Authoritative household completion hydration. Database columns are the source
    of truth for assignment, completion actor and optimistic concurrency version. */
-const __planlyBaseLoadVerifiedCloudPreview=loadVerifiedCloudPreview;
-loadVerifiedCloudPreview=async function(){
-  const loaded=await __planlyBaseLoadVerifiedCloudPreview();
-  if(!loaded||!planlySession?.user||!initPlanlySupabase())return loaded;
-  const ownerId=String(planlySession.user.id||'');
-  const {data:syncState,error:syncStateError}=await planlySupabase.from('planly_sync_state')
-    .select('initial_migration_completed_at')
-    .eq('owner_id',ownerId)
-    .maybeSingle();
-  if(syncStateError)throw syncStateError;
-  if(syncState?.initial_migration_completed_at){
-    planlyCloudReadOnly=false;
-    const status=planlyCloudLocalStatus();
-    setPlanlyCloudLocalStatus({...status,state:'cloud-write-test',pendingWrites:readPlanlyPendingWrites().length});
-  }
-  const householdTasks=state.tasks.filter(t=>t&&t.visibility==='household'&&t.id&&(t._planlyOwnerId||ownerId));
-  if(!householdTasks.length){persistPlanlyCloudCache();return loaded;}
-  const owners=[...new Set(householdTasks.map(t=>String(t._planlyOwnerId||ownerId)).filter(Boolean))];
-  const ids=[...new Set(householdTasks.map(t=>String(t.id)).filter(Boolean))];
-  const {data:rows,error}=await planlySupabase.from('planly_tasks')
-    .select('owner_id,client_id,assignee_id,completed_by,completed_at,cloud_version')
-    .eq('visibility','household').is('deleted_at',null).in('owner_id',owners).in('client_id',ids);
-  if(error)throw error;
-  const byKey=new Map((rows||[]).map(r=>[String(r.owner_id)+'|'+String(r.client_id),r]));
-  for(const task of householdTasks){
-    const row=byKey.get(String(task._planlyOwnerId||ownerId)+'|'+String(task.id));if(!row)continue;
-    if(row.assignee_id)task.assigneeId=String(row.assignee_id);else delete task.assigneeId;
-    task.completedBy=row.completed_by?String(row.completed_by):null;
-    task.completedAt=row.completed_at||null;
-    task._planlyCloudVersion=Number(row.cloud_version||0);
-  }
-  persistPlanlyCloudCache();
-  return loaded;
-};
+/* Assignment and completion metadata is hydrated by authoritative task loaders via PLANLY_TASK_SELECT. */
 
 function stagePlanlyHouseholdCompletion(t,next,nextDate){
   const id=String(t.id),ownerId=String(t._planlyOwnerId||''),baseVersion=Number(t._planlyCloudVersion||0);
