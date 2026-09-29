@@ -1466,6 +1466,7 @@ async function runDeterministicConflictTest(btn){
 }
 
 const PLANLY_TASK_SELECT='owner_id,client_id,data,visibility,household_id,assignee_id,completed_by,completed_at,cloud_version,deleted_at';
+const PLANLY_PROJECT_SELECT='owner_id,client_id,data,visibility,household_id,cloud_version,deleted_at';
 function planlyTaskFromCloudRow(row){if(!row?.data)return null;const visibility=row.visibility==='household'?'household':'private',householdId=visibility==='household'?(row.household_id||null):null;return {...row.data,visibility,householdId,assigneeId:row.assignee_id||row.data.assigneeId||null,completedBy:row.completed_by||null,completedAt:row.completed_at||null,_planlyCloudVersion:Number(row.cloud_version||0),_planlyOwnerId:String(row.owner_id||''),_planlyOwnedByMe:String(row.owner_id||'')===String(planlySession?.user?.id||'')}}
 function planlyCloudTaskKey(row){return String(row?.owner_id||'')+'|'+String(row?.client_id||'')}
 function planlyLocalTaskKey(task){return String(task?._planlyOwnerId||planlySession?.user?.id||'')+'|'+String(task?.id||'')}
