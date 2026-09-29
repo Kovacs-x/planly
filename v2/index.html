@@ -216,7 +216,15 @@
   const fail=(text,status='error')=>{setBoot(status);if(message)message.textContent=text;if(retry)retry.hidden=false;document.documentElement.classList.add('planlyBootPending')};
   const ready=()=>{sessionStorage.removeItem(RELOAD_KEY);document.documentElement.classList.remove('planlyBootPending');if(splash)splash.hidden=true;setBoot('ready')};
   const loadRuntime=()=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=RUNTIME_URL;script.async=false;script.onload=()=>{ready();resolve()};script.onerror=()=>reject(new Error('runtime-load-failed'));document.body.appendChild(script)});
-  retry?.addEventListener('click',()=>location.reload());
+  const waitForController=()=>new Promise((resolve,reject)=>{
+    let settled=false;
+    const done=fn=>{if(settled)return;settled=true;clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',onController);fn()};
+    const onController=()=>done(resolve);
+    const timer=setTimeout(()=>done(()=>reject(new Error('controller-timeout'))),TIMEOUT_MS);
+    navigator.serviceWorker.addEventListener('controllerchange',onController);
+    if(navigator.serviceWorker.controller)done(resolve);
+  });
+  retry?.addEventListener('click',()=>{sessionStorage.removeItem(RELOAD_KEY);location.reload()});
   (async()=>{
     if(!('serviceWorker' in navigator)){fail('Planly needs service-worker support to start safely in this browser.','unsupported');return}
     try{
@@ -225,15 +233,11 @@
       const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
       setBoot('registered',{scope:reg.scope,controlled:!!navigator.serviceWorker.controller});
       if(navigator.serviceWorker.controller){await loadRuntime();return}
-      if(sessionStorage.getItem(RELOAD_KEY)==='1'){fail(navigator.onLine?'Planly could not finish setting up. Tap Retry to try again.':'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.','setup-incomplete');return}
-      await new Promise((resolve,reject)=>{
-        let settled=false;
-        const done=fn=>{if(settled)return;settled=true;clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',onController);fn()};
-        const onController=()=>done(resolve);
-        const timer=setTimeout(()=>done(()=>reject(new Error('controller-timeout'))),TIMEOUT_MS);
-        navigator.serviceWorker.addEventListener('controllerchange',onController);
-        if(navigator.serviceWorker.controller)done(resolve);
-      });
+      if(sessionStorage.getItem(RELOAD_KEY)==='1'){
+        try{await waitForController();await loadRuntime();return}
+        catch{fail(navigator.onLine?'Planly could not finish setting up. Tap Retry to try again.':'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.','setup-incomplete');return}
+      }
+      await waitForController();
       sessionStorage.setItem(RELOAD_KEY,'1');
       location.reload();
     }catch(err){
