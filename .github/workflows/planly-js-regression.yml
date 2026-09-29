@@ -20,7 +20,7 @@ jobs:
           node-version: '22'
       - name: Validate final generated Planly JavaScript
         run: node scripts/validate-planly-js.mjs
-      - name: Validate Planly security invariants
+      - name: Validate Safari freeze diagnostics\n        run: node scripts/validate-safari-diagnostics.mjs\n      - name: Validate Planly security invariants
         run: node scripts/validate-planly-security.mjs
       - name: Validate Budget 4.0 release invariants
         run: node scripts/validate-budget-release.mjs
