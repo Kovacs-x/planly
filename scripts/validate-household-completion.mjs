@@ -46,3 +46,34 @@ console.log('Household collaborative completion static gates passed.');
 if(sql.includes("raise exception 'Recurring series has ended'"))fail('terminal series must complete without raising');
 if(!assignment.includes("if(!!fresh.completed===!!payload.completed)"))fail('stale retry must accept already-satisfied completion intent');
 if(!assignment.includes("if(!planlyHouseholdCompletionEligible(fresh))"))fail('stale retry must re-check eligibility');
+
+const taskSelectFiles=['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-cloud-readiness-v3.3d.js','v2/core-assignment-v3.3c.js'];
+for(const file of taskSelectFiles){
+  const src=read(file);
+  for(const match of src.matchAll(/from\(['"]planly_tasks['"]\)\.select\(([^)]*)\)/g)){
+    const expr=match[1];
+    if(expr.includes('owner_id,client_id,data,visibility,household_id')&&!expr.includes('PLANLY_TASK_SELECT')&&!expr.includes('completed_by'))fail(file+' authoritative task select omits completed_by');
+  }
+}
+const appSource=read('v2/app-v3.2.0.js');
+if(!appSource.includes("const PLANLY_TASK_SELECT='owner_id,client_id,data,visibility,household_id,assignee_id,completed_by,completed_at,cloud_version,deleted_at'"))fail('shared PLANLY_TASK_SELECT missing attribution columns');
+const assignmentSource=read('v2/core-assignment-v3.3c.js');
+if(assignmentSource.includes(".select('owner_id,client_id,assignee_id,completed_by,completed_at,cloud_version')"))fail('redundant attribution hydration query returned');
+
+const schemaAllowed={
+  planly_tasks:new Set('owner_id client_id data visibility household_id assignee_id completed_by completed_at cloud_version deleted_at'.split(' ')),
+  planly_projects:new Set('owner_id client_id data visibility household_id cloud_version deleted_at'.split(' '))
+};
+const selectConstants={PLANLY_TASK_SELECT:'owner_id,client_id,data,visibility,household_id,assignee_id,completed_by,completed_at,cloud_version,deleted_at',PLANLY_PROJECT_SELECT:'owner_id,client_id,data,visibility,household_id,cloud_version,deleted_at'};
+for(const file of ['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-cloud-readiness-v3.3d.js','v2/core-assignment-v3.3c.js']){
+  const src=read(file);
+  for(const m of src.matchAll(/from\(['"]([^'"]+)['"]\)\.select\(([^)]*)\)/g)){
+    const allowed=schemaAllowed[m[1]];if(!allowed)continue;
+    let expr=m[2].trim(),select='';
+    if((expr.startsWith("'")&&expr.endsWith("'"))||(expr.startsWith('"')&&expr.endsWith('"')))select=expr.slice(1,-1);
+    else select=selectConstants[expr]||'';
+    if(!select)continue;
+    for(const raw of select.split(',')){const col=raw.trim().split(/[:(]/)[0].trim();if(col&&col!=='*'&&!allowed.has(col))fail(file+' selects invalid '+m[1]+' column '+col);}
+  }
+}
+if(!read('v2/core-projects-v3.3c.js').includes("from('planly_projects').select(PLANLY_PROJECT_SELECT)"))fail('core-projects must use PLANLY_PROJECT_SELECT');

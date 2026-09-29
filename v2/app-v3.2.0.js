@@ -1465,6 +1465,8 @@ async function runDeterministicConflictTest(btn){
   }catch(err){setPlanlyCloudLocalStatus({state:'conflict-test-failed',error:String(err?.message||err)});throw err}finally{if(btn){btn.disabled=false;btn.textContent='Run deterministic conflict test'}}
 }
 
+const PLANLY_TASK_SELECT='owner_id,client_id,data,visibility,household_id,assignee_id,completed_by,completed_at,cloud_version,deleted_at';
+const PLANLY_PROJECT_SELECT='owner_id,client_id,data,visibility,household_id,cloud_version,deleted_at';
 function planlyTaskFromCloudRow(row){if(!row?.data)return null;const visibility=row.visibility==='household'?'household':'private',householdId=visibility==='household'?(row.household_id||null):null;return {...row.data,visibility,householdId,assigneeId:row.assignee_id||row.data.assigneeId||null,completedBy:row.completed_by||null,completedAt:row.completed_at||null,_planlyCloudVersion:Number(row.cloud_version||0),_planlyOwnerId:String(row.owner_id||''),_planlyOwnedByMe:String(row.owner_id||'')===String(planlySession?.user?.id||'')}}
 function planlyCloudTaskKey(row){return String(row?.owner_id||'')+'|'+String(row?.client_id||'')}
 function planlyLocalTaskKey(task){return String(task?._planlyOwnerId||planlySession?.user?.id||'')+'|'+String(task?.id||'')}
@@ -1475,7 +1477,7 @@ async function loadVerifiedCloudPreview(){
   const {data:sync,error:syncError}=await planlySupabase.from('planly_sync_state').select('initial_migration_completed_at,migration_project_count,migration_task_count,migration_digest').eq('owner_id',ownerId).maybeSingle();
   if(syncError)throw syncError;
   const ownCloudReady=!!sync?.initial_migration_completed_at;
-  const tasksPromise=planlySupabase.from('planly_tasks').select('owner_id,client_id,data,visibility,household_id,assignee_id,completed_by,completed_at,cloud_version,deleted_at').is('deleted_at',null);
+  const tasksPromise=planlySupabase.from('planly_tasks').select(PLANLY_TASK_SELECT).is('deleted_at',null);
   const projectsPromise=ownCloudReady?planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).is('deleted_at',null):Promise.resolve({data:[],error:null});
   const prefsPromise=ownCloudReady?planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle():Promise.resolve({data:null,error:null});
   const [tasksRes,projectsRes,prefsRes]=await Promise.all([tasksPromise,projectsPromise,prefsPromise]);
@@ -1914,7 +1916,7 @@ async function reconcilePlanlyCloud(options={}){
   planlyReconcilePromise=(async()=>{
     const ownerId=planlySession.user.id;
     const [tasksRes,projectsRes,prefsRes]=await Promise.all([
-      planlySupabase.from('planly_tasks').select('owner_id,client_id,data,visibility,household_id,assignee_id,completed_by,completed_at,cloud_version,deleted_at'),
+      planlySupabase.from('planly_tasks').select(PLANLY_TASK_SELECT),
       planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId),
       planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle()
     ]);
