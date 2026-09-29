@@ -89,3 +89,7 @@ if(hardeningPhase3.includes("dispatchEvent(new Event('online'))"))fail('assignme
 if(!hardeningPhase3.includes("if(userId===authUserId)return"))fail('assignment auth sync must ignore repeated same-user auth events');
 if(hardeningPhase3.includes("loadAssignmentContext(true).then(()=>{kickHouseholdSync()"))fail('same-user auth path must not force assignment context reload');
 if(!read('v2/app-v3.2.0.js').includes("new CustomEvent('planly:household-ready'"))fail('household-ready must be dispatched after household load');
+
+const hardeningRealtime=read('v2/hardening-v3.3b.js');
+if(!hardeningRealtime.includes("householdReconcileTimer=setTimeout(()=>{if(typeof reconcilePlanlyCloud==='function')void reconcilePlanlyCloud({render:true}).catch(()=>{})},400)"))fail('household broadcast must directly debounce task reconciliation');
+if(!hardeningRealtime.includes("householdId===assignmentContext.householdId&&assignmentContextLoadedAt"))fail('unchanged household-ready events must not force assignment reload');
