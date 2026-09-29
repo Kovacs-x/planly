@@ -16,6 +16,7 @@
   <link rel="apple-touch-icon" href="../icon-192.png" />
   <title>Planly</title>
   <script>
+    (()=>{try{const saved=JSON.parse(localStorage.getItem('planly-device-settings-v1')||'null');let theme=saved?.theme||'system';if(theme==='system')theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=theme==='dark'?'dark':'light'}catch{document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}})();
     document.documentElement.classList.add('planlyBootPending');
     window.__planlySwBoot={status:'starting'};
   </script>
@@ -225,12 +226,18 @@
     if(navigator.serviceWorker.controller)done(resolve);
   });
   retry?.addEventListener('click',()=>{sessionStorage.removeItem(RELOAD_KEY);location.reload()});
+  const maintainRegistration=async()=>{try{const regs=await navigator.serviceWorker.getRegistrations();for(const reg of regs){const path=new URL(reg.scope).pathname;if(path.endsWith('/planly/'))await reg.unregister();if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active)await reg.unregister()}return await navigator.serviceWorker.register('./sw.js',{scope:'./'})}catch(err){setBoot('maintenance-error',{name:err?.name||'',message:err?.message||String(err)});return null}};
   (async()=>{
     if(!('serviceWorker' in navigator)){fail('Planly needs service-worker support to start safely in this browser.','unsupported');return}
+    if(navigator.serviceWorker.controller){
+      document.documentElement.classList.remove('planlyBootPending');if(splash)splash.hidden=true;setBoot('warm-start',{controlled:true});
+      maintainRegistration();
+      try{await loadRuntime()}catch{fail('Planly could not finish loading. Tap Retry to try again.','runtime-error')}
+      return
+    }
     try{
-      const regs=await navigator.serviceWorker.getRegistrations();
-      for(const reg of regs){const path=new URL(reg.scope).pathname;if(path.endsWith('/planly/'))await reg.unregister();if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active)await reg.unregister()}
-      const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+      const reg=await maintainRegistration();
+      if(!reg)throw new Error('service-worker-registration-failed');
       setBoot('registered',{scope:reg.scope,controlled:!!navigator.serviceWorker.controller});
       if(navigator.serviceWorker.controller){await loadRuntime();return}
       if(sessionStorage.getItem(RELOAD_KEY)==='1'){
