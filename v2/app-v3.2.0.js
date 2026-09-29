@@ -1113,7 +1113,7 @@ let planlySupabase=null,planlySession=null;
 function initPlanlySupabase(){
   const c=window.PLANLY_SUPABASE_CONFIG;
   if(!c?.url||!c?.publishableKey||!window.supabase?.createClient)return false;
-  if(!planlySupabase)planlySupabase=window.supabase.createClient(c.url,c.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  if(!planlySupabase)planlySupabase=window.PlanlySupabase?.get?.();
   return true;
 }
 function planlyLastAccountId(){return String(planlySession?.user?.id||localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||'')}
