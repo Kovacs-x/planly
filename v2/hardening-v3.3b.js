@@ -30,6 +30,6 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('pageshow',e=>{if(e.persisted){kickForegroundHouseholdSync();window.dispatchEvent(new CustomEvent('planly:foreground-resume'));}});
 window.addEventListener('online',()=>{setTimeout(scheduleGateRefresh,300);setTimeout(()=>void armHouseholdRealtime(),350);});
 window.addEventListener('pagehide',()=>void stopHouseholdRealtime());
-window.addEventListener('planly:household-ready',e=>{const detail=e?.detail||{};if(!detail.userId){assignmentContext={householdId:'',userId:'',members:[],labels:new Map()};assignmentContextLoadedAt=Date.now();void stopHouseholdRealtime();return}assignmentContextLoadedAt=0;void loadAssignmentContext(true).then(()=>{void refreshAssignmentField({loadTask:false});void armHouseholdRealtime()})});
+window.addEventListener('planly:household-ready',e=>{const detail=e?.detail||{},householdId=String(detail.householdId||''),userId=String(detail.userId||'');if(!userId){assignmentContext={householdId:'',userId:'',members:[],labels:new Map()};assignmentContextLoadedAt=Date.now();void stopHouseholdRealtime();return}if(householdId===assignmentContext.householdId&&userId===assignmentContext.userId&&assignmentContextLoadedAt)return;assignmentContextLoadedAt=0;void loadAssignmentContext(true).then(()=>{void refreshAssignmentField({loadTask:false});void armHouseholdRealtime()})});
 installAssignmentStyle();bindPostLoginSync();refreshSharingGate();setTimeout(()=>{void loadAssignmentContext(true);void armHouseholdRealtime()},500);
 })();
