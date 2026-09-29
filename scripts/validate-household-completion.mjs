@@ -91,5 +91,9 @@ if(hardeningPhase3.includes("loadAssignmentContext(true).then(()=>{kickHousehold
 if(!read('v2/app-v3.2.0.js').includes("new CustomEvent('planly:household-ready'"))fail('household-ready must be dispatched after household load');
 
 const hardeningRealtime=read('v2/hardening-v3.3b.js');
-if(!hardeningRealtime.includes("householdReconcileTimer=setTimeout(()=>{if(typeof reconcilePlanlyCloud==='function')void reconcilePlanlyCloud({render:true}).catch(()=>{})},400)"))fail('household broadcast must directly debounce task reconciliation');
+if(!hardeningRealtime.includes("new CustomEvent('planly:household-remote-change')"))fail('hardening must bridge household broadcasts with a specific event');
+const appRealtime=read('v2/app-v3.2.0.js');
+if(!appRealtime.includes("window.addEventListener('planly:household-remote-change'"))fail('app closure must handle household remote-change event');
+if(!appRealtime.includes("reconcilePlanlyCloud({render:true})"))fail('household remote-change handler must reconcile cloud tasks');
+if(hardeningRealtime.includes("typeof reconcilePlanlyCloud")||hardeningRealtime.includes("typeof state")||hardeningRealtime.includes("typeof render"))fail('hardening must not reference app-closure-only runtime symbols');
 if(!hardeningRealtime.includes("householdId===assignmentContext.householdId&&assignmentContextLoadedAt"))fail('unchanged household-ready events must not force assignment reload');
