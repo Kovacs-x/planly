@@ -16,6 +16,9 @@ for(const n of [
   'if v_task.completed is not distinct from p_completed then return v_task; end if;',
   'on conflict (owner_id, series_client_id, task_date)',
   'do nothing;',
+  'v_create_next boolean := false;',
+  'if v_create_next then',
+  'v_create_next := false;',
   'planly_stamp_task_completion_actor',
   'new.completed_by := auth.uid()',
   'new.completed_by := old.completed_by'
@@ -28,6 +31,9 @@ for(const n of [
   "kind:'householdCompletion'",
   "planly_set_household_task_completed",
   "code==='P0409'",
+  "const retry={...op,baseVersion:Number(fresh._planlyCloudVersion||0)",
+  "planlyHouseholdNextDate(fresh)",
+  "nextDateFrom:t.date||null",
   "code==='42501'",
   'planly_tasks_live_series_occurrence_key',
   'showUndoToast',
@@ -36,3 +42,7 @@ for(const n of [
 if(!app.includes('completed_by,completed_at,cloud_version'))fail('cloud hydration does not fetch completion metadata');
 if(!app.includes('_planlyCloudVersion:Number(row.cloud_version||0)'))fail('cloud version is not hydrated onto tasks');
 console.log('Household collaborative completion static gates passed.');
+
+if(sql.includes("raise exception 'Recurring series has ended'"))fail('terminal series must complete without raising');
+if(!assignment.includes("if(!!fresh.completed===!!payload.completed)"))fail('stale retry must accept already-satisfied completion intent');
+if(!assignment.includes("if(!planlyHouseholdCompletionEligible(fresh))"))fail('stale retry must re-check eligibility');
