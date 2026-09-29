@@ -7,7 +7,7 @@ for(const marker of [".eq('visibility','household')",".eq('household_id',househo
 if(/\.(?:insert|update|upsert|delete)\s*\(/.test(dash))fail('Household Dashboard must remain read-only');
 const cache=sw.match(/const CACHE='([^']+)'/)?.[1],version=sw.match(/const VERSION='([^']+)'/)?.[1];if(!cache||!version)fail('Dashboard service-worker cache/version markers missing');
 for(const marker of ["const RUNTIME_MANIFEST_URL='./runtime-modules.json'",'runtimeModuleUrls(cache)','validRuntimeModule(url)','appendUrls=await runtimeModuleUrls(cache)','appendTexts.length!==appendUrls.length'])if(!sw.includes(marker))fail('Dashboard first-load service-worker composition missing: '+marker);
-if(!manifest.modules?.includes('./core-household-dashboard-v4.2.js?v=420a01'))fail('Runtime manifest does not expose Household Dashboard');
+if(!manifest.modules?.includes('./core-household-dashboard-v4.2.js?v=420a02'))fail('Runtime manifest does not expose Household Dashboard');
 if(!manifest.modules?.some(module=>module.startsWith('./core-lists-v4.1.js?v=')))fail('Runtime manifest regressed Shared Lists');
 for(const name of ['core-budget-v4.0b.js','core-budget-scope-v4.0c.js','core-budget-actions-v4.0l.js','core-budget-lifecycle-v4.0d.js','core-budget-scroll-v4.0m.js','core-budget-review-hardening-v4.0p.js','core-budget-core-guard-v4.0q.js'])if(!manifest.modules?.some(module=>module.startsWith('./'+name+'?v=')))fail('Runtime manifest regressed Budget acceptance module: '+name);
 console.log(`Planly Household Dashboard 4.2 release checks passed (${cache} / ${version}), including cross-deployment first-load reachability.`);
