@@ -16,32 +16,8 @@
   <link rel="apple-touch-icon" href="../icon-192.png" />
   <title>Planly</title>
   <script>
+    document.documentElement.classList.add('planlyBootPending');
     window.__planlySwBoot={status:'starting'};
-    if('serviceWorker' in navigator){
-      (async()=>{
-        try{
-          const regs=await navigator.serviceWorker.getRegistrations();
-          for(const reg of regs){
-            const path=new URL(reg.scope).pathname;
-            if(path.endsWith('/planly/')) await reg.unregister();
-            if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active) await reg.unregister();
-          }
-          await new Promise(resolve=>setTimeout(resolve,250));
-          const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
-          window.__planlySwBoot={
-            status:'registered',
-            scope:reg.scope,
-            active:reg.active?.state||'',
-            waiting:reg.waiting?.state||'',
-            installing:reg.installing?.state||''
-          };
-        }catch(err){
-          window.__planlySwBoot={status:'error',name:err?.name||'',message:err?.message||String(err)};
-        }
-      })();
-    }else{
-      window.__planlySwBoot={status:'unsupported'};
-    }
   </script>
   <style>
     :root{--bg:#f5f6f8;--card:#fff;--cardSoft:#fafafa;--text:#16181d;--muted:#747b88;--line:#e6e8ec;--accent:#20242c;--accentText:#fff;--selected:#20242c;--selectedText:#fff;--danger:#b42318;--success:#16824b;--warning:#b65d08;--shadow:0 8px 28px rgba(17,24,39,.055);--shadowLift:0 14px 40px rgba(17,24,39,.10);--radiusCard:20px;--radiusControl:13px}
@@ -137,7 +113,7 @@
     /* Phase 7A — Planly visual identity, colour and iconography */
     :root{--planlyBlue:#4f7cff;--planlyBlueSoft:#edf2ff;--planlyViolet:#8067e8;--planlyVioletSoft:#f1edff;--planlyAmber:#d98618;--planlyAmberSoft:#fff4df;--planlyGreen:#259b65;--planlyGreenSoft:#e9f8f0;--planlyRose:#d95b79;--planlyRoseSoft:#fff0f3;--planlyCyan:#238aa6;--planlyCyanSoft:#e8f7fb}
     :root[data-theme="dark"]{--planlyBlue:#7e9cff;--planlyBlueSoft:#1b2747;--planlyViolet:#a18cf2;--planlyVioletSoft:#282142;--planlyAmber:#f1ad4d;--planlyAmberSoft:#352816;--planlyGreen:#55c98d;--planlyGreenSoft:#163225;--planlyRose:#f0839b;--planlyRoseSoft:#3b2028;--planlyCyan:#64c2da;--planlyCyanSoft:#163039}
-    .pIcon{width:21px;height:21px;display:block;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.iconbtn .pIcon{width:20px;height:20px}.nav .pIcon{width:22px;height:22px}.nav button{display:grid;place-items:center;align-content:center;gap:3px;padding:5px 2px}.navLabel{font-size:10px;line-height:1.1}.nav button[data-tab="today"].active{color:var(--planlyBlue);background:var(--planlyBlueSoft)}.nav button[data-tab="upcoming"].active{color:var(--planlyViolet);background:var(--planlyVioletSoft)}.nav button[data-tab="month"].active{color:var(--planlyCyan);background:var(--planlyCyanSoft)}.nav button[data-tab="inbox"].active{color:var(--planlyAmber);background:var(--planlyAmberSoft)}.nav button[data-tab="settings"].active{color:var(--planlyRose);background:var(--planlyRoseSoft)}
+    .pIcon{width:21px;height:21px;display:block;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.iconbtn .pIcon{width:20px;height:20px}.nav .pIcon{width:22px;height:22px}.nav button{display:grid;place-items:center;align-content:center;gap:3px;padding:5px 2px}.navLabel{font-size:10px;line-height:1.1}.nav button[data-tab="today"].active{color:var(--planlyBlue);background:var(--planlyBlueSoft)}.nav button[data-tab="upcoming"].active{color:var(--planlyViolet);background:var(--planlyVioletSoft)}.nav button[data-tab="month"].active{color:var(--planlyCyan);background:var(--planlyCyanSoft)}.nav button[data-tab="budget"].active{color:var(--planlyGreen);background:var(--planlyGreenSoft)}.nav button[data-tab="settings"].active{color:var(--planlyRose);background:var(--planlyRoseSoft)}
     .topActions .iconbtn:nth-child(1){color:var(--planlyViolet);background:var(--planlyVioletSoft);border-color:transparent}.topActions .iconbtn:nth-child(2){color:var(--planlyBlue);background:var(--planlyBlueSoft);border-color:transparent}.topActions .iconbtn:nth-child(3){color:var(--planlyAmber);background:var(--planlyAmberSoft);border-color:transparent}.fab{background:linear-gradient(145deg,var(--planlyBlue),var(--planlyViolet));color:#fff}.fab .pIcon{width:27px;height:27px;stroke-width:2.2}
     .categoryBadge{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:999px;font-size:10px;font-weight:720;background:var(--catBg,var(--planlyBlueSoft));color:var(--cat,var(--planlyBlue))}.categoryDot{width:6px;height:6px;border-radius:50%;background:currentColor}.category-personal{--cat:var(--planlyViolet);--catBg:var(--planlyVioletSoft)}.category-work{--cat:var(--planlyBlue);--catBg:var(--planlyBlueSoft)}.category-home{--cat:var(--planlyAmber);--catBg:var(--planlyAmberSoft)}.category-health{--cat:var(--planlyGreen);--catBg:var(--planlyGreenSoft)}.category-finance{--cat:var(--planlyCyan);--catBg:var(--planlyCyanSoft)}.category-errands{--cat:var(--planlyRose);--catBg:var(--planlyRoseSoft)}.priorityPill{font-weight:750}.priorityHigh{color:var(--planlyRose);background:var(--planlyRoseSoft)}.projectTaskPill{color:var(--planlyViolet);background:var(--planlyVioletSoft);border:0}.taskTimeBadge{color:var(--planlyBlue)}.task.done .check,.inlineSubtask.done .inlineSubtaskCheck{background:var(--planlyGreenSoft);border-color:var(--planlyGreen);color:var(--planlyGreen)}.dashboardProgress>span,.bar>span{background:linear-gradient(90deg,var(--planlyBlue),var(--planlyViolet))}.dashboardPercent{color:var(--planlyBlue)}.monthAgenda .calendarGroupLabel{color:var(--planlyCyan)}.inboxCount{background:var(--planlyAmberSoft);color:var(--planlyAmber)}
 
@@ -173,16 +149,23 @@
   .householdTaskPill{color:var(--planlyViolet);background:var(--planlyVioletSoft);border-color:color-mix(in srgb,var(--planlyViolet) 18%,var(--line))}.taskSharingField{margin-top:2px}
   .sharedReadOnlyTask .taskSurface{background:color-mix(in srgb,var(--planlyVioletSoft) 38%,var(--card));border-color:color-mix(in srgb,var(--planlyViolet) 16%,var(--line))}.sharedReadOnlyTask .check:disabled{opacity:.72;cursor:default}.sharedReadOnlyMark{align-self:center;color:var(--muted);font-size:9px;font-weight:700;white-space:nowrap}
   </style>
+  <style id="planlyNav400b1">
+    .app{padding-bottom:calc(112px + env(safe-area-inset-bottom))!important}.nav{left:50%!important;right:auto!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;width:min(calc(100% - 24px),560px)!important;grid-template-columns:repeat(5,1fr)!important;gap:2px!important;border:1px solid color-mix(in srgb,var(--line) 88%,transparent)!important;border-radius:24px!important;padding:5px!important;background:color-mix(in srgb,var(--card) 91%,transparent)!important;box-shadow:0 10px 32px rgba(17,24,39,.12)!important;backdrop-filter:blur(22px)!important;-webkit-backdrop-filter:blur(22px)!important}.nav button{min-height:48px!important;border-radius:18px!important;gap:2px!important;padding:4px 2px!important}.nav .pIcon{width:20px!important;height:20px!important}.navLabel{font-size:9px!important;font-weight:680!important;letter-spacing:-.01em}.nav button.active{font-weight:780!important}.nav button[data-tab="budget"].active{color:var(--planlyGreen)!important;background:var(--planlyGreenSoft)!important}#addBtn{bottom:calc(74px + env(safe-area-inset-bottom))!important}@media(max-width:390px){.nav{width:calc(100% - 16px)!important}.nav button{min-height:46px!important}.navLabel{font-size:8.5px!important}}
+    .planlyAuthAction[hidden]{display:block;visibility:hidden;pointer-events:none}
+    .planlyBootPending .app,.planlyBootPending #addBtn,.planlyBootPending .nav{visibility:hidden}
+    .planlyBootSplash{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:var(--bg);color:var(--text);padding:24px;text-align:center}.planlyBootSplash[hidden]{display:none}.planlyBootCard{max-width:360px}.planlyBootMark{font-size:28px;font-weight:850;letter-spacing:-.04em}.planlyBootMessage{margin-top:8px;color:var(--muted);font-size:13px;line-height:1.45}.planlyBootRetry{margin-top:16px;min-height:44px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--text);padding:0 16px;font-weight:750}
+  </style>
 </head>
 <body>
+<div id="planlyBootSplash" class="planlyBootSplash"><div class="planlyBootCard"><div class="planlyBootMark">Planly</div><div id="planlyBootMessage" class="planlyBootMessage">Preparing your planner…</div><button id="planlyBootRetry" class="planlyBootRetry" type="button" hidden>Retry</button></div></div>
 <div class="app">
   <div id="installHelp" class="installHelp" hidden><strong>Add Planly to your iPhone</strong><div class="muted" style="margin-top:6px;font-size:14px">Open in Safari → Share → Add to Home Screen.</div></div>
-  <header class="topbar"><div><div id="eyebrow" class="eyebrow"></div><div id="pageTitle" class="title">Today</div></div><div class="topActions"><button id="projectsToggle" class="iconbtn projectsIcon" aria-label="Projects"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h6l1.5 2H20v9.5H4z"/><path d="M4 7.5V5h6l1.5 2H20v2.5"/></svg></button><button id="searchToggle" class="iconbtn searchIcon" aria-label="Search tasks"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></svg></button><button id="themeToggle" class="iconbtn" aria-label="Toggle theme"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z"/></svg></button></div></header>
+  <header class="topbar"><div><div id="eyebrow" class="eyebrow"></div><div id="pageTitle" class="title">Today</div></div><div class="topActions"><button id="planlyHouseholdDashboardBtn" class="iconbtn planlyHouseholdDashBtn planlyAuthAction" type="button" aria-label="Household Dashboard" title="Household Dashboard" hidden>⌂</button><button id="planlyListsBtn" class="iconbtn planlyListsBtn planlyAuthAction" type="button" aria-label="Lists" title="Lists" hidden>☑</button><button id="projectsToggle" class="iconbtn projectsIcon" aria-label="Projects"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h6l1.5 2H20v9.5H4z"/><path d="M4 7.5V5h6l1.5 2H20v2.5"/></svg></button><button id="searchToggle" class="iconbtn searchIcon" aria-label="Search tasks"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></svg></button><button id="themeToggle" class="iconbtn" aria-label="Toggle theme"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z"/></svg></button></div></header>
   <main id="view"></main>
 </div>
 <button id="addBtn" class="fab" aria-label="Add task"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 <nav class="nav">
-  <button data-tab="today" class="active"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v3M19 4v3M4 9h16"/><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="m8.5 14 2 2 5-5"/></svg><span class="navLabel">Today</span></button><button data-tab="upcoming"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3.2 2"/></svg><span class="navLabel">Upcoming</span></button><button data-tab="month"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5v3M18 3.5v3M4 8.5h16"/><rect x="4" y="5" width="16" height="15.5" rx="3"/><path d="M8 12h2M14 12h2M8 16h2M14 16h2"/></svg><span class="navLabel">Month</span></button><button data-tab="inbox"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14l2 10.5a3 3 0 0 1-3 3.5H6a3 3 0 0 1-3-3.5L5 5Z"/><path d="M4 14h4l1.5 2h5l1.5-2h4"/></svg><span class="navLabel">Inbox</span></button><button data-tab="settings"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg><span class="navLabel">Settings</span></button>
+  <button data-tab="today" class="active"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v3M19 4v3M4 9h16"/><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="m8.5 14 2 2 5-5"/></svg><span class="navLabel">Today</span></button><button data-tab="upcoming"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3.2 2"/></svg><span class="navLabel">Upcoming</span></button><button data-tab="month"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5v3M18 3.5v3M4 8.5h16"/><rect x="4" y="5" width="16" height="15.5" rx="3"/><path d="M8 12h2M14 12h2M8 16h2M14 16h2"/></svg><span class="navLabel">Month</span></button><button data-tab="budget" aria-label="Budget"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></svg><span class="navLabel">Budget</span></button><button data-tab="settings"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg><span class="navLabel">Settings</span></button>
 </nav>
 
 <div id="taskActionWrap" class="taskActionWrap" aria-hidden="true"><div class="taskActionBackdrop"></div><div class="taskActionSheet"><div class="taskActionGrab"></div><div class="taskActionHeader"><div><span>Task actions</span><strong id="taskActionTitle">Task</strong></div><button id="taskActionClose" type="button">Done</button></div><div id="taskActionContent" class="taskActionContent"></div></div></div>
@@ -224,6 +207,45 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
 <script src="./supabase-config.js"></script>
-<script src="./app-v3.2.0.js?v=400j01"></script>
+<script>
+(()=>{
+  'use strict';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=430b03';
+  const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
+  const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
+  const fail=(text,status='error')=>{setBoot(status);if(message)message.textContent=text;if(retry)retry.hidden=false;document.documentElement.classList.add('planlyBootPending')};
+  const ready=()=>{sessionStorage.removeItem(RELOAD_KEY);document.documentElement.classList.remove('planlyBootPending');if(splash)splash.hidden=true;setBoot('ready')};
+  const loadRuntime=()=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=RUNTIME_URL;script.async=false;script.onload=()=>{ready();resolve()};script.onerror=()=>reject(new Error('runtime-load-failed'));document.body.appendChild(script)});
+  const waitForController=()=>new Promise((resolve,reject)=>{
+    let settled=false;
+    const done=fn=>{if(settled)return;settled=true;clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',onController);fn()};
+    const onController=()=>done(resolve);
+    const timer=setTimeout(()=>done(()=>reject(new Error('controller-timeout'))),TIMEOUT_MS);
+    navigator.serviceWorker.addEventListener('controllerchange',onController);
+    if(navigator.serviceWorker.controller)done(resolve);
+  });
+  retry?.addEventListener('click',()=>{sessionStorage.removeItem(RELOAD_KEY);location.reload()});
+  (async()=>{
+    if(!('serviceWorker' in navigator)){fail('Planly needs service-worker support to start safely in this browser.','unsupported');return}
+    try{
+      const regs=await navigator.serviceWorker.getRegistrations();
+      for(const reg of regs){const path=new URL(reg.scope).pathname;if(path.endsWith('/planly/'))await reg.unregister();if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active)await reg.unregister()}
+      const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+      setBoot('registered',{scope:reg.scope,controlled:!!navigator.serviceWorker.controller});
+      if(navigator.serviceWorker.controller){await loadRuntime();return}
+      if(sessionStorage.getItem(RELOAD_KEY)==='1'){
+        try{await waitForController();await loadRuntime();return}
+        catch{fail(navigator.onLine?'Planly could not finish setting up. Tap Retry to try again.':'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.','setup-incomplete');return}
+      }
+      await waitForController();
+      sessionStorage.setItem(RELOAD_KEY,'1');
+      location.reload();
+    }catch(err){
+      const offline=!navigator.onLine;
+      fail(offline?'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.':'Planly could not finish setting up. Tap Retry to try again.',offline?'offline-first-visit':'setup-error');
+    }
+  })();
+})();
+</script>
 </body>
 </html>

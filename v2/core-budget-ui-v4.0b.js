@@ -1,5 +1,6 @@
 // Planly 4.0B.6 — deterministic Budget views, contextual add flows and render lifecycle events.
 (()=>{'use strict';
+if(window.PlanlyBudgetUI)return;
 const money=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format((Number(n)||0)/100),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const api=()=>window.PlanlyBudget,month=()=>new Date().toISOString().slice(0,7),today=()=>new Date().toISOString().slice(0,10);
 const iconDefs={wallet:{label:'Everyday',emoji:'👛'},card:{label:'Credit cards',emoji:'💳'},home:{label:'Home',emoji:'🏠'},bills:{label:'Bills',emoji:'💡'},car:{label:'Car',emoji:'🚙'},food:{label:'Eating out',emoji:'🍽️'},basket:{label:'Groceries',emoji:'🛒'},phone:{label:'Phone',emoji:'📱'},heart:{label:'Health',emoji:'❤️'},game:{label:'Entertainment',emoji:'🎮'},child:{label:'Children',emoji:'🧸'},insurance:{label:'Insurance',emoji:'🛡️'},holiday:{label:'Travel',emoji:'✈️'},savings:{label:'Savings',emoji:'🏦'},income:{label:'Income',emoji:'💷'},other:{label:'Other',emoji:'✨'}};
