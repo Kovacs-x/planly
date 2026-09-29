@@ -77,3 +77,9 @@ for(const file of ['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-cloud
   }
 }
 if(!read('v2/core-projects-v3.3c.js').includes("from('planly_projects').select(PLANLY_PROJECT_SELECT)"))fail('core-projects must use PLANLY_PROJECT_SELECT');
+
+const hardening=read('v2/hardening-v3.3b.js');
+if(/new MutationObserver\([\s\S]*hydrateIncomingAssignments/.test(hardening))fail('assignment hydration must not be driven by MutationObserver');
+if(!hardening.includes('ASSIGNMENT_CONTEXT_TTL_MS=60000'))fail('assignment context TTL cache missing');
+if(!hardening.includes("window.addEventListener('planly:household-ready'"))fail('household-ready assignment context invalidation missing');
+if(hardening.includes("if(!assigneeId){if(existing)existing.remove()}"))fail('hardening must not remove B2 unassigned task pill');
