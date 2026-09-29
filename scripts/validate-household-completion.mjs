@@ -46,3 +46,16 @@ console.log('Household collaborative completion static gates passed.');
 if(sql.includes("raise exception 'Recurring series has ended'"))fail('terminal series must complete without raising');
 if(!assignment.includes("if(!!fresh.completed===!!payload.completed)"))fail('stale retry must accept already-satisfied completion intent');
 if(!assignment.includes("if(!planlyHouseholdCompletionEligible(fresh))"))fail('stale retry must re-check eligibility');
+
+const taskSelectFiles=['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-cloud-readiness-v3.3d.js','v2/core-assignment-v3.3c.js'];
+for(const file of taskSelectFiles){
+  const src=read(file);
+  for(const match of src.matchAll(/from\(['"]planly_tasks['"]\)\.select\(([^)]*)\)/g)){
+    const expr=match[1];
+    if(expr.includes('owner_id,client_id,data,visibility,household_id')&&!expr.includes('PLANLY_TASK_SELECT')&&!expr.includes('completed_by'))fail(file+' authoritative task select omits completed_by');
+  }
+}
+const appSource=read('v2/app-v3.2.0.js');
+if(!appSource.includes("const PLANLY_TASK_SELECT='owner_id,client_id,data,visibility,household_id,assignee_id,completed_by,completed_at,cloud_version,deleted_at'"))fail('shared PLANLY_TASK_SELECT missing attribution columns');
+const assignmentSource=read('v2/core-assignment-v3.3c.js');
+if(assignmentSource.includes(".select('owner_id,client_id,assignee_id,completed_by,completed_at,cloud_version')"))fail('redundant attribution hydration query returned');
