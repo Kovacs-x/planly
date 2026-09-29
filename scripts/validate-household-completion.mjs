@@ -83,3 +83,9 @@ if(/new MutationObserver\([\s\S]*hydrateIncomingAssignments/.test(hardening))fai
 if(!hardening.includes('ASSIGNMENT_CONTEXT_TTL_MS=60000'))fail('assignment context TTL cache missing');
 if(!hardening.includes("window.addEventListener('planly:household-ready'"))fail('household-ready assignment context invalidation missing');
 if(hardening.includes("if(!assigneeId){if(existing)existing.remove()}"))fail('hardening must not remove B2 unassigned task pill');
+
+const hardeningPhase3=read('v2/hardening-v3.3b.js');
+if(hardeningPhase3.includes("dispatchEvent(new Event('online'))"))fail('assignment sync must not dispatch synthetic online events');
+if(!hardeningPhase3.includes("if(userId===authUserId)return"))fail('assignment auth sync must ignore repeated same-user auth events');
+if(hardeningPhase3.includes("loadAssignmentContext(true).then(()=>{kickHouseholdSync()"))fail('same-user auth path must not force assignment context reload');
+if(!read('v2/app-v3.2.0.js').includes("new CustomEvent('planly:household-ready'"))fail('household-ready must be dispatched after household load');
