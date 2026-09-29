@@ -125,7 +125,15 @@ async function replayQueuedPlanlyHouseholdCompletions(){
 const __planlyBaseReplayPendingWrites=replayPlanlyPendingWrites;
 replayPlanlyPendingWrites=async function(){
   await replayQueuedPlanlyHouseholdCompletions();
-  return __planlyBaseReplayPendingWrites();
+  const custom=readPlanlyPendingWrites().filter(x=>x.kind==='householdCompletion');
+  if(!custom.length)return __planlyBaseReplayPendingWrites();
+  writePlanlyPendingWrites(readPlanlyPendingWrites().filter(x=>x.kind!=='householdCompletion'));
+  try{return await __planlyBaseReplayPendingWrites()}
+  finally{
+    const basePending=readPlanlyPendingWrites();
+    writePlanlyPendingWrites([...basePending,...custom.filter(op=>!basePending.some(x=>x.kind===op.kind&&x.id===op.id))]);
+    persistPlanlyCloudCache();
+  }
 };
 
 /* A partner RPC can create the same next series occurrence before an owner's
