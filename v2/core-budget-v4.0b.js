@@ -1,5 +1,6 @@
 // Planly 4.0K.1 — collaborative Household Budget with isolated offline journals.
 (()=>{'use strict';
+if(window.PlanlyBudget)return;
 const CACHE='planly-budget-cache-v2:',PENDING='planly-budget-pending-v2:',CONFLICT='planly-budget-conflicts-v2:',ACTIVE='planly-budget-active-scope-v1:';
 const emptyVersions=()=>({scope:0,categories:{},targets:{},entries:{}}),emptyState=()=>({scope:null,scopes:[],categories:[],targets:[],entries:[],versions:emptyVersions()});
 let owner='',sb=null,replayPromise=null,state=emptyState(),activeType='personal',readyPromise=null,readyResolve=null;
