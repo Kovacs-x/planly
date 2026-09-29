@@ -97,3 +97,7 @@ if(!appRealtime.includes("window.addEventListener('planly:household-remote-chang
 if(!appRealtime.includes("reconcilePlanlyCloud({render:true})"))fail('household remote-change handler must reconcile cloud tasks');
 if(hardeningRealtime.includes("typeof reconcilePlanlyCloud")||hardeningRealtime.includes("typeof state")||hardeningRealtime.includes("typeof render"))fail('hardening must not reference app-closure-only runtime symbols');
 if(!hardeningRealtime.includes("householdId===assignmentContext.householdId&&assignmentContextLoadedAt"))fail('unchanged household-ready events must not force assignment reload');
+
+const hardeningNoUndef=read('v2/hardening-v3.3b.js');
+if(hardeningNoUndef.includes('hydrateIncomingAssignments'))fail('deleted hydrateIncomingAssignments must have no remaining references');
+if(!hardeningNoUndef.includes('if(realtimeChannel&&realtimeHouseholdId)return'))fail('armed realtime channel must not re-read membership on each broadcast');
