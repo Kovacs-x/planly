@@ -78,7 +78,7 @@ loadVerifiedCloudPreview=async function(){
 function stagePlanlyHouseholdCompletion(t,next,nextDate){
   const id=String(t.id),ownerId=String(t._planlyOwnerId||''),baseVersion=Number(t._planlyCloudVersion||0);
   const current=readPlanlyPendingWrites(),list=current.filter(x=>!(x.kind==='householdCompletion'&&x.id===id&&String(x.data?.ownerId||'')===ownerId));
-  list.push({kind:'householdCompletion',action:'complete',id,data:{ownerId,clientId:id,completed:!!next,nextDate:nextDate||null},baseVersion,operationId:uid(),stagedAt:new Date().toISOString(),lastEditedAt:new Date().toISOString(),attempts:0,lastAttemptAt:'',lastError:'',status:'queued'});
+  list.push({kind:'householdCompletion',action:'complete',id,data:{ownerId,clientId:id,completed:!!next,nextDate:nextDate||null,nextDateFrom:t.date||null},baseVersion,operationId:uid(),stagedAt:new Date().toISOString(),lastEditedAt:new Date().toISOString(),attempts:0,lastAttemptAt:'',lastError:'',status:'queued'});
   writePlanlyPendingWrites(list);persistPlanlyCloudCache();
 }
 async function executePlanlyHouseholdCompletion(op){
@@ -108,8 +108,29 @@ async function replayQueuedPlanlyHouseholdCompletions(){
     catch(err){
       const code=String(err?.code||'');
       if(code==='P0409'){
-        clearPlanlyPendingWrite('householdCompletion',op.id);
-        await reconcilePlanlyCloud({render:false,replay:false}).catch(()=>{});render();continue;
+        await reconcilePlanlyCloud({render:false,replay:false}).catch(()=>{});
+        const payload=op.data||{},fresh=state.tasks.find(x=>String(x.id)===String(payload.clientId)&&String(x._planlyOwnerId||'')===String(payload.ownerId));
+        if(!fresh){clearPlanlyPendingWrite('householdCompletion',op.id);render();showToast('This household task is no longer available.');continue}
+        if(!!fresh.completed===!!payload.completed){clearPlanlyPendingWrite('householdCompletion',op.id);persistPlanlyCloudCache();render();continue}
+        if(!planlyHouseholdCompletionEligible(fresh)){clearPlanlyPendingWrite('householdCompletion',op.id);render();showToast('This household task can no longer be completed by you.');continue}
+        const retryNextDate=payload.completed
+          ?(String(fresh.date||'')===String(payload.nextDateFrom||'')?(payload.nextDate||null):planlyHouseholdNextDate(fresh))
+          :null;
+        const retry={...op,baseVersion:Number(fresh._planlyCloudVersion||0),data:{...payload,nextDate:retryNextDate,nextDateFrom:fresh.date||null}};
+        updatePlanlyPendingWrite('householdCompletion',op.id,{baseVersion:retry.baseVersion,data:retry.data,status:'queued',lastError:''});
+        try{await executePlanlyHouseholdCompletion(retry)}
+        catch(retryErr){
+          const retryCode=String(retryErr?.code||'');
+          if(retryCode==='42501'||retryCode==='P0002'){
+            clearPlanlyPendingWrite('householdCompletion',op.id);
+            await reconcilePlanlyCloud({render:false,replay:false}).catch(()=>{});render();
+            showToast(retryCode==='42501'?'This household task can no longer be completed by you.':'This household task is no longer available.');
+            continue;
+          }
+          if(isOfflineCloudError(retryErr)){updatePlanlyPendingWrite('householdCompletion',op.id,{status:'queued',lastError:String(retryErr?.message||retryErr)});break}
+          updatePlanlyPendingWrite('householdCompletion',op.id,{status:'error',lastError:String(retryErr?.message||retryErr)});
+        }
+        continue;
       }
       if(code==='42501'||code==='P0002'){
         clearPlanlyPendingWrite('householdCompletion',op.id);
