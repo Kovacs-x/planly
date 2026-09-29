@@ -4,7 +4,7 @@ verifyPlanlyOfflineCache=async function(){
   try{
     const probe=await probePlanlyServiceWorker();
     if(!probe.ok)return {ok:false,missing:['Active Planly service worker unavailable: '+probe.reason]};
-    const keys=await caches.keys(),planlyKeys=keys.filter(k=>k.startsWith('planly-v2-')).sort().reverse();
+    const keys=await caches.keys(),version=String(probe.reason||''),cacheName=version.startsWith('planly-v2-sw-')?version.replace('planly-v2-sw-','planly-v2-'):'';const planlyKeys=cacheName&&keys.includes(cacheName)?[cacheName]:keys.filter(k=>k.startsWith('planly-v2-')).sort().reverse();
     if(!planlyKeys.length)return {ok:false,missing:['Planly offline cache unavailable']};
     const cache=await caches.open(planlyKeys[0]),manifestRes=await cache.match('./runtime-modules.json'),manifest=manifestRes?await manifestRes.clone().json():null;
     const modules=Array.isArray(manifest?.modules)?manifest.modules:[],assets=['./index.html','./supabase-config.js','./manifest.webmanifest',...modules],missing=[];
