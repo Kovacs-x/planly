@@ -71,6 +71,7 @@ declare
   v_max_occurrences integer;
   v_next_subtasks jsonb := '[]'::jsonb;
   v_next_data jsonb;
+  v_create_next boolean := false;
 begin
   if v_user is null then raise exception 'Authentication required' using errcode = '42501'; end if;
 
@@ -100,17 +101,26 @@ begin
 
   if p_completed and v_task.recurrence <> 'none' and v_task.task_date is not null and p_next_date is not null then
     if p_next_date <= v_task.task_date then raise exception 'Invalid next occurrence date' using errcode = '22023'; end if;
+    v_create_next := true;
     v_end_mode := coalesce(v_cfg->>'endMode', 'never');
     v_next_occurrence := coalesce(v_task.occurrence_number, 1) + 1;
     if v_end_mode = 'count' then
-      v_max_occurrences := nullif(v_cfg->>'maxOccurrences', '')::integer;
+      begin
+        v_max_occurrences := nullif(v_cfg->>'maxOccurrences', '')::integer;
+      exception when invalid_text_representation or numeric_value_out_of_range then
+        v_max_occurrences := null;
+      end;
       if v_max_occurrences is not null and v_next_occurrence > v_max_occurrences then
-        raise exception 'Recurring series has ended' using errcode = '22023';
+        v_create_next := false;
       end if;
     elsif v_end_mode = 'date' then
-      v_end_date := nullif(v_cfg->>'endDate', '')::date;
+      begin
+        v_end_date := nullif(v_cfg->>'endDate', '')::date;
+      exception when invalid_datetime_format or datetime_field_overflow then
+        v_end_date := null;
+      end;
       if v_end_date is not null and p_next_date > v_end_date then
-        raise exception 'Recurring series has ended' using errcode = '22023';
+        v_create_next := false;
       end if;
     end if;
   elsif p_next_date is not null then
@@ -132,7 +142,7 @@ begin
   where t.owner_id = p_owner_id and t.client_id = p_client_id
   returning * into v_task;
 
-  if p_completed and v_task.recurrence <> 'none' and v_task.task_date is not null and p_next_date is not null then
+  if v_create_next then
     v_next_client_id := v_now_ms::text || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 16);
     v_next_occurrence := coalesce(v_task.occurrence_number, 1) + 1;
     select coalesce(jsonb_agg(
