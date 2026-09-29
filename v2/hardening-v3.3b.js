@@ -30,5 +30,5 @@ window.addEventListener('focus',()=>{kickForegroundHouseholdSync();});
 window.addEventListener('online',()=>{setTimeout(scheduleGateRefresh,300);setTimeout(()=>void armHouseholdRealtime(),350);});
 window.addEventListener('pagehide',()=>void stopHouseholdRealtime());
 window.addEventListener('planly:household-ready',e=>{const householdId=String(e?.detail?.householdId||'');if(householdId&&householdId===assignmentContext.householdId&&assignmentContextLoadedAt)return;assignmentContextLoadedAt=0;void loadAssignmentContext(true).then(()=>{void refreshAssignmentField({loadTask:false});})});
-installAssignmentStyle();bindPostLoginSync();refreshSharingGate();setTimeout(()=>{void loadAssignmentContext(true).then(()=>);void armHouseholdRealtime()},500);
+installAssignmentStyle();bindPostLoginSync();refreshSharingGate();setTimeout(()=>{void loadAssignmentContext(true);void armHouseholdRealtime()},500);
 })();
