@@ -16,7 +16,8 @@
   <link rel="apple-touch-icon" href="../icon-192.png" />
   <title>Planly</title>
   <script>
-    document.documentElement.classList.add('planlyBootPending');
+    (()=>{try{const saved=JSON.parse(localStorage.getItem('planly-device-settings-v1')||'null');let theme=saved?.theme||'system';if(theme==='system')theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=theme==='dark'?'dark':'light'}catch{document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}})();
+    if(!('serviceWorker' in navigator)||!navigator.serviceWorker.controller)document.documentElement.classList.add('planlyBootPending');else document.documentElement.classList.add('planlyWarmStart');
     window.__planlySwBoot={status:'starting'};
   </script>
   <style>
@@ -153,6 +154,7 @@
     .app{padding-bottom:calc(112px + env(safe-area-inset-bottom))!important}.nav{left:50%!important;right:auto!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;width:min(calc(100% - 24px),560px)!important;grid-template-columns:repeat(5,1fr)!important;gap:2px!important;border:1px solid color-mix(in srgb,var(--line) 88%,transparent)!important;border-radius:24px!important;padding:5px!important;background:color-mix(in srgb,var(--card) 91%,transparent)!important;box-shadow:0 10px 32px rgba(17,24,39,.12)!important;backdrop-filter:blur(22px)!important;-webkit-backdrop-filter:blur(22px)!important}.nav button{min-height:48px!important;border-radius:18px!important;gap:2px!important;padding:4px 2px!important}.nav .pIcon{width:20px!important;height:20px!important}.navLabel{font-size:9px!important;font-weight:680!important;letter-spacing:-.01em}.nav button.active{font-weight:780!important}.nav button[data-tab="budget"].active{color:var(--planlyGreen)!important;background:var(--planlyGreenSoft)!important}#addBtn{bottom:calc(74px + env(safe-area-inset-bottom))!important}@media(max-width:390px){.nav{width:calc(100% - 16px)!important}.nav button{min-height:46px!important}.navLabel{font-size:8.5px!important}}
     .planlyAuthAction[hidden]{display:block;visibility:hidden;pointer-events:none}
     .planlyBootPending .app,.planlyBootPending #addBtn,.planlyBootPending .nav{visibility:hidden}
+    .planlyWarmStart .planlyBootSplash{display:none}
     .planlyBootSplash{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:var(--bg);color:var(--text);padding:24px;text-align:center}.planlyBootSplash[hidden]{display:none}.planlyBootCard{max-width:360px}.planlyBootMark{font-size:28px;font-weight:850;letter-spacing:-.04em}.planlyBootMessage{margin-top:8px;color:var(--muted);font-size:13px;line-height:1.45}.planlyBootRetry{margin-top:16px;min-height:44px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--text);padding:0 16px;font-weight:750}
   </style>
 </head>
@@ -210,11 +212,11 @@
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=430b03';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=430b04';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
-  const fail=(text,status='error')=>{setBoot(status);if(message)message.textContent=text;if(retry)retry.hidden=false;document.documentElement.classList.add('planlyBootPending')};
-  const ready=()=>{sessionStorage.removeItem(RELOAD_KEY);document.documentElement.classList.remove('planlyBootPending');if(splash)splash.hidden=true;setBoot('ready')};
+  const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
+  const ready=()=>{sessionStorage.removeItem(RELOAD_KEY);document.documentElement.classList.remove('planlyBootPending','planlyWarmStart');if(splash)splash.hidden=true;setBoot('ready')};
   const loadRuntime=()=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=RUNTIME_URL;script.async=false;script.onload=()=>{ready();resolve()};script.onerror=()=>reject(new Error('runtime-load-failed'));document.body.appendChild(script)});
   const waitForController=()=>new Promise((resolve,reject)=>{
     let settled=false;
@@ -225,12 +227,18 @@
     if(navigator.serviceWorker.controller)done(resolve);
   });
   retry?.addEventListener('click',()=>{sessionStorage.removeItem(RELOAD_KEY);location.reload()});
+  const maintainRegistration=async()=>{try{const regs=await navigator.serviceWorker.getRegistrations();for(const reg of regs){const path=new URL(reg.scope).pathname;if(path.endsWith('/planly/'))await reg.unregister();if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active)await reg.unregister()}return await navigator.serviceWorker.register('./sw.js',{scope:'./'})}catch{return null}};
   (async()=>{
     if(!('serviceWorker' in navigator)){fail('Planly needs service-worker support to start safely in this browser.','unsupported');return}
+    if(navigator.serviceWorker.controller){
+      document.documentElement.classList.remove('planlyBootPending');if(splash)splash.hidden=true;setBoot('warm-start',{controlled:true});
+      maintainRegistration();
+      try{await loadRuntime()}catch{fail('Planly could not finish loading. Tap Retry to try again.','runtime-error')}
+      return
+    }
     try{
-      const regs=await navigator.serviceWorker.getRegistrations();
-      for(const reg of regs){const path=new URL(reg.scope).pathname;if(path.endsWith('/planly/'))await reg.unregister();if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active)await reg.unregister()}
-      const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+      const reg=await maintainRegistration();
+      if(!reg)throw new Error('service-worker-registration-failed');
       setBoot('registered',{scope:reg.scope,controlled:!!navigator.serviceWorker.controller});
       if(navigator.serviceWorker.controller){await loadRuntime();return}
       if(sessionStorage.getItem(RELOAD_KEY)==='1'){
