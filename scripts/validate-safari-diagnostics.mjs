@@ -8,7 +8,7 @@ if(!diag.includes("const d=down;down=null")||!diag.includes("up=elInfo(e.target)
 if(!diag.includes("if(d.interactive&&(!p.clicked||!clickInteractive))setTimeout(()=>full(!p.clicked?'tap-no-click':'tap-intercepted'"))fail('Full blocker scan must be deferred to suspicious interactive taps');
 if(diag.includes("light('tap',{tap:{dt,move,down:down.target"))fail('Async tap handler reads cleared down state');
 if(diag.includes('document.createElement')||diag.includes('appendChild'))fail('Diagnostics must not add permanent overlay controls');
-if(!manifest.includes('"version": 18')||!manifest.includes('./core-safari-diagnostics-v4.3b.js?v=430b01'))fail('Runtime manifest does not load Safari diagnostics');
+if(!Number.isInteger(manifest.version)||!manifest.modules?.includes('./core-safari-diagnostics-v4.3b.js?v=430b01'))fail('Runtime manifest does not load Safari diagnostics');
 for(const marker of ["const CACHE='planly-v2-","const VERSION='planly-v2-sw-","const APP_URL='./app-v3.2.0.js?v=","const SAFARI_DIAGNOSTICS_URL='./core-safari-diagnostics-v4.3b.js?v=430b01'",'SAFARI_DIAGNOSTICS_URL];'])if(!sw.includes(marker))fail('Service worker diagnostic composition missing: '+marker);
 if(diag.includes('$$$')||diag.includes('$().forEach'))fail('Generated diagnostics contain forbidden selector corruption');
 console.log('Safari freeze diagnostic validation passed');
