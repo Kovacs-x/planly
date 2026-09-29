@@ -1162,7 +1162,7 @@ function planlyHouseholdInviteLink(token){const base=location.origin+location.pa
 async function loadPlanlyHousehold(force=false){
   if(!planlySession?.user||!initPlanlySupabase()){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';planlyHouseholdLoadedAt=0;planlyHouseholdLoadedUser='';return null}
   const userId=String(planlySession.user.id||''),fresh=!force&&planlyHouseholdLoadedUser===userId&&planlyHouseholdLoadedAt&&Date.now()-planlyHouseholdLoadedAt<PLANLY_HOUSEHOLD_TTL_MS;
-  if(fresh)return planlyHousehold;if(planlyHouseholdLoadPromise)return planlyHouseholdLoadPromise;
+  if(fresh)return planlyHousehold;if(planlyHouseholdLoadPromise){if(!force)return planlyHouseholdLoadPromise;try{await planlyHouseholdLoadPromise}catch{}}
   planlyHouseholdLoadPromise=(async()=>{try{
     const {data:memberships,error:membershipError}=await planlySupabase.from('planly_household_members').select('household_id,user_id,role,joined_at').eq('user_id',planlySession.user.id).limit(1);if(membershipError)throw membershipError;
     const mine=(memberships||[])[0];if(!mine){planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';return null}
@@ -1234,7 +1234,7 @@ async function transferPlanlyHouseholdOwnership(){
   const {error}=await planlySupabase.rpc('planly_transfer_household_ownership',{p_household_id:planlyHousehold.id,p_new_owner:targetId});
   if(error)throw error;
   planlyFreshHouseholdInvite=null;
-  await loadPlanlyHousehold();
+  await loadPlanlyHousehold(true);
   showToast('Household ownership transferred');
   render()
 }
@@ -1245,7 +1245,7 @@ async function deletePlanlyHousehold(){
   if(String(typed).trim()!==expected)throw new Error('Household name did not match. Nothing was deleted.');
   const {error}=await planlySupabase.rpc('planly_delete_household',{p_household_id:planlyHousehold.id});
   if(error)throw error;
-  planlyFreshHouseholdInvite=null;planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';
+  planlyFreshHouseholdInvite=null;await loadPlanlyHousehold(true);
   showToast('Household deleted');
   render()
 }
