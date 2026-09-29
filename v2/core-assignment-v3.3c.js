@@ -144,12 +144,13 @@ cloudInsertTask=async function(t,replay=false){
    authenticated bootstrap read per account so both callers await the same work. */
 const __planlyBaseLoadHousehold=loadPlanlyHousehold;
 let __planlyHouseholdLoadFlight=null,__planlyHouseholdLoadOwner='';
-loadPlanlyHousehold=function(){
+loadPlanlyHousehold=function(force=false){
   const owner=String(planlySession?.user?.id||'');
-  if(!owner)return __planlyBaseLoadHousehold();
-  if(__planlyHouseholdLoadFlight&&__planlyHouseholdLoadOwner===owner)return __planlyHouseholdLoadFlight;
+  if(!owner)return __planlyBaseLoadHousehold(force);
+  if(!force&&__planlyHouseholdLoadFlight&&__planlyHouseholdLoadOwner===owner)return __planlyHouseholdLoadFlight;
+  const previous=force&&__planlyHouseholdLoadFlight&&__planlyHouseholdLoadOwner===owner?__planlyHouseholdLoadFlight.catch(()=>{}):Promise.resolve();
   __planlyHouseholdLoadOwner=owner;
-  const flight=Promise.resolve().then(()=>__planlyBaseLoadHousehold());
+  const flight=previous.then(()=>__planlyBaseLoadHousehold(force));
   __planlyHouseholdLoadFlight=flight;
   return flight.finally(()=>{if(__planlyHouseholdLoadFlight===flight){__planlyHouseholdLoadFlight=null;__planlyHouseholdLoadOwner=''}});
 };
