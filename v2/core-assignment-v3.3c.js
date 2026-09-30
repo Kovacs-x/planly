@@ -181,6 +181,13 @@ planlySignIn=async function(){
   render();
 };
 
+async function planlyCompleteHouseholdTaskDirect(t){
+  if(!planlyHouseholdCompletionEligible(t))return false;
+  await planlyCompleteHouseholdTaskDirect(t);
+  return true;
+}
+window.PlanlyCompleteHouseholdTask=planlyCompleteHouseholdTaskDirect;
+
 document.addEventListener('click',async e=>{
   const check=e.target.closest('.check[data-household-completion="true"]');if(!check)return;
   const card=check.closest('.task[data-id][data-owner]');if(!card)return;
