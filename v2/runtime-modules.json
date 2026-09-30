@@ -1,14 +1,14 @@
 {
-  "version": 25,
+  "version": 26,
   "modules": [
-    "./core-budget-v4.0b.js?v=400k06",
-    "./core-budget-ui-v4.0b.js?v=400b408",
+    "./core-budget-v4.0b.js?v=400k07",
+    "./core-budget-ui-v4.0b.js?v=400b409",
     "./core-budget-scope-v4.0c.js?v=400c07",
     "./core-budget-lifecycle-v4.0d.js?v=400n06",
     "./core-budget-monthly-v4.0e.js?v=400e09",
     "./core-budget-month-state-v4.0f.js?v=400f01",
     "./core-budget-insights-v4.0g.js?v=400g04",
-    "./core-budget-actions-v4.0l.js?v=400n05",
+    "./core-budget-actions-v4.0l.js?v=400n06",
     "./core-budget-scroll-v4.0m.js?v=400m02",
     "./core-lists-v4.1.js?v=410a10",
     "./core-household-dashboard-v4.2.js?v=420a03",
