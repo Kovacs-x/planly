@@ -1,0 +1,40 @@
+// Planly Intelligence 5.0 — pure deterministic advisory engine.
+(()=>{'use strict';if(window.PlanlyIntelligence)return;
+const VERSION='5.0.0-i1',clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),pad=n=>String(n).padStart(2,'0');
+const dateParts=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?[+m[1],+m[2],+m[3]]:null};
+const serial=s=>{const p=dateParts(s);return p?Math.floor(Date.UTC(p[0],p[1]-1,p[2])/86400000):NaN};
+const dayDiff=(a,b)=>serial(a)-serial(b),timeMin=s=>{const m=String(s||'').match(/^(\d{1,2}):(\d{2})$/);return m?clamp(+m[1]*60 + +m[2],0,1439):0};
+const timeText=n=>{n=clamp(Math.round(n),0,1439);return pad(Math.floor(n/60))+':'+pad(n%60)};
+const duration=(t,d=30)=>clamp(Number(t?.durationMinutes||d||30),5,720),owned=t=>t&&t._planlyOwnedByMe!==false;
+const short=s=>String(s||'').slice(0,60),reason=(a,s)=>{s=short(s);if(s&&!a.includes(s)&&a.length<6)a.push(s)};
+const mergeBusy=(rows,start,end)=>{const a=rows.map(x=>({start:Math.max(start,Number(x.start)),end:Math.min(end,Number(x.end))})).filter(x=>Number.isFinite(x.start)&&Number.isFinite(x.end)&&x.end>x.start).sort((x,y)=>x.start-y.start||x.end-y.end),m=[];for(const x of a){const l=m[m.length-1];if(l&&x.start<=l.end)l.end=Math.max(l.end,x.end);else m.push({...x})}return m};
+const gaps=(busy,start,end)=>{const out=[];let c=start;for(const x of busy){if(x.start>c)out.push({start:c,end:x.start,minutes:x.start-c});c=Math.max(c,x.end)}if(c<end)out.push({start:c,end,minutes:end-c});return out};
+const priority=t=>({high:3,normal:2,low:1})[String(t?.priority||'normal').toLowerCase()]||2;
+const stable=(a,b)=>b.score-a.score||b.priority-a.priority||a.createdAt-b.createdAt||a.id.localeCompare(b.id);
+const assignedToMe=(t,uid)=>{const a=String(t?.assigneeId||t?.assignee_id||'');return !a||a===uid};
+function scoreTask(t,ctx){const {today,projects,free}=ctx,id=String(t.id||''),reasons=[];let score=0;const dd=String(t.date||'')?dayDiff(String(t.date),today):null;
+ if(dd!==null&&dd<0){score+=100+Math.min(40,Math.abs(dd)*5);reason(reasons,'Overdue '+Math.abs(dd)+' day'+(Math.abs(dd)===1?'':'s'))}
+ else if(dd===0){score+=80;reason(reasons,'Due today')}else if(dd===null){score+=25;reason(reasons,'Still in Inbox')}else return null;
+ if(String(t.priority).toLowerCase()==='high'){score+=45;reason(reasons,'High priority')}else score+=priority(t)*8;
+ const p=projects.get(String(t.projectId||''));if(p?.dueDate){const pd=dayDiff(String(p.dueDate),today);if(pd<=0){score+=30;reason(reasons,'Project due today')}else if(pd===1){score+=24;reason(reasons,'Project due tomorrow')}else if(pd<=3){score+=18;reason(reasons,'Project due in '+pd+' days')}else if(pd<=7){score+=10;reason(reasons,'Project due this week')}}
+ if(t.time){score+=12;reason(reasons,'Already has a time')}else{const fit=free.find(g=>g.minutes>=duration(t,ctx.defaultDuration));if(fit){score+=12;reason(reasons,'Fits a '+fit.minutes+'m gap')}else{score-=20;reason(reasons,'No free gap long enough today')}}
+ const left=(Array.isArray(t.subtasks)?t.subtasks:[]).filter(x=>!x.done).length;if(left){score+=Math.min(8,left*2);reason(reasons,left+' checklist item'+(left===1?'':'s')+' left')}
+ const defer=Number(t?.data?.deferCount||t?.deferCount||0);if(defer>=3){score-=15;reason(reasons,'Moved '+defer+' times')}
+ return {id,score,priority:priority(t),createdAt:Number(t.createdAt||0),reasons};
+}
+function analyse(input={}){const today=String(input.today||'');if(!dateParts(today))throw Error('today must be YYYY-MM-DD');
+ const tasks=Array.isArray(input.tasks)?input.tasks:[],projects=new Map((input.projects||[]).map(p=>[String(p.id||''),p])),uid=String(input.currentUserId||''),defaultDuration=Number(input.defaultDuration||30);
+ let start=timeMin(input.planningStart||'08:00'),end=timeMin(input.planningEnd||'23:00');if(end<=start){start=480;end=1380}
+ const now=clamp(Number(input.nowMinutes),0,1439),effectiveStart=Math.max(start,now),external=(input.busy||[]).map(x=>({start:Number(x.start),end:Number(x.end)}));
+ const todayTasks=tasks.filter(t=>!t.completed&&String(t.date||'')===today),timed=todayTasks.filter(t=>t.time).map(t=>({start:timeMin(t.time),end:timeMin(t.time)+duration(t,defaultDuration),id:String(t.id||'')}));
+ const externalMerged=mergeBusy(external,start,end),busy=mergeBusy([...timed,...external],effectiveStart,end),free=gaps(busy,effectiveStart,end),planningMinutes=Math.max(0,end-effectiveStart),busyMinutes=externalMerged.reduce((s,x)=>s+x.end-x.start,0),freeMinutes=free.reduce((s,x)=>s+x.minutes,0);
+ const plannedMinutes=todayTasks.reduce((s,t)=>s+duration(t,defaultDuration),0),overBy=Math.max(0,plannedMinutes-freeMinutes),status=!todayTasks.length?'empty':plannedMinutes>freeMinutes?'over':plannedMinutes>freeMinutes*.85?'tight':'fits',isWorkDay=busyMinutes>=360;
+ const clashes=[];for(let i=0;i<timed.length;i++){for(let j=i+1;j<timed.length;j++){if(timed[j].start<timed[i].end&&timed[j].end>timed[i].start)clashes.push({a:timed[i].id,b:timed[j].id})}for(const b of external){if(b.start<timed[i].end&&b.end>timed[i].start)clashes.push({a:timed[i].id,b:'calendar'})}}
+ const ctx={today,projects,free,defaultDuration},ranked=tasks.filter(t=>owned(t)&&!t.completed).map(t=>scoreTask(t,ctx)).filter(Boolean).sort(stable);
+ const personal=ranked.filter(r=>{const t=tasks.find(x=>String(x.id)===r.id);return t&&t.visibility!=='household'}),top3=personal.slice(0,isWorkDay?2:3).map(x=>({id:x.id,reasons:x.reasons.slice(0,2)}));
+ const chores=tasks.filter(t=>!t.completed&&t.visibility==='household'&&owned(t)&&assignedToMe(t,uid)&&String(t.date||'')&&dayDiff(String(t.date),today)<=0&&dayDiff(String(t.date),today)>=-6).map(t=>({id:String(t.id),reasons:[String(t.date)===today?'Due today':'Overdue this week']}));
+ const overdue=tasks.filter(t=>owned(t)&&!t.completed&&t.date&&dayDiff(String(t.date),today)<0).map(t=>{const days=Math.abs(dayDiff(String(t.date),today)),d=Number(t?.data?.deferCount||t?.deferCount||0),fit=free.some(g=>g.minutes>=duration(t,defaultDuration));let suggest=days<=2&&fit?'today':'tomorrow';if(d>=3||(days>14&&!t.projectId))suggest='inbox';else if(!fit&&days>2)suggest='nextWeek';const reasons=[];reason(reasons,'Overdue '+days+' day'+(days===1?'':'s'));if(d>=3)reason(reasons,'Moved '+d+' times');else if(fit)reason(reasons,'Fits today');return {id:String(t.id),suggest,reasons}});
+ let work=free.map(x=>({...x}));const times=[];for(const r of personal){const t=tasks.find(x=>String(x.id)===r.id);if(!t||t.time||String(t.date||'')!==today)continue;const need=duration(t,defaultDuration),g=work.find(x=>x.minutes>=need),reasons=[];if(!g){reason(reasons,'No free gap long enough today');times.push({id:r.id,time:'',reasons});continue}let at=Math.ceil(g.start/15)*15;if(at>g.start&&at+need>g.end)continue;reason(reasons,'Fits the '+need+'m gap at '+timeText(at));times.push({id:r.id,time:timeText(at),reasons});const cut=at+need+10;work=work.flatMap(x=>cut<=x.start||at>=x.end?[x]:[{start:x.start,end:at,minutes:at-x.start},{start:cut,end:x.end,minutes:x.end-cut}].filter(y=>y.minutes>0))}
+ return {engineVersion:VERSION,day:{date:today,isWorkDay,planningMinutes,busyMinutes,freeMinutes,plannedMinutes,overBy,clashes,status},top3,chores,overdue,times,projects:[],household:{weekCounts:{},unassigned:[],shareOut:[]}};
+}
+window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse});})();
