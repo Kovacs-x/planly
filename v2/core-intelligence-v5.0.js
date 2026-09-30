@@ -14,7 +14,7 @@ const priorityRank=task=>({high:3,normal:2,low:1})[String(task?.priority||'norma
 const projectMap=projects=>new Map((Array.isArray(projects)?projects:[]).map(p=>[String(p.id||''),p]));
 
 function eligible(task,currentUserId){
-  if(!task||task.completed)return false;
+  if(!task||task.completed||task._planlyOwnedByMe===false)return false;
   if(task.visibility!=='household')return true;
   const assignee=String(task.assigneeId||task.assignee_id||'');
   return !assignee||!currentUserId||assignee===currentUserId;
@@ -169,6 +169,8 @@ function recommendDayPlan(input={}){
   const currentUserId=String(input.currentUserId||'');
   let start=timeToMinutes(input.planningStart||'08:00'),end=timeToMinutes(input.planningEnd||'23:00');
   if(end<=start){start=480;end=1380}
+  const explicitNow=Number(input.nowMinutes);
+  if(Number.isFinite(explicitNow))start=Math.min(end,Math.max(start,Math.ceil(clamp(explicitNow,0,1439)/15)*15));
 
   const busy=fixedBusyIntervals(tasks,today,input.externalBusy,start,end);
   const gaps=freeGaps(busy,start,end);
@@ -191,7 +193,7 @@ function recommendDayPlan(input={}){
       candidateCount:ranked.length,
       busyMinutes,
       freeMinutes,
-      planningMinutes:end-start,
+      planningMinutes:Math.max(0,end-start),
       fixedCommitments:busy.length
     },
     ranked:ranked.map(x=>({id:x.id,score:x.score,reasons:[...x.reasons]})),
