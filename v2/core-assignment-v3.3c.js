@@ -26,14 +26,14 @@ taskHtml=function(t,top3Mode=false){
   const eligible=planlyHouseholdCompletionEligible(t);
   if(eligible){
     html=html.replace('class="check" disabled aria-label="Shared task status"','class="check" data-household-completion="true" aria-label="'+(t.completed?'Mark household task incomplete':'Complete household task')+'"');
-    const assignment=t.assigneeId?'✓ Assigned to you':'✓ Anyone can complete';
-    html=html.replace('<span class="pill householdTaskPill">⌂ Household</span>','<span class="pill householdTaskPill">⌂ Household</span><span class="pill taskAssigneePill">'+assignment+'</span>');
+    const assignment=t.assigneeId?'Assigned to you':'Anyone can complete';
+    html=html.replace(/(<span class="pill householdTaskPill">[^<]*<\/span>)/,'$1<span class="pill taskAssigneePill">'+assignment+'</span>');
     html=html.replace('<span class="sharedReadOnlyMark" title="Creator-owned">View only</span>','<span class="sharedReadOnlyMark" title="Household completion allowed">Household task</span>');
     html=html.replace('sharedReadOnlyTask','sharedReadOnlyTask assignedToMeTask');
   }
   if(t?.visibility==='household'&&t.completed&&t.completedBy){
     const label=planlyCompletionActorLabel(t.completedBy);
-    html=html.replace('<span class="pill householdTaskPill">⌂ Household</span>','<span class="pill householdTaskPill">⌂ Household</span><span class="pill taskCompletionActorPill">Done by '+esc(label)+'</span>');
+    html=html.replace(/(<span class="pill householdTaskPill">[^<]*<\/span>)/,'$1<span class="pill taskCompletionActorPill">Done by '+esc(label)+'</span>');
   }
   return html;
 };
