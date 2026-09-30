@@ -36,9 +36,9 @@ for(const n of [
   "nextDateFrom:t.date||null",
   "code==='42501'",
   'planly_tasks_live_series_occurrence_key',
-  'showUndoToast',
-  "Done by '+esc(label)"
+  'showUndoToast'
 ])if(!assignment.includes(n))fail('missing client invariant: '+n);
+if(!app.includes("Done by '+planlyHouseholdPersonLabel(completedBy)"))fail('missing authoritative Done by renderer');
 if(!app.includes('completed_by,completed_at,cloud_version'))fail('cloud hydration does not fetch completion metadata');
 if(!app.includes('_planlyCloudVersion:Number(row.cloud_version||0)'))fail('cloud version is not hydrated onto tasks');
 console.log('Household collaborative completion static gates passed.');
