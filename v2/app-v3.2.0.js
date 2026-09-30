@@ -2599,8 +2599,7 @@ function taskHasMoreOptions(task){
     task.notes||
     subtasks.length||
     task.addToCalendar||
-    task.projectId||
-    task.visibility==='household'
+    task.projectId
   );
 }
 function setTaskMoreOptions(open){
@@ -2622,7 +2621,7 @@ function prepareDuplicateTask(){
 }
 
 function openSheet(task,projectId=''){
-  if(task&&task._planlyOwnedByMe===false){showToast('Shared task · only its creator can edit it');return}
+  const readOnly=!!(task&&task._planlyOwnedByMe===false);
   if($('#taskActionWrap')?.classList.contains('open'))closeTaskActions();
   resetSheetPosition();
   lockSheetBackground();
@@ -2646,6 +2645,7 @@ function openSheet(task,projectId=''){
   $('#deleteTask').style.display=task?'block':'none';
   $('#duplicateTask').style.display=task?'block':'none';
   $('#formActions').classList.toggle('editing',!!task);
+  const form=$('#taskForm');if(form){form.classList.toggle('taskReadOnlySheet',readOnly);form.querySelectorAll('input,select,textarea,button').forEach(el=>{if(el.closest('.sheetDragZone'))return;el.disabled=readOnly});const actions=$('#formActions');if(actions)actions.hidden=readOnly;const duplicate=$('#duplicateTask');if(duplicate)duplicate.hidden=readOnly}
   setTaskMoreOptions(taskHasMoreOptions(task));
   refreshQuickDateSelection();
 }
@@ -2871,6 +2871,7 @@ $('#importFile').addEventListener('change',async e=>{
 })
 $('#taskForm').addEventListener('submit',async e=>{
   e.preventDefault();
+  if(e.target.classList.contains('taskReadOnlySheet'))return;
   const id=$('#taskId').value,now=Date.now(),wasExisting=!!id;
   const repeatData=readRecurrenceForm();
   const timedAutoCalendar=!id&&state.autoCalendarTimed&&!!$('#taskTime').value;
