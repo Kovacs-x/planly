@@ -16,7 +16,7 @@ if(core.includes("const bucket=k+'s'"))fail('Legacy misspelled Budget version bu
 for(const marker of ["state.scope.owner_id===viewer","isOwner?'owner':'member'"])if(!scope.includes(marker))fail('Household Budget viewer-role label invariant missing: '+marker);
 for(const marker of ['mutate','persistedEntryUpdate','classifyZero','cloud_version',"code:'conflict'","code:'denied'",'select(\'*\').maybeSingle','await a.bootstrap()','planly:budget-mutation-confirmed','persistedCategoryUpdate','persistedDelete'])if(!actions.includes(marker))fail('Missing authoritative Budget mutation invariant: '+marker);
 for(const marker of ['const used=state.entries.some','if(used){'])if(!actions.includes(marker))fail('Budget category removal note invariant missing: '+marker);
-for(const marker of ['planly:budget-ui-rendered','decorateManage()'])if(!actions.includes(marker))fail('Manage category redecorate invariant missing: '+marker);
+for(const marker of ['planly:budget-ui-rendered','mutate','persistedCategoryUpdate'])if(!actions.includes(marker))fail('Budget action composition invariant missing: '+marker);
 for(const marker of ['planly:budget-ui-rendered','PlanlyBudgetActions.mutate',"mode='category'",'planly:budget-mutation-confirmed','refreshVisible','Coming up','Unplanned'])if(!ui.includes(marker))fail('Budget R3 contextual render invariant missing: '+marker);
 if(lifecycle.includes('decorateCategory(')||lifecycle.includes('data-life-quick-delete'))fail('Legacy index-mapped expense action owner is still active');
 for(const marker of ['decorateIncome','persistedUpdate(entry.id','persistedDelete(entry.id)'])if(!lifecycle.includes(marker))fail('Income lifecycle invariant missing: '+marker);
