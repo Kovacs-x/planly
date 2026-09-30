@@ -1,4 +1,4 @@
-// Planly R3 — Budget presentation. Uses existing PlanlyBudget state/actions; no loader.
+// Planly R3.1 — Budget presentation. Uses existing PlanlyBudget state/actions; no loader.
 (()=>{'use strict';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format((Number(n)||0)/100);
