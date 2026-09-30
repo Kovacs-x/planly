@@ -13,7 +13,9 @@ alter table public.planly_household_members
     display_name is null
     or (
       display_name = btrim(display_name)
-      and char_length(display_name) between 1 and 80
+      and char_length(display_name) between 1 and 20
+      and display_name !~ '[[:cntrl:]]'
+      and display_name !~ '[​-‏‪-‮⁠-⁩﻿]'
     )
   );
 
@@ -25,15 +27,26 @@ set search_path to 'pg_catalog', 'public'
 as $function$
 declare
   v_user uuid := auth.uid();
-  v_name text := nullif(btrim(p_display_name), '');
+  v_name text := nullif(
+    btrim(regexp_replace(coalesce(p_display_name, ''), '\s+', ' ', 'g')),
+    ''
+  );
   v_row public.planly_household_members%rowtype;
 begin
   if v_user is null then
     raise exception 'Authentication required' using errcode = '42501';
   end if;
 
-  if v_name is not null and char_length(v_name) > 80 then
-    raise exception 'Display name must be 80 characters or fewer' using errcode = '22001';
+  if v_name is not null
+     and (
+       v_name ~ '[[:cntrl:]]'
+       or v_name ~ '[​-‏‪-‮⁠-⁩﻿]'
+     ) then
+    raise exception 'Display name contains unsupported characters' using errcode = '22023';
+  end if;
+
+  if v_name is not null and char_length(v_name) > 20 then
+    raise exception 'Display name must be 20 characters or fewer' using errcode = '22001';
   end if;
 
   update public.planly_household_members
