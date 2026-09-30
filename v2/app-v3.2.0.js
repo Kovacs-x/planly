@@ -2249,7 +2249,7 @@ function taskCanEdit(t){return !!t&&t._planlyOwnedByMe!==false}
 function handleViewClick(e){
   const calendarSeries=e.target.closest('[data-calendar-series]');if(calendarSeries){const source=state.tasks.find(x=>x.id===calendarSeries.dataset.calendarSeries);if(source)openSheet(source);return}
   const dashboardFocus=e.target.closest('[data-dashboard-focus]');if(dashboardFocus){openFocus(dashboardFocus.dataset.dashboardFocus);return}
-  const billPaid=e.target.closest('[data-budget-bill-paid]');if(billPaid){void markPlanlyBudgetBillPaid(billPaid.dataset.budgetBillPaid);return}
+  const billPaid=e.target.closest('[data-budget-bill-paid]');if(billPaid){void markPlanlyBudgetBillPaid(billPaid.dataset.budgetBillPaid,billPaid.dataset.budgetScope||'personal');return}
   const dashboardProject=e.target.closest('[data-dashboard-project]');if(dashboardProject){openProjects(dashboardProject.dataset.dashboardProject);return}
   const timelineBtn=e.target.closest('#timelineBtn');if(timelineBtn){openTimeline(localKey(new Date()));return}
   const planBtn=e.target.closest('#planMyDayBtn');if(planBtn){openPlanDay();return}
