@@ -78,3 +78,9 @@ if(!s.sw.includes("const CACHE='planly-v2-430c-18'"))fail('R1 cache marker misma
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
 for(const x of ['href="#pi-star"','href="#pi-more"','href="#pi-repeat"','href="#pi-clock"','aria-pressed='])if(!r2App.includes(x))fail('R2 task-row invariant missing: '+x);
+
+const r2Assign=read('v2/core-assignment-v3.3c.js');
+if(!r2Assign.includes('/(<span class="pill householdTaskPill">[^<]*<\\/span>)/'))fail('R2 household pill renderer is coupled to display text');
+for(const x of ["Anyone can complete","Assigned to you","Done by "])if(!r2Assign.includes(x))fail('R2 household assignment/completion label missing: '+x);
+for(const x of ['id="pi-grip"','id="pi-checklist"','id="pi-check"','min-height:44px!important}.taskBody>.chip[data-action="today"]','--r2Personal:#2F4FD0','--r2Health:#BE2F55','--r2Home:#1B7A4C'])if(!r2Html.includes(x))fail('R2 review presentation invariant missing: '+x);
+for(const x of ['href="#pi-grip"','href="#pi-checklist"','href="#pi-check"'])if(!r2App.includes(x))fail('R2 review task glyph invariant missing: '+x);
