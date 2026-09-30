@@ -3,7 +3,7 @@
 
 alter table public.planly_budget_entries
   add column if not exists show_on_today boolean not null default false,
-  add column if not exists today_lead_days smallint not null default 0;
+  add column if not exists today_lead_days smallint not null default 2;
 
 alter table public.planly_budget_entries
   drop constraint if exists planly_budget_entries_today_lead_days_check;
