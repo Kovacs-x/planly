@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8'),fail=m=>{throw new Error(m)};
-const paths={app:'v2/app-v3.2.0.js',hardening:'v2/hardening-v3.3b.js',projects:'v2/core-projects-v3.3c.js',build:'v2/core-build-v3.3c.js',assignment:'v2/core-assignment-v3.3c.js',planning:'v2/core-project-planning-v3.3c.js',calendar:'v2/core-household-calendar-v3.3c.js',safety:'v2/core-household-planning-safety-v3.3c.js',closeout:'v2/core-closeout-v3.3c.js',cloud:'v2/core-cloud-readiness-v3.3d.js',gate:'v2/core-release-gate-v3.3d.js',budgetNav:'v2/core-budget-nav-v4.0b1.js',redesignR1:'v2/core-redesign-r1.js',budget:'v2/core-budget-v4.0b.js',budgetUi:'v2/core-budget-ui-v4.0b.js',budgetScope:'v2/core-budget-scope-v4.0c.js',budgetLifecycle:'v2/core-budget-lifecycle-v4.0d.js',budgetMonthly:'v2/core-budget-monthly-v4.0e.js',budgetMonthState:'v2/core-budget-month-state-v4.0f.js',budgetInsights:'v2/core-budget-insights-v4.0g.js',budgetActions:'v2/core-budget-actions-v4.0l.js',budgetScroll:'v2/core-budget-scroll-v4.0m.js',lists:'v2/core-lists-v4.1.js',dashboard:'v2/core-household-dashboard-v4.2.js',intelligence:'v2/core-intelligence-v5.0.js',budgetReview:'v2/core-budget-review-hardening-v4.0p.js',budgetCoreGuard:'v2/core-budget-core-guard-v4.0q.js',update:'v2/core-update-v4.3.js',sw:'v2/sw.js',config:'v2/supabase-config.js'};
+const paths={app:'v2/app-v3.2.0.js',hardening:'v2/hardening-v3.3b.js',projects:'v2/core-projects-v3.3c.js',build:'v2/core-build-v3.3c.js',assignment:'v2/core-assignment-v3.3c.js',planning:'v2/core-project-planning-v3.3c.js',calendar:'v2/core-household-calendar-v3.3c.js',safety:'v2/core-household-planning-safety-v3.3c.js',closeout:'v2/core-closeout-v3.3c.js',cloud:'v2/core-cloud-readiness-v3.3d.js',gate:'v2/core-release-gate-v3.3d.js',budgetNav:'v2/core-budget-nav-v4.0b1.js',redesignR1:'v2/core-redesign-r1.js',budget:'v2/core-budget-v4.0b.js',budgetUi:'v2/core-budget-ui-v4.0b.js',budgetScope:'v2/core-budget-scope-v4.0c.js',budgetLifecycle:'v2/core-budget-lifecycle-v4.0d.js',budgetMonthly:'v2/core-budget-monthly-v4.0e.js',budgetMonthState:'v2/core-budget-month-state-v4.0f.js',budgetInsights:'v2/core-budget-insights-v4.0g.js',budgetActions:'v2/core-budget-actions-v4.0l.js',budgetScroll:'v2/core-budget-scroll-v4.0m.js',lists:'v2/core-lists-v4.1.js',dashboard:'v2/core-household-dashboard-v4.2.js',intelligence:'v2/core-intelligence-v5.js',budgetReview:'v2/core-budget-review-hardening-v4.0p.js',budgetCoreGuard:'v2/core-budget-core-guard-v4.0q.js',update:'v2/core-update-v4.3.js',sw:'v2/sw.js',config:'v2/supabase-config.js'};
 const s=Object.fromEntries(Object.entries(paths).map(([k,p])=>[k,read(p)])),manifest=JSON.parse(read('v2/runtime-modules.json'));
 const closeIndex=s.app.lastIndexOf('})();');if(closeIndex<0)fail('Planly core injection point missing');
 const core=[s.projects,s.build,s.assignment,s.planning,s.calendar,s.safety,s.closeout,s.cloud,s.gate,s.budgetNav],appended=[s.budget,s.budgetUi,s.budgetScope,s.budgetLifecycle,s.budgetMonthly,s.budgetMonthState,s.budgetInsights,s.budgetActions,s.budgetScroll,s.lists,s.dashboard,s.budgetReview,s.budgetCoreGuard,s.intelligence,s.update];
@@ -23,7 +23,7 @@ if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(generated))fail('
 if(/service_role|sb_secret_/i.test(appended.join('\n')+s.config))fail('Privileged credential marker in browser runtime');
 console.log(`Planly FINAL generated runtime regression checks passed (${cache} / ${version}).`);
 
-const runtimeClientFiles=['v2/app-v3.2.0.js','v2/core-budget-v4.0b.js','v2/core-budget-actions-v4.0l.js','v2/core-budget-monthly-v4.0e.js','v2/core-lists-v4.1.js','v2/core-household-dashboard-v4.2.js','v2/core-intelligence-v5.0.js','v2/hardening-v3.3b.js'];
+const runtimeClientFiles=['v2/app-v3.2.0.js','v2/core-budget-v4.0b.js','v2/core-budget-actions-v4.0l.js','v2/core-budget-monthly-v4.0e.js','v2/core-lists-v4.1.js','v2/core-household-dashboard-v4.2.js','v2/core-intelligence-v5.js','v2/hardening-v3.3b.js'];
 for(const file of runtimeClientFiles){if(read(file).includes('window.supabase.createClient('))fail('runtime module creates a secondary Supabase client: '+file)}
 const supabaseConfig=read('v2/supabase-config.js');
 if((supabaseConfig.match(/window\.supabase\.createClient\(/g)||[]).length!==1)fail('supabase-config must contain exactly one createClient constructor');
@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=500r105'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-500b-32'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-500c-33'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -139,13 +139,12 @@ if(!s.app.includes("detail:{taskId:task?.id||'',readOnly,assigneeId:"))fail('H2 
 {const compactStart=s.app.indexOf("if(state.taskRowDensity!=='comfortable'){"),compactEnd=s.app.indexOf("\n  const surface=",compactStart),compactBranch=s.app.slice(compactStart,compactEnd);if(!compactBranch.includes("top3Mode&&!t.completed?'<button type=\"button\" class=\"top3DragHandle\""))fail('H2 compact renderer must include Top-3 drag handle in its own branch');}
 
 
-// Planly Intelligence 5.0 deterministic advisory layer.
-for(const needle of ["window.PlanlyIntelligence","strategy:'deterministic-v1'","task._planlyOwnedByMe===false","No open timed gap is long enough","recommendDayPlan"])if(!s.intelligence.includes(needle))fail('Intelligence 5.0 invariant missing: '+needle);
-for(const needle of ['function buildDayPlanRecommendations','function applyDayPlanIntelligence','data-plan-intelligence','dayPlanRecommendations=buildDayPlanRecommendations()','nowMinutes:new Date().getHours()*60+new Date().getMinutes()'])if(!s.app.includes(needle))fail('Intelligent Plan My Day integration missing: '+needle);
-if(/\bfetch\s*\(/.test(s.intelligence)||/\.from\s*\(/.test(s.intelligence))fail('Intelligence engine must remain deterministic and data-source agnostic');
-if(/service_role|sb_secret_/i.test(s.intelligence))fail('Privileged credential marker in Intelligence runtime');
-if(!read('v2/index.html').includes('id="planlyIntelligenceV5"'))fail('Intelligence Plan My Day styling missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=500b01'"))fail('Intelligence app runtime boot marker mismatch');
+// Planly Intelligence I1 release invariants.
+for(const needle of ["window.PlanlyIntelligence","function analyse(input={})","visibility!=='household'","isWorkDay=busyMinutes>=360","projects:[],household:"])if(!s.intelligence.includes(needle))fail('Intelligence I1 engine invariant missing: '+needle);
+if(/Date\\s*\\.|new\\s+Date|Date\\.now|Math\\.random|fetch\\s*\\(|\\.from\\s*\\(|document\\.|localStorage/.test(s.intelligence))fail('Intelligence engine purity regression');
+for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
-for(const needle of ['font-size:9px','font-size:10px']){const style=read('v2/index.html').match(/<style id="planlyIntelligenceV5">[\s\S]*?<\/style>/)?.[0]||'';if(style.includes(needle))fail('Intelligence UI text below 11px returned: '+needle)}
+if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=500c01'"))fail('Intelligence app runtime boot marker mismatch');
+const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=500i101')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
