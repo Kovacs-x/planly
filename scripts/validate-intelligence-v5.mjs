@@ -34,4 +34,10 @@ if(first.summary.freeMinutes<=0)throw new Error('Available-time calculation fail
 const assigned=api.recommendDayPlan({...base,tasks:[{id:'mine',title:'Assigned to me',date:'2026-09-30',priority:'normal',durationMinutes:30,visibility:'household',assigneeId:'me',completed:false}]});
 if(!assigned.top3[0]?.reasons.includes('Assigned to you'))throw new Error('Household assignment reason missing');
 
+const nonOwned=api.recommendDayPlan({...base,tasks:[{id:'shared-other-owner',title:'Assigned but not owned',date:'2026-09-30',priority:'high',durationMinutes:30,visibility:'household',assigneeId:'me',_planlyOwnedByMe:false,completed:false}]});
+if(nonOwned.ranked.length)throw new Error('Intelligence must not recommend mutations for household tasks owned by another member');
+
+const late=api.recommendDayPlan({...base,nowMinutes:15*60,tasks:[{id:'late',title:'Late-day task',date:'2026-09-30',priority:'high',durationMinutes:30,completed:false}],externalBusy:[]});
+if(late.proposals.some(x=>x.time&&Number(x.time.slice(0,2))*60+Number(x.time.slice(3))<15*60))throw new Error('Intelligence suggested a time earlier than explicit nowMinutes');
+
 console.log('Planly Intelligence 5.0 deterministic planning checks passed.');
