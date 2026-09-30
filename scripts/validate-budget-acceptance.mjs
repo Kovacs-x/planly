@@ -25,7 +25,6 @@ if(JSON.stringify(h1Delays)!==JSON.stringify([2000,4000,8000,16000,32000,60000])
 const h1Terminal=[{code:'42501'},{status:403},{code:'23514'}];
 if(!h1Terminal.every(e=>e.code==='42501'||e.status===403||String(e.code||'').startsWith('23')))fail('Budget terminal denial classification probe failed');
 if(budgetCore.includes('attempts>=RETRY_MAX_ATTEMPTS'))fail('Transient Budget failures must not become terminal by attempt count');
-const budgetUi=read('v2/core-budget-ui-v4.0b.js');
 for(const marker of ['data-budget-failed-panel','data-budget-retry-failed','data-budget-discard-failed','planly-budget-sync-failed'])if(!budgetUi.includes(marker))fail('Budget failed-write UI marker missing: '+marker);
 for(const marker of ["b.id='planlyListsBtn'",'data-lists-create','querySelector(\'input[name="item"]\')'])if(!lists.includes(marker))fail(`Shared Lists entry point missing: ${marker}`);
 if(lists.includes('elements.item'))fail('Shared Lists item collision returned');
