@@ -152,7 +152,8 @@ await import('./validate-intelligence-v5.mjs');
 if(/__planly33cBaseRenderPlanDay[\s\S]{0,300}innerHTML/.test(s.calendar))fail('Household calendar wrapper must not replace composed Plan My Day UI');
 
 if(s.app.includes('state.tasks=dayPlanDraft'))fail('Plan My Day must not replace live tasks with stale draft');
-for(const needle of ['dayPlanStartSnapshot','window.PlanlyCompleteHouseholdTask','Left from today','Not done yet today','data-plan-time="','protected rest until'])if(!s.app.includes(needle))fail('Review #92 app invariant missing: '+needle);
+for(const needle of ['dayPlanStartSnapshot','window.PlanlyCompleteHouseholdTask','Left from today','data-plan-time="','protected rest until'])if(!s.app.includes(needle))fail('Review #92 app invariant missing: '+needle);
 if(/data-plan-time=[^>]+ checked/.test(s.app))fail('Suggested times must be opt-in');
+if(!s.intelligence.includes('Not done yet today'))fail('Left-today engine reason missing');
 if(!s.assignment.includes('window.PlanlyCompleteHouseholdTask=planlyCompleteHouseholdTaskDirect'))fail('Direct B2 household completion API missing');
 for(const file of manifest.modules.map(x=>x.replace(/^\.\//,'').replace(/\?.*$/,'')).filter(Boolean)){const src=read('v2/'+file);if(src.includes('.map(taskHtml)'))fail('Composed module callback-index leakage: '+file)}
