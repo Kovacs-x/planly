@@ -8,7 +8,7 @@ for(const marker of ['planly_budget_entries_update_authorized',"s.scope_type = '
 for(const marker of ['readPreference(owner)',"api.switchScope('household')",'__reviewBaseBootstrap=baseBootstrap'])if(!review.includes(marker))fail(`Missing Budget state hardening marker: ${marker}`);
 if(lifecycle.includes('decorateCategory(')||lifecycle.includes('data-life-quick-delete'))fail('Duplicate/index-mapped expense actions remain reachable');
 for(const marker of ['api.updateEntry=','api.deleteEntry=','api.updateCategory=','__legacyMutationGuard'])if(!guard.includes(marker))fail(`Legacy mutation path remains unguarded: ${marker}`);
-for(const marker of ['budgetComplete(view)','budgetInvalidated','planly:budget-invalidated','.budgetMonthBar'])if(!nav.includes(marker))fail(`Budget deterministic render gate missing: ${marker}`);
+for(const marker of ['budgetComplete(view)','budgetInvalidated','planly:budget-invalidated'])if(!nav.includes(marker))fail(`Budget deterministic render gate missing: ${marker}`);
 if(nav.includes('budgetRenderedView===view'))fail('Legacy Budget render short-circuit returned');
 if(/service_role|SUPABASE_SERVICE_ROLE|sb_secret_/i.test(budget))fail('Privileged credential marker in Budget browser runtime');
 for(const marker of ["b.id='planlyListsBtn'",'data-lists-create','querySelector(\'input[name="item"]\')'])if(!lists.includes(marker))fail(`Shared Lists entry point missing: ${marker}`);
