@@ -181,13 +181,8 @@ planlySignIn=async function(){
   render();
 };
 
-document.addEventListener('click',async e=>{
-  const check=e.target.closest('.check[data-household-completion="true"]');if(!check)return;
-  const card=check.closest('.task[data-id][data-owner]');if(!card)return;
-  const ownerId=String(card.dataset.owner||''),clientId=String(card.dataset.id||'');
-  const t=state.tasks.find(x=>String(x.id)===clientId&&String(x._planlyOwnerId||'')===ownerId);
-  if(!planlyHouseholdCompletionEligible(t))return;
-  e.preventDefault();e.stopImmediatePropagation();
+async function planlyCompleteHouseholdTaskDirect(t){
+  if(!planlyHouseholdCompletionEligible(t))return false;
   const before={completed:!!t.completed,completedBy:t.completedBy||null,completedAt:t.completedAt||null};
   const next=!before.completed,nextDate=next?planlyHouseholdNextDate(t):null;
   t.completed=next;t.completedBy=next?String(planlySession.user.id):null;t.completedAt=next?new Date().toISOString():null;t.updatedAt=Date.now();
@@ -199,4 +194,16 @@ document.addEventListener('click',async e=>{
     stagePlanlyHouseholdCompletion(t,next,nextDate);
     queuePlanlyPendingReplay(next?'Household task completed':'Household task reopened');
   });
+  return true;
+}
+window.PlanlyCompleteHouseholdTask=planlyCompleteHouseholdTaskDirect;
+
+document.addEventListener('click',async e=>{
+  const check=e.target.closest('.check[data-household-completion="true"]');if(!check)return;
+  const card=check.closest('.task[data-id][data-owner]');if(!card)return;
+  const ownerId=String(card.dataset.owner||''),clientId=String(card.dataset.id||'');
+  const t=state.tasks.find(x=>String(x.id)===clientId&&String(x._planlyOwnerId||'')===ownerId);
+  if(!planlyHouseholdCompletionEligible(t))return;
+  e.preventDefault();e.stopImmediatePropagation();
+  await planlyCompleteHouseholdTaskDirect(t);
 },true);

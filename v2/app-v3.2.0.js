@@ -30,11 +30,11 @@ const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
 let projectPanelMode='list',activeProjectId='',editingProjectId='';
-let dayPlanDraft=null,dayPlanStep=0,dayPlanGroups={overdue:[],inbox:[],today:[]};
+let dayPlanDraft=null,dayPlanStartSnapshot=null,dayPlanStep=0,dayPlanGroups={overdue:[],inbox:[],today:[]},dayPlanRecommendations=null,dayPlanIntelligenceApplied=false,dayPlanDate=localKey(new Date());
 let timelineDate=localKey(new Date()),timelineDrag=null;
 let focusTaskId='',focusElapsedMs=0,focusStartedAt=0,focusTicker=null;
 let taskActionId='';
-let state={tasks:[],projects:[],tab:'today',theme:'system',showCompleted:true,taskRowDensity:'compact',defaultCategory:'Personal',defaultDuration:30,autoCalendarTimed:false,autoCompleteParentSubtasks:false,planningStart:'08:00',planningEnd:'23:00',selectedDate:localKey(new Date()),weekAnchor:localKey(new Date()),monthAnchor:localKey(new Date())};
+let state={tasks:[],projects:[],tab:'today',theme:'system',showCompleted:true,taskRowDensity:'compact',defaultCategory:'Personal',defaultDuration:30,autoCalendarTimed:false,autoCompleteParentSubtasks:false,intelligenceSuggestions:true,intelligenceNightRest:true,intelligenceNightRestHours:8,planningStart:'08:00',planningEnd:'23:00',selectedDate:localKey(new Date()),weekAnchor:localKey(new Date()),monthAnchor:localKey(new Date())};
 const completedOpen={};
 const expandedTaskChecklists=new Set();
 function localKey(d){const x=new Date(d);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`}
@@ -44,8 +44,8 @@ function thisWeekendKey(baseKey=localKey(new Date())){const d=parseKey(baseKey),
 function fmt(s,o={weekday:'short',day:'numeric',month:'short'}){return new Intl.DateTimeFormat(undefined,o).format(parseKey(s))}
 function uid(){return `${Date.now()}-${Math.random().toString(16).slice(2)}`}
 function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function persistPlanlyDeviceSettings(){localStorage.setItem(PLANLY_DEVICE_SETTINGS_KEY,JSON.stringify({version:1,theme:state.theme,showCompleted:!!state.showCompleted,taskRowDensity:state.taskRowDensity==='comfortable'?'comfortable':'compact',autoCalendarTimed:!!state.autoCalendarTimed}))}
-function restorePlanlyDeviceSettings(){try{const d=JSON.parse(localStorage.getItem(PLANLY_DEVICE_SETTINGS_KEY)||'null');if(!d||Number(d.version)!==1)return false;state.theme=d.theme||state.theme||'system';state.showCompleted=d.showCompleted!==false;state.taskRowDensity=d.taskRowDensity==='comfortable'?'comfortable':'compact';state.autoCalendarTimed=!!d.autoCalendarTimed;return true}catch{return false}}
+function persistPlanlyDeviceSettings(){localStorage.setItem(PLANLY_DEVICE_SETTINGS_KEY,JSON.stringify({version:1,theme:state.theme,showCompleted:!!state.showCompleted,taskRowDensity:state.taskRowDensity==='comfortable'?'comfortable':'compact',autoCalendarTimed:!!state.autoCalendarTimed,intelligenceSuggestions:state.intelligenceSuggestions!==false,intelligenceNightRest:state.intelligenceNightRest!==false,intelligenceNightRestHours:Number(state.intelligenceNightRestHours||8)}))}
+function restorePlanlyDeviceSettings(){try{const d=JSON.parse(localStorage.getItem(PLANLY_DEVICE_SETTINGS_KEY)||'null');if(!d||Number(d.version)!==1)return false;state.theme=d.theme||state.theme||'system';state.showCompleted=d.showCompleted!==false;state.taskRowDensity=d.taskRowDensity==='comfortable'?'comfortable':'compact';state.autoCalendarTimed=!!d.autoCalendarTimed;state.intelligenceSuggestions=d.intelligenceSuggestions!==false;state.intelligenceNightRest=d.intelligenceNightRest!==false;state.intelligenceNightRestHours=Math.max(4,Math.min(12,Number(d.intelligenceNightRestHours||8)));return true}catch{return false}}
 function save(){if(PLANLY_CLOUD_PREVIEW&&(planlySession?.user||planlyLastAccountId())){persistPlanlyDeviceSettings();persistPlanlyCloudCache();return}localStorage.setItem(STORE,JSON.stringify({tasks:state.tasks,projects:state.projects,theme:state.theme,showCompleted:state.showCompleted,defaultCategory:state.defaultCategory,defaultDuration:state.defaultDuration,autoCalendarTimed:state.autoCalendarTimed,autoCompleteParentSubtasks:state.autoCompleteParentSubtasks,planningStart:state.planningStart,planningEnd:state.planningEnd}))}
 function load(){try{const d=JSON.parse(localStorage.getItem(STORE)||'{}');state.tasks=Array.isArray(d.tasks)?d.tasks:[];state.projects=Array.isArray(d.projects)?d.projects:[];state.theme=d.theme||'system';state.showCompleted=d.showCompleted!==false;state.defaultCategory=d.defaultCategory||'Personal';state.defaultDuration=Number(d.defaultDuration||30);state.autoCalendarTimed=!!d.autoCalendarTimed;state.autoCompleteParentSubtasks=!!d.autoCompleteParentSubtasks;state.planningStart=d.planningStart||'08:00';state.planningEnd=d.planningEnd||'23:00';if(PLANLY_CLOUD_PREVIEW&&!restorePlanlyDeviceSettings())persistPlanlyDeviceSettings();if(timeToMinutes(state.planningEnd)<=timeToMinutes(state.planningStart)){state.planningStart='08:00';state.planningEnd='23:00'}const recurrenceChanged=migrateRecurringCalendarState();if(recurrenceChanged&&!PLANLY_CLOUD_PREVIEW)save()}catch{}}
 function applyTheme(){let t=state.theme;if(t==='system')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}
@@ -68,7 +68,7 @@ function reminderLabel(value){
 
 
 function timeToMinutes(value){
-  const m=String(value||'').match(/^(\d{1,2}):(\d{2})$/);
+  const m=String(value||'').match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if(!m)return 0;
   return Math.max(0,Math.min(1439,Number(m[1])*60+Number(m[2])));
 }
@@ -291,7 +291,7 @@ function renderProjectsPanel(){
   const stats=projectStats(p.id);
   const due=p.dueDate?`<span class="projectDetailDue ${!p.archived&&p.dueDate<localKey(new Date())?'overdueProject':''}">Due ${esc(fmt(p.dueDate,{weekday:'short',day:'numeric',month:'short'}))}</span>`:'';
   const notes=p.notes?`<div class="projectNotes">${esc(p.notes).replace(/\n/g,'<br>')}</div>`:'';
-  content.innerHTML=`<div class="projectHero"><div class="projectHeroTop"><div><strong>${stats.done} of ${stats.total} complete</strong><span class="muted">${stats.pct}%</span></div>${due}</div><div class="bar"><span style="width:${stats.pct}%"></span></div>${notes}<div class="projectHeroActions">${p.archived?'':`<button type="button" class="primary" data-project-action="add-task">+ Add task</button>`}<button type="button" class="secondaryBtn" data-project-action="edit">Edit project</button></div></div><section class="section projectTasksSection"><div class="sectionHead"><h2>Active tasks</h2><span class="muted">${stats.active.length}</span></div><div class="projectTaskList">${stats.active.length?sortTasks(stats.active).map(taskHtml).join(''):'<div class="empty compactEmpty">No active tasks in this project.</div>'}</div></section>${stats.completed.length?`<section class="section projectTasksSection"><div class="sectionHead"><h2>Completed</h2><span class="muted">${stats.completed.length}</span></div><div class="projectTaskList">${sortTasks(stats.completed).map(taskHtml).join('')}</div></section>`:''}`;
+  content.innerHTML=`<div class="projectHero"><div class="projectHeroTop"><div><strong>${stats.done} of ${stats.total} complete</strong><span class="muted">${stats.pct}%</span></div>${due}</div><div class="bar"><span style="width:${stats.pct}%"></span></div>${notes}<div class="projectHeroActions">${p.archived?'':`<button type="button" class="primary" data-project-action="add-task">+ Add task</button>`}<button type="button" class="secondaryBtn" data-project-action="edit">Edit project</button></div></div><section class="section projectTasksSection"><div class="sectionHead"><h2>Active tasks</h2><span class="muted">${stats.active.length}</span></div><div class="projectTaskList">${stats.active.length?sortTasks(stats.active).map(t=>taskHtml(t)).join(''):'<div class="empty compactEmpty">No active tasks in this project.</div>'}</div></section>${stats.completed.length?`<section class="section projectTasksSection"><div class="sectionHead"><h2>Completed</h2><span class="muted">${stats.completed.length}</span></div><div class="projectTaskList">${sortTasks(stats.completed).map(t=>taskHtml(t)).join('')}</div></section>`:''}`;
 }
 function openProjects(projectId=''){
   if($('#taskActionWrap')?.classList.contains('open'))closeTaskActions();
@@ -399,7 +399,7 @@ function visibleTasks(arr){return state.showCompleted?arr:arr.filter(t=>!t.compl
 function completedSection(tasks,key){
   if(!state.showCompleted||!tasks.length)return '';
   const open=!!completedOpen[key];
-  return `<section class="section completedSection"><button class="completedToggle" data-completed-key="${esc(key)}" aria-expanded="${open}"><span>Completed</span><span class="muted">${tasks.length} ${open?'⌃':'⌄'}</span></button>${open?`<div class="completedList">${sortTasks(tasks).map(taskHtml).join('')}</div>`:''}</section>`
+  return `<section class="section completedSection"><button class="completedToggle" data-completed-key="${esc(key)}" aria-expanded="${open}"><span>Completed</span><span class="muted">${tasks.length} ${open?'⌃':'⌄'}</span></button>${open?`<div class="completedList">${sortTasks(tasks).map(t=>taskHtml(t)).join('')}</div>`:''}</section>`
 }
 function isOverdue(t){return !!t.date && !t.completed && t.date<localKey(new Date())}
 function priorityRank(p){return p==='high'?0:p==='normal'?1:2}
@@ -892,7 +892,7 @@ function disconnectGoogle(){
 
 
 function dayPlanTask(id){return dayPlanDraft?.find(t=>t.id===id)||null}
-function dayPlanOriginalTask(id){return state.tasks.find(t=>t.id===id)||null}
+function dayPlanOriginalTask(id){return dayPlanStartSnapshot?.find(t=>String(t.id)===String(id))||state.tasks.find(t=>String(t.id)===String(id))||null}
 function planDayDateLabel(t){
   const today=localKey(new Date()),tomorrow=addDays(today,1),weekend=thisWeekendKey(today);
   if(!t.date)return 'Inbox';
@@ -902,114 +902,65 @@ function planDayDateLabel(t){
   if(t.date<today)return 'Still overdue · '+fmt(t.date,{day:'numeric',month:'short'});
   return fmt(t.date,{weekday:'short',day:'numeric',month:'short'});
 }
+function buildDayPlanRecommendations(){
+  try{
+    const engine=window.PlanlyIntelligence;if(state.intelligenceSuggestions===false||!engine?.analyse||!dayPlanDraft)return null;
+    const target=dayPlanDate||localKey(new Date()),isToday=target===localKey(new Date()),now=new Date(),nowMinutes=isToday?now.getHours()*60+now.getMinutes():timeToMinutes(state.planningStart);
+    return engine.analyse({today:target,realToday:localKey(new Date()),nowMinutes,planningStart:String(state.planningStart||'08:00').slice(0,5),planningEnd:String(state.planningEnd||'23:00').slice(0,5),currentUserId:String(planlySession?.user?.id||''),defaultDuration:state.defaultDuration,tasks:dayPlanDraft,projects:state.projects,busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end})),members:(window.PlanlyHouseholdContext?.get?.()?.members||[]).map(m=>({id:String(m.id||m.user_id||'')})),prefs:{suggestions:true,nightRest:state.intelligenceNightRest!==false,nightRestHours:Number(state.intelligenceNightRestHours||8)},learning:{}});
+  }catch(err){console.warn('Planly Intelligence analysis failed',err);return null}
+}
+function planDayDateChooserHtml(){
+  const now=new Date(),end=timeToMinutes(state.planningEnd),mins=now.getHours()*60+now.getMinutes();if(mins<end-180)return '';
+  const today=localKey(now),tomorrow=addDays(today,1);return '<div class="planDayDateChoice" role="group" aria-label="Planning day"><button type="button" data-plan-day-target="'+today+'" class="'+(dayPlanDate===today?'selected':'')+'">Plan today</button><button type="button" data-plan-day-target="'+tomorrow+'" class="'+(dayPlanDate===tomorrow?'selected':'')+'">Plan tomorrow</button></div>';
+}
+function intelligenceReasonHtml(reasons,id=''){const list=(reasons||[]).slice(0,2);return list.length?'<span class="planSuggestionReasons">'+list.map(r=>'<span class="planSuggestionReason">'+esc(r)+'</span>').join('')+(id?'<button type="button" class="planWhy" data-plan-why="'+esc(id)+'">Why?</button>':'')+'</span>':''}
 function plannerTaskRow(t,source){
-  const project=projectNameForTask(t);
-  const original=dayPlanOriginalTask(t.id);
-  const keepLabel=source==='overdue'?'Keep overdue':source==='inbox'?'Leave in Inbox':'Keep today';
-  return `<div class="planDayTask" data-plan-id="${esc(t.id)}"><div class="planDayTaskMain"><strong>${esc(t.title)}</strong><span>${t.time?esc(t.time)+' · ':''}${esc(t.category)}${project?' · '+esc(project):''}</span></div><div class="planDayChoiceRow"><button type="button" data-plan-move="original" data-plan-id="${esc(t.id)}">${keepLabel}</button><button type="button" data-plan-move="today" data-plan-id="${esc(t.id)}">Today</button><button type="button" data-plan-move="tomorrow" data-plan-id="${esc(t.id)}">Tomorrow</button><button type="button" data-plan-move="weekend" data-plan-id="${esc(t.id)}">This weekend</button></div><label class="planDayPickDate"><span>Pick date</span><input type="date" class="input" data-plan-date="${esc(t.id)}" value="${esc(t.date||'')}"></label><div class="planDayStatus">Planned: <strong>${esc(planDayDateLabel(t))}</strong>${original?.date!==t.date?' · changed':''}</div></div>`;
+  const project=projectNameForTask(t),original=dayPlanOriginalTask(t.id),realToday=localKey(new Date()),isLeft=dayPlanDate!==realToday&&t.date===realToday,keepLabel=isLeft?'Keep today':source==='overdue'?'Keep overdue':source==='inbox'?'Leave in Inbox':'Keep '+(dayPlanDate===realToday?'today':'planned'),sug=[...(dayPlanRecommendations?.leftToday||[]),...(dayPlanRecommendations?.overdue||[])].find(x=>String(x.id)===String(t.id)),suggest=sug?.suggest==='nextWeek'?'weekend':sug?.suggest,nextLabel=dayPlanDate===realToday?'Tomorrow':fmt(addDays(dayPlanDate,1),{weekday:'short',day:'numeric',month:'short'});
+  return '<div class="planDayTask" data-plan-id="'+esc(t.id)+'"><div class="planDayTaskMain"><strong>'+esc(t.title)+'</strong><span>'+(t.time?esc(t.time)+' · ':'')+esc(t.category)+(project?' · '+esc(project):'')+'</span></div><div class="planDayChoiceRow"><button type="button" data-plan-move="original" data-plan-id="'+esc(t.id)+'">'+keepLabel+'</button><button type="button" data-plan-move="today" data-plan-id="'+esc(t.id)+'" class="'+(suggest==='today'?'suggested':'')+'">'+(dayPlanDate===realToday?'Today':'Tomorrow')+'</button><button type="button" data-plan-move="tomorrow" data-plan-id="'+esc(t.id)+'" class="'+(suggest==='tomorrow'?'suggested':'')+'">'+esc(nextLabel)+'</button><button type="button" data-plan-move="weekend" data-plan-id="'+esc(t.id)+'" class="'+(suggest==='weekend'?'suggested':'')+'">This weekend</button></div>'+(sug?'<div class="planSuggestionLine"><svg class="pIcon" aria-hidden="true"><use href="#pi-spark"/></svg>'+intelligenceReasonHtml(sug.reasons,t.id)+'</div>':'')+'<label class="planDayPickDate"><span>Pick date</span><input type="date" class="input" data-plan-date="'+esc(t.id)+'" value="'+esc(t.date||'')+'"></label><div class="planDayStatus">Planned: <strong>'+esc(planDayDateLabel(t))+'</strong>'+(original?.date!==t.date?' · changed':'')+'</div></div>';
 }
 function planTop3Card(t){
-  const project=projectNameForTask(t),selected=!!t.pinned;
-  return `<button type="button" class="planTop3Card ${selected?'selected':''}" data-plan-top3="${esc(t.id)}" aria-pressed="${selected?'true':'false'}"><span class="planTop3Star">${selected?'★':'☆'}</span><span class="planTop3Text"><strong>${esc(t.title)}</strong><small>${t.time?esc(t.time)+' · ':''}${esc(t.category)}${project?' · '+esc(project):''}</small></span></button>`;
+  const project=projectNameForTask(t),selected=!!t.pinned,sug=(dayPlanRecommendations?.top3||[]).find(x=>String(x.id)===String(t.id)),household=t.visibility==='household';
+  return '<button type="button" class="planTop3Card '+(selected?'selected ':'')+(household?'readOnly':'')+'" data-plan-top3="'+esc(t.id)+'" aria-pressed="'+(selected?'true':'false')+'" '+(household?'disabled':'')+'><span class="planTop3Star"><svg class="pIcon" aria-hidden="true"><use href="#'+'pi-star'+'"/></svg></span><span class="planTop3Text"><strong>'+esc(t.title)+(sug?' <span class="planSuggestedTag"><svg class="pIcon" aria-hidden="true"><use href="#pi-spark"/></svg>Suggested</span>':'')+'</strong><small>'+(t.time?esc(t.time)+' · ':'')+esc(t.category)+(project?' · '+esc(project):'')+'</small>'+(sug?intelligenceReasonHtml(sug.reasons,t.id):'')+'</span></button>';
+}
+function planDayCapacityHtml(){
+ const d=dayPlanRecommendations?.day;if(!d)return '';const label=d.status==='over'?'Over by '+durationLabel(d.overBy):d.status==='tight'?'Tight':d.status==='empty'?'Empty':'Fits',move=d.move&&dayPlanTask(d.move.id);
+ return '<div class="planCapacityStrip '+(d.status==='over'?'warning':'')+'"><div><strong>'+durationLabel(d.plannedMinutes)+' planned · '+durationLabel(d.freeMinutes)+' free · '+label+'</strong>'+(d.isWorkDay?'<span class="planWorkDay">Work day</span>':'')+'</div>'+(d.overnightRest?'<small>After your night shift'+(d.restUntil?' · protected rest until '+esc(d.restUntil):'')+'</small>':'')+(move?'<small>Suggested: move <strong>'+esc(move.title)+'</strong> to another day.</small>':'')+'</div>';
+}
+function planDayChoreAssigneeLabel(t){const id=String(t.assigneeId||t.assignee_id||'');if(!id)return 'Anyone';const uid=String(planlySession?.user?.id||'');if(id===uid)return 'You';const members=window.PlanlyHouseholdContext?.get?.()?.members||[];const m=members.find(x=>String(x.user_id||x.id||'')===id);return String(m?.display_name||m?.displayName||'Household member')}
+function planDayChoresHtml(){
+ const ids=new Set((dayPlanRecommendations?.chores||[]).map(x=>String(x.id))),rows=dayPlanDraft.filter(t=>ids.has(String(t.id)));if(!rows.length)return '';
+ return '<section class="planChores"><h3>Chores today</h3><div class="planChoreList">'+rows.map(t=>'<div><button type="button" class="checkBtn" aria-label="Complete '+esc(t.title)+'" data-plan-chore="'+esc(t.id)+'"><svg class="pIcon" aria-hidden="true"><use href="#pi-check"/></svg></button><span><strong>'+esc(t.title)+'</strong><small>'+esc(planDayChoreAssigneeLabel(t))+'</small></span></div>').join('')+'</div></section>';
 }
 function planDaySummaryHtml(){
-  const today=localKey(new Date());
-  const active=dayPlanDraft.filter(t=>!t.completed&&t.date===today);
-  const pins=sortTop3(active.filter(t=>t.pinned)).slice(0,3);
-  const timed=active.filter(t=>t.time);
-  const anytime=active.filter(t=>!t.time);
-  const minutes=timed.reduce((sum,t)=>sum+Number(t.durationMinutes||state.defaultDuration||30),0);
-  const topList=pins.length?`<div class="planSummaryList">${pins.map((t,i)=>`<div><span>${i+1}</span><strong>${esc(t.title)}</strong></div>`).join('')}</div>`:'<div class="muted planSummaryEmpty">No Top 3 selected.</div>';
-  return `<div class="planSummaryHero"><strong>Your day is ready to review</strong><span>Nothing changes in Planly until you tap Start my day.</span></div><div class="planSummaryGrid"><div><strong>${pins.length}/3</strong><span>Top priorities</span></div><div><strong>${timed.length}</strong><span>Timed tasks</span></div><div><strong>${anytime.length}</strong><span>Anytime tasks</span></div><div><strong>${minutes?durationLabel(minutes):'0m'}</strong><span>Timed workload</span></div></div><section class="planSummarySection"><h3>Top 3</h3>${topList}</section><section class="planSummarySection"><h3>Timeline</h3>${planTimelinePreviewHtml(active)}</section><section class="planSummarySection"><h3>Today</h3><div class="planSummaryTasks">${active.length?sortTasks(active).map(t=>`<div><strong>${esc(t.title)}</strong><span>${t.time?esc(t.time)+' · '+durationLabel(t.durationMinutes):'Anytime'}${projectNameForTask(t)?' · '+esc(projectNameForTask(t)):''}</span></div>`).join(''):'<div class="muted">Nothing scheduled for today.</div>'}</div></section>`;
+  const target=dayPlanDate,active=dayPlanDraft.filter(t=>!t.completed&&t.date===target),pins=sortTop3(active.filter(t=>t.pinned&&t.visibility!=='household')).slice(0,3),timed=active.filter(t=>t.time),anytime=active.filter(t=>!t.time),minutes=timed.reduce((s,t)=>s+Number(t.durationMinutes||state.defaultDuration||30),0),suggested=(dayPlanRecommendations?.times||[]).filter(x=>x.time);
+  const noSuggestions=!(dayPlanRecommendations?.top3?.length||dayPlanRecommendations?.overdue?.length||dayPlanRecommendations?.times?.some(x=>x.time));const topList=pins.length?'<div class="planSummaryList">'+pins.map((t,i)=>'<div><span>'+(i+1)+'</span><strong>'+esc(t.title)+'</strong></div>').join('')+'</div>':'<div class="muted planSummaryEmpty">No Top 3 selected.</div>';
+  const times=suggested.length?'<section class="planSummarySection"><h3>Suggested times</h3><div class="planSuggestedTimes">'+suggested.map(x=>{const t=dayPlanTask(x.id);return t?'<label><input type="checkbox" data-plan-time="'+esc(x.id)+'" data-time="'+esc(x.time)+'"><span><strong>'+esc(t.title)+'</strong><small>'+esc(x.time)+' · '+esc((x.reasons||[])[0]||'Fits your day')+'</small></span></label>':''}).join('')+'</div></section>':'';
+  return (noSuggestions?'<div class="planNoSuggestions"><strong>No suggestions today</strong><span>Your plan already looks realistic. You can still adjust it manually.</span></div>':'')+'<div class="planSummaryHero"><strong>Your day is ready to review</strong><span>Nothing changes in Planly until you tap Start my day.</span></div><div class="planSummaryGrid"><div><strong>'+pins.length+'/3</strong><span>Top priorities</span></div><div><strong>'+timed.length+'</strong><span>Timed tasks</span></div><div><strong>'+anytime.length+'</strong><span>Anytime tasks</span></div><div><strong>'+(minutes?durationLabel(minutes):'0m')+'</strong><span>Timed workload</span></div></div><section class="planSummarySection"><h3>Top 3</h3>'+topList+'</section>'+times+'<section class="planSummarySection"><h3>Timeline</h3>'+planTimelinePreviewHtml(active)+'</section>';
 }
+function applySuggestedOverdue(){for(const x of [...(dayPlanRecommendations?.leftToday||[]),...(dayPlanRecommendations?.overdue||[])]){const target=x.suggest==='today'?dayPlanDate:x.suggest==='tomorrow'?addDays(dayPlanDate,1):x.suggest==='nextWeek'?addDays(dayPlanDate,7):x.suggest==='inbox'?'':null;if(target!==null)moveDayPlanTask(x.id,target)}}
+function applySuggestedTop3(){
+ const ids=(dayPlanRecommendations?.top3||[]).map(x=>String(x.id)),target=dayPlanDate;for(const t of dayPlanDraft){if(t.date===target&&t.visibility!=='household'&&ownedByMe(t)){t.pinned=false;delete t.top3Order}}
+ ids.forEach((id,i)=>{const t=dayPlanTask(id);if(t&&t.date===target&&t.visibility!=='household'&&ownedByMe(t)){t.pinned=true;t.top3Order=i;t.updatedAt=Date.now()}});dayPlanIntelligenceApplied=true;renderPlanDay();
+}
+function ownedByMe(t){return t?._planlyOwnedByMe!==false}
 function renderPlanDay(){
-  if(!dayPlanDraft)return;
-  const titles=['Overdue','Inbox','Today','Choose your Top 3','Summary'];
-  $('#planDayEyebrow').textContent=`Step ${dayPlanStep+1} of 5`;
-  $('#planDayTitle').textContent=titles[dayPlanStep];
-  $('#planDayPrev').disabled=dayPlanStep===0;
-  $('#planDayNext').textContent=dayPlanStep===4?'Start my day':'Next';
-  const content=$('#planDayContent');
-  if(dayPlanStep<=2){
-    const key=['overdue','inbox','today'][dayPlanStep];
-    const ids=dayPlanGroups[key]||[];
-    const tasks=ids.map(dayPlanTask).filter(Boolean);
-    const intro=key==='overdue'?'Decide what to do with tasks that are already past due.':key==='inbox'?'Give undated Inbox tasks a home, or leave them there for later.':'Keep today realistic by moving anything you are not doing today.';
-    content.innerHTML=`<div class="planDayIntro">${intro}</div><div class="planDayTaskList">${tasks.length?tasks.map(t=>plannerTaskRow(t,key)).join(''):`<div class="empty compactEmpty">Nothing to review here.</div>`}</div>`;
-  }else if(dayPlanStep===3){
-    const today=localKey(new Date());
-    const candidates=dayPlanDraft.filter(t=>!t.completed&&t.date===today);
-    const selected=candidates.filter(t=>t.pinned).length;
-    content.innerHTML=`<div class="planDayIntro">Choose up to three tasks that matter most today. You can reorder them later from Today.</div><div class="planTop3Count">${selected}/3 selected</div><div class="planTop3List">${candidates.length?sortTasks(candidates).map(planTop3Card).join(''):'<div class="empty compactEmpty">You have no active tasks planned for today.</div>'}</div>`;
-  }else{
-    content.innerHTML=planDaySummaryHtml();
-  }
-  $('#planDayContent').scrollTop=0;
+  if(!dayPlanDraft)return;const titles=[dayPlanDate===localKey(new Date())?'Overdue':'Left from today','Inbox',dayPlanDate===localKey(new Date())?'Today':'Tomorrow','Choose your Top 3','Summary'];
+  $('#planDayEyebrow').textContent='Step '+(dayPlanStep+1)+' of 5';$('#planDayTitle').textContent=titles[dayPlanStep];$('#planDayPrev').disabled=dayPlanStep===0;$('#planDayNext').textContent=dayPlanStep===4?'Start my day':'Next';const content=$('#planDayContent'),chooser=planDayDateChooserHtml();
+  if(dayPlanStep<=2){const key=['overdue','inbox','today'][dayPlanStep],ids=dayPlanGroups[key]||[],tasks=ids.map(dayPlanTask).filter(Boolean),intro=key==='overdue'?(dayPlanDate===localKey(new Date())?'Decide what to do with tasks that are already past due.':'Finish today cleanly: move unfinished tasks forward without calling them overdue.'):key==='inbox'?'Give undated Inbox tasks a home, or leave them there for later.':'Keep this day realistic by moving anything you are not doing.';
+    content.innerHTML=chooser+'<div class="planDayIntro">'+intro+'</div>'+(key==='overdue'&&((dayPlanRecommendations?.overdue?.length||0)+(dayPlanRecommendations?.leftToday?.length||0))?'<button type="button" class="planAcceptSuggestions" data-plan-intelligence="overdue">Accept suggestions ('+((dayPlanRecommendations?.overdue?.length||0)+(dayPlanRecommendations?.leftToday?.length||0))+')</button>':'')+(key==='today'?planDayCapacityHtml():'')+'<div class="planDayTaskList">'+(tasks.length?tasks.map(t=>plannerTaskRow(t,key)).join(''):'<div class="empty compactEmpty">Nothing to review here.</div>')+'</div>';
+  }else if(dayPlanStep===3){const candidates=dayPlanDraft.filter(t=>!t.completed&&t.date===dayPlanDate&&t.visibility!=='household'),selected=candidates.filter(t=>t.pinned).length;content.innerHTML=chooser+'<div class="planDayIntro">Choose up to '+(dayPlanRecommendations?.day?.isWorkDay?'two':'three')+' personal tasks that matter most.</div>'+(dayPlanRecommendations?.top3?.length?'<button type="button" class="planAcceptSuggestions" data-plan-intelligence="top3">Use suggested Top 3</button>':'')+'<div class="planTop3Count">'+selected+'/'+(dayPlanRecommendations?.day?.isWorkDay?'2':'3')+' selected</div><div class="planTop3List">'+(candidates.length?sortTasks(candidates).map(t=>planTop3Card(t)).join(''):'<div class="empty compactEmpty">You have no personal tasks planned for this day.</div>')+'</div>'+planDayChoresHtml();
+  }else content.innerHTML=chooser+planDaySummaryHtml();content.scrollTop=0;
 }
 function openPlanDay(){
-  if($('#taskActionWrap')?.classList.contains('open'))closeTaskActions();
-  if($('#projectsWrap')?.classList.contains('open'))closeProjects();
-  closeOpenTaskSwipes();
-  dayPlanDraft=cloneTasks();
-  const today=localKey(new Date());
-  dayPlanGroups={
-    overdue:state.tasks.filter(t=>!t.completed&&t.date&&t.date<today).map(t=>t.id),
-    inbox:state.tasks.filter(t=>!t.completed&&!t.date).map(t=>t.id),
-    today:state.tasks.filter(t=>!t.completed&&t.date===today).map(t=>t.id)
-  };
-  dayPlanStep=0;
-  $('#planDayWrap').classList.add('open');
-  $('#planDayWrap').setAttribute('aria-hidden','false');
-  renderPlanDay();
+  if($('#taskActionWrap')?.classList.contains('open'))closeTaskActions();if($('#projectsWrap')?.classList.contains('open'))closeProjects();closeOpenTaskSwipes();dayPlanStartSnapshot=cloneTasks();dayPlanDraft=JSON.parse(JSON.stringify(dayPlanStartSnapshot));const now=new Date(),today=localKey(now),end=timeToMinutes(state.planningEnd),mins=now.getHours()*60+now.getMinutes();dayPlanDate=mins>=end-180?addDays(today,1):today;
+  dayPlanGroups={overdue:state.tasks.filter(t=>!t.completed&&t.date&&t.date<dayPlanDate).map(t=>t.id),inbox:state.tasks.filter(t=>!t.completed&&!t.date).map(t=>t.id),today:state.tasks.filter(t=>!t.completed&&t.date===dayPlanDate).map(t=>t.id)};dayPlanRecommendations=buildDayPlanRecommendations();dayPlanIntelligenceApplied=false;dayPlanStep=0;$('#planDayWrap').classList.add('open');$('#planDayWrap').setAttribute('aria-hidden','false');renderPlanDay();
 }
-function closePlanDay(){
-  $('#planDayWrap').classList.remove('open');
-  $('#planDayWrap').setAttribute('aria-hidden','true');
-  dayPlanDraft=null;dayPlanStep=0;dayPlanGroups={overdue:[],inbox:[],today:[]};
-}
-function moveDayPlanTask(id,target){
-  const t=dayPlanTask(id);if(!t)return;
-  const today=localKey(new Date());
-  let next=t.date;
-  if(target==='original')next=dayPlanOriginalTask(id)?.date||'';
-  else if(target==='today')next=today;
-  else if(target==='tomorrow')next=addDays(today,1);
-  else if(target==='weekend')next=thisWeekendKey(today);
-  else next=target||'';
-  if(next!==t.date&&t.addToCalendar)t.calendarSync='pending';
-  t.date=next;t.updatedAt=Date.now();
-  if(next!==today){t.pinned=false;delete t.top3Order}
-  renderPlanDay();
-}
-function toggleDayPlanTop3(id){
-  const t=dayPlanTask(id);if(!t||t.completed||t.date!==localKey(new Date()))return;
-  if(t.pinned){t.pinned=false;delete t.top3Order}
-  else{
-    const current=dayPlanDraft.filter(x=>!x.completed&&x.date===t.date&&x.pinned);
-    if(current.length>=3){showToast('Top 3 already has three tasks');return}
-    t.pinned=true;
-    const orders=current.map(x=>Number.isFinite(x.top3Order)?x.top3Order:-1);
-    t.top3Order=(orders.length?Math.max(...orders):-1)+1;
-  }
-  renderPlanDay();
-}
-function commitPlanDay(){
-  if(!dayPlanDraft)return;
-  const before=cloneTasks();state.tasks=dayPlanDraft;
-  normalizeTop3Orders(localKey(new Date()));
-  stageChangedTasksFromSnapshot(before);save();queuePlanlyPendingReplay('Day plan synced');closePlanDay();state.tab='today';state.selectedDate=localKey(new Date());render();showToast('Day plan saved');
-  if(googleConnected())syncPendingGoogle().then(()=>render()).catch(()=>{});
-}
-function handlePlanDayClick(e){
-  const move=e.target.closest('[data-plan-move]');
-  if(move){moveDayPlanTask(move.dataset.planId,move.dataset.planMove);return}
-  const top=e.target.closest('[data-plan-top3]');
-  if(top){toggleDayPlanTop3(top.dataset.planTop3);return}
-}
-function handlePlanDayChange(e){
-  const input=e.target.closest('[data-plan-date]');if(!input)return;
-  moveDayPlanTask(input.dataset.planDate,input.value||'');
-}
+function closePlanDay(){$('#planDayWrap').classList.remove('open');$('#planDayWrap').setAttribute('aria-hidden','true');dayPlanDraft=null;dayPlanStartSnapshot=null;dayPlanStep=0;dayPlanGroups={overdue:[],inbox:[],today:[]};dayPlanRecommendations=null;dayPlanIntelligenceApplied=false}
+function moveDayPlanTask(id,target){const t=dayPlanTask(id);if(!t)return;let next=t.date;if(target==='original')next=dayPlanOriginalTask(id)?.date||'';else if(target==='today')next=dayPlanDate;else if(target==='tomorrow')next=addDays(dayPlanDate,1);else if(target==='weekend')next=thisWeekendKey(dayPlanDate);else next=target||'';if(next!==t.date&&t.addToCalendar)t.calendarSync='pending';t.date=next;t.updatedAt=Date.now();if(next!==dayPlanDate){t.pinned=false;delete t.top3Order}dayPlanRecommendations=buildDayPlanRecommendations();dayPlanIntelligenceApplied=false;renderPlanDay()}
+function toggleDayPlanTop3(id){const t=dayPlanTask(id);if(!t||t.completed||t.date!==dayPlanDate||t.visibility==='household'||!ownedByMe(t))return;if(t.pinned){t.pinned=false;delete t.top3Order}else{const limit=dayPlanRecommendations?.day?.isWorkDay?2:3,current=dayPlanDraft.filter(x=>!x.completed&&x.date===dayPlanDate&&x.visibility!=='household'&&x.pinned);if(current.length>=limit){showToast('Top priorities already full');return}t.pinned=true;t.top3Order=(current.map(x=>Number.isFinite(x.top3Order)?x.top3Order:-1).reduce((a,b)=>Math.max(a,b),-1))+1}dayPlanIntelligenceApplied=false;renderPlanDay()}
+function commitPlanDay(){if(!dayPlanDraft||!dayPlanStartSnapshot)return;for(const input of $('#planDayContent [data-plan-time]')){if(input.checked){const t=dayPlanTask(input.dataset.planTime);if(t&&!t.time){t.time=input.dataset.time;t.updatedAt=Date.now();if(t.addToCalendar)t.calendarSync='pending'}}}const before=cloneTasks(),fields=['date','time','pinned','top3Order','calendarSync'];for(const draft of dayPlanDraft){const start=dayPlanStartSnapshot.find(x=>String(x.id)===String(draft.id)),live=state.tasks.find(x=>String(x.id)===String(draft.id));if(!start||!live)continue;for(const key of fields){const a=start[key]??null,b=draft[key]??null;if(JSON.stringify(a)!==JSON.stringify(b)){if(draft[key]===undefined)delete live[key];else live[key]=draft[key];live.updatedAt=Date.now()}}}normalizeTop3Orders(dayPlanDate);stageChangedTasksFromSnapshot(before);save();queuePlanlyPendingReplay('Day plan synced');closePlanDay();state.tab='today';state.selectedDate=localKey(new Date());render();showToast('Day plan saved');if(googleConnected())syncPendingGoogle().then(()=>render()).catch(()=>{})}
+function handlePlanDayClick(e){const why=e.target.closest('[data-plan-why]');if(why){const id=why.dataset.planWhy,t=dayPlanTask(id),all=[...(dayPlanRecommendations?.top3||[]),...(dayPlanRecommendations?.leftToday||[]),...(dayPlanRecommendations?.overdue||[]),...(dayPlanRecommendations?.times||[])],item=all.find(x=>String(x.id)===String(id));showToast((t? t.title+': ':'')+((item?.reasons||[]).join(' · ')||'Suggested from your current plan.'));return}const chore=e.target.closest('[data-plan-chore]');if(chore){const live=state.tasks.find(x=>String(x.id)===String(chore.dataset.planChore));if(!live)return;if(live._planlyOwnedByMe===false){if(typeof window.PlanlyCompleteHouseholdTask==='function')window.PlanlyCompleteHouseholdTask(live);else showToast('Household completion is unavailable.')}else if(!live.completed)completeTaskWithUndo(live);const draft=dayPlanTask(live.id);if(draft){draft.completed=!!live.completed;draft.completedBy=live.completedBy||null;draft.completedAt=live.completedAt||null}renderPlanDay();return}const target=e.target.closest('[data-plan-day-target]');if(target){dayPlanDate=target.dataset.planDayTarget;dayPlanGroups={overdue:dayPlanDraft.filter(t=>!t.completed&&t.date&&t.date<dayPlanDate).map(t=>t.id),inbox:dayPlanDraft.filter(t=>!t.completed&&!t.date).map(t=>t.id),today:dayPlanDraft.filter(t=>!t.completed&&t.date===dayPlanDate).map(t=>t.id)};dayPlanRecommendations=buildDayPlanRecommendations();renderPlanDay();return}const intel=e.target.closest('[data-plan-intelligence]');if(intel){if(intel.dataset.planIntelligence==='overdue')applySuggestedOverdue();if(intel.dataset.planIntelligence==='top3')applySuggestedTop3();return}const move=e.target.closest('[data-plan-move]');if(move){moveDayPlanTask(move.dataset.planId,move.dataset.planMove);return}const top=e.target.closest('[data-plan-top3]');if(top){toggleDayPlanTop3(top.dataset.planTop3);return}}
+function handlePlanDayChange(e){const input=e.target.closest('[data-plan-date]');if(input)moveDayPlanTask(input.dataset.planDate,input.value||'')}
 
 
 function minutesFromNowLabel(targetMinutes){
@@ -1060,9 +1011,9 @@ function todayView(){
   const statusCard=allDone?'<div class="dayStatus doneStatus"><strong>All done for today</strong><span>✓</span></div>':nothingPlanned?'<div class="dayStatus"><strong>Nothing planned yet</strong><span class="muted">Tap + to add something.</span></div>':'';
   const household=householdEvents.length?`<section class="householdCard"><div class="sectionHead"><div><span class="householdEyebrow">Household</span><h2>Wife’s schedule</h2></div><span class="muted">${householdEvents.length}</span></div><div class="externalEventList">${householdEvents.map(e=>externalEventHtml(e,key)).join('')}</div></section>`:'';
   const top3=activeToday.length?`<section class="section prioritySection"><div class="sectionHead"><div><span class="calendarGroupLabel">Priorities</span><h2>Top 3</h2></div><span class="muted">${pins.length}/3</span></div>${pins.length?`<div class="top3List">${pins.map(t=>taskHtml(t,true)).join('')}</div>`:'<div class="empty compactEmpty">Star the tasks that matter most today.</div>'}</section>`:'';
-  const schedule=scheduled.length?`<section class="section"><div class="sectionHead"><div><span class="calendarGroupLabel">Time blocked</span><h2>Schedule</h2></div><span class="muted">${scheduled.length}</span></div>${scheduled.map(taskHtml).join('')}</section>`:'';
-  const anytimeSection=anytime.length?`<section class="section"><div class="sectionHead"><div><span class="calendarGroupLabel">Flexible</span><h2>Anytime</h2></div><span class="muted">${anytime.length}</span></div>${anytime.map(taskHtml).join('')}</section>`:'';
-  const overdueSection=overdue.length?`<section class="section overdueSection"><div class="sectionHead"><div><span class="calendarGroupLabel">Needs attention</span><h2>Overdue</h2></div><span class="muted">${overdue.length}</span></div>${overdue.map(taskHtml).join('')}</section>`:'';
+  const schedule=scheduled.length?`<section class="section"><div class="sectionHead"><div><span class="calendarGroupLabel">Time blocked</span><h2>Schedule</h2></div><span class="muted">${scheduled.length}</span></div>${scheduled.map(t=>taskHtml(t)).join('')}</section>`:'';
+  const anytimeSection=anytime.length?`<section class="section"><div class="sectionHead"><div><span class="calendarGroupLabel">Flexible</span><h2>Anytime</h2></div><span class="muted">${anytime.length}</span></div>${anytime.map(t=>taskHtml(t)).join('')}</section>`:'';
+  const overdueSection=overdue.length?`<section class="section overdueSection"><div class="sectionHead"><div><span class="calendarGroupLabel">Needs attention</span><h2>Overdue</h2></div><span class="muted">${overdue.length}</span></div>${overdue.map(t=>taskHtml(t)).join('')}</section>`:'';
   $('#view').innerHTML=`${dashboard}${statusCard}${billsDue}${top3}${schedule}${anytimeSection}${overdueSection}${household}${completedSection(completed,'today:'+key)}`
 }
 function startMonday(key){const d=parseKey(key);const diff=(d.getDay()+6)%7;d.setDate(d.getDate()-diff);return localKey(d)}
@@ -1070,7 +1021,7 @@ function upcomingGroup(title,tasks){
   if(!tasks.length)return '';
   const byDate=new Map();
   sortUpcoming(tasks).forEach(t=>{if(!byDate.has(t.date))byDate.set(t.date,[]);byDate.get(t.date).push(t)});
-  return `<section class="section upcomingSection"><div class="sectionHead"><h2>${title}</h2><span class="muted">${tasks.length}</span></div>${[...byDate.entries()].map(([date,items])=>`<div class="upcomingDateGroup"><div class="upcomingDateLabel">${fmt(date,{weekday:'long',day:'numeric',month:'short'})}</div>${items.map(taskHtml).join('')}</div>`).join('')}</section>`;
+  return `<section class="section upcomingSection"><div class="sectionHead"><h2>${title}</h2><span class="muted">${tasks.length}</span></div>${[...byDate.entries()].map(([date,items])=>`<div class="upcomingDateGroup"><div class="upcomingDateLabel">${fmt(date,{weekday:'long',day:'numeric',month:'short'})}</div>${items.map(t=>taskHtml(t)).join('')}</div>`).join('')}</section>`;
 }
 function upcomingView(){
   const today=localKey(new Date()),tomorrow=addDays(today,1),weekEnd=addDays(today,7);
@@ -1114,7 +1065,7 @@ function monthView(){
   $('#prevMonth').onclick=()=>{state.monthAnchor=shiftMonth(first,-1);state.selectedDate=state.monthAnchor;render()};$('#nextMonth').onclick=()=>{state.monthAnchor=shiftMonth(first,1);state.selectedDate=state.monthAnchor;render()};$('#todayMonth').onclick=()=>{state.monthAnchor=localKey(new Date());state.selectedDate=localKey(new Date());render()};
   $$('.day[data-date]').forEach(b=>b.onclick=()=>{state.selectedDate=b.dataset.date;render()});$$('[data-month-filter]').forEach(b=>b.onclick=()=>{monthCalendarFilter=b.dataset.monthFilter||'all';render()})
 }
-function inboxView(){setHeader('Inbox','Capture now, schedule later');const arr=visibleTasks(state.tasks.filter(t=>!t.date));$('#view').innerHTML=`<div class="inboxIntro"><div><strong>Your unscheduled tasks</strong><span>Keep ideas here until you are ready to give them a date.</span></div><div class="inboxCount">${arr.length}</div></div><section class="section inboxTasks">${arr.length?arr.map(taskHtml).join(''):`<div class="empty">Your Inbox is clear.<br><span class="muted">Tap + to capture something without scheduling it.</span></div>`}</section>`}
+function inboxView(){setHeader('Inbox','Capture now, schedule later');const arr=visibleTasks(state.tasks.filter(t=>!t.date));$('#view').innerHTML=`<div class="inboxIntro"><div><strong>Your unscheduled tasks</strong><span>Keep ideas here until you are ready to give them a date.</span></div><div class="inboxCount">${arr.length}</div></div><section class="section inboxTasks">${arr.length?arr.map(t=>taskHtml(t)).join(''):`<div class="empty">Your Inbox is clear.<br><span class="muted">Tap + to capture something without scheduling it.</span></div>`}</section>`}
 
 // Planly 3.1 cloud account foundation
 let planlySupabase=null,planlySession=null;
@@ -2078,7 +2029,7 @@ function settingsView(){
     <div class="settingsCard"><h3>Task defaults</h3><label class="muted" for="defaultCat" style="font-size:13px">Default category</label><select id="defaultCat" class="select" style="margin-top:6px"><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select><label class="muted smallLabel" for="defaultDuration">Default duration for timed tasks</label><select id="defaultDuration" class="select"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">1 hour</option><option value="90">1 hour 30 minutes</option><option value="120">2 hours</option></select><label class="settingToggle"><input id="showCompleted" type="checkbox"><span>Show completed tasks</span></label><label class="settingToggle"><input id="autoCompleteParentSubtasks" type="checkbox"><span><strong>Complete task when checklist finishes</strong><small>When the final subtask is checked, complete the parent task automatically. You can still Undo it.</small></span></label></div>
     <div class="settingsCard"><h3>Time planning</h3><div class="row2"><div class="field"><label for="planningStart">Planning day starts</label><input id="planningStart" type="time" step="900" class="input"></div><div class="field"><label for="planningEnd">Planning day ends</label><input id="planningEnd" type="time" step="900" class="input"></div></div><div class="muted settingsHelp">The Timeline uses these hours to calculate free time. Tasks outside the range are still shown.</div></div>
   </section>
-  <section class="settingsGroup"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">Connections</span><h2>Google Calendar</h2><p>Control how Planly writes timed tasks to your private Planly calendar.</p></div></div>
+  <section class="settingsGroup"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">Suggested</span><h2>Planly Intelligence</h2><p>Explainable planning suggestions computed on this device from data already loaded in Planly.</p></div></div><div class="settingsCard"><label class="settingToggle"><input id="intelligenceSuggestions" type="checkbox"><span><strong>Suggestions</strong><small>Show planning suggestions in Plan My Day. Nothing changes until you choose it.</small></span></label><label class="settingToggle"><input id="intelligenceNightRest" type="checkbox"><span><strong>Protect rest after night shifts</strong><small>Reduce suggested priorities after a long overnight work block.</small></span></label><label class="muted smallLabel" for="intelligenceNightRestHours">Protected rest</label><select id="intelligenceNightRestHours" class="select"><option value="6">6 hours</option><option value="7">7 hours</option><option value="8">8 hours</option><option value="9">9 hours</option><option value="10">10 hours</option></select><div class="muted settingsHelp">These settings apply to this device. Planly Intelligence makes no AI or API calls.</div></div></section>\n  <section class="settingsGroup"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">Connections</span><h2>Google Calendar</h2><p>Control how Planly writes timed tasks to your private Planly calendar.</p></div></div>
     <div class="settingsCard"><div class="calendarStatusRow"><span class="statusDot ${googleConnected()?'connected':'offline'}"></span><strong>${esc(googleStatus)}</strong>${pendingCount?`<span class="muted">${pendingCount} pending</span>`:''}</div><div class="muted settingsHelp">Sync destination: your private <strong>Planly</strong> Google calendar. Planly refreshes Google access when you save a Calendar task when possible. Outlook is never modified.</div><label class="settingToggle"><input id="autoCalendarTimed" type="checkbox"><span><strong>Automatically sync timed tasks</strong><small>When a new task has a time, turn on “Add to Google Calendar” automatically.</small></span></label><details class="advancedSettings"><summary>Connection settings</summary><label class="muted smallLabel" for="googleClientId">Google OAuth client ID</label><input id="googleClientId" class="input" value="${esc(googleId)}" placeholder="...apps.googleusercontent.com" autocomplete="off"></details><button id="googleConnectBtn" class="primary">${googleConnected()?'Reconnect Google':'Connect Google Calendar'}</button><button id="googleSyncBtn" class="secondaryBtn">Sync pending items${pendingCount?` (${pendingCount})`:''}</button>${googleConnected()?'<button id="googleDisconnectBtn" class="dangerBtn">Disconnect Google</button>':''}</div>
   </section>
   <section class="settingsGroup"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">App</span><h2>Appearance & data</h2><p>Device appearance, backups and destructive actions.</p></div></div>
@@ -2114,7 +2065,7 @@ function settingsView(){
   $('#defaultCat').value=state.defaultCategory;
   $('#defaultDuration').value=String(state.defaultDuration||30);
   $('#showCompleted').checked=state.showCompleted;
-  $('#autoCalendarTimed').checked=state.autoCalendarTimed;
+  $('#autoCalendarTimed').checked=state.autoCalendarTimed;if($('#intelligenceSuggestions'))$('#intelligenceSuggestions').checked=state.intelligenceSuggestions!==false;if($('#intelligenceNightRest'))$('#intelligenceNightRest').checked=state.intelligenceNightRest!==false;if($('#intelligenceNightRestHours'))$('#intelligenceNightRestHours').value=String(state.intelligenceNightRestHours||8);
   $('#autoCompleteParentSubtasks').checked=state.autoCompleteParentSubtasks;
   $('#planningStart').value=state.planningStart||'08:00';
   $('#planningEnd').value=state.planningEnd||'23:00';
@@ -2123,7 +2074,7 @@ function settingsView(){
   $('#defaultCat').onchange=e=>{state.defaultCategory=e.target.value;stagePreferenceMutation();save();queuePlanlyPendingReplay('Preferences synced')};
   $('#defaultDuration').onchange=e=>{state.defaultDuration=Number(e.target.value||30);stagePreferenceMutation();save();queuePlanlyPendingReplay('Preferences synced')};
   $('#showCompleted').onchange=e=>{state.showCompleted=e.target.checked;save()};
-  $('#autoCalendarTimed').onchange=e=>{state.autoCalendarTimed=e.target.checked;save()};
+  $('#autoCalendarTimed').onchange=e=>{state.autoCalendarTimed=e.target.checked;save()};if($('#intelligenceSuggestions'))$('#intelligenceSuggestions').onchange=e=>{state.intelligenceSuggestions=e.target.checked;save()};if($('#intelligenceNightRest'))$('#intelligenceNightRest').onchange=e=>{state.intelligenceNightRest=e.target.checked;save()};if($('#intelligenceNightRestHours'))$('#intelligenceNightRestHours').onchange=e=>{state.intelligenceNightRestHours=Number(e.target.value||8);save()};
   $('#autoCompleteParentSubtasks').onchange=e=>{state.autoCompleteParentSubtasks=e.target.checked;stagePreferenceMutation();save();queuePlanlyPendingReplay('Preferences synced')};
   const savePlanningHours=()=>{const start=$('#planningStart').value||'08:00',end=$('#planningEnd').value||'23:00';if(timeToMinutes(end)<=timeToMinutes(start)){alert('Planning day end must be after the start time.');$('#planningStart').value=state.planningStart;$('#planningEnd').value=state.planningEnd;return}state.planningStart=start;state.planningEnd=end;stagePreferenceMutation();save();queuePlanlyPendingReplay('Preferences synced')};
   $('#planningStart').onchange=savePlanningHours;$('#planningEnd').onchange=savePlanningHours;

@@ -1,5 +1,5 @@
 {
-  "version": 30,
+  "version": 35,
   "modules": [
     "./core-budget-v4.0b.js?v=400k11",
     "./core-budget-ui-v4.0b.js?v=400b412",
@@ -15,6 +15,7 @@
     "./core-budget-review-hardening-v4.0p.js?v=400p05",
     "./core-budget-core-guard-v4.0q.js?v=400q04",
     "./core-update-v4.3.js?v=430a01",
-    "./core-safari-diagnostics-v4.3b.js?v=430b01"
+    "./core-safari-diagnostics-v4.3b.js?v=430b01",
+    "./core-intelligence-v5.js?v=500i104"
   ]
 }
