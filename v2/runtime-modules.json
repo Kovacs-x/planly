@@ -1,5 +1,5 @@
 {
-  "version": 29,
+  "version": 30,
   "modules": [
     "./core-budget-v4.0b.js?v=400k10",
     "./core-budget-ui-v4.0b.js?v=400b411",
@@ -12,6 +12,7 @@
     "./core-budget-scroll-v4.0m.js?v=400m02",
     "./core-lists-v4.1.js?v=410a10",
     "./core-household-dashboard-v4.2.js?v=420a03",
+    "./core-intelligence-v5.0.js?v=500i01",
     "./core-budget-review-hardening-v4.0p.js?v=400p05",
     "./core-budget-core-guard-v4.0q.js?v=400q04",
     "./core-update-v4.3.js?v=430a01",
