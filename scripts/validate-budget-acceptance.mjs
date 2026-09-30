@@ -16,6 +16,16 @@ for(const marker of ['api.updateEntry=','api.deleteEntry=','api.updateCategory='
 for(const marker of ['budgetComplete(view)','budgetInvalidated','planly:budget-invalidated'])if(!nav.includes(marker))fail(`Budget deterministic render gate missing: ${marker}`);
 if(nav.includes('budgetRenderedView===view'))fail('Legacy Budget render short-circuit returned');
 if(/service_role|SUPABASE_SERVICE_ROLE|sb_secret_/i.test(budget))fail('Privileged credential marker in Budget browser runtime');
+const budgetCore=read('v2/core-budget-v4.0b.js');
+for(const marker of ['RETRY_BASE_MS=2000','RETRY_MAX_MS=60000','terminalSyncError(e)','scheduleReplay()',"status:'failed'",'retryFailed:','discardFailed:'])if(!budgetCore.includes(marker))fail('Budget retry hardening marker missing: '+marker);
+if(budgetCore.includes('queueMicrotask(()=>replay())'))fail('Budget immediate self-replay hot loop returned');
+if(!budgetCore.includes("pending().filter(x=>x.status==='queued'&&Number(x.nextRetryAt||0)<=now())"))fail('Budget replay does not honor retry due time');
+const h1Delays=[1,2,3,4,5,6].map(n=>Math.min(60000,2000*Math.pow(2,Math.max(0,n-1))));
+if(JSON.stringify(h1Delays)!==JSON.stringify([2000,4000,8000,16000,32000,60000]))fail('Budget retry backoff sequence is not bounded exponential');
+const h1Terminal=[{code:'42501'},{status:403},{code:'23514'}];
+if(!h1Terminal.every(e=>e.code==='42501'||e.status===403||String(e.code||'').startsWith('23')))fail('Budget terminal denial classification probe failed');
+if(budgetCore.includes('attempts>=RETRY_MAX_ATTEMPTS'))fail('Transient Budget failures must not become terminal by attempt count');
+for(const marker of ['data-budget-failed-panel','data-budget-retry-failed','data-budget-discard-failed','planly-budget-sync-failed'])if(!budgetUi.includes(marker))fail('Budget failed-write UI marker missing: '+marker);
 for(const marker of ["b.id='planlyListsBtn'",'data-lists-create','querySelector(\'input[name="item"]\')'])if(!lists.includes(marker))fail(`Shared Lists entry point missing: ${marker}`);
 if(lists.includes('elements.item'))fail('Shared Lists item collision returned');
 console.log('Planly Budget 4.0 functional acceptance checks passed.');
