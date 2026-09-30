@@ -23,6 +23,6 @@ if(!client.includes('PLANLY_HOUSEHOLD_EXTERNAL_CALENDAR_SHARING'))fail('External
 for(const needle of ["scope_type:'personal'","scope_type:'household'","membership.role!=='owner'","scopeKey=(p,type=activeType)"])if(!client.includes(needle))fail('Budget scope client guard missing: '+needle);
 for(const needle of ["state.scope?.scope_type==='personal'?state.scope?.owner_id===owner:state.scope?.scope_type==='household'","function structureOwner(){return state.scope?.scope_type==='household'?state.scope.owner_id:owner}"])if(!client.includes(needle))fail('Collaborative Budget structure client authorization missing: '+needle);
 for(const needle of ['canChangeEntry(entry)',"scope.scope_type==='household'",'classifyZero',"code:'denied'","code:'conflict'",'persistedEntryUpdate','persistedDelete'])if(!client.includes(needle))fail('Budget authoritative collaborative mutation path missing: '+needle);
-for(const needle of ['x.owner_id===viewer','Carry forward only recurring items you created','api().setTarget','window.PlanlyBudgetActiveMonth'])if(!client.includes(needle))fail('Monthly budget ownership/scope guard missing: '+needle);
+for(const needle of ['x.owner_id===viewer','function recurringSources()','api().setTarget','window.PlanlyBudgetActiveMonth'])if(!client.includes(needle))fail('Monthly budget ownership/scope guard missing: '+needle);
 if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(client))fail('Budget monthly workflow must not monkeypatch Date runtime');
 console.log('Planly security regression checks passed.');
