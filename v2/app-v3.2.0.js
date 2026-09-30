@@ -929,6 +929,7 @@ function buildDayPlanRecommendations(){
       currentUserId:String(planlySession?.user?.id||''),
       planningStart:state.planningStart,
       planningEnd:state.planningEnd,
+      nowMinutes:new Date().getHours()*60+new Date().getMinutes(),
       externalBusy:externalTimelineIntervals(today).map(x=>({start:x.start,end:x.end}))
     });
   }catch(err){console.warn('Planly Intelligence recommendation failed',err);return null}
@@ -1037,6 +1038,7 @@ function toggleDayPlanTop3(id){
     const orders=current.map(x=>Number.isFinite(x.top3Order)?x.top3Order:-1);
     t.top3Order=(orders.length?Math.max(...orders):-1)+1;
   }
+  dayPlanIntelligenceApplied=false;
   renderPlanDay();
 }
 function commitPlanDay(){
