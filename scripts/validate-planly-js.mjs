@@ -135,3 +135,5 @@ if(!r1Html.includes('.day.isToday.selected>span{background:#17687D!important;col
 if(s.hardening.includes('state.tasks'))fail('H2 hardening must not read app-closure state');
 for(const needle of ["top3Mode&&!t.completed?'<button type=\"button\" class=\"top3DragHandle\"","class=\"compactProjectLink\"","href=\"#pi-checklist\""])if(!s.app.includes(needle))fail('H2 compact review invariant missing: '+needle);
 if(!s.app.includes("detail:{taskId:task?.id||'',readOnly,assigneeId:"))fail('H2 task-sheet bridge invariant missing');
+
+{const compactStart=s.app.indexOf("if(state.taskRowDensity!=='comfortable'){"),compactEnd=s.app.indexOf("\n  const surface=",compactStart),compactBranch=s.app.slice(compactStart,compactEnd);if(!compactBranch.includes("top3Mode&&!t.completed?'<button type=\"button\" class=\"top3DragHandle\""))fail('H2 compact renderer must include Top-3 drag handle in its own branch');}
