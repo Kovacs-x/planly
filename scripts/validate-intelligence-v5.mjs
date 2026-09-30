@@ -1,43 +1,19 @@
 import fs from 'node:fs';
-const source=fs.readFileSync('v2/core-intelligence-v5.0.js','utf8');
-const window={};
-new Function('window',source)(window);
-const api=window.PlanlyIntelligence;
-if(!api||api.version!=='5.0.0')throw new Error('Planly Intelligence runtime missing');
-
-const base={
-  today:'2026-09-30',
-  planningStart:'08:00',
-  planningEnd:'18:00',
-  currentUserId:'me',
-  projects:[{id:'p1',name:'Launch',dueDate:'2026-10-01'}],
-  externalBusy:[{start:600,end:660},{start:780,end:840}],
-  tasks:[
-    {id:'overdue',title:'Overdue high',date:'2026-09-28',priority:'high',durationMinutes:45,projectId:'p1',completed:false},
-    {id:'today',title:'Today normal',date:'2026-09-30',priority:'normal',durationMinutes:30,completed:false},
-    {id:'inbox',title:'Inbox low',date:'',priority:'low',durationMinutes:20,completed:false},
-    {id:'other',title:'Partner task',date:'2026-09-30',priority:'high',durationMinutes:30,visibility:'household',assigneeId:'partner',completed:false},
-    {id:'fixed',title:'Fixed task',date:'2026-09-30',time:'09:00',priority:'normal',durationMinutes:60,completed:false}
-  ]
-};
-const first=api.recommendDayPlan(base);
-const second=api.recommendDayPlan(JSON.parse(JSON.stringify(base)));
-if(JSON.stringify(first)!==JSON.stringify(second))throw new Error('Intelligence output is not deterministic');
-if(first.top3[0]?.id!=='overdue')throw new Error('Overdue high-priority task should rank first');
-if(first.ranked.some(x=>x.id==='other'))throw new Error('Task assigned to another household member must not be recommended');
-if(first.proposals.some(p=>p.id!=='fixed'&&p.time==='09:00'))throw new Error('Newly scheduled task overlaps an existing task');
-if(first.proposals.some(p=>p.id!=='fixed'&&p.time==='10:00'))throw new Error('Newly scheduled task overlaps external calendar busy time');
-if(!first.top3[0]?.reasons.some(x=>x.includes('Overdue')))throw new Error('Recommendation reasons must explain overdue pressure');
-if(!first.top3[0]?.reasons.some(x=>x.includes('High priority')))throw new Error('Recommendation reasons must explain priority');
-if(first.summary.freeMinutes<=0)throw new Error('Available-time calculation failed');
-
-const assigned=api.recommendDayPlan({...base,tasks:[{id:'mine',title:'Assigned to me',date:'2026-09-30',priority:'normal',durationMinutes:30,visibility:'household',assigneeId:'me',completed:false}]});
-if(!assigned.top3[0]?.reasons.includes('Assigned to you'))throw new Error('Household assignment reason missing');
-
-const nonOwned=api.recommendDayPlan({...base,tasks:[{id:'shared-other-owner',title:'Assigned but not owned',date:'2026-09-30',priority:'high',durationMinutes:30,visibility:'household',assigneeId:'me',_planlyOwnedByMe:false,completed:false}]});
-if(nonOwned.ranked.length)throw new Error('Intelligence must not recommend mutations for household tasks owned by another member');
-
-const late=api.recommendDayPlan({...base,nowMinutes:15*60,tasks:[{id:'late',title:'Late-day task',date:'2026-09-30',priority:'high',durationMinutes:30,completed:false}],externalBusy:[]});
-if(late.proposals.some(x=>x.time&&Number(x.time.slice(0,2))*60+Number(x.time.slice(3))<15*60))throw new Error('Intelligence suggested a time earlier than explicit nowMinutes');
-
-console.log('Planly Intelligence 5.0 deterministic planning checks passed.');
+const source=fs.readFileSync('v2/core-intelligence-v5.js','utf8'),window={};new Function('window',source)(window);const api=window.PlanlyIntelligence;if(!api?.analyse)throw Error('Intelligence analyse API missing');
+if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\.|localStorage/.test(source))throw Error('Engine purity regression');
+const base={today:'2026-09-30',nowMinutes:480,planningStart:'08:00',planningEnd:'18:00',currentUserId:'me',defaultDuration:30,projects:[{id:'p1',dueDate:'2026-10-01'}],busy:[{start:600,end:660}],tasks:[
+{id:'personal',title:'Personal',date:'2026-09-30',priority:'high',durationMinutes:45,completed:false,visibility:'private',createdAt:1},
+{id:'overdue',title:'Overdue',date:'2026-09-28',priority:'normal',durationMinutes:30,completed:false,visibility:'private',createdAt:2},
+{id:'chore',title:'Chore',date:'2026-09-30',priority:'high',durationMinutes:30,completed:false,visibility:'household',assigneeId:'me',createdAt:3},
+{id:'partner',title:'Partner',date:'2026-09-30',priority:'high',durationMinutes:30,completed:false,visibility:'household',assigneeId:'me',_planlyOwnedByMe:false,createdAt:4}
+]};
+const a=api.analyse(base),b=api.analyse(JSON.parse(JSON.stringify(base)));if(JSON.stringify(a)!==JSON.stringify(b))throw Error('Engine not deterministic');
+if(a.top3.some(x=>x.id==='chore'||x.id==='partner'))throw Error('D1 household task leaked into Top 3');
+if(!a.chores.some(x=>x.id==='chore'))throw Error('Owned assigned household chore missing');
+if(a.overdue.some(x=>x.id==='partner')||a.times.some(x=>x.id==='partner'))throw Error('Partner-owned task became actionable');
+if(Object.keys(base.busy[0]).sort().join(',')!=='end,start')throw Error('Busy fixture contains private calendar metadata');
+const work=api.analyse({...base,busy:[{start:480,end:900}],tasks:base.tasks.filter(x=>x.id!=='partner')});if(!work.day.isWorkDay||work.top3.length>2)throw Error('D2 work-day priority limit failed');
+const overload=api.analyse({...base,tasks:[{id:'x',date:'2026-09-30',visibility:'private',durationMinutes:600,completed:false}]});if(overload.day.status!=='over'||overload.day.overBy<=0)throw Error('Capacity overload failed');
+const clash=api.analyse({...base,tasks:[{id:'x',date:'2026-09-30',time:'10:15',visibility:'private',durationMinutes:30,completed:false}]});if(!clash.day.clashes.some(x=>x.b==='calendar'))throw Error('Calendar clash failed');
+const late=api.analyse({...base,nowMinutes:900,busy:[],tasks:[{id:'x',date:'2026-09-30',visibility:'private',durationMinutes:30,completed:false}]});if(late.times.some(x=>x.time&&Number(x.time.slice(0,2))*60+Number(x.time.slice(3))<900))throw Error('Past time suggested');
+console.log('Planly Intelligence I1 engine checks passed');
