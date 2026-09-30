@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=500r104'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-430g-27'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-430h-28'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -118,3 +118,10 @@ if(s.app.includes('Assigned to You'))fail('C1 assignment capitalisation regressi
 for(const needle of ['#planlyDisplayName{min-height:44px!important;height:44px!important}', '.inboxCount{color:#704400!important}', '.monthControls .monthToday{color:#115766!important}'])if(!r1Html.includes(needle))fail('C1 contrast/tap invariant missing: '+needle);
 
 for(const needle of ["function failedMessage(op)","You do not have permission to save this Budget change.","One of the Budget values is not valid.","Your sign-in could not be refreshed. Sign in again and retry."])if(!s.budgetUi.includes(needle))fail('C1 failure-copy invariant missing: '+needle);
+
+// #78 F1-F4 follow-up invariants.
+for(const needle of ["planly:household-remote-change',()=>void refreshTodayBills()","planly:budget-mutation-confirmed',()=>void refreshTodayBills()","then(()=>window.dispatchEvent(new CustomEvent('planly:budget-sync-state-changed')))"])if(!s.budget.includes(needle))fail('F1/F2 Budget refresh invariant missing: '+needle);
+if(s.budget.includes("planly:household-remote-change',()=>void refreshTodayBills({force:true})")||s.budget.includes("planly:budget-mutation-confirmed',()=>void refreshTodayBills({force:true})"))fail('F1 startup Today-bills forced refresh returned');
+if(!s.budgetUi.includes("planly:budget-sync-state-changed',()=>queueMicrotask(refreshVisible)"))fail('F2 successful Retry visible refresh missing');
+for(const needle of ["function planlyHouseholdSentencePersonLabel","return label==='You'?'you':label","Assigned to '+planlyHouseholdSentencePersonLabel","Done by '+planlyHouseholdSentencePersonLabel",'aria-label="Calendar colour"'])if(!s.app.includes(needle))fail('F3/F4 app invariant missing: '+needle);
+for(const needle of [':root:not([data-theme="dark"]) .day.isToday:not(.selected)>span{background:#238AA6!important;color:#041419!important}','.calendarColourControl input[type="color"][data-planly-calendar-colour]{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}'])if(!r1Html.includes(needle))fail('F4 Month/calendar accessibility invariant missing: '+needle);
