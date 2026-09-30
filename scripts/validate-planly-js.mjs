@@ -72,7 +72,7 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=500r102'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=500r103'"))fail('R1 core runtime missing from service worker');
 if(!s.sw.includes("const CACHE='planly-v2-430e-25'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
@@ -80,8 +80,8 @@ for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid
 for(const x of ['href="#pi-star"','href="#pi-more"','href="#pi-repeat"','href="#pi-clock"','aria-pressed='])if(!r2App.includes(x))fail('R2 task-row invariant missing: '+x);
 
 const r2Assign=read('v2/core-assignment-v3.3c.js');
-if(!r2Assign.includes('/(<span class="pill householdTaskPill">[^<]*<\\/span>)/'))fail('R2 household pill renderer is coupled to display text');
-for(const x of ["Anyone can complete","Assigned to you","Done by "])if(!r2Assign.includes(x))fail('R2 household assignment/completion label missing: '+x);
+if(r2Assign.includes('taskAssigneePill')||r2Assign.includes('taskCompletionActorPill'))fail('R4 duplicate household assignment/completion renderer returned');
+for(const x of ["Anyone can complete","Assigned to ","Done by "])if(!r2App.includes(x))fail('R4 authoritative household assignment/completion label missing: '+x);
 for(const x of ['id="pi-grip"','id="pi-checklist"','id="pi-check"','min-height:44px!important}.taskBody>.chip[data-action="today"]','--r2Personal:#2F4FD0','--r2Health:#BE2F55','--r2Home:#1B7A4C'])if(!r2Html.includes(x))fail('R2 review presentation invariant missing: '+x);
 for(const x of ['href="#pi-grip"','href="#pi-checklist"','href="#pi-check"'])if(!r2App.includes(x))fail('R2 review task glyph invariant missing: '+x);
 
@@ -99,3 +99,10 @@ if(r3BudgetInsights.includes('Monthly snapshot'))fail('R3 legacy Monthly snapsho
 if(r3BudgetReview.includes('function patchCategory'))fail('R3 legacy category DOM replacement returned');
 for(const needle of ['for="planlyCalendarName"','for="planlyCalendarUrl"','for="defaultCat"','for="planningStart"','for="planningEnd"','for="googleClientId"','for="themeSetting"'])if(!s.app.includes(needle))fail('R3 Settings label invariant missing: '+needle);
 for(const needle of ['.monthControls button{width:auto;min-width:44px!important;height:44px!important','.calendarFilters button{min-height:44px!important}','.calendarShiftLabel{font-size:10px!important'])if(!r3BudgetHtml.includes(needle))fail('R3 Month accessibility invariant missing: '+needle);
+
+// R4 member names + Bills on Today release invariants.
+for(const needle of ["'+namePanel+planlyHouseholdMemberRowsHtml()","id=\"planlyDisplayName\"","Join a household first.","characters Planly can't show","function planlyBudgetTodayStates()","data-budget-scope=","mutateScoped(scopeType"])if(!r2App.includes(needle))fail('R4 app invariant missing: '+needle);
+for(const needle of ["name=String(m.display_name||'').trim()","escR1(label)"])if(!r1.includes(needle))fail('R4 Home member-name invariant missing: '+needle);
+for(const needle of ["function getScopeState(type)","function applyScopedEntry(type,row)"])if(!s.budget.includes(needle))fail('R4 cached Budget scope invariant missing: '+needle);
+for(const needle of ["async function mutateScoped(scopeType","eq('cloud_version',version)"])if(!read('v2/core-budget-actions-v4.0l.js').includes(needle))fail('R4 scoped mutation invariant missing: '+needle);
+for(const needle of ["id=\"allocShowToday\"","id=\"editPaymentShowToday\"","entryDate:due?"])if(!r3BudgetUi.includes(needle))fail('R4 Budget form invariant missing: '+needle);
