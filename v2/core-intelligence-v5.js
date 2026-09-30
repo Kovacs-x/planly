@@ -2,7 +2,7 @@
 (()=>{'use strict';if(window.PlanlyIntelligence)return;
 const VERSION='5.0.0-i1',clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),pad=n=>String(n).padStart(2,'0');
 const dateParts=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?[+m[1],+m[2],+m[3]]:null};
-const serial=s=>{const p=dateParts(s);return p?Math.floor(Date.UTC(p[0],p[1]-1,p[2])/86400000):NaN};
+const serial=s=>{const p=dateParts(s);if(!p)return NaN;let [y,m,d]=p;y-=m<=2?1:0;const era=Math.floor(y/400),yoe=y-era*400,mp=m+(m>2?-3:9),doy=Math.floor((153*mp+2)/5)+d-1,doe=yoe*365+Math.floor(yoe/4)-Math.floor(yoe/100)+doy;return era*146097+doe};
 const dayDiff=(a,b)=>serial(a)-serial(b),timeMin=s=>{const m=String(s||'').match(/^(\d{1,2}):(\d{2})$/);return m?clamp(+m[1]*60 + +m[2],0,1439):0};
 const timeText=n=>{n=clamp(Math.round(n),0,1439);return pad(Math.floor(n/60))+':'+pad(n%60)};
 const duration=(t,d=30)=>clamp(Number(t?.durationMinutes||d||30),5,720),owned=t=>t&&t._planlyOwnedByMe!==false;
