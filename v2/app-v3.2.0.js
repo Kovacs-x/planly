@@ -50,7 +50,7 @@ function save(){if(PLANLY_CLOUD_PREVIEW&&(planlySession?.user||planlyLastAccount
 function load(){try{const d=JSON.parse(localStorage.getItem(STORE)||'{}');state.tasks=Array.isArray(d.tasks)?d.tasks:[];state.projects=Array.isArray(d.projects)?d.projects:[];state.theme=d.theme||'system';state.showCompleted=d.showCompleted!==false;state.defaultCategory=d.defaultCategory||'Personal';state.defaultDuration=Number(d.defaultDuration||30);state.autoCalendarTimed=!!d.autoCalendarTimed;state.autoCompleteParentSubtasks=!!d.autoCompleteParentSubtasks;state.planningStart=d.planningStart||'08:00';state.planningEnd=d.planningEnd||'23:00';if(PLANLY_CLOUD_PREVIEW&&!restorePlanlyDeviceSettings())persistPlanlyDeviceSettings();if(timeToMinutes(state.planningEnd)<=timeToMinutes(state.planningStart)){state.planningStart='08:00';state.planningEnd='23:00'}const recurrenceChanged=migrateRecurringCalendarState();if(recurrenceChanged&&!PLANLY_CLOUD_PREVIEW)save()}catch{}}
 function applyTheme(){let t=state.theme;if(t==='system')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}
 function isStandalone(){return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}
-function setHeader(title,dateText=''){ $('#pageTitle').textContent=title; $('#eyebrow').textContent=dateText }
+function setHeader(title,dateText=''){const e=$('#eyebrow');$('#pageTitle').textContent=title;e.textContent=dateText;e.dataset.shortDate=title==='Today'?new Intl.DateTimeFormat(undefined,{day:'numeric',month:'short'}).format(new Date()):dateText}
 function calendarSyncHtml(t){
   if(!t.addToCalendar||t.calendarSync==='synced')return '';
   const label=t.calendarSync==='error'?'Calendar error':'Calendar pending';
