@@ -38,7 +38,8 @@ for(const n of [
   'planly_tasks_live_series_occurrence_key',
   'showUndoToast'
 ])if(!assignment.includes(n))fail('missing client invariant: '+n);
-if(!app.includes("Done by '+planlyHouseholdPersonLabel(completedBy)"))fail('missing authoritative Done by renderer');
+if(!app.includes("function planlyHouseholdSentencePersonLabel(userId)"))fail('missing sentence-safe household person label helper');
+if(!app.includes("Done by '+planlyHouseholdSentencePersonLabel(completedBy)"))fail('missing authoritative Done by renderer');
 if(!app.includes('completed_by,completed_at,cloud_version'))fail('cloud hydration does not fetch completion metadata');
 if(!app.includes('_planlyCloudVersion:Number(row.cloud_version||0)'))fail('cloud version is not hydrated onto tasks');
 console.log('Household collaborative completion static gates passed.');
