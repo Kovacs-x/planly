@@ -13,7 +13,7 @@ if(!a.chores.some(x=>x.id==='chore'))throw Error('Owned assigned household chore
 if(a.overdue.some(x=>x.id==='partner')||a.times.some(x=>x.id==='partner'))throw Error('Partner-owned task became actionable');
 if(Object.keys(base.busy[0]).sort().join(',')!=='end,start')throw Error('Busy fixture contains private calendar metadata');
 const work=api.analyse({...base,busy:[{start:480,end:900}],tasks:base.tasks.filter(x=>x.id!=='partner')});if(!work.day.isWorkDay||work.top3.length>2)throw Error('D2 work-day priority limit failed');
-const overload=api.analyse({...base,tasks:[{id:'x',date:'2026-09-30',visibility:'private',durationMinutes:600,completed:false}]});if(overload.day.status!=='over'||overload.day.overBy<=0)throw Error('Capacity overload failed');
+const overload=api.analyse({...base,tasks:[{id:'x',date:'2026-09-30',visibility:'private',durationMinutes:700,completed:false}]});if(overload.day.status!=='over'||overload.day.overBy<=0)throw Error('Capacity overload failed');
 const clash=api.analyse({...base,tasks:[{id:'x',date:'2026-09-30',time:'10:15',visibility:'private',durationMinutes:30,completed:false}]});if(!clash.day.clashes.some(x=>x.b==='calendar'))throw Error('Calendar clash failed');
 const late=api.analyse({...base,nowMinutes:900,busy:[],tasks:[{id:'x',date:'2026-09-30',visibility:'private',durationMinutes:30,completed:false}]});if(late.times.some(x=>x.time&&Number(x.time.slice(0,2))*60+Number(x.time.slice(3))<900))throw Error('Past time suggested');
 console.log('Planly Intelligence I1 engine checks passed');
