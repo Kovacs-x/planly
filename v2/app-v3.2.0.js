@@ -2559,6 +2559,7 @@ function setQuick(q){
   else if(q==='nextweek')$('#taskDate').value=addDays(startMonday(today),7);
   else if(q==='none')$('#taskDate').value='';
   refreshQuickDateSelection();
+  window.dispatchEvent(new CustomEvent('planly:task-sheet-open',{detail:{taskId:task?.id||'',readOnly}}));
 }
 function defaultDateForNewTask(){
   const today=localKey(new Date());
