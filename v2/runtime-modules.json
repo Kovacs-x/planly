@@ -1,8 +1,8 @@
 {
-  "version": 29,
+  "version": 30,
   "modules": [
-    "./core-budget-v4.0b.js?v=400k10",
-    "./core-budget-ui-v4.0b.js?v=400b411",
+    "./core-budget-v4.0b.js?v=400k11",
+    "./core-budget-ui-v4.0b.js?v=400b412",
     "./core-budget-scope-v4.0c.js?v=400c07",
     "./core-budget-lifecycle-v4.0d.js?v=400n06",
     "./core-budget-monthly-v4.0e.js?v=400e09",
