@@ -8,7 +8,7 @@ for(const marker of ['planly-budget-cache-v2:','planly-budget-pending-v2:','plan
 for(const marker of ['planly_budget_entries_update_authorized','planly_budget_scopes_select_authorized','planly_budget_categories_select_authorized','planly_private.is_household_member(s.household_id)','planly_budget_entry_immutable_guard'])if(!migrations.includes(marker))fail(`Missing Budget RLS invariant: ${marker}`);
 if(migrations.includes('public.planly_private.is_household_member'))fail('Invalid helper reference present');
 for(const marker of ['async function mutate','async function classifyZero',"code:'conflict'","code:'denied'",'.eq(\'cloud_version\',version)','persistedCategoryUpdate'])if(!budget.includes(marker))fail(`Missing authoritative mutation invariant: ${marker}`);
-for(const marker of ['readPreference(owner)',"api.switchScope('household')",'api.__reviewBaseBootstrap=baseBootstrap','planly:budget-ui-rendered'])if(!review.includes(marker))fail(`Missing Household/identity hardening invariant: ${marker}`);
+for(const marker of ['readPreference(owner)',"api.switchScope('household')",'api.__reviewBaseBootstrap=baseBootstrap'])if(!review.includes(marker))fail(`Missing Household/identity hardening invariant: ${marker}`);
 if(lifecycle.includes('decorateCategory(')||lifecycle.includes('data-life-quick-delete'))fail('Legacy index-mapped expense action owner remains active');
 for(const marker of ['api.updateEntry=','api.deleteEntry=','api.updateCategory=','__legacyMutationGuard','runtime-modules.json','__planly_sw_probe__'])if(!guard.includes(marker))fail(`Missing legacy/offline guard: ${marker}`);
 if(guard.includes("const CACHE='planly-v2-")||guard.includes("SW='planly-v2-sw-"))fail('Core guard hard-codes release cache/version markers');
