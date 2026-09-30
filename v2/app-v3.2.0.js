@@ -902,26 +902,6 @@ function planDayDateLabel(t){
   if(t.date<today)return 'Still overdue · '+fmt(t.date,{day:'numeric',month:'short'});
   return fmt(t.date,{weekday:'short',day:'numeric',month:'short'});
 }
-function plannerTaskRow(t,source){
-  const project=projectNameForTask(t);
-  const original=dayPlanOriginalTask(t.id);
-  const keepLabel=source==='overdue'?'Keep overdue':source==='inbox'?'Leave in Inbox':'Keep today';
-  return `<div class="planDayTask" data-plan-id="${esc(t.id)}"><div class="planDayTaskMain"><strong>${esc(t.title)}</strong><span>${t.time?esc(t.time)+' · ':''}${esc(t.category)}${project?' · '+esc(project):''}</span></div><div class="planDayChoiceRow"><button type="button" data-plan-move="original" data-plan-id="${esc(t.id)}">${keepLabel}</button><button type="button" data-plan-move="today" data-plan-id="${esc(t.id)}">Today</button><button type="button" data-plan-move="tomorrow" data-plan-id="${esc(t.id)}">Tomorrow</button><button type="button" data-plan-move="weekend" data-plan-id="${esc(t.id)}">This weekend</button></div><label class="planDayPickDate"><span>Pick date</span><input type="date" class="input" data-plan-date="${esc(t.id)}" value="${esc(t.date||'')}"></label><div class="planDayStatus">Planned: <strong>${esc(planDayDateLabel(t))}</strong>${original?.date!==t.date?' · changed':''}</div></div>`;
-}
-function planTop3Card(t){
-  const project=projectNameForTask(t),selected=!!t.pinned;
-  return `<button type="button" class="planTop3Card ${selected?'selected':''}" data-plan-top3="${esc(t.id)}" aria-pressed="${selected?'true':'false'}"><span class="planTop3Star">${selected?'★':'☆'}</span><span class="planTop3Text"><strong>${esc(t.title)}</strong><small>${t.time?esc(t.time)+' · ':''}${esc(t.category)}${project?' · '+esc(project):''}</small></span></button>`;
-}
-function planDaySummaryHtml(){
-  const today=localKey(new Date());
-  const active=dayPlanDraft.filter(t=>!t.completed&&t.date===today);
-  const pins=sortTop3(active.filter(t=>t.pinned)).slice(0,3);
-  const timed=active.filter(t=>t.time);
-  const anytime=active.filter(t=>!t.time);
-  const minutes=timed.reduce((sum,t)=>sum+Number(t.durationMinutes||state.defaultDuration||30),0);
-  const topList=pins.length?`<div class="planSummaryList">${pins.map((t,i)=>`<div><span>${i+1}</span><strong>${esc(t.title)}</strong></div>`).join('')}</div>`:'<div class="muted planSummaryEmpty">No Top 3 selected.</div>';
-  return `<div class="planSummaryHero"><strong>Your day is ready to review</strong><span>Nothing changes in Planly until you tap Start my day.</span></div><div class="planSummaryGrid"><div><strong>${pins.length}/3</strong><span>Top priorities</span></div><div><strong>${timed.length}</strong><span>Timed tasks</span></div><div><strong>${anytime.length}</strong><span>Anytime tasks</span></div><div><strong>${minutes?durationLabel(minutes):'0m'}</strong><span>Timed workload</span></div></div><section class="planSummarySection"><h3>Top 3</h3>${topList}</section><section class="planSummarySection"><h3>Timeline</h3>${planTimelinePreviewHtml(active)}</section><section class="planSummarySection"><h3>Today</h3><div class="planSummaryTasks">${active.length?sortTasks(active).map(t=>`<div><strong>${esc(t.title)}</strong><span>${t.time?esc(t.time)+' · '+durationLabel(t.durationMinutes):'Anytime'}${projectNameForTask(t)?' · '+esc(projectNameForTask(t)):''}</span></div>`).join(''):'<div class="muted">Nothing scheduled for today.</div>'}</div></section>`;
-}
 function buildDayPlanRecommendations(){
   try{
     const engine=window.PlanlyIntelligence;if(state.intelligenceSuggestions===false||!engine?.analyse||!dayPlanDraft)return null;
