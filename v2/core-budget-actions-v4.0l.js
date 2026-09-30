@@ -22,5 +22,5 @@ function decorate(){queueMicrotask(()=>{decorateCategory();decorateManage()})}
 const base=window.PlanlyBudgetUI;if(!base?.renderTab)return;const baseRender=base.renderTab.bind(base);async function renderTab(target){style();host=target||host;const result=await baseRender(host);decorate();return result}
 window.addEventListener('planly:budget-view-changed',()=>decorate());
 window.addEventListener('planly:budget-ui-rendered',()=>decorate());
-window.PlanlyBudgetUI={...base,renderTab};window.PlanlyBudgetActions={persistedEntryUpdate,persistedDelete,persistedCategoryUpdate,persistedCategoryArchive,classifyZero};
+window.PlanlyBudgetUI={...base,renderTab};window.PlanlyBudgetActions={mutate,persistedEntryUpdate,persistedDelete,persistedCategoryUpdate,persistedCategoryArchive,classifyZero};
 })();
