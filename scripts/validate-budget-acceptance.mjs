@@ -7,6 +7,11 @@ for(const marker of ['createPersonal','ensureHouseholdScope','addEntry','addCate
 for(const marker of ['planly_budget_entries_update_authorized',"s.scope_type = 'personal'","s.scope_type = 'household'",'planly_private.is_household_member','planly_budget_entry_immutable_guard'])if(!migration.includes(marker))fail(`Missing collaborative entry RLS marker: ${marker}`);
 for(const marker of ['readPreference(owner)',"api.switchScope('household')",'__reviewBaseBootstrap=baseBootstrap'])if(!review.includes(marker))fail(`Missing Budget state hardening marker: ${marker}`);
 if(lifecycle.includes('decorateCategory(')||lifecycle.includes('data-life-quick-delete'))fail('Duplicate/index-mapped expense actions remain reachable');
+const budgetUi=read('v2/core-budget-ui-v4.0b.js');
+if(!budgetUi.includes("up.map(x=>paymentRow(x)).join('')"))fail('Coming up must render through an explicit unary paymentRow callback');
+if(budgetUi.includes('up.map(paymentRow)'))fail('Coming up leaks Array.map index into paymentRow manage flag');
+const comingUpProbe=[{id:'one'},{id:'two'}].map(x=>({row:x,manage:false}));
+if(comingUpProbe.some(x=>x.manage!==false)||comingUpProbe.length!==2)fail('Coming up two-row action-isolation probe failed');
 for(const marker of ['api.updateEntry=','api.deleteEntry=','api.updateCategory=','__legacyMutationGuard'])if(!guard.includes(marker))fail(`Legacy mutation path remains unguarded: ${marker}`);
 for(const marker of ['budgetComplete(view)','budgetInvalidated','planly:budget-invalidated'])if(!nav.includes(marker))fail(`Budget deterministic render gate missing: ${marker}`);
 if(nav.includes('budgetRenderedView===view'))fail('Legacy Budget render short-circuit returned');
