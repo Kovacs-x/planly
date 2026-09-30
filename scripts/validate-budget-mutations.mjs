@@ -11,7 +11,7 @@ const monthly=read('v2/core-budget-monthly-v4.0e.js');
 const insights=read('v2/core-budget-insights-v4.0g.js');
 const migration=read('supabase/migrations/041_collaborative_household_budget_entries.sql');
 const fail=m=>{throw new Error(m)};
-for(const marker of ["const versionBucket=k=>({category:'categories',target:'targets',entry:'entries'})[k]||null",'function acceptServer(op,server)','rows[i]={...rows[i],...server}','clearPending(op);clearConflict(op.kind,op.id);persist()'])if(!core.includes(marker))fail('Authoritative create reconciliation invariant missing: '+marker);
+for(const marker of ["const versionBucket=k=>({category:'categories',target:'targets',entry:'entries'})[k]||null",'function acceptServer(op,server)','rows[i]={...rows[i],...server}','clearPending(op);clearConflict(op.kind,op.id)'])if(!core.includes(marker))fail('Authoritative create reconciliation invariant missing: '+marker);
 if(core.includes("const bucket=k+'s'"))fail('Legacy misspelled Budget version bucket derivation is still active');
 for(const marker of ["state.scope.owner_id===viewer","isOwner?'owner':'member'"])if(!scope.includes(marker))fail('Household Budget viewer-role label invariant missing: '+marker);
 for(const marker of ['mutate','persistedEntryUpdate','classifyZero','cloud_version',"code:'conflict'","code:'denied'",'select(\'*\').maybeSingle','await a.bootstrap()','planly:budget-mutation-confirmed','persistedCategoryUpdate','persistedDelete'])if(!actions.includes(marker))fail('Missing authoritative Budget mutation invariant: '+marker);
@@ -28,3 +28,5 @@ for(const forbidden of ['data-month-targets','targetsView','setTarget('])if(mont
 if(insights.includes("+' category targets'"))fail('Budget insights still expose removed category targets');
 for(const source of [core,ui,scope,actions,lifecycle,hardening,coreGuard,monthly,insights]){new Function(source);if(source.includes('$$$'))fail('Generated Budget JS contains $$$');if(source.includes('$().forEach'))fail('Generated Budget JS contains accidental $().forEach')}
 console.log('Authoritative collaborative Budget mutation validation passed');
+
+for(const marker of ["acceptTodayBillMutation(server)","planly-budget-mutation-confirmed"])if(!core.includes(marker))fail('C1 authoritative create refresh invariant missing: '+marker);
