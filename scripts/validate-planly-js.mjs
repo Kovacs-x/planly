@@ -87,6 +87,8 @@ for(const x of ['href="#pi-grip"','href="#pi-checklist"','href="#pi-check"'])if(
 
 const r3BudgetUi=read('v2/core-budget-ui-v4.0b.js'),r3BudgetInsights=read('v2/core-budget-insights-v4.0g.js'),r3BudgetReview=read('v2/core-budget-review-hardening-v4.0p.js'),r3BudgetHtml=read('v2/index.html');
 for(const needle of ['Left to plan','Coming up','Categories','Money in','Paid','To pay','Unplanned','data-budget-paid','PlanlyBudgetActions.mutate'])if(!r3BudgetUi.includes(needle))fail('R3 Budget presentation invariant missing: '+needle);
+for(const needle of ['id="catKind"','value="income"','data-manage-category','Income categories',"kind:host.querySelector('#catKind').value"])if(!r3BudgetUi.includes(needle))fail('R3 Budget category management invariant missing: '+needle);
+if(r3BudgetUi.includes('data-act="manage">Change icon'))fail('R3 category detail exposes non-functional Change icon affordance');
 if(r3BudgetInsights.includes('Monthly snapshot'))fail('R3 legacy Monthly snapshot decorator returned');
 if(r3BudgetReview.includes('function patchCategory'))fail('R3 legacy category DOM replacement returned');
 for(const needle of ['for="planlyCalendarName"','for="planlyCalendarUrl"','for="defaultCat"','for="planningStart"','for="planningEnd"','for="googleClientId"','for="themeSetting"'])if(!s.app.includes(needle))fail('R3 Settings label invariant missing: '+needle);
