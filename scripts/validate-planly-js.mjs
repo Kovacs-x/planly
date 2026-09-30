@@ -85,9 +85,9 @@ for(const x of ["Anyone can complete","Assigned to you","Done by "])if(!r2Assign
 for(const x of ['id="pi-grip"','id="pi-checklist"','id="pi-check"','min-height:44px!important}.taskBody>.chip[data-action="today"]','--r2Personal:#2F4FD0','--r2Health:#BE2F55','--r2Home:#1B7A4C'])if(!r2Html.includes(x))fail('R2 review presentation invariant missing: '+x);
 for(const x of ['href="#pi-grip"','href="#pi-checklist"','href="#pi-check"'])if(!r2App.includes(x))fail('R2 review task glyph invariant missing: '+x);
 
-const r3Ui=read('v2/core-budget-ui-v4.0b.js'),r3Insights=read('v2/core-budget-insights-v4.0g.js'),r3Review=read('v2/core-budget-review-hardening-v4.0p.js'),r3Html=read('v2/index.html');
-for(const needle of ['Left to plan','Coming up','Categories','Money in','Paid','To pay','Unplanned','data-budget-paid','PlanlyBudgetActions.mutate'])if(!r3Ui.includes(needle))fail('R3 Budget presentation invariant missing: '+needle);
-if(r3Insights.includes('Monthly snapshot'))fail('R3 legacy Monthly snapshot decorator returned');
-if(r3Review.includes('function patchCategory'))fail('R3 legacy category DOM replacement returned');
+const r3BudgetUi=read('v2/core-budget-ui-v4.0b.js'),r3BudgetInsights=read('v2/core-budget-insights-v4.0g.js'),r3BudgetReview=read('v2/core-budget-review-hardening-v4.0p.js'),r3BudgetHtml=read('v2/index.html');
+for(const needle of ['Left to plan','Coming up','Categories','Money in','Paid','To pay','Unplanned','data-budget-paid','PlanlyBudgetActions.mutate'])if(!r3BudgetUi.includes(needle))fail('R3 Budget presentation invariant missing: '+needle);
+if(r3BudgetInsights.includes('Monthly snapshot'))fail('R3 legacy Monthly snapshot decorator returned');
+if(r3BudgetReview.includes('function patchCategory'))fail('R3 legacy category DOM replacement returned');
 for(const needle of ['for="planlyCalendarName"','for="planlyCalendarUrl"','for="defaultCat"','for="planningStart"','for="planningEnd"','for="googleClientId"','for="themeSetting"'])if(!s.app.includes(needle))fail('R3 Settings label invariant missing: '+needle);
-for(const needle of ['.monthControls button{width:auto;min-width:44px!important;height:44px!important','.calendarFilters button{min-height:44px!important}','.calendarShiftLabel{font-size:10px!important'])if(!r3Html.includes(needle))fail('R3 Month accessibility invariant missing: '+needle);
+for(const needle of ['.monthControls button{width:auto;min-width:44px!important;height:44px!important','.calendarFilters button{min-height:44px!important}','.calendarShiftLabel{font-size:10px!important'])if(!r3BudgetHtml.includes(needle))fail('R3 Month accessibility invariant missing: '+needle);
