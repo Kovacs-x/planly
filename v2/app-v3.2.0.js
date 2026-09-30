@@ -725,7 +725,7 @@ function restoreTaskSnapshot(snapshot){state.tasks=snapshot;save();render()}
 function finishCalendarChange(t){if(!t?.addToCalendar||!t.date||!googleConnected())return;syncTaskToGoogle(t).then(()=>render()).catch(()=>{})}
 function completeTaskWithUndo(t){
   if(!t||t.completed)return;
-  const before=cloneTasks();t.completed=true;t.updatedAt=Date.now();createNextRecurring(t);const pendingIds=stageChangedTasksFromSnapshot(before);save();render();
+  const before=cloneTasks();t.completed=true;if(t.visibility==='household'&&planlySession?.user?.id)t.completedBy=String(planlySession.user.id);t.updatedAt=Date.now();createNextRecurring(t);const pendingIds=stageChangedTasksFromSnapshot(before);save();render();
   showUndoToast('Task completed',()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)},()=>{queuePlanlyPendingReplay('Task completion synced');if(googleConnected())syncPendingGoogle().then(()=>render()).catch(()=>{})});
 }
 function rescheduleTaskWithUndo(t,newDate,message){
