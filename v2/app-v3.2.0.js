@@ -1250,7 +1250,7 @@ async function deletePlanlyHousehold(){
   showToast('Household deleted');
   render()
 }
-async function leavePlanlyHousehold(){if(!planlyHousehold||!confirm('Leave “'+planlyHousehold.name+'”? Shared access will end immediately.'))return;const {error}=await planlySupabase.rpc('planly_leave_household',{p_household_id:planlyHousehold.id});if(error)throw error;planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';publishPlanlyHouseholdContext();await loadPlanlyHousehold(true);showToast('Left household');render()}
+async function leavePlanlyHousehold(){if(!planlyHousehold||!confirm('Leave “'+planlyHousehold.name+'”? Shared access will end immediately.'))return;const {error}=await planlySupabase.rpc('planly_leave_household',{p_household_id:planlyHousehold.id});if(error)throw error;planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';publishPlanlyHouseholdContext();await loadPlanlyHousehold(true);await reconcilePlanlyCloud({render:true,replay:true,replayToast:''}).catch(()=>{});showToast('Left household');render()}
 function planlyCloudStatusKey(){return PLANLY_CLOUD_STATUS_PREFIX+(planlyLastAccountId()||'anonymous')}
 function planlyCloudBackupKey(){return PLANLY_CLOUD_BACKUP_PREFIX+(planlyLastAccountId()||'anonymous')}
 function planlyCloudLocalStatus(){try{return JSON.parse(localStorage.getItem(planlyCloudStatusKey())||'{}')}catch{return {}}}
@@ -1975,7 +1975,7 @@ async function startPlanlyAuth(){
   planlySupabase.auth.onAuthStateChange((_event,session)=>{const previousUser=String(planlySession?.user?.id||''),nextUser=String(session?.user?.id||'');adoptPlanlySession(session,{explicitSignOut:_event==='SIGNED_OUT'});if(session&&previousUser&&previousUser===nextUser)return;if(session){const pending=readPlanlyPendingWrites();if(PLANLY_CLOUD_PREVIEW&&pending.length){restorePlanlyCloudCache();applyPlanlyPendingToState();planlyCloudReadOnly=false;setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:pending.length});render()}loadPlanlyHousehold().then(()=>Promise.all([loadPlanlyCalendarData(),loadVerifiedCloudPreview()])).then(()=>render()).catch(()=>{});}else{render()}});
 }
 window.addEventListener('online',()=>{if(PLANLY_CLOUD_PREVIEW&&planlySession?.user)reconcilePlanlyCloud({replay:true,replayToast:'Offline changes synced'}).catch(err=>{if(!isOfflineCloudError(err))console.warn('Planly reconcile failed',err)})});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){void touchPlanlyLastSuccessfulSync({flush:true}).catch(()=>{});return}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&planlySyncTouchTimer)void flushPlanlyLastSuccessfulSync().catch(()=>{})});
 let planlyCalendarSources=[],planlyExternalEvents=[],monthCalendarFilter='all',planlyCalendarDataError='',planlyCalendarLoadPromise=null,planlyCalendarLoadedAt=0,planlyCalendarLoadedUser='';
 const PLANLY_CALENDAR_TTL_MS=15000;
 const PLANLY_CALENDAR_CACHE_PREFIX='planly-calendar-cache-v1:';
