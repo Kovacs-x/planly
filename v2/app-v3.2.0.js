@@ -34,7 +34,7 @@ let dayPlanDraft=null,dayPlanStep=0,dayPlanGroups={overdue:[],inbox:[],today:[]}
 let timelineDate=localKey(new Date()),timelineDrag=null;
 let focusTaskId='',focusElapsedMs=0,focusStartedAt=0,focusTicker=null;
 let taskActionId='';
-let state={tasks:[],projects:[],tab:'today',theme:'system',showCompleted:true,taskRowDensity:'compact',defaultCategory:'Personal',defaultDuration:30,autoCalendarTimed:false,autoCompleteParentSubtasks:false,intelligenceSuggestions:true,planningStart:'08:00',planningEnd:'23:00',selectedDate:localKey(new Date()),weekAnchor:localKey(new Date()),monthAnchor:localKey(new Date())};
+let state={tasks:[],projects:[],tab:'today',theme:'system',showCompleted:true,taskRowDensity:'compact',defaultCategory:'Personal',defaultDuration:30,autoCalendarTimed:false,autoCompleteParentSubtasks:false,intelligenceSuggestions:true,intelligenceNightRest:true,intelligenceNightRestHours:8,planningStart:'08:00',planningEnd:'23:00',selectedDate:localKey(new Date()),weekAnchor:localKey(new Date()),monthAnchor:localKey(new Date())};
 const completedOpen={};
 const expandedTaskChecklists=new Set();
 function localKey(d){const x=new Date(d);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`}
@@ -44,8 +44,8 @@ function thisWeekendKey(baseKey=localKey(new Date())){const d=parseKey(baseKey),
 function fmt(s,o={weekday:'short',day:'numeric',month:'short'}){return new Intl.DateTimeFormat(undefined,o).format(parseKey(s))}
 function uid(){return `${Date.now()}-${Math.random().toString(16).slice(2)}`}
 function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function persistPlanlyDeviceSettings(){localStorage.setItem(PLANLY_DEVICE_SETTINGS_KEY,JSON.stringify({version:1,theme:state.theme,showCompleted:!!state.showCompleted,taskRowDensity:state.taskRowDensity==='comfortable'?'comfortable':'compact',autoCalendarTimed:!!state.autoCalendarTimed,intelligenceSuggestions:state.intelligenceSuggestions!==false}))}
-function restorePlanlyDeviceSettings(){try{const d=JSON.parse(localStorage.getItem(PLANLY_DEVICE_SETTINGS_KEY)||'null');if(!d||Number(d.version)!==1)return false;state.theme=d.theme||state.theme||'system';state.showCompleted=d.showCompleted!==false;state.taskRowDensity=d.taskRowDensity==='comfortable'?'comfortable':'compact';state.autoCalendarTimed=!!d.autoCalendarTimed;state.intelligenceSuggestions=d.intelligenceSuggestions!==false;return true}catch{return false}}
+function persistPlanlyDeviceSettings(){localStorage.setItem(PLANLY_DEVICE_SETTINGS_KEY,JSON.stringify({version:1,theme:state.theme,showCompleted:!!state.showCompleted,taskRowDensity:state.taskRowDensity==='comfortable'?'comfortable':'compact',autoCalendarTimed:!!state.autoCalendarTimed,intelligenceSuggestions:state.intelligenceSuggestions!==false,intelligenceNightRest:state.intelligenceNightRest!==false,intelligenceNightRestHours:Number(state.intelligenceNightRestHours||8)}))}
+function restorePlanlyDeviceSettings(){try{const d=JSON.parse(localStorage.getItem(PLANLY_DEVICE_SETTINGS_KEY)||'null');if(!d||Number(d.version)!==1)return false;state.theme=d.theme||state.theme||'system';state.showCompleted=d.showCompleted!==false;state.taskRowDensity=d.taskRowDensity==='comfortable'?'comfortable':'compact';state.autoCalendarTimed=!!d.autoCalendarTimed;state.intelligenceSuggestions=d.intelligenceSuggestions!==false;state.intelligenceNightRest=d.intelligenceNightRest!==false;state.intelligenceNightRestHours=Math.max(4,Math.min(12,Number(d.intelligenceNightRestHours||8)));return true}catch{return false}}
 function save(){if(PLANLY_CLOUD_PREVIEW&&(planlySession?.user||planlyLastAccountId())){persistPlanlyDeviceSettings();persistPlanlyCloudCache();return}localStorage.setItem(STORE,JSON.stringify({tasks:state.tasks,projects:state.projects,theme:state.theme,showCompleted:state.showCompleted,defaultCategory:state.defaultCategory,defaultDuration:state.defaultDuration,autoCalendarTimed:state.autoCalendarTimed,autoCompleteParentSubtasks:state.autoCompleteParentSubtasks,planningStart:state.planningStart,planningEnd:state.planningEnd}))}
 function load(){try{const d=JSON.parse(localStorage.getItem(STORE)||'{}');state.tasks=Array.isArray(d.tasks)?d.tasks:[];state.projects=Array.isArray(d.projects)?d.projects:[];state.theme=d.theme||'system';state.showCompleted=d.showCompleted!==false;state.defaultCategory=d.defaultCategory||'Personal';state.defaultDuration=Number(d.defaultDuration||30);state.autoCalendarTimed=!!d.autoCalendarTimed;state.autoCompleteParentSubtasks=!!d.autoCompleteParentSubtasks;state.planningStart=d.planningStart||'08:00';state.planningEnd=d.planningEnd||'23:00';if(PLANLY_CLOUD_PREVIEW&&!restorePlanlyDeviceSettings())persistPlanlyDeviceSettings();if(timeToMinutes(state.planningEnd)<=timeToMinutes(state.planningStart)){state.planningStart='08:00';state.planningEnd='23:00'}const recurrenceChanged=migrateRecurringCalendarState();if(recurrenceChanged&&!PLANLY_CLOUD_PREVIEW)save()}catch{}}
 function applyTheme(){let t=state.theme;if(t==='system')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}
@@ -68,7 +68,7 @@ function reminderLabel(value){
 
 
 function timeToMinutes(value){
-  const m=String(value||'').match(/^(\d{1,2}):(\d{2})$/);
+  const m=String(value||'').match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if(!m)return 0;
   return Math.max(0,Math.min(1439,Number(m[1])*60+Number(m[2])));
 }
@@ -906,7 +906,7 @@ function buildDayPlanRecommendations(){
   try{
     const engine=window.PlanlyIntelligence;if(state.intelligenceSuggestions===false||!engine?.analyse||!dayPlanDraft)return null;
     const target=dayPlanDate||localKey(new Date()),isToday=target===localKey(new Date()),now=new Date(),nowMinutes=isToday?now.getHours()*60+now.getMinutes():timeToMinutes(state.planningStart);
-    return engine.analyse({today:target,nowMinutes,planningStart:state.planningStart,planningEnd:state.planningEnd,currentUserId:String(planlySession?.user?.id||''),defaultDuration:state.defaultDuration,tasks:dayPlanDraft,projects:state.projects,busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end})),members:(window.PlanlyHouseholdContext?.get?.()?.members||[]).map(m=>({id:String(m.id||m.user_id||'')})),prefs:{suggestions:true},learning:{}});
+    return engine.analyse({today:target,nowMinutes,planningStart:String(state.planningStart||'08:00').slice(0,5),planningEnd:String(state.planningEnd||'23:00').slice(0,5),currentUserId:String(planlySession?.user?.id||''),defaultDuration:state.defaultDuration,tasks:dayPlanDraft,projects:state.projects,busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end})),members:(window.PlanlyHouseholdContext?.get?.()?.members||[]).map(m=>({id:String(m.id||m.user_id||'')})),prefs:{suggestions:true,nightRest:state.intelligenceNightRest!==false,nightRestHours:Number(state.intelligenceNightRestHours||8)},learning:{}});
   }catch(err){console.warn('Planly Intelligence analysis failed',err);return null}
 }
 function planDayDateChooserHtml(){
@@ -939,7 +939,7 @@ function planDaySummaryHtml(){
 function applySuggestedOverdue(){for(const x of dayPlanRecommendations?.overdue||[]){const target=x.suggest==='today'?dayPlanDate:x.suggest==='tomorrow'?addDays(dayPlanDate,1):x.suggest==='nextWeek'?addDays(dayPlanDate,7):x.suggest==='inbox'?'':null;if(target!==null)moveDayPlanTask(x.id,target)}}
 function applySuggestedTop3(){
  const ids=(dayPlanRecommendations?.top3||[]).map(x=>String(x.id)),target=dayPlanDate;for(const t of dayPlanDraft){if(t.date===target&&t.visibility!=='household'&&ownedByMe(t)){t.pinned=false;delete t.top3Order}}
- ids.forEach((id,i)=>{const t=dayPlanTask(id);if(t&&t.visibility!=='household'&&ownedByMe(t)){t.pinned=true;t.top3Order=i;t.updatedAt=Date.now()}});dayPlanIntelligenceApplied=true;renderPlanDay();
+ ids.forEach((id,i)=>{const t=dayPlanTask(id);if(t&&t.date===target&&t.visibility!=='household'&&ownedByMe(t)){t.pinned=true;t.top3Order=i;t.updatedAt=Date.now()}});dayPlanIntelligenceApplied=true;renderPlanDay();
 }
 function ownedByMe(t){return t?._planlyOwnedByMe!==false}
 function renderPlanDay(){
