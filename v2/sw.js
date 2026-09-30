@@ -1,6 +1,6 @@
-const CACHE='planly-v2-430j-30';
-const VERSION='planly-v2-sw-430j-30';
-const APP_URL='./app-v3.2.0.js?v=430j01';
+const CACHE='planly-v2-430k-31';
+const VERSION='planly-v2-sw-430k-31';
+const APP_URL='./app-v3.2.0.js?v=430k01';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c14';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c03';
