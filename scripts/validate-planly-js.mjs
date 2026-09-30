@@ -85,11 +85,6 @@ for(const x of ["Anyone can complete","Assigned to you","Done by "])if(!r2Assign
 for(const x of ['id="pi-grip"','id="pi-checklist"','id="pi-check"','min-height:44px!important}.taskBody>.chip[data-action="today"]','--r2Personal:#2F4FD0','--r2Health:#BE2F55','--r2Home:#1B7A4C'])if(!r2Html.includes(x))fail('R2 review presentation invariant missing: '+x);
 for(const x of ['href="#pi-grip"','href="#pi-checklist"','href="#pi-check"'])if(!r2App.includes(x))fail('R2 review task glyph invariant missing: '+x);
 
-const r3Ui=read('v2/core-budget-ui-v4.0b.js'),r3Insights=read('v2/core-budget-insights-v4.0g.js'),r3Scope=read('v2/core-budget-scope-v4.0c.js');
-for(const x of ['Left to plan','Coming up','Categories','Money in','Paid','To pay','Unplanned','budgetChipRow','PlanlyBudgetActions.mutate'])if(!r3Ui.includes(x))fail('R3 Budget invariant missing: '+x);
-if(r3Insights.includes('Monthly snapshot'))fail('R3 duplicate Monthly snapshot returned');
-if(/[👛💳🏠💡🚙🍽️🛒📱❤️🎮🧸🛡️✈️🏦💷✨👥]/u.test(r3Ui+r3Scope))fail('R3 Budget emoji returned');
-
 const r3Ui=read('v2/core-budget-ui-v4.0b.js'),r3Insights=read('v2/core-budget-insights-v4.0g.js'),r3Review=read('v2/core-budget-review-hardening-v4.0p.js'),r3Html=read('v2/index.html');
 for(const needle of ['Left to plan','Coming up','Categories','Money in','Paid','To pay','Unplanned','data-budget-paid','PlanlyBudgetActions.mutate'])if(!r3Ui.includes(needle))fail('R3 Budget presentation invariant missing: '+needle);
 if(r3Insights.includes('Monthly snapshot'))fail('R3 legacy Monthly snapshot decorator returned');
