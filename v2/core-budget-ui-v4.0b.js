@@ -39,6 +39,7 @@ function navigate(next,fn){const from=mode;mode=next;fn();emitViewChange(from)}
 function refreshVisible(){if(!host)return;if(mode==='dashboard')dashboard();else if(mode==='category')categoryView(selectedCategory)}
 async function renderTab(target){ensureStyle();host=target||document.getElementById('view');if(!host)return;if(!api().getState()?.scope)await api().bootstrap();if(mode==='category')categoryView(selectedCategory);else if(mode==='allocation')allocation(selectedCategory);else if(mode==='income')income();else if(mode==='manage')manage();else dashboard()}
 window.addEventListener('planly:budget-mutation-confirmed',()=>queueMicrotask(refreshVisible));
+window.addEventListener('planly:budget-sync-state-changed',()=>queueMicrotask(refreshVisible));
 window.addEventListener('planly-budget-sync-failed',()=>queueMicrotask(refreshVisible));
 window.addEventListener('planly-budget-sync-state-changed',()=>queueMicrotask(refreshVisible));
 window.PlanlyBudgetUI={renderTab};
