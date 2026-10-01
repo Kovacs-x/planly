@@ -44,8 +44,8 @@ function thisWeekendKey(baseKey=localKey(new Date())){const d=parseKey(baseKey),
 function fmt(s,o={weekday:'short',day:'numeric',month:'short'}){return new Intl.DateTimeFormat(undefined,o).format(parseKey(s))}
 function uid(){return `${Date.now()}-${Math.random().toString(16).slice(2)}`}
 function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function persistPlanlyDeviceSettings(){localStorage.setItem(PLANLY_DEVICE_SETTINGS_KEY,JSON.stringify({version:1,theme:state.theme,showCompleted:!!state.showCompleted,taskRowDensity:state.taskRowDensity==='comfortable'?'comfortable':'compact',autoCalendarTimed:!!state.autoCalendarTimed,intelligenceSuggestions:state.intelligenceSuggestions!==false,intelligenceNightRest:state.intelligenceNightRest!==false,intelligenceNightRestHours:Number(state.intelligenceNightRestHours||8)}))}
-function restorePlanlyDeviceSettings(){try{const d=JSON.parse(localStorage.getItem(PLANLY_DEVICE_SETTINGS_KEY)||'null');if(!d||Number(d.version)!==1)return false;state.theme=d.theme||state.theme||'system';state.showCompleted=d.showCompleted!==false;state.taskRowDensity=d.taskRowDensity==='comfortable'?'comfortable':'compact';state.autoCalendarTimed=!!d.autoCalendarTimed;state.intelligenceSuggestions=d.intelligenceSuggestions!==false;state.intelligenceNightRest=d.intelligenceNightRest!==false;state.intelligenceNightRestHours=Math.max(4,Math.min(12,Number(d.intelligenceNightRestHours||8)));return true}catch{return false}}
+function persistPlanlyDeviceSettings(){localStorage.setItem(PLANLY_DEVICE_SETTINGS_KEY,JSON.stringify({version:1,theme:state.theme,showCompleted:!!state.showCompleted,taskRowDensity:state.taskRowDensity==='comfortable'?'comfortable':'compact',autoCalendarTimed:!!state.autoCalendarTimed,intelligenceSuggestions:state.intelligenceSuggestions!==false,intelligenceNightRest:state.intelligenceNightRest!==false,intelligenceNightRestHours:Number(state.intelligenceNightRestHours||8),intelligenceSnoozeDate:state.intelligenceSnoozeDate||''}))}
+function restorePlanlyDeviceSettings(){try{const d=JSON.parse(localStorage.getItem(PLANLY_DEVICE_SETTINGS_KEY)||'null');if(!d||Number(d.version)!==1)return false;state.theme=d.theme||state.theme||'system';state.showCompleted=d.showCompleted!==false;state.taskRowDensity=d.taskRowDensity==='comfortable'?'comfortable':'compact';state.autoCalendarTimed=!!d.autoCalendarTimed;state.intelligenceSuggestions=d.intelligenceSuggestions!==false;state.intelligenceNightRest=d.intelligenceNightRest!==false;state.intelligenceNightRestHours=Math.max(4,Math.min(12,Number(d.intelligenceNightRestHours||8)));state.intelligenceSnoozeDate=String(d.intelligenceSnoozeDate||'');return true}catch{return false}}
 function save(){if(PLANLY_CLOUD_PREVIEW&&(planlySession?.user||planlyLastAccountId())){persistPlanlyDeviceSettings();persistPlanlyCloudCache();return}localStorage.setItem(STORE,JSON.stringify({tasks:state.tasks,projects:state.projects,theme:state.theme,showCompleted:state.showCompleted,defaultCategory:state.defaultCategory,defaultDuration:state.defaultDuration,autoCalendarTimed:state.autoCalendarTimed,autoCompleteParentSubtasks:state.autoCompleteParentSubtasks,planningStart:state.planningStart,planningEnd:state.planningEnd}))}
 function load(){try{const d=JSON.parse(localStorage.getItem(STORE)||'{}');state.tasks=Array.isArray(d.tasks)?d.tasks:[];state.projects=Array.isArray(d.projects)?d.projects:[];state.theme=d.theme||'system';state.showCompleted=d.showCompleted!==false;state.defaultCategory=d.defaultCategory||'Personal';state.defaultDuration=Number(d.defaultDuration||30);state.autoCalendarTimed=!!d.autoCalendarTimed;state.autoCompleteParentSubtasks=!!d.autoCompleteParentSubtasks;state.planningStart=d.planningStart||'08:00';state.planningEnd=d.planningEnd||'23:00';if(PLANLY_CLOUD_PREVIEW&&!restorePlanlyDeviceSettings())persistPlanlyDeviceSettings();if(timeToMinutes(state.planningEnd)<=timeToMinutes(state.planningStart)){state.planningStart='08:00';state.planningEnd='23:00'}const recurrenceChanged=migrateRecurringCalendarState();if(recurrenceChanged&&!PLANLY_CLOUD_PREVIEW)save()}catch{}}
 function applyTheme(){let t=state.theme;if(t==='system')t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}
@@ -450,7 +450,7 @@ function nextTop3Order(date){
   return Math.max(...values)+1;
 }
 function normalizeTop3Orders(date){
-  sortTop3(state.tasks.filter(t=>t.date===date&&t.pinned&&!t.completed)).forEach((t,i)=>{t.top3Order=i});
+  sortTop3(state.tasks.filter(t=>t.date===date&&t.pinned&&!t.completed&&t._planlyOwnedByMe!==false)).forEach((t,i)=>{t.top3Order=i});
 }
 
 function sortUpcoming(arr){return [...arr].sort((a,b)=>{
@@ -730,7 +730,7 @@ function completeTaskWithUndo(t){
 }
 function rescheduleTaskWithUndo(t,newDate,message){
   if(!t||!newDate||t.date===newDate)return;
-  const before=cloneTasks(),id=t.id;t.date=newDate;t.updatedAt=Date.now();if(t.addToCalendar)t.calendarSync='pending';const pendingIds=stageChangedTasksFromSnapshot(before);save();render();
+  const before=cloneTasks(),id=t.id;t.date=newDate;t.deferCount=Math.max(0,Number(t.deferCount||t.data?.deferCount||0))+1;t.updatedAt=Date.now();if(t.addToCalendar)t.calendarSync='pending';const pendingIds=stageChangedTasksFromSnapshot(before);save();render();
   showUndoToast(message,()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before);finishCalendarChange(state.tasks.find(x=>x.id===id))},()=>{queuePlanlyPendingReplay('Task synced');finishCalendarChange(state.tasks.find(x=>x.id===id))});
 }
 function deleteTaskWithUndo(t){
@@ -1000,21 +1000,48 @@ function todayDashboardHtml(activeToday,todayAll,overdue){
 
 function planlyBudgetBillsDueHtml(){const api=window.PlanlyBudget,rows=(api?.getTodayBills?.()||[]).filter(e=>{if(!e.entry_date)return false;const today=parseKey(localKey(new Date())),due=parseKey(String(e.entry_date).slice(0,10)),days=Math.round((due-today)/86400000);return days<=Number(e.today_lead_days??2)}).sort((a,b)=>String(a.entry_date).localeCompare(String(b.entry_date)));if(!rows.length)return '';const money=e=>new Intl.NumberFormat(undefined,{style:'currency',currency:'GBP'}).format(Number(e.amount_minor||0)/100);return '<section class="section billsDueSection"><div class="sectionHead"><div><span class="calendarGroupLabel">Budget</span><h2>Bills due</h2></div><span class="muted">'+rows.length+'</span></div>'+rows.map(e=>'<div class="billDueRow" data-budget-bill="'+esc(e.id)+'"><button type="button" class="billDueCheck" data-budget-bill-paid="'+esc(e.id)+'" aria-label="Mark '+esc(e.description||'bill')+' paid"><svg class="pIcon" aria-hidden="true"><use href="#pi-check"/></svg></button><div><strong>'+esc(e.description||'Bill')+'</strong><span>'+esc(fmt(String(e.entry_date).slice(0,10),{day:'numeric',month:'short'}))+'</span></div><strong>'+esc(money(e))+'</strong></div>').join('')+'</section>'}
 async function markPlanlyBudgetBillPaid(id){const api=window.PlanlyBudget,actions=window.PlanlyBudgetActions,row=api?.getTodayBills?.().find(e=>String(e.id)===String(id));if(!row||!actions?.mutateTodayEntry)return;try{const paid=await actions.mutateTodayEntry(row.id,row.cloud_version,{allocation_status:'paid'});render();showUndoToast('Bill marked paid',()=>actions.mutateTodayEntry(row.id,paid.row.cloud_version,{allocation_status:'planned'}).then(()=>render()).catch(()=>showToast('Undo could not be saved.')),()=>{})}catch(err){void api.refreshTodayBills?.().then(()=>render()).catch(()=>{});showToast(err?.message||'Bill could not be updated.')}}
+function todayIntelligence(){
+  if(state.intelligenceSuggestions===false||state.intelligenceSnoozeDate===localKey(new Date())||!window.PlanlyIntelligence?.analyse)return null;
+  const key=localKey(new Date()),now=new Date();
+  try{return window.PlanlyIntelligence.analyse({today:key,realToday:key,nowMinutes:now.getHours()*60+now.getMinutes(),planningStart:String(state.planningStart||'08:00').slice(0,5),planningEnd:String(state.planningEnd||'23:00').slice(0,5),currentUserId:String(planlySession?.user?.id||''),defaultDuration:state.defaultDuration,tasks:state.tasks,projects:state.projects,busy:externalTimelineIntervals(key).map(x=>({start:x.start,end:x.end})),prefs:{suggestions:true,nightRest:state.intelligenceNightRest!==false,nightRestHours:Number(state.intelligenceNightRestHours||8)}})}catch{return null}
+}
+function todayBillsSummary(){const rows=(window.PlanlyBudget?.getTodayBills?.()||[]).filter(e=>e.entry_date&&String(e.entry_date).slice(0,10)<=addDays(localKey(new Date()),7)&&e.allocation_status!=='paid');return {count:rows.length,total:rows.reduce((s,e)=>s+Number(e.amount_minor||0),0)}}
+function todayDayCheckHtml(rec){
+  if(!rec)return '';const d=rec.day,b=todayBillsSummary(),money=new Intl.NumberFormat(undefined,{style:'currency',currency:'GBP',maximumFractionDigits:0}).format(b.total/100);
+  let label=d.status==='over'?'Over by '+durationLabel(d.overBy):d.status==='tight'?'Tight · '+durationLabel(Math.max(0,d.freeMinutes-d.plannedMinutes))+' spare':'Fits · '+durationLabel(Math.max(0,d.freeMinutes-d.plannedMinutes))+' free';
+  if(d.clashes?.length)label='Clash: '+d.clashes.length+' overlap'+(d.clashes.length===1?'':'s')+' with your calendar';
+  return '<div class="todayDayCheck"><button type="button" data-i2-day-check="'+(d.clashes?.length?'timeline':'plan')+'"><strong>'+esc(label)+'</strong>'+(b.count?'<span>'+b.count+' bill'+(b.count===1?'':'s')+' due this week · '+esc(money)+'</span>':'')+'</button><button type="button" data-i2-why="day">Why?</button><button type="button" data-i2-snooze>No suggestions today</button></div>';
+}
+function suggestTop3WithUndo(rec){
+  const key=localKey(new Date()),ids=(rec?.top3||[]).map(x=>String(x.id)).slice(0,3),targets=state.tasks.filter(t=>ids.includes(String(t.id))&&t.date===key&&t.visibility!=='household'&&t._planlyOwnedByMe!==false&&!t.completed);if(!targets.length)return;
+  const before=cloneTasks();state.tasks.filter(t=>t.date===key&&t._planlyOwnedByMe!==false).forEach(t=>{t.pinned=false;delete t.top3Order});targets.forEach((t,i)=>{t.pinned=true;t.top3Order=i;t.updatedAt=Date.now()});const pendingIds=stageChangedTasksFromSnapshot(before);save();render();showUndoToast('Suggested Top 3 added',()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)},()=>queuePlanlyPendingReplay('Top 3 synced'));
+}
+function tidyOverdue(){
+  const overdue=sortTasks(state.tasks.filter(t=>isOverdue(t)&&t._planlyOwnedByMe!==false));if(overdue.length<2)return;const today=localKey(new Date()),tomorrow=addDays(today,1);
+  const lines=overdue.map((t,i)=>(i<3?'Today':'Tomorrow')+': '+t.title).join('\n');if(!confirm('Tidy up overdue tasks?\n\n'+lines+'\n\nOK accepts these suggestions.'))return;
+  overdue.forEach((t,i)=>rescheduleTaskWithUndo(t,i<3?today:tomorrow,'Overdue task tidied'));
+}
+function showIntelligenceWhy(rec,id='day'){
+  const rows=[];if(id==='day'&&rec?.day){rows.push('Free time: '+durationLabel(rec.day.freeMinutes));rows.push('Planned: '+durationLabel(rec.day.plannedMinutes));if(rec.day.isWorkDay)rows.push('Work-day weight: Top 3 reduced');if(rec.day.overnightRest)rows.push('Night-rest weight: protected until '+rec.day.restUntil)}
+  const item=[...(rec?.top3||[]),...(rec?.overdue||[]),...(rec?.times||[])].find(x=>String(x.id)===String(id));if(item)rows.push(...(item.reasons||[]));
+  alert('Why Planly suggested this\n\n'+(rows.length?rows.join('\n'):'No weighted factors changed this suggestion.'));
+}
+
 function todayView(){
   const key=localKey(new Date());
   const todayAll=state.tasks.filter(t=>t.date===key),completed=sortTasks(todayAll.filter(t=>t.completed)),activeToday=todayAll.filter(t=>!t.completed);
   const overdue=sortTasks(state.tasks.filter(isOverdue)),pins=sortTop3(activeToday.filter(t=>t.pinned)).slice(0,3),remaining=activeToday.filter(t=>!t.pinned);
   const scheduled=sortTasks(remaining.filter(t=>t.time)),anytime=sortTasks(remaining.filter(t=>!t.time)),householdEvents=externalEventsForDate(key,'today');
   setHeader('Today',new Intl.DateTimeFormat(undefined,{weekday:'long',day:'numeric',month:'long'}).format(new Date()));
-  const pct=todayAll.length?Math.round(completed.length/todayAll.length*100):0,dashboard=todayDashboardHtml(activeToday,todayAll,overdue),billsDue=planlyBudgetBillsDueHtml();
+  const pct=todayAll.length?Math.round(completed.length/todayAll.length*100):0,dashboard=todayDashboardHtml(activeToday,todayAll,overdue),billsDue=planlyBudgetBillsDueHtml(),intel=todayIntelligence(),dayCheck=todayDayCheckHtml(intel);
   const allDone=!activeToday.length&&!overdue.length&&todayAll.length>0,nothingPlanned=!todayAll.length&&!overdue.length;
   const statusCard=allDone?'<div class="dayStatus doneStatus"><strong>All done for today</strong><span>✓</span></div>':nothingPlanned?'<div class="dayStatus"><strong>Nothing planned yet</strong><span class="muted">Tap + to add something.</span></div>':'';
   const household=householdEvents.length?`<section class="householdCard"><div class="sectionHead"><div><span class="householdEyebrow">Household</span><h2>Wife’s schedule</h2></div><span class="muted">${householdEvents.length}</span></div><div class="externalEventList">${householdEvents.map(e=>externalEventHtml(e,key)).join('')}</div></section>`:'';
-  const top3=activeToday.length?`<section class="section prioritySection"><div class="sectionHead"><div><span class="calendarGroupLabel">Priorities</span><h2>Top 3</h2></div><span class="muted">${pins.length}/3</span></div>${pins.length?`<div class="top3List">${pins.map(t=>taskHtml(t,true)).join('')}</div>`:'<div class="empty compactEmpty">Star the tasks that matter most today.</div>'}</section>`:'';
+  const top3=activeToday.length?`<section class="section prioritySection"><div class="sectionHead"><div><span class="calendarGroupLabel">Priorities</span><h2>Top 3</h2></div><span class="muted">${pins.length}/3</span></div>${pins.length?`<div class="top3List">${pins.map(t=>taskHtml(t,true)).join('')}</div>`:'<div class="empty compactEmpty">Star the tasks that matter most today.'+(intel?.top3?.length?' <button type="button" class="chip" data-i2-suggest3>Suggest 3</button>':'')+'</div>'}</section>`:'';
   const schedule=scheduled.length?`<section class="section"><div class="sectionHead"><div><span class="calendarGroupLabel">Time blocked</span><h2>Schedule</h2></div><span class="muted">${scheduled.length}</span></div>${scheduled.map(t=>taskHtml(t)).join('')}</section>`:'';
   const anytimeSection=anytime.length?`<section class="section"><div class="sectionHead"><div><span class="calendarGroupLabel">Flexible</span><h2>Anytime</h2></div><span class="muted">${anytime.length}</span></div>${anytime.map(t=>taskHtml(t)).join('')}</section>`:'';
-  const overdueSection=overdue.length?`<section class="section overdueSection"><div class="sectionHead"><div><span class="calendarGroupLabel">Needs attention</span><h2>Overdue</h2></div><span class="muted">${overdue.length}</span></div>${overdue.map(t=>taskHtml(t)).join('')}</section>`:'';
-  $('#view').innerHTML=`${dashboard}${statusCard}${billsDue}${top3}${schedule}${anytimeSection}${overdueSection}${household}${completedSection(completed,'today:'+key)}`
+  const overdueSection=overdue.length?`<section class="section overdueSection"><div class="sectionHead"><div><span class="calendarGroupLabel">Needs attention</span><h2>Overdue</h2></div><span class="muted">${overdue.length}</span></div>${overdue.length>=2?'<button type="button" class="chip" data-i2-tidy>Tidy up</button>':''}${overdue.map(t=>taskHtml(t)).join('')}</section>`:'';
+  $('#view').innerHTML=`${dashboard}${dayCheck}${statusCard}${billsDue}${top3}${schedule}${anytimeSection}${overdueSection}${household}${completedSection(completed,'today:'+key)}`
 }
 function startMonday(key){const d=parseKey(key);const diff=(d.getDay()+6)%7;d.setDate(d.getDate()-diff);return localKey(d)}
 function upcomingGroup(title,tasks){
@@ -2205,6 +2232,11 @@ function openChecklist(t){
 
 function taskCanEdit(t){return !!t&&t._planlyOwnedByMe!==false}
 function handleViewClick(e){
+  const i2Day=e.target.closest('[data-i2-day-check]');if(i2Day){if(i2Day.dataset.i2DayCheck==='timeline')openTimeline(localKey(new Date()));else{openPlanDay();dayPlanStep=2;renderPlanDay()}return}
+  if(e.target.closest('[data-i2-suggest3]')){suggestTop3WithUndo(todayIntelligence());return}
+  if(e.target.closest('[data-i2-tidy]')){tidyOverdue();return}
+  const why=e.target.closest('[data-i2-why]');if(why){showIntelligenceWhy(todayIntelligence(),why.dataset.i2Why);return}
+  if(e.target.closest('[data-i2-snooze]')){state.intelligenceSnoozeDate=localKey(new Date());persistPlanlyDeviceSettings();render();return}
   const calendarSeries=e.target.closest('[data-calendar-series]');if(calendarSeries){const source=state.tasks.find(x=>x.id===calendarSeries.dataset.calendarSeries);if(source)openSheet(source);return}
   const dashboardFocus=e.target.closest('[data-dashboard-focus]');if(dashboardFocus){openFocus(dashboardFocus.dataset.dashboardFocus);return}
   const billPaid=e.target.closest('[data-budget-bill-paid]');if(billPaid){void markPlanlyBudgetBillPaid(billPaid.dataset.budgetBillPaid);return}
