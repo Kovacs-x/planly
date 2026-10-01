@@ -5,7 +5,7 @@ const HARDENING_URL='./hardening-v3.3b.js?v=600h15';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=610p01';
 const CORE_BUILD_URL='./core-build-v3.3c.js?v=430a01';
-const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=330d09';
+const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=610s01';
 const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=330c04';
 const CORE_HOUSEHOLD_CALENDAR_URL='./core-household-calendar-v3.3c.js?v=600c08';
 const CORE_HOUSEHOLD_PLANNING_SAFETY_URL='./core-household-planning-safety-v3.3c.js?v=330c05';

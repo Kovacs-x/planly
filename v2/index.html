@@ -403,11 +403,27 @@ body.welcomeOpen{overflow:hidden}
 .wfxBtn:active{transform:scale(.98)}
 .wfxPrimary{background:#fff;color:#0B0D17;border:0;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .wfxBtnIcon{width:22px;height:22px}
-.wfxGoogle{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.28);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-.wfxGoogle .wfxBtnIcon{background:#fff;border-radius:50%;padding:3px;box-sizing:border-box;width:28px;height:28px}
-.wfxGhost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.7)}
+.wfxGoogle{position:relative;background:#1F1F1F;color:#fff;border:1.5px solid rgba(255,255,255,.22);padding:0 20px 0 64px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.wfxGMark{position:absolute;left:4px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 0 0 2px #1F1F1F}
+.wfxGMark svg{width:22px;height:22px}
 .wfxBtn:focus-visible{outline:3px solid #7AA7FF;outline-offset:3px}
 .welcomeProviderSlot:empty{display:none}
+.welcomeEmailForm{display:grid;gap:12px;padding-top:6px}
+.welcomeEmailForm[hidden],.welcomeActions[hidden]{display:none}
+.wfxFormHead{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;text-align:center}
+.wfxFormHead strong{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.wfxBack{width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:26px;line-height:1;display:grid;place-items:center;padding-bottom:3px}
+.wfxField{display:grid;gap:6px;text-align:left}
+.wfxField span{font-size:14px;font-weight:600;color:rgba(255,255,255,.85);padding-left:6px}
+.wfxField input{width:100%;box-sizing:border-box;min-height:54px;border-radius:16px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:17px;padding:0 16px;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.wfxField input::placeholder{color:rgba(255,255,255,.6)}
+.wfxField input:focus{outline:none;border-color:#7AA7FF;background:rgba(255,255,255,.14)}
+.wfxMsg{margin:0;padding:10px 14px;border-radius:14px;background:rgba(244,63,94,.18);color:#FFC2CC;font-size:15px;line-height:1.35}
+.wfxMsg.ok{background:rgba(34,168,106,.2);color:#B7F0D2}
+.wfxLink{min-height:44px;border:0;background:transparent;color:#fff;font-size:15px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.planlyWelcome.wfxFormOpen .welcomeDots{display:none}
+.planlyWelcome.wfxFormOpen .welcomeSlide p{display:none}
+@media (max-height:700px){.planlyWelcome.wfxFormOpen .wfxStage{display:none}}
 .wfxFoot{margin:4px 0 0;text-align:center;font-size:13px;color:rgba(255,255,255,.7)}
 @media (max-height:700px){.wfxExtra{display:none!important}.welcomeSlide h2{margin-top:12px}.welcomeDots{padding:14px 0 12px}.wfxBtn{min-height:50px}}
 @media (max-height:600px){.wfxFoot{display:none}.welcomeSlide p{font-size:16px}.wfxRow:nth-of-type(2){display:none}}
