@@ -341,6 +341,95 @@ html,body,button,input,select,textarea{font-family:'Outfit',-apple-system,BlinkM
 .calendarDot.personDot{background:var(--tone)!important}
 .personDot:not(.calendarDot){display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--tone);margin-right:6px;vertical-align:1px;flex:0 0 auto}
 </style>
+<style id="planlyStage4Part4">
+/* Part 4: "Completed (n)" folds (open/closed remembered per section on this device) and the signed-out welcome screen. */
+.doneFold{margin-top:12px}
+.doneFold>summary{list-style:none;cursor:pointer;width:100%;min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);background:var(--cardSoft);color:var(--text);border-radius:14px;padding:0 14px;font-weight:600;font-size:15px;-webkit-tap-highlight-color:transparent}
+.doneFold>summary::-webkit-details-marker{display:none}
+.doneFold>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.doneFoldChevron{width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translate(-2px,-2px);transition:transform .18s ease;flex:none}
+.doneFold[open]>summary .doneFoldChevron{transform:rotate(-135deg) translate(-2px,-2px)}
+.doneFold>.completedList{margin-top:8px}
+.doneFold .completedList>.task+.task{margin-top:6px}
+.upcomingDateGroup>.doneFold{margin-top:6px}
+.upcomingDateGroup>.doneFold>summary{min-height:44px;font-size:14px;border-radius:12px}
+.planlyWelcome{position:fixed;inset:0;z-index:300;background:#0B0D17;color:#fff;display:flex;justify-content:center;overflow-x:hidden;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 14px) 20px calc(env(safe-area-inset-bottom) + 16px);color-scheme:dark}
+body.welcomeOpen{overflow:hidden}
+.planlyWelcome:focus{outline:none}
+.wfxBg{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.wfxGlow{position:absolute;inset:-20%;opacity:0;transition:opacity .7s ease;filter:blur(36px);animation:wfxDrift 16s ease-in-out infinite alternate}
+.wfxGlow.on{opacity:1}
+.wfxGlow-today{background:radial-gradient(38% 30% at 22% 20%,#F59E0B 0,transparent 70%),radial-gradient(40% 32% at 82% 28%,#F43F5E 0,transparent 72%),radial-gradient(46% 34% at 50% 52%,#7C3AED 0,transparent 72%)}
+.wfxGlow-home{background:radial-gradient(40% 30% at 20% 22%,#10B981 0,transparent 70%),radial-gradient(40% 32% at 84% 26%,#2F6FEB 0,transparent 72%),radial-gradient(44% 34% at 52% 52%,#F97366 0,transparent 72%)}
+.wfxGlow-plan{background:radial-gradient(40% 30% at 22% 22%,#8B5CF6 0,transparent 70%),radial-gradient(40% 32% at 82% 30%,#06B6D4 0,transparent 72%),radial-gradient(46% 34% at 48% 54%,#EC4899 0,transparent 72%)}
+.wfxShade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,13,23,.15) 0%,rgba(11,13,23,.25) 38%,rgba(11,13,23,.88) 60%,#0B0D17 74%)}
+@keyframes wfxDrift{from{transform:translate3d(-3%,-2%,0) scale(1)}to{transform:translate3d(3%,3%,0) scale(1.08)}}
+.welcomeCard{position:relative;width:100%;max-width:440px;display:flex;flex-direction:column;min-height:100%}
+.welcomeBrand{display:flex;align-items:center;justify-content:center;gap:10px;font-size:24px;font-weight:700;letter-spacing:-.02em;padding:6px 0 2px;color:#fff}
+.wfxLogo{width:32px;height:32px;border-radius:9px;background:#fff;color:#0B0D17;display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.wfxLogo svg{width:22px;height:22px}
+.welcomeSlides{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin:0 -20px}
+.welcomeSlides::-webkit-scrollbar{display:none}
+.welcomeSlide{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 24px 0;box-sizing:border-box;text-align:center}
+.welcomeSlide h2{font-size:clamp(28px,8.4vw,36px);line-height:1.1;letter-spacing:-.03em;margin:18px 0 10px;font-weight:700;color:#fff}
+.welcomeSlide p{margin:0 auto;max-width:330px;color:rgba(255,255,255,.8);font-size:17px;line-height:1.42}
+.wfxStage{flex:1;min-height:clamp(170px,36vh,340px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16181d}
+.wfxCard{width:min(300px,100%);background:rgba(255,255,255,.95);border-radius:22px;padding:14px;box-shadow:0 18px 40px rgba(0,0,0,.35),0 2px 6px rgba(0,0,0,.2);text-align:left;box-sizing:border-box}
+.wfxHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.wfxHead span{display:grid}.wfxHead small{font-size:12px;color:#5b616e;font-weight:600}.wfxHead strong{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.wfxRing{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#F59E0B calc(var(--p)*1%),#ECEDF1 0)}
+.wfxRing b{width:34px;height:34px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+.wfxRow{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 2px;border-top:1px solid #ECEDF1}
+.wfxCheck{width:22px;height:22px;border-radius:50%;border:2px solid #D3D6DD;display:grid;place-items:center;font-size:12px;color:#fff;font-weight:700}
+.wfxCheck.on{background:#10B981;border-color:#10B981}
+.wfxText{display:grid;min-width:0}.wfxText strong{font-size:15px;font-weight:600;color:#16181d}.wfxText small{font-size:13px;color:#5b616e}
+.wfxStar{color:#E8930C;font-size:17px}
+.wfxChips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;max-width:320px}
+.wfxChip{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.95);color:#16181d;border-radius:999px;padding:11px 16px;font-size:16px;font-weight:600;box-shadow:0 12px 28px rgba(0,0,0,.32)}
+.wfxEmoji{font-size:18px;line-height:1}
+.wfxCount{min-width:24px;height:24px;border-radius:12px;background:#ECEDF1;color:#4a505c;font-size:13px;display:grid;place-items:center;padding:0 6px}
+.wfxWho{font-size:13px;font-weight:700;color:var(--personSelfText);background:color-mix(in srgb,var(--tone) 14%,#fff);padding:4px 9px;border-radius:999px}
+.wfxWho.tone-self{color:#1F4FB8;--tone:#2F6FEB}.wfxWho.tone-partner{color:#A8322D;--tone:#D9534F}.wfxWho.tone-anyone{color:#15633d;--tone:#1b7a4c}
+.wfxShift{display:grid;grid-template-columns:5px minmax(0,1fr);gap:12px}.wfxBar{border-radius:3px;background:#E78AA7}
+.wfxHint{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;align-items:center}
+.wfxTilt1{transform:rotate(-2deg)}.wfxTilt2{transform:rotate(1.5deg)}.wfxTilt3{transform:rotate(-1deg)}
+.wfxStage>*{animation:wfxFloat 5s ease-in-out infinite alternate}.wfxStage>*:nth-child(2){animation-delay:-2.5s}.wfxStage>*:nth-child(3){animation-delay:-1.2s}
+@keyframes wfxFloat{from{translate:0 -3px}to{translate:0 4px}}
+.welcomeDots{display:flex;justify-content:center;gap:8px;padding:20px 0 18px}
+.welcomeDots span{width:8px;height:8px;border-radius:4px;background:rgba(255,255,255,.35);transition:background .25s,width .25s}
+.welcomeDots span.active{background:#fff;width:24px}
+.welcomeActions{display:grid;gap:12px}
+.wfxBtn{width:100%;min-height:54px;border-radius:999px;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;-webkit-tap-highlight-color:transparent;transition:transform .12s ease}
+.wfxBtn:active{transform:scale(.98)}
+.wfxPrimary{background:#fff;color:#0B0D17;border:0;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.wfxBtnIcon{width:22px;height:22px}
+.wfxGoogle{position:relative;background:#1F1F1F;color:#fff;border:1.5px solid rgba(255,255,255,.22);padding:0 20px 0 64px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.wfxGMark{position:absolute;left:4px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 0 0 2px #1F1F1F}
+.wfxGMark svg{width:22px;height:22px}
+.wfxBtn:focus-visible{outline:3px solid #7AA7FF;outline-offset:3px}
+.welcomeProviderSlot:empty{display:none}
+.welcomeEmailForm{display:grid;gap:12px;padding-top:6px}
+.welcomeEmailForm[hidden],.welcomeActions[hidden]{display:none}
+.wfxFormHead{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;text-align:center}
+.wfxFormHead strong{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.wfxBack{width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:26px;line-height:1;display:grid;place-items:center;padding-bottom:3px}
+.wfxField{display:grid;gap:6px;text-align:left}
+.wfxField span{font-size:14px;font-weight:600;color:rgba(255,255,255,.85);padding-left:6px}
+.wfxField input{width:100%;box-sizing:border-box;min-height:54px;border-radius:16px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:17px;padding:0 16px;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.wfxField input::placeholder{color:rgba(255,255,255,.6)}
+.wfxField input:focus{outline:none;border-color:#7AA7FF;background:rgba(255,255,255,.14)}
+.wfxMsg{margin:0;padding:10px 14px;border-radius:14px;background:rgba(244,63,94,.18);color:#FFC2CC;font-size:15px;line-height:1.35}
+.wfxMsg.ok{background:rgba(34,168,106,.2);color:#B7F0D2}
+.wfxLink{min-height:44px;border:0;background:transparent;color:#fff;font-size:15px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.planlyWelcome.wfxFormOpen .welcomeDots{display:none}
+.planlyWelcome.wfxFormOpen .welcomeSlide p{display:none}
+@media (max-height:700px){.planlyWelcome.wfxFormOpen .wfxStage{display:none}}
+.wfxFoot{margin:4px 0 0;text-align:center;font-size:13px;color:rgba(255,255,255,.7)}
+@media (max-height:700px){.wfxExtra{display:none!important}.welcomeSlide h2{margin-top:12px}.welcomeDots{padding:14px 0 12px}.wfxBtn{min-height:50px}}
+@media (max-height:600px){.wfxFoot{display:none}.welcomeSlide p{font-size:16px}.wfxRow:nth-of-type(2){display:none}}
+@media (prefers-reduced-motion:reduce){.wfxGlow,.wfxStage>*{animation:none}.wfxGlow,.wfxBtn{transition:none}}
+@media (prefers-reduced-motion:reduce){.doneFoldChevron,.welcomeDots span{transition:none}}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -405,7 +494,7 @@ html,body,button,input,select,textarea{font-family:'Outfit',-apple-system,BlinkM
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=600a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=610a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

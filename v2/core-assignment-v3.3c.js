@@ -163,9 +163,9 @@ loadVerifiedCloudPreview=function(){
 /* The original sign-in renders immediately after adoptPlanlySession(). That is
    too early for household assignment state. Replace the handler so the first
    authenticated UI waits for both household identity and cloud task hydration. */
-planlySignIn=async function(){
+planlySignIn=async function(creds){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
-  const email=$('#planlyAuthEmail')?.value.trim(),password=$('#planlyAuthPassword')?.value||'';
+  const email=creds?String(creds.email||'').trim():$('#planlyAuthEmail')?.value.trim(),password=creds?String(creds.password||''):$('#planlyAuthPassword')?.value||'';
   if(!email||!password)throw new Error('Enter your email and password.');
   const {data,error}=await planlySupabase.auth.signInWithPassword({email,password});
   if(error)throw error;
@@ -179,6 +179,7 @@ planlySignIn=async function(){
   }
   showToast('Signed in to Planly');
   render();
+  return data.session;
 };
 
 async function planlyCompleteHouseholdTaskDirect(t){
