@@ -206,3 +206,5 @@ for(const needle of ['intelligenceChoreBalance:false','id="intelligenceChoreBala
 for(const needle of ['function homeChoreBalanceHtml','function openShareOut()','data-share-out','data-share-accept','t._planlyOwnedByMe===false',"t.visibility!=='household'"])if(!r1.includes(needle))fail('I4 Home/share-out invariant missing: '+needle);
 if(!r1.includes('projectStatusHtml(p,projectAnalysis)'))fail('I4 project list must reuse one Intelligence analysis per render');
 for(const needle of ['completedDate','weekCounts','ownerUnassigned','shareOut','longShifts'])if(!s.intelligence.includes(needle))fail('I4 engine invariant missing: '+needle);
+
+if(!s.app.includes("assignee_id:visibility==='household'?(t.assigneeId||t.assignee_id||null):null"))fail('I4 authoritative assignee column must travel through optimistic taskCloudRow');
