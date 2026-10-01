@@ -191,7 +191,7 @@ for(const needle of ["calendarClashes=new Set","taskClashes=new Set","<span>Clas
 if(!s.intelligence.includes("owned(t)&&t.visibility!=='household'&&!t.completed&&String(t.projectId||'')"))fail('I3 project actions must rank personal owner-safe tasks only');
 
 const i3r1=read('v2/core-redesign-r1.js'),i3projects=read('v2/core-projects-v3.3c.js');
-for(const needle of ["typeof projectStatusHtml==='function'?projectStatusHtml(p,projectAnalysis)"]){if(!i3r1.includes(needle))fail('I3 R1 composed project status missing: '+needle);if(!i3projects.includes(needle))fail('I3 3.3C composed project status missing: '+needle)}
+if(!i3r1.includes("typeof projectStatusHtml==='function'?projectStatusHtml(p,projectAnalysis)"))fail('I4 R1 composed project status must reuse cached analysis');if(!i3projects.includes("typeof projectStatusHtml==='function'?projectStatusHtml(p)"))fail('I3 3.3C composed project status missing')
 for(const needle of ['projectIntelligence(p.id)','Next step','data-project-action="plan-block"',"typeof planProjectBlock==='function'"])if(!i3projects.includes(needle))fail('I3 composed project detail/action missing: '+needle);
 for(const needle of ["Array.from({length:7},(_,i)=>addDays(today,i))","baseRec?.weekCandidates||[]","row.date<today","function firstPlanningGap(","todayTime||firstPlanningGap(tomorrow,t,0)"])if(!s.app.includes(needle))fail('I3 review #99 planning invariant missing: '+needle);
 for(const needle of ["activeAll=all.filter(t=>!t.completed)","status='done'","status='not-scheduled'",'weekCandidates'])if(!s.intelligence.includes(needle))fail('I3 review #99 engine invariant missing: '+needle);
