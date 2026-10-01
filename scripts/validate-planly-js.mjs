@@ -213,3 +213,6 @@ if(!s.app.includes("assignee_id:visibility==='household'?(t.assigneeId||t.assign
 for(const needle of ["PLANLY_INTELLIGENCE_HISTORY_KEY","recordIntelligenceCompletion","intelligenceLearning","learnedPlanningDuration","smartAddSuggestionHtml","recurringLearningCandidate","intelligenceResetHistory",'<option value="11">11 hours</option>','<option value="12">12 hours</option>'])if(!s.app.includes(needle))fail('I5 app invariant missing: '+needle);
 for(const needle of ['weeklyReviewHtml','data-plan-week-review','Plan this week'])if(!r1.includes(needle))fail('I5 weekly review invariant missing: '+needle);
 if(!s.intelligence.includes("Number(loads[ordered[0].id]||0)===Number(loads[ordered[1].id]||0)"))fail('I5 Share out must leave equal-load ties as Anyone');
+
+for(const needle of ["if($('#intelligenceResetHistory'))$('#intelligenceResetHistory').onclick=()=>resetIntelligenceHistory()","function similarOwnedTasks(title)","learning:intelligenceLearningInput()","function dismissRecurringLearning(t)","data-repeat-no"])if(!s.app.includes(needle))fail('I5 review fix missing: '+needle);
+if(!r1.includes("t.date>=start&&t.date<=end"))fail('I5 weekly slipped must be scoped to last week');
