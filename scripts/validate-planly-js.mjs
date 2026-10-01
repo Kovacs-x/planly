@@ -297,3 +297,5 @@ for(const id of ['appearance','planning','intelligence','calendars','household',
 {if(!s.assignment.includes("planlySignIn=async function(creds){")||!s.assignment.includes("const email=creds?String(creds.email||'').trim():$('#planlyAuthEmail')?.value.trim()")||!/showToast\('Signed in to Planly'\);\n  render\(\);\n  return data\.session;\n\};/.test(s.assignment))fail('Composed sign-in must accept welcome credentials');}
 // Settings switches: the row holding a switch is a >=44px tap target.
 {const html=read('v2/index.html');if(!html.includes('.settingsPaged label:has(>input[type="checkbox"]){min-height:48px;align-items:center}')||!html.includes('width:51px;height:31px;margin:7px 0;'))fail('Settings switch rows must be >=44px tap targets');}
+// Settings identity card: name and email are opaque white (>=5.17:1 on every gradient stop; 88% white was 4.37:1 on #2563EB).
+{const html=read('v2/index.html');if(!html.includes('.settingsHubIdentity small{font-size:14px;color:#fff}')||!html.includes('.settingsHubIdentity strong{font-size:20px;font-weight:700;letter-spacing:-.02em;color:#fff}'))fail('Settings identity text must be opaque white');}
