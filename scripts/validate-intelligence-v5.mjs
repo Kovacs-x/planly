@@ -26,7 +26,7 @@ const rest8=api.analyse({...base,nowMinutes:480,busy:[{start:0,end:480}],prefs:{
 const rest12=api.analyse({...base,nowMinutes:480,busy:[{start:0,end:480}],prefs:{nightRest:true,nightRestHours:12},tasks:[{id:'a',date:'2026-09-30',visibility:'private',completed:false,durationMinutes:30}]});if(rest12.times.some(x=>x.time&&Number(x.time.slice(0,2))*60+Number(x.time.slice(3))<1200))throw Error('12h night rest suggested too early');
 if(!rest8.day.overnightRest||rest8.day.restUntil!=='16:00'||rest12.day.restUntil!=='20:00')throw Error('Night rest metadata failed');
 
-if(api.version!=='5.0.0-i2')throw Error('I2 engine version mismatch');
+if(api.version!=='5.0.0-i3')throw Error('I3 engine version mismatch');
 const weighted=api.analyse({...base,tasks:[{id:'weighted',title:'Weighted',date:'2026-09-28',priority:'high',durationMinutes:30,completed:false,visibility:'private',createdAt:1,deferCount:3}]});
 const weightedRow=weighted.overdue.find(x=>x.id==='weighted');if(!weightedRow||!Array.isArray(weightedRow.factors)||!weightedRow.factors.some(x=>x.text==='Overdue 2 days'&&x.points===110)||!weightedRow.factors.some(x=>x.text==='High priority'&&x.points===45)||!weightedRow.factors.some(x=>x.text==='Moved 3 times'&&x.points===-15))throw Error('I2 real weighted factors missing');
 if(weightedRow.suggest!=='inbox'||!weightedRow.reasons.includes('Moved 3 times'))throw Error('I2 deferCount overdue recommendation failed');
