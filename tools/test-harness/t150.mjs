@@ -5,6 +5,7 @@ const PORT=process.env.PORT||'8802', B='http://localhost:'+PORT+'/planly/v2/';
 const mode=process.argv[2]||'work'; const bad=[]; const R={mode};
 const h=await launch({uid:ME}); const {page:p,W,MOCK}=h; const q=(f,a)=>p.evaluate(f,a);
 const today=new Date().toISOString().slice(0,10);
+if(process.env.NOON!=='0')await p.clock.setFixedTime(new Date(today+'T12:00:00Z'));
 if(mode==='work'){MOCK.db.external_calendar_events.push({...MOCK.db.external_calendar_events[0],id:crypto.randomUUID(),external_uid:'t150-long',title:'Long day',starts_at:today+'T07:30:00+00:00',ends_at:today+'T20:00:00+00:00',start_date:today,end_date:today})}
 else MOCK.db.external_calendar_events.length=0;
 // make sure there are at least 4 unpinned personal tasks today
