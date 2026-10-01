@@ -310,6 +310,21 @@ body{font-size:15px;line-height:1.45}.title{letter-spacing:-.035em}.sectionHead 
 :root[data-theme="dark"] .profileIcon .profileInitial{background:#7AA7FF;color:#0f1115}
 .profileIcon.active .profileInitial{box-shadow:inset 0 0 0 2px #fff}:root[data-theme="dark"] .profileIcon.active .profileInitial{box-shadow:inset 0 0 0 2px #0f1115}
 </style>
+<style id="planlyType">
+/* Type: Outfit (SIL OFL, ./fonts/OFL.txt), self-hosted. Each static face covers a weight range, so the
+   app's many old weights collapse to four: <450 regular, 450-549 medium, 550-790 semibold, >790 bold. */
+@font-face{font-family:'Outfit';src:url('./fonts/outfit-400.woff2') format('woff2');font-weight:1 449;font-style:normal;font-display:swap}
+@font-face{font-family:'Outfit';src:url('./fonts/outfit-500.woff2') format('woff2');font-weight:450 549;font-style:normal;font-display:swap}
+@font-face{font-family:'Outfit';src:url('./fonts/outfit-600.woff2') format('woff2');font-weight:550 790;font-style:normal;font-display:swap}
+@font-face{font-family:'Outfit';src:url('./fonts/outfit-700.woff2') format('woff2');font-weight:791 1000;font-style:normal;font-display:swap}
+html,body,button,input,select,textarea{font-family:'Outfit',-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+/* small labels: sentence case instead of SPACED CAPITALS */
+.dashboardLabel,.dashboardNextEyebrow,.taskActionHeader span,.householdSectionEyebrow,.calendarGroupLabel,.householdEyebrow{text-transform:none!important;letter-spacing:0!important;font-size:13px!important;font-weight:600!important}
+/* titles: tighter, one weight */
+#pageTitle{letter-spacing:-.02em}
+/* tab icons always carry their section colour; labels stay neutral until selected */
+.nav button[data-section="today"] .pIcon{color:var(--today)}.nav button[data-section="plan"] .pIcon{color:var(--plan)}.nav button[data-section="home"] .pIcon{color:var(--home)}.nav button[data-section="budget"] .pIcon{color:var(--budget)}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -374,7 +389,7 @@ body{font-size:15px;line-height:1.45}.title{letter-spacing:-.035em}.sectionHead 
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=580a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=590a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

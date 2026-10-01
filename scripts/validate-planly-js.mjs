@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=560r111'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-580a-48'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-590a-49'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,7 +145,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=580a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=590a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -258,3 +258,9 @@ for(const needle of ["const PLANLY_TODAY_CARDS=[['summary'","function todayCardO
 const rel=(s.app.match(/const PLANLY_RELEASE='([^']+)'/)||[])[1],cache=(s.sw.match(/const CACHE='([^']+)'/)||[])[1];if(!rel||rel!==cache)fail('About version must match the service-worker cache: '+rel+' vs '+cache);
 const pages=['appearance','planning','intelligence','calendars','household','account','data'];for(const pg of pages){if(!s.app.includes("['"+pg+"',"))fail('Settings page missing: '+pg);if(!html.includes('.settingsPaged[data-page="'+pg+'"] [data-sp~="'+pg+'"]'))fail('Settings page CSS missing: '+pg);if(!new RegExp('data-sp="[^"]*\\b'+pg+'\\b').test(s.app))fail('No settings card assigned to page: '+pg)}
 for(const id of ['planlyDisplayName','defaultCat','defaultDuration','planningStart','planningEnd','intelligenceSuggestions','intelligenceChoreBalance','intelligenceNightRest','autoCalendarTimed','themeSetting','taskRowDensity','exportBtn','importBtn','clearBtn'])if(!s.app.includes('id="'+id+'"'))fail('Settings control removed: '+id);}
+
+// Type: self-hosted Outfit (OFL), four static faces whose weight ranges collapse old weights; sentence-case labels; cached for offline.
+{const html=read('v2/index.html');for(const [w,r] of [[400,'1 449'],[500,'450 549'],[600,'550 790'],[700,'791 1000']]){if(!html.includes("url('./fonts/outfit-"+w+".woff2') format('woff2');font-weight:"+r))fail('Outfit face missing: '+w);if(!fs.existsSync('v2/fonts/outfit-'+w+'.woff2'))fail('Outfit file missing: '+w);if(!s.sw.includes("'./fonts/outfit-"+w+".woff2'"))fail('Outfit not cached by SW: '+w)}
+if(!fs.existsSync('v2/fonts/OFL.txt')||!read('v2/fonts/OFL.txt').includes('SIL OPEN FONT LICENSE Version 1.1'))fail('Outfit licence missing');
+for(const needle of ['<style id="planlyType">',"html,body,button,input,select,textarea{font-family:'Outfit',",'.calendarGroupLabel,.householdEyebrow{text-transform:none!important','.nav button[data-section="today"] .pIcon{color:var(--today)}','.nav button[data-section="budget"] .pIcon{color:var(--budget)}'])if(!html.includes(needle))fail('Type invariant missing: '+needle);
+if(html.lastIndexOf('<style id="planlyType">')<html.lastIndexOf('<style id="planlyStage4Part3a">'))fail('Type styles must load last');}
