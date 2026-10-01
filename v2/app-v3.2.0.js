@@ -1330,6 +1330,9 @@ async function repairDisposableConflictTestPending(){
   if(changed){writePlanlyPendingWrites(pending);persistPlanlyCloudCache()}
   return changed;
 }
+function planlyTaskConflictIsCompletionOnly(localData,serverData){if(!localData||!serverData||!localData.completed||!serverData.completed)return false;const ignored=new Set(['completed','completedBy','completed_by','completedAt','completed_at','updatedAt','_planlyCloudVersion','_planlyOwnerId','_planlyOwnedByMe']);const clean=x=>Object.fromEntries(Object.entries(x||{}).filter(([k])=>!ignored.has(k)));return canonicalJson(clean(localData))===canonicalJson(clean(serverData))}
+async function adoptCompletedCloudTaskConflict(op,record){if(op?.kind!=='task'||op.action!=='upsert'||!record||record.serverDeleted||!planlyTaskConflictIsCompletionOnly(op.data,record.serverData))return false;const row=await fetchPlanlyTaskRow(op.id);if(!row||row.deleted_at||!row.completed_by||!row.data?.completed)return false;const cloudTask=planlyTaskFromCloudRow(row),i=state.tasks.findIndex(t=>String(t.id)===String(op.id)&&t._planlyOwnedByMe!==false);if(i>=0)state.tasks[i]=cloudTask;planlyCloudSyncMeta.tasks.set(String(op.id),Number(row.cloud_version||record.serverVersion||0));clearPlanlyPendingWrite('task',op.id);clearPlanlyConflict('task',op.id);persistPlanlyCloudCache();save();render();showToast('Already done by '+planlyHouseholdSentencePersonLabel(row.completed_by));return true}
+async function fetchPlanlyTaskRow(id){const ownerId=planlySession.user.id,{data,error}=await planlySupabase.from('planly_tasks').select(PLANLY_TASK_SELECT).eq('owner_id',ownerId).eq('client_id',String(id)).maybeSingle();if(error)throw error;return data||null}
 async function replayPlanlyPendingWrites(){
   if(!PLANLY_CLOUD_PREVIEW||planlyCloudReadOnly||!planlySession?.user)return {replayed:0,deferred:true};
   if(!navigator.onLine){setPlanlyCloudLocalStatus({state:'offline-retry-needed',pendingWrites:readPlanlyPendingWrites().length});render();return {replayed:0,deferred:true}}
@@ -1355,6 +1358,7 @@ async function replayPlanlyPendingWrites(){
       replayed++;
     }catch(err){
       if(err?.planlyConflictRecord){
+        if(await adoptCompletedCloudTaskConflict(op,err.planlyConflictRecord)){replayed++;continue}
         upsertPlanlyConflict(err.planlyConflictRecord);
         updatePlanlyPendingWrite(op.kind,op.id,{status:'conflict',lastError:String(err?.message||err)});
         blocked.add(key);conflicts++;continue;

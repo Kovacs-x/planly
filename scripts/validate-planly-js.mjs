@@ -227,3 +227,7 @@ for(const needle of ['id="profileToggle"','id="profileWrap"','planlyStage4Profil
 for(const needle of ['function planlyPersonColour(userId)','function openProfile()','function openSettingsFromProfile(focusHousehold=false)',"$('#profileToggle').onclick=openProfile"])if(!s.app.includes(needle))fail('Stage4 Profile/person-colour runtime missing: '+needle);
 if(navMarkup.includes('<button data-tab="settings"'))fail('Stage4 Settings must not remain a primary nav tab');
 
+
+for(const needle of ['function planlyTaskConflictIsCompletionOnly(localData,serverData)','async function adoptCompletedCloudTaskConflict(op,record)','if(await adoptCompletedCloudTaskConflict(op,err.planlyConflictRecord)){replayed++;continue}','showToast(\'Already done by \'+planlyHouseholdSentencePersonLabel(row.completed_by))'])if(!s.app.includes(needle))fail('Stage4 owner completion convergence missing: '+needle);
+if(s.app.includes('function planlyPersonColour(userId)'))fail('Stage4 Part 1 must not ship premature person-colour model');
+for(const needle of ["dayPlanRecommendations?.day?.isWorkDay||dayPlanRecommendations?.day?.overnightRest","const limit=(dayPlanRecommendations?.day?.isWorkDay||dayPlanRecommendations?.day?.overnightRest)?2:3"])if(!s.app.includes(needle))fail('Stage4 protected-rest Top 3 UI invariant missing: '+needle);
