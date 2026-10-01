@@ -325,6 +325,22 @@ html,body,button,input,select,textarea{font-family:'Outfit',-apple-system,BlinkM
 /* tab icons always carry their section colour; labels stay neutral until selected */
 .nav button[data-section="today"] .pIcon{color:var(--today)}.nav button[data-section="plan"] .pIcon{color:var(--plan)}.nav button[data-section="home"] .pIcon{color:var(--home)}.nav button[data-section="budget"] .pIcon{color:var(--budget)}
 </style>
+<style id="planlyPersonColours">
+/* Part 3b person colours (#89 P2): relative per viewer: you blue, your partner coral, household / Anyone green.
+   Colour is never the only signal: names, initials and "Done by" text always show. */
+:root{--personSelf:#2F6FEB;--personSelfText:#1F4FB8;--personPartner:#D9534F;--personPartnerText:#A8322D;--personAnyone:#1b7a4c;--personAnyoneText:#15633d}
+:root[data-theme="dark"]{--personSelf:#7AA7FF;--personSelfText:#A9C6FF;--personPartner:#FF8F86;--personPartnerText:#FFB3AC;--personAnyone:#7ed3a6;--personAnyoneText:#A5E3C2}
+.tone-self{--tone:var(--personSelf);--toneText:var(--personSelfText)}.tone-partner{--tone:var(--personPartner);--toneText:var(--personPartnerText)}.tone-anyone{--tone:var(--personAnyone);--toneText:var(--personAnyoneText)}
+.task.personEdge .taskSurface{box-shadow:inset 3px 0 0 var(--tone)}
+.personChip{color:var(--toneText)!important;font-weight:600}
+.pill.personChip{background:color-mix(in srgb,var(--tone) 12%,var(--card))!important;border-color:color-mix(in srgb,var(--tone) 30%,var(--line))!important}
+.personChip .pIcon{color:var(--tone)}
+.homeAvatar.personAvatarTone{background:color-mix(in srgb,var(--tone) 16%,var(--card))!important;color:var(--toneText)!important}
+.homeChoreGroupHead.personGroupHead strong{color:var(--toneText)}
+.homeChoreGroupHead.personGroupHead strong::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--tone);margin-right:7px;vertical-align:1px}
+.calendarDot.personDot{background:var(--tone)!important}
+.personDot:not(.calendarDot){display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--tone);margin-right:6px;vertical-align:1px;flex:0 0 auto}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -389,7 +405,7 @@ html,body,button,input,select,textarea{font-family:'Outfit',-apple-system,BlinkM
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=590a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=600a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
