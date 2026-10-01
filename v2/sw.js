@@ -1,6 +1,6 @@
-const CACHE='planly-v2-500f-36';
-const VERSION='planly-v2-sw-500f-36';
-const APP_URL='./app-v3.2.0.js?v=500f01';
+const CACHE='planly-v2-510a-37';
+const VERSION='planly-v2-sw-510a-37';
+const APP_URL='./app-v3.2.0.js?v=510a01';
 const HARDENING_URL='./hardening-v3.3b.js?v=330c14';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=330c03';
@@ -27,7 +27,7 @@ const BUDGET_REVIEW_URL='./core-budget-review-hardening-v4.0p.js?v=400p05';
 const BUDGET_CORE_GUARD_URL='./core-budget-core-guard-v4.0q.js?v=400q04';
 const LISTS_RUNTIME_URL='./core-lists-v4.1.js?v=410a10';
 const HOUSEHOLD_DASHBOARD_URL='./core-household-dashboard-v4.2.js?v=420a03';
-const INTELLIGENCE_RUNTIME_URL='./core-intelligence-v5.js?v=500i104';
+const INTELLIGENCE_RUNTIME_URL='./core-intelligence-v5.js?v=510i201';
 const UPDATE_RUNTIME_URL='./core-update-v4.3.js?v=430a01';
 const SAFARI_DIAGNOSTICS_URL='./core-safari-diagnostics-v4.3b.js?v=430b01';
 const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_HOUSEHOLD_PLANNING_SAFETY_URL,CORE_CLOSEOUT_URL,CORE_CLOUD_READINESS_URL,CORE_RELEASE_GATE_URL,CORE_BUDGET_NAV_URL,CORE_REDESIGN_R1_URL];
