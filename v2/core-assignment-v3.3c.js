@@ -72,7 +72,7 @@ async function replayQueuedPlanlyHouseholdCompletions(){
         await reconcilePlanlyCloud({render:false,replay:false}).catch(()=>{});
         const payload=op.data||{},fresh=state.tasks.find(x=>String(x.id)===String(payload.clientId)&&String(x._planlyOwnerId||'')===String(payload.ownerId));
         if(!fresh){clearPlanlyPendingWrite('householdCompletion',op.id);render();showToast('This household task is no longer available.');continue}
-        if(!!fresh.completed===!!payload.completed){clearPlanlyPendingWrite('householdCompletion',op.id);persistPlanlyCloudCache();render();continue}
+        if(!!fresh.completed===!!payload.completed){clearPlanlyPendingWrite('householdCompletion',op.id);await reconcilePlanlyCloud({render:false,replay:false}).catch(()=>{});persistPlanlyCloudCache();render();continue}
         if(!planlyHouseholdCompletionEligible(fresh)){clearPlanlyPendingWrite('householdCompletion',op.id);render();showToast('This household task can no longer be completed by you.');continue}
         const retryNextDate=payload.completed
           ?(String(fresh.date||'')===String(payload.nextDateFrom||'')?(payload.nextDate||null):planlyHouseholdNextDate(fresh))
