@@ -173,7 +173,7 @@ if(!s.app.includes("data-i2-tidy-choice")||!s.app.includes("data-i2-accept-tidy"
 if(!s.app.includes("showUndoToast('Suggested Top 3 added'"))fail('I2 Suggest 3 must provide batch Undo');
 if(!s.app.includes("state.intelligenceSnoozeDate=localKey(new Date())"))fail('I2 no-suggestions control must be device-day scoped');
 
-for(const needle of ["const VERSION='5.0.0-i2'","factors:x.factors","score:x.score"])if(!s.intelligence.includes(needle))fail('I2 weighted explanation invariant missing: '+needle);
+for(const needle of ["const VERSION='5.0.0-i3'","factors:x.factors","score:x.score"])if(!s.intelligence.includes(needle))fail('I2 weighted explanation invariant missing: '+needle);
 for(const needle of ["function tidyOverdue(rec=todayIntelligence())","const recById=new Map((rec?.overdue||[])","showUndoToast('Tidied '","clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)","showIntelligenceWhy(dayPlanRecommendations","state.intelligenceSnoozeDate===localKey(new Date())||!engine?.analyse"])if(!s.app.includes(needle))fail('I2 review #97 invariant missing: '+needle);
 {const a=s.app.indexOf('function tidyOverdue('),b=s.app.indexOf('\nfunction showIntelligenceWhy',a),block=s.app.slice(a,b);if(block.includes('rescheduleTaskWithUndo('))fail('I2 Tidy up regressed to per-task Undo');if(!block.includes("t.deferCount=Math.max(0,Number(t.deferCount||t.data?.deferCount||0))+1"))fail('I2 Tidy batch must increment deferCount in the batch');}
 if(!s.app.includes("t.date===key&&t.visibility!=='household'&&t._planlyOwnedByMe!==false&&!t.completed"))fail('I2 Suggest 3 must not clear household Top 3 state');
