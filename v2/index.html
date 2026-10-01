@@ -471,7 +471,7 @@ body.welcomeOpen{overflow:hidden}
 .settingsPageHead .settingsBack{border:0!important;background:transparent!important;color:#2F6FEB!important;font-size:17px;font-weight:600;padding-left:4px!important;min-height:44px}
 :root[data-theme="dark"] .settingsPageHead .settingsBack{color:#7AA7FF!important}
 .settingsPaged .settingsCard{border-radius:20px}
-.settingsPaged input[type="checkbox"]{-webkit-appearance:none;appearance:none;position:relative;flex:0 0 auto;width:51px;height:31px;margin:6px 0;border-radius:999px;background:#E3E5EA;border:0;cursor:pointer;transition:background .2s ease;vertical-align:middle}
+.settingsPaged input[type="checkbox"]{-webkit-appearance:none;appearance:none;position:relative;flex:0 0 auto;width:51px;height:31px;margin:7px 0;border-radius:999px;background:#E3E5EA;border:0;cursor:pointer;transition:background .2s ease;vertical-align:middle}
 .settingsPaged input[type="checkbox"]::before{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.22);transition:transform .2s ease}
 .settingsPaged input[type="checkbox"]:checked{background:#22A86A}
 .settingsPaged input[type="checkbox"]:checked::before{transform:translateX(20px)}
@@ -479,6 +479,7 @@ body.welcomeOpen{overflow:hidden}
 .settingsPaged input[type="checkbox"]:disabled{opacity:.5}
 :root[data-theme="dark"] .settingsPaged input[type="checkbox"]{background:#3A3F4A}
 :root[data-theme="dark"] .settingsPaged input[type="checkbox"]:checked{background:#30C27B}
+.settingsPaged label:has(>input[type="checkbox"]){min-height:48px;align-items:center}
 .todayCardToggle{display:flex!important;align-items:center;gap:12px;flex-direction:row-reverse;justify-content:space-between;min-height:56px}
 @media (prefers-reduced-motion:reduce){.settingsPaged input[type="checkbox"],.settingsPaged input[type="checkbox"]::before{transition:none}}
 </style>
