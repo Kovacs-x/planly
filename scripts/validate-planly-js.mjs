@@ -72,8 +72,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=550r110'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-550a-45'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=560r111'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-560a-46'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,8 +145,8 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=550a01'"))fail('Intelligence app runtime boot marker mismatch');
-const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=550i503')fail('Intelligence must be final runtime module');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=560a01'"))fail('Intelligence app runtime boot marker mismatch');
+const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
 if(/__planly33cBaseRenderPlanDay[\s\S]{0,300}innerHTML/.test(s.calendar))fail('Household calendar wrapper must not replace composed Plan My Day UI');
@@ -230,7 +230,7 @@ if(navMarkup.includes('<button data-tab="settings"'))fail('Stage4 Settings must 
 
 for(const needle of ['function planlyTaskConflictIsCompletionOnly(localData,serverData)','async function adoptCompletedCloudTaskConflict(op,record)','if(await adoptCompletedCloudTaskConflict(op,err.planlyConflictRecord)){replayed++;continue}','showToast(\'Already done by \'+planlyHouseholdSentencePersonLabel(row.completed_by))'])if(!s.app.includes(needle))fail('Stage4 owner completion convergence missing: '+needle);
 if(s.app.includes('function planlyPersonColour(userId)'))fail('Stage4 Part 1 must not ship premature person-colour model');
-for(const needle of ["dayPlanRecommendations?.day?.isWorkDay||dayPlanRecommendations?.day?.overnightRest","const limit=(dayPlanRecommendations?.day?.isWorkDay||dayPlanRecommendations?.day?.overnightRest)?2:3"])if(!s.app.includes(needle))fail('Stage4 protected-rest Top 3 UI invariant missing: '+needle);
+for(const needle of ["top3Limit=planlyTop3LimitFor(dayPlanRecommendations)","const limit=planlyTop3LimitFor(dayPlanRecommendations)","(planlyTop3LimitFor(dayPlanRecommendations)===2?'two':'three')","selected+'/'+planlyTop3LimitFor(dayPlanRecommendations)+' selected"])if(!s.app.includes(needle))fail('Stage4 protected-rest Top 3 UI invariant missing: '+needle);
 
 // Stage 4 Part 1 (#111): header stays one row with 44px profile/search; Suggest 3 and compact project links keep usable sizes.
 {const html=read('v2/index.html');for(const needle of ['.topbar{grid-template-columns:minmax(0,1fr) auto auto auto!important}','.topbar .searchIcon{grid-column:3!important;grid-row:1!important}','.topbar .profileIcon{grid-column:4!important;grid-row:1!important;width:44px!important;height:44px!important','.compactTaskMeta>.compactProjectLink{flex:0 1 auto;min-width:min(22vw,72px)}','.prioritySection [data-i2-suggest3]{min-height:44px}'])if(!html.includes(needle))fail('Stage 4 Part 1 layout invariant missing: '+needle);}
@@ -238,3 +238,11 @@ for(const needle of ["dayPlanRecommendations?.day?.isWorkDay||dayPlanRecommendat
 // Stage 4 Part 1 review #113: one Top 3 rule (2 on work / protected-rest days, else 3) for the summary, Today counter and manual star.
 for(const needle of ['function planlyTop3LimitFor(rec){return (rec?.day?.isWorkDay||rec?.day?.overnightRest)?2:3}','function planlyTop3LimitForDate(key)','planlyTop3LimitForDate(t.date)','.length>=top3Limit){',"<strong>'+pins.length+'/'+top3Limit+'</strong><span>Top priorities</span>",'${pins.length}/${planlyTop3LimitFor(intel)}'])if(!generated.includes(needle))fail('Stage4 Top 3 limit surface missing: '+needle);
 for(const bad of ["<strong>'+pins.length+'/3</strong>",'${pins.length}/3<','x.pinned&&!x.completed).length>=3)'])if(generated.includes(bad))fail('Stage4 hard-coded Top 3 limit remains: '+bad);
+// Stage 4 Part 2 (#106 P1, #108 F1-F3/F6): meta line, Upcoming headings, status strip, Month today/shift colours, Home name prompt, slim day check, project "No tasks yet".
+{const html=read('v2/index.html');for(const needle of ['<style id="planlyStage4Part2">','.compactTaskMeta .pIcon{display:inline-block!important','.upcomingDateGroup{display:block!important','body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px)','.calendarShiftLabel.shiftNight','.todayDayCheck.dayCheckSlim{display:flex!important','.todayDayCheck.dayCheckSlim .dayCheckLink{min-height:44px;min-width:44px','.homeBalanceCount{display:flex!important;flex-direction:column!important','.planProjectCard .planProjectHead>.projectIntelStatus{flex:0 0 auto;display:inline-block'])if(!html.includes(needle))fail('Stage 4 Part 2 layout invariant missing: '+needle);
+for(const needle of ['function planlyShiftClass(label)','class="dayCheckMain"','data-i2-snooze>Hide today','class="compactRepeat"',"x.status==='empty'?'No tasks yet'"])if(!s.app.includes(needle))fail('Stage 4 Part 2 app invariant missing: '+needle);
+if(s.app.includes('data-i2-snooze>No suggestions today'))fail('Stage 4 Part 2: day check must say Hide today');
+for(const needle of ['homeNamePrompt','planly-name-prompt-dismissed-v1','inChoreWeek','function r1ProjectMeta(p)'])if(!s.redesignR1.includes(needle))fail('Stage 4 Part 2 Home/Projects invariant missing: '+needle);
+if(!s.calendar.includes('planlyShiftClass(sourceLabel)'))fail('Stage 4 Part 2 shift colour hook missing');
+if(!s.intelligence.includes("status='empty';reasons=['No tasks yet']"))fail('Stage 4 Part 2 engine empty-project status missing');}
+if((s.app.match(/isWorkDay\|\|[a-zA-Z?.]*overnightRest/g)||[]).length!==1)fail('Stage4: the 2/3 Top 3 rule must live only in planlyTop3LimitFor');

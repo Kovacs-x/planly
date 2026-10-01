@@ -215,6 +215,57 @@
 <style id="planlyStage4TypePerson">
 body{font-size:15px;line-height:1.45}.title{letter-spacing:-.035em}.sectionHead h2,.settingsGroupHead h2{letter-spacing:-.02em}.muted,.settingsHelp,.projectCardMeta,.compactTaskMeta{line-height:1.4}.taskTitle{line-height:1.3}@media(max-width:390px){body{font-size:14px}.sectionHead h2,.settingsGroupHead h2{font-size:18px}.settingsGroupHead p{font-size:13px}.profileSheet{padding-left:14px;padding-right:14px}}
 </style>
+<style id="planlyStage4Part2">
+/* P1.1 compact meta: icons stay on the text line; fixed facts never shrink; flexible ones ellipsize */
+.compactTaskMeta .pIcon{display:inline-block!important;vertical-align:-2px;margin-right:2px;width:13px!important;height:13px!important}
+.compactTaskMeta>span{display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.compactTaskMeta>.compactFixed,.compactTaskMeta>.compactOverdue,.compactTaskMeta>span[aria-hidden]{flex:0 0 auto;max-width:none}
+.compactTaskMeta>.compactRepeat,.compactTaskMeta>.compactCategory{flex:0 1 auto;min-width:min(16vw,52px)}
+/* P1.2 Upcoming: the date is a heading above full-width cards */
+.upcomingDateGroup{display:block!important;margin:0 0 14px!important}
+.upcomingDateGroup>.upcomingDateLabel{display:block;padding:4px 2px 6px!important;margin:0!important;font-size:13px!important;line-height:1.3;font-weight:750;color:var(--muted);letter-spacing:.01em}
+.upcomingDateGroup>.task+.task{margin-top:6px}
+/* P1.3 solid strip behind the iPhone status bar so content never scrolls under the clock */
+body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:80;pointer-events:none}
+/* P1.4 Month: one clean "today" circle; rota chips coloured by shift type */
+.day.isToday>span{width:26px!important;height:26px!important;min-width:26px!important;padding:0!important;border-radius:50%!important;display:grid!important;place-items:center;font-weight:800;background:#17687D!important;color:#fff!important}
+.calendarShiftLabel.shiftEarly{background:#FDECC8!important;color:#6B4100!important}
+.calendarShiftLabel.shiftLate{background:#ECE5FD!important;color:#45288A!important}
+.calendarShiftLabel.shiftNight{background:#DFE5FA!important;color:#1E2B66!important}
+.calendarShiftLabel.shiftOff{background:#E8E9EE!important;color:#363C49!important}
+:root[data-theme="dark"] .calendarShiftLabel.shiftEarly{background:#4A3510!important;color:#FFD999!important}
+:root[data-theme="dark"] .calendarShiftLabel.shiftLate{background:#33275A!important;color:#DCD0FF!important}
+:root[data-theme="dark"] .calendarShiftLabel.shiftNight{background:#222B52!important;color:#C9D3FF!important}
+:root[data-theme="dark"] .calendarShiftLabel.shiftOff{background:#33363F!important;color:#E1E3E8!important}
+:root[data-theme="dark"] .day.selected .calendarShiftLabel.shiftEarly{color:#FFD999!important}:root[data-theme="dark"] .day.selected .calendarShiftLabel.shiftLate{color:#DCD0FF!important}:root[data-theme="dark"] .day.selected .calendarShiftLabel.shiftNight{color:#C9D3FF!important}:root[data-theme="dark"] .day.selected .calendarShiftLabel.shiftOff{color:#E1E3E8!important}
+.calendarDoneMark{display:grid;place-items:center;color:var(--muted)}.calendarDoneMark .pIcon{width:12px!important;height:12px!important}
+.homeNamePrompt{display:grid;gap:10px;border:1px solid var(--line)}.homeNamePrompt>div:first-child{display:grid;gap:3px}.homeNamePrompt strong{font-size:15px}.homeNamePrompt span{font-size:13px;color:var(--muted);line-height:1.4}.homeNamePromptActions{display:flex;gap:8px}.homeNamePromptActions button{min-height:44px;flex:1;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-weight:750}.homeNamePromptActions button.primary{background:var(--accent);color:var(--accentText);border-color:transparent}
+/* #108 F1 slim day check: one line, small links, nothing boxed */
+.todayDayCheck.dayCheckSlim{display:flex!important;align-items:center;gap:4px;margin:0 0 12px;padding:0 2px 0 12px;border:1px solid var(--line);border-radius:14px;background:var(--card);flex-wrap:nowrap;grid-template-columns:none}
+.todayDayCheck.dayCheckSlim>.dayCheckMain{flex:1 1 auto;min-width:0;display:flex!important;flex-direction:row!important;align-items:center!important;gap:8px;min-height:44px;padding:4px 0!important;border:0!important;border-radius:0!important;background:none!important;text-align:left;grid-row:auto}
+.dayCheckDot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--success)}.dayCheckDot.dayCheck-tight{background:var(--warning)}.dayCheckDot.dayCheck-warn{background:var(--danger)}
+.dayCheckText{display:grid;min-width:0;line-height:1.25}
+.dayCheckText strong{font-size:14px!important;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dayCheckText small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dayCheckLinks{flex:0 0 auto;display:flex;align-items:center}
+.todayDayCheck.dayCheckSlim .dayCheckLink{min-height:44px;min-width:44px;padding:0 8px!important;border:0!important;border-radius:10px!important;background:none!important;font-size:13px!important;font-weight:650;color:var(--text);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.todayDayCheck.dayCheckSlim .dayCheckLink[data-i2-snooze]{color:var(--muted)}
+/* #108 F3 project card: status chip inline with the name, due date in the meta line */
+.planProjectCard .planProjectHead{display:flex!important;align-items:center;gap:8px;margin:0!important;color:var(--text)!important;font-size:inherit!important;min-width:0}
+.planProjectCard .planProjectHead>strong{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planProjectCard .planProjectHead>.projectIntelStatus{flex:0 0 auto;display:inline-block;margin:0;padding:3px 8px;font-size:11px}
+.planProjectCard .planProjectMeta{font-size:13px}
+/* #108 F2 chore balance cards: name above count, never spilling out */
+.homeBalanceCount{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:2px!important;min-width:0;overflow:hidden}
+.homeBalanceCount strong{max-width:100%;font-size:14px!important;font-weight:600;line-height:1.3}
+.homeBalanceCount span{max-width:100%;font-size:13px!important;color:var(--muted)}
+/* #108 F6 type scale on Intelligence surfaces: row 15, meta/chips 12-13, helper 12, nothing under 11 */
+.intelligenceWhyCard p,.intelligenceWhyFactors span,.tidyReason{font-size:12px!important}
+.planWeekDays section>span,.planWeekDays small{font-size:12px!important}
+.homeBalanceHeadsUp,.homeBalanceNotice span{font-size:13px!important}
+.homeChoreBalance h2{font-size:17px!important}
+.tidyTaskText{font-size:15px}
+</style>
 </head>
 <body>
 <svg class="planlyIconSprite" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="pi-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></symbol><symbol id="pi-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="pi-today" viewBox="0 0 24 24"><path d="M5 4v3M19 4v3M4 9h16"/><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="m8.5 14 2 2 5-5"/></symbol><symbol id="pi-plan" viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h6"/><path d="m16 15 3 3-3 3"/></symbol><symbol id="pi-home" viewBox="0 0 24 24"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></symbol><symbol id="pi-budget" viewBox="0 0 24 24"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></symbol><symbol id="pi-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol><symbol id="pi-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></symbol><symbol id="pi-spark" viewBox="0 0 24 24"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6z"/><path d="m18 15 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></symbol><symbol id="pi-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol><symbol id="pi-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></symbol><symbol id="pi-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></symbol><symbol id="pi-grip" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8"/></symbol><symbol id="pi-checklist" viewBox="0 0 24 24"><path d="m4 7 2 2 3-4M11 7h9M4 14l2 2 3-4M11 14h9"/></symbol><symbol id="pi-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol></defs></svg>
@@ -278,7 +329,7 @@ body{font-size:15px;line-height:1.45}.title{letter-spacing:-.035em}.sectionHead 
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=550a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=560a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
