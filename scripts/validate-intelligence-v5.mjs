@@ -35,3 +35,6 @@ const scaled=api.analyse({...base,tasks:mapScaleTasks});if(!scaled.top3.length||
 console.log('Planly Intelligence I2 weighted checks passed');
 
 const i3=api.analyse({...base,projects:[{id:'p1',name:'Project',dueDate:'2026-10-02'}],tasks:[{id:'p-task',projectId:'p1',date:'',priority:'high',durationMinutes:30,completed:false,visibility:'private',createdAt:1}]});const ps=i3.projects.find(x=>x.id==='p1');if(api.version!=='5.0.0-i3'||!ps||ps.status!=='behind'||ps.nextStepId!=='p-task')throw Error('I3 project signal failed');console.log('Planly Intelligence I3 project checks passed');
+
+const i3Boundary=api.analyse({...base,projects:[{id:'shared',name:'Shared'}],tasks:[{id:'hh-owned',projectId:'shared',date:'',completed:false,visibility:'household',_planlyOwnedByMe:true},{id:'hh-partner',projectId:'shared',date:'',completed:false,visibility:'household',_planlyOwnedByMe:false}]});const pb=i3Boundary.projects.find(x=>x.id==='shared');if(!pb||pb.nextStepId||pb.status!=='stalled')throw Error('I3 household task leaked into personal project action');
+const i3OnTrack=api.analyse({...base,projects:[{id:'p2',name:'Scheduled'}],tasks:[{id:'scheduled',projectId:'p2',date:'2026-10-01',completed:false,visibility:'private',_planlyOwnedByMe:true}]});if(i3OnTrack.projects.find(x=>x.id==='p2')?.status!=='on-track')throw Error('I3 scheduled project status failed');
