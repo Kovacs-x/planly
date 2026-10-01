@@ -234,3 +234,7 @@ for(const needle of ["dayPlanRecommendations?.day?.isWorkDay||dayPlanRecommendat
 
 // Stage 4 Part 1 (#111): header stays one row with 44px profile/search; Suggest 3 and compact project links keep usable sizes.
 {const html=read('v2/index.html');for(const needle of ['.topbar{grid-template-columns:minmax(0,1fr) auto auto auto!important}','.topbar .searchIcon{grid-column:3!important;grid-row:1!important}','.topbar .profileIcon{grid-column:4!important;grid-row:1!important;width:44px!important;height:44px!important','.compactTaskMeta>.compactProjectLink{flex:0 1 auto;min-width:min(22vw,72px)}','.prioritySection [data-i2-suggest3]{min-height:44px}'])if(!html.includes(needle))fail('Stage 4 Part 1 layout invariant missing: '+needle);}
+
+// Stage 4 Part 1 review #113: one Top 3 rule (2 on work / protected-rest days, else 3) for the summary, Today counter and manual star.
+for(const needle of ['function planlyTop3LimitFor(rec){return (rec?.day?.isWorkDay||rec?.day?.overnightRest)?2:3}','function planlyTop3LimitForDate(key)','planlyTop3LimitForDate(t.date)','.length>=top3Limit){',"<strong>'+pins.length+'/'+top3Limit+'</strong><span>Top priorities</span>",'${pins.length}/${planlyTop3LimitFor(intel)}'])if(!generated.includes(needle))fail('Stage4 Top 3 limit surface missing: '+needle);
+for(const bad of ["<strong>'+pins.length+'/3</strong>",'${pins.length}/3<','x.pinned&&!x.completed).length>=3)'])if(generated.includes(bad))fail('Stage4 hard-coded Top 3 limit remains: '+bad);
