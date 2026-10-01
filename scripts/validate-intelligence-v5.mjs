@@ -33,3 +33,5 @@ if(weightedRow.suggest!=='inbox'||!weightedRow.reasons.includes('Moved 3 times')
 const mapScaleTasks=Array.from({length:500},(_,i)=>({id:'scale-'+i,date:'2026-09-30',priority:i%7===0?'high':'normal',durationMinutes:30,completed:false,visibility:'private',createdAt:i+1}));
 const scaled=api.analyse({...base,tasks:mapScaleTasks});if(!scaled.top3.length||scaled.top3.some(x=>!Array.isArray(x.factors)))throw Error('I2 scaled ranking/factors failed');
 console.log('Planly Intelligence I2 weighted checks passed');
+
+const i3=api.analyse({...base,projects:[{id:'p1',name:'Project',dueDate:'2026-10-02'}],tasks:[{id:'p-task',projectId:'p1',date:'',priority:'high',durationMinutes:30,completed:false,visibility:'private',createdAt:1}]});const ps=i3.projects.find(x=>x.id==='p1');if(api.version!=='5.0.0-i3'||!ps||ps.status!=='behind'||ps.nextStepId!=='p-task')throw Error('I3 project signal failed');console.log('Planly Intelligence I3 project checks passed');
