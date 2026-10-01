@@ -10,7 +10,7 @@ export function session(uid = ME, email = 'alex@example.test', ttl = 3600 * 24) 
   const exp = Math.floor(Date.now() / 1000) + ttl;
   const token = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: uid, email, role: 'authenticated', aud: 'authenticated', exp })}.sig`;
   return { access_token: token, token_type: 'bearer', expires_in: ttl, expires_at: exp, refresh_token: 'refresh-' + uid,
-    user: { id: uid, aud: 'authenticated', role: 'authenticated', email, app_metadata: { provider: 'email' }, user_metadata: {}, created_at: '2026-09-01T00:00:00Z' } };
+    user: { id: uid, aud: 'authenticated', role: 'authenticated', email, app_metadata: { provider: 'email', providers: (globalThis.__mockProviders || ['email']) }, user_metadata: {}, identities: (globalThis.__mockProviders || ['email']).map(provider => ({ provider, identity_data: { email } })), created_at: '2026-09-01T00:00:00Z' } };
 }
 const d = (off) => { const x = new Date(); x.setDate(x.getDate() + off); return x.toISOString().slice(0, 10); };
 const ms = Date.now();
