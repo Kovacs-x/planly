@@ -5,7 +5,7 @@ await fetch(`http://localhost:${PORT}/__switch?to=pr`);
 const h=await launch({}); const {page:p,W}=h; const q=(f,a)=>p.evaluate(f,a); const bad=[],R={};
 await p.setViewportSize({width:390,height:844});
 await p.goto(`http://localhost:${PORT}/planly/v2/`); await W(4000); await p.reload(); await W(9000);
-const lum=c=>{let m=c.match(/[\d.]+/g).map(Number);const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)};return .2126*f(m[0])+.7152*f(m[1])+.0722*f(m[2])};
+const lum=c=>{let m=c.match(/[\d.]+/g).map(Number);if(m.length>3&&m[3]<1)throw new Error('lum needs an opaque colour: '+c);const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)};return .2126*f(m[0])+.7152*f(m[1])+.0722*f(m[2])};
 const contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
 for(const theme of ['light','dark']){
  await q(t=>document.documentElement.dataset.theme=t,theme);
@@ -16,7 +16,8 @@ for(const theme of ['light','dark']){
  if(hub.rows.some(h=>h<44))bad.push(theme+' hub row <44');
  if(hub.overflow)bad.push(theme+' hub overflow');
  // identity text vs the darkest and lightest gradient stops
- for(const c of hub.idText)for(const bg of ['rgb(37,99,235)','rgb(91,59,224)','rgb(126,47,216)']){const k=contrast(c,bg);if(k<4.5)bad.push(theme+' identity contrast '+k.toFixed(2))}
+ const over=(c,bg)=>{const m=c.match(/[\d.]+/g).map(Number),b=bg.match(/[\d.]+/g).map(Number),a=m.length>3?m[3]:1;return 'rgb('+[0,1,2].map(i=>Math.round(a*m[i]+(1-a)*b[i])).join(',')+')'};
+ for(const c of hub.idText)for(const bg of ['rgb(37,99,235)','rgb(91,59,224)','rgb(126,47,216)']){const k=contrast(over(c,bg),bg);if(k<4.5)bad.push(theme+' identity contrast '+k.toFixed(2))}
  for(const pg of ['appearance','planning','intelligence','calendars','household','account','data']){
   await q(k=>document.querySelector('.settingsHubRow[data-settings-page="'+k+'"]').click(),pg);await W(600);
   const sw=await q(()=>[...document.querySelectorAll('.settingsPaged input[type=checkbox]')].filter(i=>i.getBoundingClientRect().height>0&&i.closest('.settingsCard:not([hidden])')&&getComputedStyle(i.closest('.settingsCard')).display!=='none').map(i=>{const l=i.closest('label')||document.querySelector('label[for="'+i.id+'"]');const r=i.getBoundingClientRect(),lr=l?.getBoundingClientRect();return {id:i.id||i.dataset.todayCard||i.name||'?',w:Math.round(r.width),h:Math.round(r.height),label:lr?Math.round(lr.height):0,bg:getComputedStyle(i).backgroundColor,checked:i.checked}}));
