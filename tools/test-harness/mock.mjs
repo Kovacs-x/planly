@@ -83,7 +83,7 @@ export function seed() {
     planly_sync_state: [{ owner_id: ME, schema_version: 1, initial_migration_completed_at: nowIso(), migration_project_count: 4, migration_task_count: tasks.length, migration_digest: 'x', last_successful_sync_at: nowIso(), created_at: nowIso(), updated_at: nowIso() }, { owner_id: PARTNER, schema_version: 1, initial_migration_completed_at: nowIso(), migration_project_count: 0, migration_task_count: 1, migration_digest: 'y', last_successful_sync_at: nowIso(), created_at: nowIso(), updated_at: nowIso() }],
     planly_projects: [pRenov, pExam, pShared, pOld],
     planly_tasks: tasks,
-    calendar_sources: [{ id: srcId, owner_id: ME, name: 'NHS Rota', source_type: 'ical', colour: '#E78AA7', is_read_only: true, show_today: true, show_month: true, show_timeline: true, enabled: true, last_synced_at: nowIso(), last_sync_status: 'ok', last_sync_error: null, created_at: nowIso(), updated_at: nowIso(), status: 'connected', error: null }],
+    calendar_sources: [{ id: srcId, owner_id: ME, name: 'NHS Rota', source_type: 'ical', represents: 'self', colour: '#E78AA7', is_read_only: true, show_today: true, show_month: true, show_timeline: true, enabled: true, last_synced_at: nowIso(), last_sync_status: 'ok', last_sync_error: null, created_at: nowIso(), updated_at: nowIso(), status: 'connected', error: null }],
     external_calendar_events: events,
     planly_budget_scopes: [
       { id: scopeP, owner_id: ME, household_id: null, scope_type: 'personal', name: 'Personal Budget', currency: 'GBP', client_id: 'sp', client_created_at: ms, client_updated_at: ms, cloud_version: 1, deleted_at: null, created_at: nowIso(), updated_at: nowIso() },
