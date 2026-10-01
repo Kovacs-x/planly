@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=560r111'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-570a-47'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-580a-48'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,7 +145,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=570a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=580a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -223,7 +223,7 @@ if(!s.assignment.includes("if(!!fresh.completed===!!payload.completed){clearPlan
 
 // Stage 4 four-tab/Profile/person-colour invariants.
 const indexHtml=read('v2/index.html'),navMarkup=(indexHtml.match(/<nav class="nav"[\s\S]*?<\/nav>/)||[''])[0];if((navMarkup.match(/<button data-tab=/g)||[]).length!==4)fail('Stage4 primary nav must contain exactly four buttons');
-for(const needle of ['id="profileToggle"','id="profileWrap"','planlyStage4Profile'])if(!indexHtml.includes(needle))fail('Stage4 Profile surface missing: '+needle);for(const needle of ['data-profile-settings','data-profile-household'])if(!s.app.includes(needle))fail('Stage4 Profile action missing: '+needle);
+for(const needle of ['id="profileToggle"','id="profileWrap"','planlyStage4Profile'])if(!indexHtml.includes(needle))fail('Stage4 Profile surface missing: '+needle);for(const needle of ['function settingsHubHtml()','data-settings-page=','function openSettingsPage(page,focusName=false)',"function openProfile(){closeProfile();openSettingsPage('')}",'planlyRenderProfileButton();'])if(!s.app.includes(needle))fail('Stage4 Profile / Settings hub missing: '+needle);
 for(const needle of ['function openProfile()','function openSettingsFromProfile(focusHousehold=false)',"$('#profileToggle').onclick=openProfile"])if(!s.app.includes(needle))fail('Stage4 Profile runtime missing: '+needle);
 if(navMarkup.includes('<button data-tab="settings"'))fail('Stage4 Settings must not remain a primary nav tab');
 
@@ -252,3 +252,9 @@ if((s.app.match(/isWorkDay\|\|[a-zA-Z?.]*overnightRest/g)||[]).length!==1)fail('
 for(const needle of ['data-i2-unsnooze>Show','Suggestions hidden today',"closest('[data-i2-unsnooze]')"])if(!s.app.includes(needle))fail('Stage 4 Part 2 follow-up: hidden day check must offer Show: '+needle);}
 {const html=read('v2/index.html');for(const needle of ['.nav{grid-template-columns:repeat(4,minmax(0,1fr))!important}','.todayDayCheck.dayCheckSlim .dayCheckLinks>.dayCheckLink{display:inline-flex!important;flex-direction:row!important;align-items:center!important'])if(!html.includes(needle))fail('Stage 4 Part 2 follow-up layout invariant missing: '+needle);
 for(const needle of ["const PLANLY_TODAY_CARDS=[['summary'","function todayCardOn(key)","todayHidden:planlyTodayHiddenList()","data-today-card=","todayCardOn('summary')","todayCardOn('deadlines')","todayCardOn('dayCheck')","todayCardOn('top3')","todayCardOn('bills')","todayCardOn('household')",'class="todayQuickActions dashboardActions"><button id="timelineBtn"'])if(!s.app.includes(needle))fail('Show on Today invariant missing: '+needle);}
+
+// Stage 4 Part 3a: grouped Profile & Settings hub, clear tab icons, version shown in About matches the cache.
+{const html=read('v2/index.html');for(const needle of ['<style id="planlyStage4Part3a">','.settingsPaged [data-sp]{display:none}','.settingsPaged[data-page="household"] [data-sp~="household"]','.profileIcon .profileInitial','<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2','<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17'])if(!html.includes(needle))fail('Stage 4 Part 3a surface missing: '+needle);
+const rel=(s.app.match(/const PLANLY_RELEASE='([^']+)'/)||[])[1],cache=(s.sw.match(/const CACHE='([^']+)'/)||[])[1];if(!rel||rel!==cache)fail('About version must match the service-worker cache: '+rel+' vs '+cache);
+const pages=['appearance','planning','intelligence','calendars','household','account','data'];for(const pg of pages){if(!s.app.includes("['"+pg+"',"))fail('Settings page missing: '+pg);if(!html.includes('.settingsPaged[data-page="'+pg+'"] [data-sp~="'+pg+'"]'))fail('Settings page CSS missing: '+pg);if(!new RegExp('data-sp="[^"]*\\b'+pg+'\\b').test(s.app))fail('No settings card assigned to page: '+pg)}
+for(const id of ['planlyDisplayName','defaultCat','defaultDuration','planningStart','planningEnd','intelligenceSuggestions','intelligenceChoreBalance','intelligenceNightRest','autoCalendarTimed','themeSetting','taskRowDensity','exportBtn','importBtn','clearBtn'])if(!s.app.includes('id="'+id+'"'))fail('Settings control removed: '+id);}

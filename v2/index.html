@@ -282,6 +282,33 @@ body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-
 .todayCardToggle span{display:grid;gap:2px;min-width:0}.todayCardToggle strong{font-size:15px;font-weight:600}.todayCardToggle small{font-size:12px;color:var(--muted);line-height:1.35}
 .todayQuickActions{margin:0 0 4px}
 </style>
+<style id="planlyStage4Part3a">
+/* Part 3a: grouped Profile & Settings. Every control stays rendered; only the chosen page is shown. */
+.settingsPaged [data-sp]{display:none}
+.settingsPaged[data-page="appearance"] [data-sp~="appearance"],.settingsPaged[data-page="planning"] [data-sp~="planning"],.settingsPaged[data-page="intelligence"] [data-sp~="intelligence"],.settingsPaged[data-page="calendars"] [data-sp~="calendars"],.settingsPaged[data-page="household"] [data-sp~="household"],.settingsPaged[data-page="account"] [data-sp~="account"],.settingsPaged[data-page="data"] [data-sp~="data"]{display:block}
+.settingsPaged:not([data-page="hub"]) .settingsGroupHead{display:none}
+.settingsHub{display:grid;gap:12px}
+.settingsHubIdentity{display:flex;align-items:center;gap:14px;width:100%;min-height:76px;padding:14px 16px;border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--text);text-align:left}
+.settingsHubAvatar{width:52px;height:52px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;font-size:22px;font-weight:800;background:#2F6FEB;color:#fff}
+.settingsHubIdentityText{display:grid;gap:2px;min-width:0;flex:1}.settingsHubIdentityText strong{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.settingsHubIdentityText small{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.settingsHubTiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settingsHubTile{display:grid;gap:4px;min-height:76px;padding:12px 14px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);text-align:left;align-content:center}
+.settingsHubTile small{font-size:12px;color:var(--muted);font-weight:650}.settingsHubTile strong{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.settingsHubLabel{margin:10px 4px 0;font-size:13px;font-weight:750;color:var(--muted);text-transform:none;letter-spacing:.01em}
+.settingsHubGroup{display:grid;border:1px solid var(--line);border-radius:18px;background:var(--card);overflow:hidden}
+.settingsHubRow{display:flex;align-items:center;gap:10px;width:100%;min-height:60px;padding:10px 16px;border:0;border-top:1px solid var(--line);background:transparent;color:var(--text);text-align:left}.settingsHubRow:first-child{border-top:0}
+.settingsHubRow>span:first-child{display:grid;gap:2px;flex:1;min-width:0}.settingsHubRow strong{font-size:15px;font-weight:650}.settingsHubRow small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.settingsHubChevron{flex:0 0 auto;font-size:22px;line-height:1;color:var(--muted)}
+.settingsHub .settingsAbout{margin:8px 4px 0;font-size:12px;line-height:1.45;color:var(--muted)}
+.settingsHubSignOut{width:100%;min-height:50px;margin-top:4px}
+.settingsPageHead{display:flex;align-items:center;gap:10px;margin:0 0 12px}.settingsPageHead h2{margin:0;font-size:20px}
+.settingsBack{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-weight:650;white-space:nowrap}
+:root[data-theme="dark"] .settingsHubAvatar{background:#7AA7FF;color:#0f1115}
+/* header profile button shows your initial (you are always blue) */
+.profileIcon .profileInitial{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:#2F6FEB;color:#fff;font-weight:800;font-size:17px}
+:root[data-theme="dark"] .profileIcon .profileInitial{background:#7AA7FF;color:#0f1115}
+.profileIcon.active .profileInitial{box-shadow:inset 0 0 0 2px #fff}:root[data-theme="dark"] .profileIcon.active .profileInitial{box-shadow:inset 0 0 0 2px #0f1115}
+</style>
 </head>
 <body>
 <svg class="planlyIconSprite" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="pi-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></symbol><symbol id="pi-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="pi-today" viewBox="0 0 24 24"><path d="M5 4v3M19 4v3M4 9h16"/><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="m8.5 14 2 2 5-5"/></symbol><symbol id="pi-plan" viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h6"/><path d="m16 15 3 3-3 3"/></symbol><symbol id="pi-home" viewBox="0 0 24 24"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></symbol><symbol id="pi-budget" viewBox="0 0 24 24"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></symbol><symbol id="pi-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol><symbol id="pi-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></symbol><symbol id="pi-spark" viewBox="0 0 24 24"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6z"/><path d="m18 15 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></symbol><symbol id="pi-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol><symbol id="pi-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></symbol><symbol id="pi-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></symbol><symbol id="pi-grip" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8"/></symbol><symbol id="pi-checklist" viewBox="0 0 24 24"><path d="m4 7 2 2 3-4M11 7h9M4 14l2 2 3-4M11 14h9"/></symbol><symbol id="pi-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol></defs></svg>
@@ -293,8 +320,8 @@ body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-
 </div>
 <button id="addBtn" class="fab" aria-label="Add task"><svg class="pIcon" aria-hidden="true"><use href="#pi-plus"/></svg></button>
 <nav class="nav" aria-label="Primary">
-  <button data-tab="today" data-section="today" class="active"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v3M19 4v3M4 9h16"/><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="m8.5 14 2 2 5-5"/></svg><span class="navLabel">Today</span></button>
-  <button data-tab="upcoming" data-section="plan"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14M5 12h9M5 19h6"/><path d="m16 15 3 3-3 3"/></svg><span class="navLabel">Plan</span></button>
+  <button data-tab="today" data-section="today" class="active"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg><span class="navLabel">Today</span></button>
+  <button data-tab="upcoming" data-section="plan"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01" stroke-width="2.4" stroke-linecap="round"/></svg><span class="navLabel">Plan</span></button>
   <button data-tab="home" data-section="home"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></svg><span class="navLabel">Home</span></button>
   <button data-tab="budget" data-section="budget" aria-label="Budget"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></svg><span class="navLabel">Budget</span></button>
 </nav>
@@ -345,7 +372,7 @@ body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=570a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=580a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
