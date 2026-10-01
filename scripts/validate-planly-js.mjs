@@ -168,3 +168,7 @@ if(!s.app.includes("t._planlyOwnedByMe!==false)).forEach((t,i)=>{t.top3Order=i})
 if(fs.existsSync('v2/app.js'))fail('Legacy v2/app.js must remain deleted');
 if(!s.app.includes("externalTimelineIntervals(key).map(x=>({start:x.start,end:x.end}))"))fail('Today intelligence must reuse loaded calendar state');
 if(!s.app.includes("window.PlanlyBudget?.getTodayBills?.()"))fail('Today bill summary must reuse loaded Budget state');
+
+if(!s.app.includes("data-i2-tidy-choice")||!s.app.includes("data-i2-accept-tidy"))fail('I2 Tidy up must be a review sheet with Accept all');
+if(!s.app.includes("showUndoToast('Suggested Top 3 added'"))fail('I2 Suggest 3 must provide batch Undo');
+if(!s.app.includes("state.intelligenceSnoozeDate=localKey(new Date())"))fail('I2 no-suggestions control must be device-day scoped');
