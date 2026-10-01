@@ -222,7 +222,7 @@ for(const needle of ['finiteDuration','fixedDuration','t.time?fixedDuration(t,de
 if(!s.assignment.includes("if(!!fresh.completed===!!payload.completed){clearPlanlyPendingWrite('householdCompletion',op.id);await reconcilePlanlyCloud({render:false,replay:false})"))fail('Stage4 household completion same-state conflict must reconcile authoritatively');
 
 // Stage 4 four-tab/Profile/person-colour invariants.
-if((s.index.match(/data-tab=/g)||[]).length!==4)fail('Stage4 primary nav must contain exactly four tabs');
+const navMarkup=(s.index.match(/<nav class="nav"[\s\S]*?<\/nav>/)||[''])[0];if((navMarkup.match(/<button data-tab=/g)||[]).length!==4)fail('Stage4 primary nav must contain exactly four buttons');
 for(const needle of ['id="profileToggle"','id="profileWrap"','data-profile-settings','data-profile-household','planlyStage4Profile'])if(!s.index.includes(needle))fail('Stage4 Profile surface missing: '+needle);
 for(const needle of ['function planlyPersonColour(userId)','function openProfile()','function openSettingsFromProfile(focusHousehold=false)',"$('#profileToggle').onclick=openProfile"])if(!s.app.includes(needle))fail('Stage4 Profile/person-colour runtime missing: '+needle);
-if(s.index.includes('data-tab="settings"'))fail('Stage4 Settings must not remain a primary nav tab');
+if(navMarkup.includes('<button data-tab="settings"'))fail('Stage4 Settings must not remain a primary nav tab');
