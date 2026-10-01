@@ -272,6 +272,15 @@ body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-
 .compactTaskMeta>span,.compactTaskMeta>button,.compactTaskMeta>.compactRepeat,.compactTaskMeta>.compactCategory,.compactTaskMeta>.compactProjectLink{flex:0 1 auto;min-width:0;max-width:100%}
 .compactTaskMeta>span[aria-hidden]{display:none}
 .dayCheckHidden{min-height:44px}.dayCheckHidden .dayCheckText{flex:1 1 auto;min-width:0}.dayCheckHidden small{font-size:13px;color:var(--muted)}
+/* four tabs fill the bar evenly (an older rule still said 5 columns) */
+.nav{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+/* "Why?" and "Hide today" sit on one baseline (the old first-child column rule no longer applies) */
+.todayDayCheck.dayCheckSlim .dayCheckLinks>.dayCheckLink{display:inline-flex!important;flex-direction:row!important;align-items:center!important;justify-content:center;flex:0 0 auto!important;grid-row:auto!important}
+/* Show on Today */
+.todayCardToggle{display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 0;border-top:1px solid var(--line)}.todayCardToggle:first-of-type{border-top:0}
+.todayCardToggle input{width:22px;height:22px;flex:0 0 auto;accent-color:var(--accent)}
+.todayCardToggle span{display:grid;gap:2px;min-width:0}.todayCardToggle strong{font-size:15px;font-weight:600}.todayCardToggle small{font-size:12px;color:var(--muted);line-height:1.35}
+.todayQuickActions{margin:0 0 4px}
 </style>
 </head>
 <body>
