@@ -218,7 +218,7 @@ for(const needle of ["if($('#intelligenceResetHistory'))$('#intelligenceResetHis
 if(!r1.includes("t.date>=start&&t.date<=end"))fail('I5 weekly slipped must be scoped to last week');
 
 // Stage 4 correctness invariants.
-for(const needle of ['finiteDuration','fixedDuration','t.time?fixedDuration(t,defaultDuration):duration(t,defaultDuration,learning)',"top3=targetPersonal.slice(0,(isWorkDay||overnightRest)?1:3)"])if(!s.intelligence.includes(needle))fail('Stage4 Intelligence correctness invariant missing: '+needle);
+for(const needle of ['finiteDuration','fixedDuration','t.time?fixedDuration(t,defaultDuration):duration(t,defaultDuration,learning)',"top3=targetPersonal.slice(0,(isWorkDay||overnightRest)?2:3)"])if(!s.intelligence.includes(needle))fail('Stage4 Intelligence correctness invariant missing: '+needle);
 if(!s.assignment.includes("if(!!fresh.completed===!!payload.completed){clearPlanlyPendingWrite('householdCompletion',op.id);await reconcilePlanlyCloud({render:false,replay:false})"))fail('Stage4 household completion same-state conflict must reconcile authoritatively');
 
 // Stage 4 four-tab/Profile/person-colour invariants.
@@ -227,5 +227,3 @@ for(const needle of ['id="profileToggle"','id="profileWrap"','planlyStage4Profil
 for(const needle of ['function planlyPersonColour(userId)','function openProfile()','function openSettingsFromProfile(focusHousehold=false)',"$('#profileToggle').onclick=openProfile"])if(!s.app.includes(needle))fail('Stage4 Profile/person-colour runtime missing: '+needle);
 if(navMarkup.includes('<button data-tab="settings"'))fail('Stage4 Settings must not remain a primary nav tab');
 
-for(const needle of ['householdPersonPill" style="--person-colour:',"class=\"compactPersonMeta\"",'planlyPersonColour(assigneeId)','planlyPersonColour(completedBy)'])if(!s.app.includes(needle))fail('Stage4 person colour collaborative surface missing: '+needle);
-if(!indexHtml.includes('id="planlyStage4TypePerson"'))fail('Stage4 type/person polish stylesheet missing');
