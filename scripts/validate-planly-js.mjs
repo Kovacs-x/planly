@@ -230,7 +230,7 @@ if(navMarkup.includes('<button data-tab="settings"'))fail('Stage4 Settings must 
 
 for(const needle of ['function planlyTaskConflictIsCompletionOnly(localData,serverData)','async function adoptCompletedCloudTaskConflict(op,record)','if(await adoptCompletedCloudTaskConflict(op,err.planlyConflictRecord)){replayed++;continue}','showToast(\'Already done by \'+planlyHouseholdSentencePersonLabel(row.completed_by))'])if(!s.app.includes(needle))fail('Stage4 owner completion convergence missing: '+needle);
 if(s.app.includes('function planlyPersonColour(userId)'))fail('Stage4 Part 1 must not ship premature person-colour model');
-for(const needle of ["dayPlanRecommendations?.day?.isWorkDay||dayPlanRecommendations?.day?.overnightRest","const limit=(dayPlanRecommendations?.day?.isWorkDay||dayPlanRecommendations?.day?.overnightRest)?2:3"])if(!s.app.includes(needle))fail('Stage4 protected-rest Top 3 UI invariant missing: '+needle);
+for(const needle of ["top3Limit=planlyTop3LimitFor(dayPlanRecommendations)","const limit=planlyTop3LimitFor(dayPlanRecommendations)","(planlyTop3LimitFor(dayPlanRecommendations)===2?'two':'three')","selected+'/'+planlyTop3LimitFor(dayPlanRecommendations)+' selected"])if(!s.app.includes(needle))fail('Stage4 protected-rest Top 3 UI invariant missing: '+needle);
 
 // Stage 4 Part 1 (#111): header stays one row with 44px profile/search; Suggest 3 and compact project links keep usable sizes.
 {const html=read('v2/index.html');for(const needle of ['.topbar{grid-template-columns:minmax(0,1fr) auto auto auto!important}','.topbar .searchIcon{grid-column:3!important;grid-row:1!important}','.topbar .profileIcon{grid-column:4!important;grid-row:1!important;width:44px!important;height:44px!important','.compactTaskMeta>.compactProjectLink{flex:0 1 auto;min-width:min(22vw,72px)}','.prioritySection [data-i2-suggest3]{min-height:44px}'])if(!html.includes(needle))fail('Stage 4 Part 1 layout invariant missing: '+needle);}
@@ -245,3 +245,4 @@ if(s.app.includes('data-i2-snooze>No suggestions today'))fail('Stage 4 Part 2: d
 for(const needle of ['homeNamePrompt','planly-name-prompt-dismissed-v1','inChoreWeek','function r1ProjectMeta(p)'])if(!s.redesignR1.includes(needle))fail('Stage 4 Part 2 Home/Projects invariant missing: '+needle);
 if(!s.calendar.includes('planlyShiftClass(sourceLabel)'))fail('Stage 4 Part 2 shift colour hook missing');
 if(!s.intelligence.includes("status='empty';reasons=['No tasks yet']"))fail('Stage 4 Part 2 engine empty-project status missing');}
+if((s.app.match(/isWorkDay\|\|[a-zA-Z?.]*overnightRest/g)||[]).length!==1)fail('Stage4: the 2/3 Top 3 rule must live only in planlyTop3LimitFor');
