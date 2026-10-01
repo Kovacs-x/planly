@@ -226,3 +226,6 @@ const navMarkup=(s.index.match(/<nav class="nav"[\s\S]*?<\/nav>/)||[''])[0];if((
 for(const needle of ['id="profileToggle"','id="profileWrap"','data-profile-settings','data-profile-household','planlyStage4Profile'])if(!s.index.includes(needle))fail('Stage4 Profile surface missing: '+needle);
 for(const needle of ['function planlyPersonColour(userId)','function openProfile()','function openSettingsFromProfile(focusHousehold=false)',"$('#profileToggle').onclick=openProfile"])if(!s.app.includes(needle))fail('Stage4 Profile/person-colour runtime missing: '+needle);
 if(navMarkup.includes('<button data-tab="settings"'))fail('Stage4 Settings must not remain a primary nav tab');
+
+for(const needle of ['householdPersonPill" style="--person-colour:',"class=\"compactPersonMeta\"",'planlyPersonColour(assigneeId)','planlyPersonColour(completedBy)'])if(!s.app.includes(needle))fail('Stage4 person colour collaborative surface missing: '+needle);
+if(!s.index.includes('id="planlyStage4TypePerson"'))fail('Stage4 type/person polish stylesheet missing');
