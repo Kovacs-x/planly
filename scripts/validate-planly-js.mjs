@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=630r114'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-650a-55'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-660a-56'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,7 +145,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=650a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=660a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -282,7 +282,7 @@ if(!s.redesignR1.includes("planlyDoneFold('home',doneRows.length,"))fail('Home s
 if(!s.calendar.includes("completedSection(completed,'month:"))fail('Month completed fold missing');
 for(const needle of ['function planlyWelcomeSync()','id="planlyWelcomeEmail">','<span>Continue with email</span></button>','<span>Sign in with Google</span></button>','data-provider-slot="google"','<form class="welcomeEmailForm" id="planlyWelcomeForm" autocomplete="on" hidden novalidate>','autocomplete="username"','planlySignUp({email,password}):planlySignIn({email,password})',"planlyAuthChecked=true;adoptPlanlySession(data?.session||null)","if(!planlyAuthChecked||planlySession?.user||!planlySupabase)return false"])if(!s.app.includes(needle))fail('Welcome runtime missing: '+needle);
 for(const banned of ['planlyWelcomeLater','Use without an account','planly-welcome-dismissed-v1','Not now'])if(s.app.includes(banned))fail('Welcome must be sign-in only (no guest option): '+banned);
-if(!/planlyWelcomeSync\(\);\n  return \{previousOwner,nextOwner,ownerChanged,explicitSignOut\}/.test(s.app))fail('Welcome must sync on every session change');
+if(!/planlyWelcomeSync\(\);(planlyRecoverySync\(\);)?\n  return \{previousOwner,nextOwner,ownerChanged,explicitSignOut\}/.test(s.app))fail('Welcome must sync on every session change');
 if((s.app.match(/PLANLY_WELCOME_SLIDES=\[/g)||[]).length!==1||(s.app.match(/\['(today|home|plan)','[^']+','[^']+','<div class="wfx/g)||[]).length!==3)fail('Welcome must have exactly 3 slides');
 if(/planlySupabase\.(from|rpc|auth\.(signIn|signUp))[^;]*/.test(s.app.slice(s.app.indexOf('function planlyWelcomeHtml'),s.app.indexOf('function adoptPlanlySession'))))fail('Welcome must not make network calls');}
 // Part 4: Google sign-in on the welcome screen is gated by PLANLY_GOOGLE_SIGNIN (an explicit true/false in supabase-config.js; on since 1 Oct 2026).
@@ -319,3 +319,7 @@ if(/busy:externalTimelineIntervals\(/.test(s.app)||/busy=\[\.\.\.externalTimelin
 if((s.app.match(/busy:planlyBusyIntervals\(/g)||[]).length<3)fail('D10: Intelligence busy inputs must be filtered');
 for(const banned of ['Wife’s schedule','Wife — NHS rota',"['wife','Wife']",'>Rota items<','Rota / all day'])if(s.app.includes(banned))fail('Neutral wording: remove '+banned);
 if(!read('supabase/migrations/045_calendar_source_represents.sql').includes("check (represents in ('self', 'partner'))"))fail('Migration 045 missing');}
+// Stage 4b: account management and password recovery. Sign out is this device by default; "all devices" is explicit.
+{for(const needle of ["const PLANLY_AUTH_LINK=(()=>{","sessionStorage.setItem(PLANLY_RECOVERY_KEY,'1')","async function planlySignOut({everywhere=false}={}){if(!initPlanlySupabase())return;await planlySupabase.auth.signOut({scope:everywhere?'global':'local'});","function planlySignInMethods(u)","await planlySupabase.auth.updateUser({password})","await planlySupabase.auth.updateUser({email},{emailRedirectTo:PLANLY_APP_URL})","await planlySupabase.auth.resetPasswordForEmail(email,{redirectTo:PLANLY_APP_URL})","const PLANLY_APP_URL='https://kovacs-x.github.io/planly/v2/';",'id="planlySignOutAllBtn"','id="planlyChangePasswordForm"','id="planlyChangeEmailForm"','id="planlyWelcomeForgot">Forgot password?</button>',"function planlyRecoverySync()","planlyWelcomeSync();planlyRecoverySync();"])if(!s.app.includes(needle))fail('Stage 4b missing: '+needle);
+if(/auth\.signOut\(\)/.test(s.app))fail('Sign out must pass an explicit scope');
+if(!read('v2/index.html').includes('<style id="planlyStage4b">'))fail('Stage 4b CSS missing');}

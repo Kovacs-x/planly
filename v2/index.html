@@ -507,6 +507,30 @@ body.welcomeOpen{overflow:hidden}
 .calendarWhose small{font-size:13px;color:var(--muted);line-height:1.35}
 .calendarTwinHint{margin:2px 0 12px;padding:10px 12px;border-radius:12px;background:var(--cardSoft);border:1px solid var(--line);font-size:14px;line-height:1.4}
 </style>
+<style id="planlyStage4b">
+/* Stage 4b: account management (sign-in methods, change password / email, sign out on this or all devices) and password recovery. */
+.accountMethods{margin:14px 0 6px}
+.accountMethods h4{margin:0 0 8px;font-size:14px;font-weight:600;color:var(--muted)}
+.accountMethod{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:center;padding:8px 0}
+.accountMethod span{display:grid;min-width:0}.accountMethod strong{font-size:15px;font-weight:600}.accountMethod small{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.accountMethodIcon{width:36px;height:36px;border-radius:10px;display:grid!important;place-items:center;font-weight:700;font-size:17px;color:#fff}
+.accountMethod-google{background:linear-gradient(180deg,#4285F4,#2F6FEB)}.accountMethod-email{background:linear-gradient(180deg,#7B8494,#5B6372)}
+.accountSection{margin:10px 0;border:1px solid var(--line);border-radius:16px;background:var(--cardSoft)}
+.accountSection>summary{min-height:48px;display:flex;align-items:center;padding:0 14px;font-weight:600;font-size:15px;cursor:pointer;list-style:none}
+.accountSection>summary::-webkit-details-marker{display:none}
+.accountSection>summary::after{content:"›";margin-left:auto;font-size:22px;color:var(--muted);transition:transform .18s}
+.accountSection[open]>summary::after{transform:rotate(90deg)}
+.accountForm{padding:0 14px 14px;display:grid;gap:8px}
+.accountForm .input{font-size:16px}
+.accountMsg{margin:0;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,#E5375F 12%,var(--card));color:var(--text);font-size:14px;line-height:1.4}
+.accountMsg.ok{background:color-mix(in srgb,#22A86A 14%,var(--card))}
+.accountDangerBtn{color:#C81E1E!important}
+:root[data-theme="dark"] .accountDangerBtn{color:#FF8A8A!important}
+.recoveryCard{justify-content:center;gap:24px}
+.recoveryHead{grid-template-columns:1fr!important;text-align:center}
+.recoveryHead strong{font-size:24px!important}
+@media (prefers-reduced-motion:reduce){.accountSection>summary::after{transition:none}}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -571,7 +595,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=650a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=660a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
