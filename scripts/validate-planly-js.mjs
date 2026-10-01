@@ -284,3 +284,6 @@ for(const needle of ["const PLANLY_WELCOME_DISMISSED_KEY='planly-welcome-dismiss
 if(!/planlyWelcomeSync\(\);\n  return \{previousOwner,nextOwner,ownerChanged,explicitSignOut\}/.test(s.app))fail('Welcome must sync on every session change');
 if((s.app.match(/PLANLY_WELCOME_SLIDES=\[/g)||[]).length!==1||(s.app.match(/\['(today|home|plan)','[^']+','[^']+','<div class="wfx/g)||[]).length!==3)fail('Welcome must have exactly 3 slides');
 if(/planlySupabase\.(from|rpc|auth\.(signIn|signUp))[^;]*/.test(s.app.slice(s.app.indexOf('function planlyWelcomeHtml'),s.app.indexOf('function adoptPlanlySession'))))fail('Welcome must not make network calls');}
+// Part 4: Google sign-in on the welcome screen is gated by PLANLY_GOOGLE_SIGNIN (off until the Supabase provider is enabled).
+{if(!read('v2/supabase-config.js').includes('window.PLANLY_GOOGLE_SIGNIN=false;'))fail('Google sign-in flag must default to false');
+for(const needle of ['function planlyGoogleSignInEnabled(){return window.PLANLY_GOOGLE_SIGNIN===true}',"signInWithOAuth({provider:'google',options:{redirectTo:'https://kovacs-x.github.io/planly/v2/'","(planlyGoogleSignInEnabled()?'<button type=\"button\" class=\"wfxBtn wfxGoogle\" id=\"planlyWelcomeGoogle\""])if(!s.app.includes(needle))fail('Google welcome sign-in missing: '+needle);}
