@@ -322,6 +322,8 @@ html,body,button,input,select,textarea{font-family:'Outfit',-apple-system,BlinkM
 .dashboardLabel,.dashboardNextEyebrow,.taskActionHeader span,.householdSectionEyebrow,.calendarGroupLabel,.householdEyebrow{text-transform:none!important;letter-spacing:0!important;font-size:13px!important;font-weight:600!important}
 /* titles: tighter, one weight */
 #pageTitle{letter-spacing:-.02em}
+/* tab icons always carry their section colour; labels stay neutral until selected */
+.nav button[data-section="today"] .pIcon{color:var(--today)}.nav button[data-section="plan"] .pIcon{color:var(--plan)}.nav button[data-section="home"] .pIcon{color:var(--home)}.nav button[data-section="budget"] .pIcon{color:var(--budget)}
 </style>
 </head>
 <body>
