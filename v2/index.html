@@ -430,6 +430,59 @@ body.welcomeOpen{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.wfxGlow,.wfxStage>*{animation:none}.wfxGlow,.wfxBtn{transition:none}}
 @media (prefers-reduced-motion:reduce){.doneFoldChevron,.welcomeDots span{transition:none}}
 </style>
+<style id="planlySettingsDesign">
+/* Settings redesign: colourful iOS-style hub (gradient profile card, coloured icon squares, grouped rows) and switches. */
+.settingsHub{gap:14px}
+.settingsHubIdentity{position:relative;overflow:hidden;min-height:96px;padding:18px;border:0!important;border-radius:24px;background:linear-gradient(135deg,#2563EB 0%,#5B3BE0 55%,#7E2FD8 100%)!important;color:#fff!important;box-shadow:0 14px 34px rgba(76,52,220,.28)}
+.settingsHubIdentity::before{content:"";position:absolute;width:220px;height:220px;right:-70px;top:-110px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.22),transparent 70%);pointer-events:none}
+.settingsHubIdentity::after{content:"";position:absolute;width:180px;height:180px;left:-60px;bottom:-120px;border-radius:50%;background:radial-gradient(circle,rgba(56,189,248,.35),transparent 70%);pointer-events:none}
+.settingsHubIdentity .settingsHubAvatar{width:60px;height:60px;font-size:25px;font-weight:700;background:#fff!important;color:#2F3FD8!important;box-shadow:0 0 0 3px rgba(255,255,255,.35),0 8px 20px rgba(0,0,0,.18);position:relative}
+.settingsHubIdentity .settingsHubIdentityText{position:relative}
+.settingsHubIdentity strong{font-size:20px;font-weight:700;letter-spacing:-.02em;color:#fff}
+.settingsHubIdentity small{font-size:14px;color:#fff}
+.settingsHubIdentity .settingsHubChevron{color:#fff;position:relative}
+.setIcon{width:32px;height:32px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;color:#fff;box-shadow:inset 0 -1px 0 rgba(0,0,0,.12)}
+.settingsHubRow>.setIcon,.settingsHubTile>.setIcon,.settingsHubSignOut>.setIcon{flex:0 0 32px!important;width:32px!important;height:32px!important;display:grid!important;gap:0!important}
+.setIcon .pIcon{width:19px;height:19px;stroke:#fff;stroke-width:2}
+.set-appearance{background:linear-gradient(180deg,#6E6CF0,#4F46E5)}
+.set-planning{background:linear-gradient(180deg,#F97316,#DD4F0B)}
+.set-intelligence{background:linear-gradient(180deg,#A855F7,#7E22CE)}
+.set-calendars{background:linear-gradient(180deg,#F43F5E,#D61F45)}
+.set-household{background:linear-gradient(180deg,#22A86A,#15803D)}
+.set-account{background:linear-gradient(180deg,#3B82F6,#2257D6)}
+.set-data{background:linear-gradient(180deg,#7B8494,#5B6372)}
+.set-logout{background:linear-gradient(180deg,#EF4444,#C81E1E)}
+.settingsHubTile{min-height:104px!important;padding:14px!important;border-radius:20px!important;gap:6px!important;align-content:start!important;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.settingsHubTile .setIcon{margin-bottom:4px}
+.settingsHubTile small{font-size:13px;color:var(--muted);font-weight:600}
+.settingsHubTile strong{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.settingsHubLabel{margin:12px 6px -2px!important;font-size:13px!important;font-weight:600!important}
+.settingsHubGroup{border-radius:20px!important;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.settingsHubRow{gap:14px!important;min-height:64px!important;padding:10px 16px!important;border-top:0!important;position:relative}
+.settingsHubRow+.settingsHubRow::before{content:"";position:absolute;top:0;left:62px;right:0;height:1px;background:var(--line)}
+.settingsHubRow>span:not(.setIcon):not(.settingsHubChevron){flex:1;min-width:0;display:grid;gap:2px}
+.settingsHubRow strong{font-size:16px;font-weight:600}
+.settingsHubRow small{font-size:13px;color:var(--muted)}
+.settingsHubRow:active,.settingsHubTile:active,.settingsHubIdentity:active{filter:brightness(.97)}
+.settingsHubChevron{font-size:24px!important;opacity:.6}
+.settingsHubSignOut{display:flex!important;align-items:center;gap:14px;justify-content:flex-start!important;min-height:58px!important;padding:10px 16px!important;border-radius:20px!important;border:1px solid var(--line)!important;background:var(--card)!important;color:#C81E1E!important;font-size:16px;font-weight:600}
+:root[data-theme="dark"] .settingsHubSignOut{color:#FF8A8A!important}
+.settingsAbout{text-align:center;font-size:13px;line-height:1.45;padding:2px 12px}
+.settingsPageHead .settingsBack{border:0!important;background:transparent!important;color:#2F6FEB!important;font-size:17px;font-weight:600;padding-left:4px!important;min-height:44px}
+:root[data-theme="dark"] .settingsPageHead .settingsBack{color:#7AA7FF!important}
+.settingsPaged .settingsCard{border-radius:20px}
+.settingsPaged input[type="checkbox"]{-webkit-appearance:none;appearance:none;position:relative;flex:0 0 auto;width:51px;height:31px;margin:7px 0;border-radius:999px;background:#E3E5EA;border:0;cursor:pointer;transition:background .2s ease;vertical-align:middle}
+.settingsPaged input[type="checkbox"]::before{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.22);transition:transform .2s ease}
+.settingsPaged input[type="checkbox"]:checked{background:#22A86A}
+.settingsPaged input[type="checkbox"]:checked::before{transform:translateX(20px)}
+.settingsPaged input[type="checkbox"]:focus-visible{outline:2px solid #2F6FEB;outline-offset:2px}
+.settingsPaged input[type="checkbox"]:disabled{opacity:.5}
+:root[data-theme="dark"] .settingsPaged input[type="checkbox"]{background:#3A3F4A}
+:root[data-theme="dark"] .settingsPaged input[type="checkbox"]:checked{background:#30C27B}
+.settingsPaged label:has(>input[type="checkbox"]){min-height:48px;align-items:center}
+.todayCardToggle{display:flex!important;align-items:center;gap:12px;flex-direction:row-reverse;justify-content:space-between;min-height:56px}
+@media (prefers-reduced-motion:reduce){.settingsPaged input[type="checkbox"],.settingsPaged input[type="checkbox"]::before{transition:none}}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -494,7 +547,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=610a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=620a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

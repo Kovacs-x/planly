@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=610r113'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-610a-51'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-620a-52'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,7 +145,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=610a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=620a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -285,8 +285,17 @@ for(const banned of ['planlyWelcomeLater','Use without an account','planly-welco
 if(!/planlyWelcomeSync\(\);\n  return \{previousOwner,nextOwner,ownerChanged,explicitSignOut\}/.test(s.app))fail('Welcome must sync on every session change');
 if((s.app.match(/PLANLY_WELCOME_SLIDES=\[/g)||[]).length!==1||(s.app.match(/\['(today|home|plan)','[^']+','[^']+','<div class="wfx/g)||[]).length!==3)fail('Welcome must have exactly 3 slides');
 if(/planlySupabase\.(from|rpc|auth\.(signIn|signUp))[^;]*/.test(s.app.slice(s.app.indexOf('function planlyWelcomeHtml'),s.app.indexOf('function adoptPlanlySession'))))fail('Welcome must not make network calls');}
-// Part 4: Google sign-in on the welcome screen is gated by PLANLY_GOOGLE_SIGNIN (off until the Supabase provider is enabled).
+// Part 4: Google sign-in on the welcome screen is gated by PLANLY_GOOGLE_SIGNIN (an explicit true/false in supabase-config.js; on since 1 Oct 2026).
 {if(!/^window\.PLANLY_GOOGLE_SIGNIN=(true|false);$/m.test(read('v2/supabase-config.js')))fail('Google sign-in flag must be an explicit boolean in supabase-config.js');
 for(const needle of ['function planlyGoogleSignInEnabled(){return window.PLANLY_GOOGLE_SIGNIN===true}',"signInWithOAuth({provider:'google',options:{redirectTo:'https://kovacs-x.github.io/planly/v2/'","(planlyGoogleSignInEnabled()?'<button type=\"button\" class=\"wfxBtn wfxGoogle\" id=\"planlyWelcomeGoogle\""])if(!s.app.includes(needle))fail('Google welcome sign-in missing: '+needle);}
+// Settings redesign: coloured icon squares on hub rows/tiles/Log out, gradient profile card, iOS switches.
+{const html=read('v2/index.html');for(const needle of ['<style id="planlySettingsDesign">','.settingsPaged input[type="checkbox"]{-webkit-appearance:none;appearance:none;','.settingsHubRow>.setIcon,.settingsHubTile>.setIcon,.settingsHubSignOut>.setIcon{flex:0 0 32px!important'])if(!html.includes(needle))fail('Settings design CSS missing: '+needle);
+if(html.lastIndexOf('<style id="planlySettingsDesign">')<html.lastIndexOf('<style id="planlyStage4Part4">'))fail('Settings design styles must load after Part 4');
+for(const needle of ["function planlySettingsIcon(id){",'data-settings-page="\'+x[0]+\'">\'+planlySettingsIcon(x[0])+\'<span><strong>',"planlySettingsIcon('household')+'<small>Household</small>","planlySettingsIcon('intelligence')+'<small>Planly Intelligence</small>","planlySettingsIcon('logout')+'<span>Log out</span></button>","(planlyGoogleSignInEnabled()?'<button id=\"planlyAccountGoogleBtn\""])if(!s.app.includes(needle))fail('Settings design runtime missing: '+needle);
+for(const id of ['appearance','planning','intelligence','calendars','household','account','data'])if(!html.includes('.set-'+id+'{background:'))fail('Settings icon colour missing: '+id);}
 // The composed sign-in is the core-assignment override: it must accept the welcome form's credentials and return the session.
 {if(!s.assignment.includes("planlySignIn=async function(creds){")||!s.assignment.includes("const email=creds?String(creds.email||'').trim():$('#planlyAuthEmail')?.value.trim()")||!/showToast\('Signed in to Planly'\);\n  render\(\);\n  return data\.session;\n\};/.test(s.assignment))fail('Composed sign-in must accept welcome credentials');}
+// Settings switches: the row holding a switch is a >=44px tap target.
+{const html=read('v2/index.html');if(!html.includes('.settingsPaged label:has(>input[type="checkbox"]){min-height:48px;align-items:center}')||!html.includes('width:51px;height:31px;margin:7px 0;'))fail('Settings switch rows must be >=44px tap targets');}
+// Settings identity card: name and email are opaque white (>=5.17:1 on every gradient stop; 88% white was 4.37:1 on #2563EB).
+{const html=read('v2/index.html');if(!html.includes('.settingsHubIdentity small{font-size:14px;color:#fff}')||!html.includes('.settingsHubIdentity strong{font-size:20px;font-weight:700;letter-spacing:-.02em;color:#fff}'))fail('Settings identity text must be opaque white');}
