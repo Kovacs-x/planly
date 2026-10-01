@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=630r114'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-640a-54'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-650a-55'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -142,10 +142,10 @@ if(!s.app.includes("detail:{taskId:task?.id||'',readOnly,assigneeId:"))fail('H2 
 // Planly Intelligence I1 release invariants.
 for(const needle of ["window.PlanlyIntelligence","function analyse(input={})","visibility!=='household'","isWorkDay=busyMinutes>=360","projects:projectSignals,household:"])if(!s.intelligence.includes(needle))fail('Intelligence I1 engine invariant missing: '+needle);
 if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\.|localStorage/.test(s.intelligence))fail('Intelligence engine purity regression');
-for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
+for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=640a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=650a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -166,7 +166,7 @@ if(!s.assignment.includes("stagePlanlyHouseholdCompletion(t,next,nextDate)"))fai
 for(const needle of ['todayDayCheckHtml','data-i2-suggest3','data-i2-tidy','Next: ','deferCount','intelligenceWhySheet','intelligenceSnoozeDate'])if(!s.app.includes(needle))fail('I2 runtime invariant missing: '+needle);
 if(!s.app.includes("t._planlyOwnedByMe!==false)).forEach((t,i)=>{t.top3Order=i})"))fail('normalizeTop3Orders must be owner-only');
 if(fs.existsSync('v2/app.js'))fail('Legacy v2/app.js must remain deleted');
-if(!s.app.includes("externalTimelineIntervals(key).map(x=>({start:x.start,end:x.end}))"))fail('Today intelligence must reuse loaded calendar state');
+if(!s.app.includes("planlyBusyIntervals(key).map(x=>({start:x.start,end:x.end}))"))fail('Today intelligence must reuse loaded calendar state');
 if(!s.app.includes("window.PlanlyBudget?.getTodayBills?.()"))fail('Today bill summary must reuse loaded Budget state');
 
 if(!s.app.includes("data-i2-tidy-choice")||!s.app.includes("data-i2-accept-tidy"))fail('I2 Tidy up must be a review sheet with Accept all');
@@ -312,3 +312,10 @@ const html=read('v2/index.html');for(const needle of ['<style id="planlyPolish">
 // Budget: amber (stands apart from Home green); opens instantly from loaded data, refreshing stale data (>60s) in the background.
 {const html=read('v2/index.html');if(!html.includes('<style id="planlyBudgetAmber">')||!html.includes(':root{--budget:#B45309;--budgetTint:#FFF3DC}')||!html.includes(':root[data-theme="dark"]{--budget:#FBBF24;--budgetTint:#3A2A10}'))fail('Budget amber tokens missing');
 const sc=read('v2/core-budget-scope-v4.0c.js');for(const needle of ['const BUDGET_FRESH_MS=60000;','if(bootstrap){if(!a.getState?.()?.scope){await a.bootstrap();budgetLoadedAt=Date.now()}else budgetBackgroundRefresh(a)}',"new CustomEvent('planly:budget-invalidated',{detail:{reason:'background-refresh'}})"])if(!sc.includes(needle))fail('Budget instant open missing: '+needle);}
+// Stage 4a (D10): a partner's calendar never counts as the user's busy time; whose-calendar choice; neutral wording.
+{for(const needle of ["show_timeline,enabled,status,last_synced_at,represents","function planlySourceRepresents(sourceId){return planlyCalendarSource(sourceId)?.represents==='partner'?'partner':'self'}","function planlyBusyIntervals(key){return externalTimelineIntervals(key).filter(x=>planlySourceRepresents(x.event?.source_id)!=='partner')}","allowed.represents=patch.represents==='partner'?'partner':'self'","data-planly-calendar-represents=","function planlyCalendarTwin(s)","function planlyScheduleTitle(events)"])if(!s.app.includes(needle))fail('Stage 4a missing: '+needle);
+// every busy input to Intelligence / planning uses the D10-filtered intervals
+if(/busy:externalTimelineIntervals\(/.test(s.app)||/busy=\[\.\.\.externalTimelineIntervals\(/.test(s.app)||/clash=\[\.\.\.externalTimelineIntervals\(/.test(s.app))fail('D10: busy time must come from planlyBusyIntervals');
+if((s.app.match(/busy:planlyBusyIntervals\(/g)||[]).length<3)fail('D10: Intelligence busy inputs must be filtered');
+for(const banned of ['Wife’s schedule','Wife — NHS rota',"['wife','Wife']",'>Rota items<','Rota / all day'])if(s.app.includes(banned))fail('Neutral wording: remove '+banned);
+if(!read('supabase/migrations/045_calendar_source_represents.sql').includes("check (represents in ('self', 'partner'))"))fail('Migration 045 missing');}
