@@ -72,8 +72,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=500r105'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-510a-39'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=520r106'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-520a-41'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -140,13 +140,13 @@ if(!s.app.includes("detail:{taskId:task?.id||'',readOnly,assigneeId:"))fail('H2 
 
 
 // Planly Intelligence I1 release invariants.
-for(const needle of ["window.PlanlyIntelligence","function analyse(input={})","visibility!=='household'","isWorkDay=busyMinutes>=360","projects:[],household:"])if(!s.intelligence.includes(needle))fail('Intelligence I1 engine invariant missing: '+needle);
+for(const needle of ["window.PlanlyIntelligence","function analyse(input={})","visibility!=='household'","isWorkDay=busyMinutes>=360","projects:projectSignals,household:"])if(!s.intelligence.includes(needle))fail('Intelligence I1 engine invariant missing: '+needle);
 if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\.|localStorage/.test(s.intelligence))fail('Intelligence engine purity regression');
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=510a03'"))fail('Intelligence app runtime boot marker mismatch');
-const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=510i202')fail('Intelligence must be final runtime module');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=520a02'"))fail('Intelligence app runtime boot marker mismatch');
+const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=520i302')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
 if(/__planly33cBaseRenderPlanDay[\s\S]{0,300}innerHTML/.test(s.calendar))fail('Household calendar wrapper must not replace composed Plan My Day UI');
@@ -173,7 +173,7 @@ if(!s.app.includes("data-i2-tidy-choice")||!s.app.includes("data-i2-accept-tidy"
 if(!s.app.includes("showUndoToast('Suggested Top 3 added'"))fail('I2 Suggest 3 must provide batch Undo');
 if(!s.app.includes("state.intelligenceSnoozeDate=localKey(new Date())"))fail('I2 no-suggestions control must be device-day scoped');
 
-for(const needle of ["const VERSION='5.0.0-i2'","factors:x.factors","score:x.score"])if(!s.intelligence.includes(needle))fail('I2 weighted explanation invariant missing: '+needle);
+for(const needle of ["const VERSION='5.0.0-i3'","factors:x.factors","score:x.score"])if(!s.intelligence.includes(needle))fail('I2 weighted explanation invariant missing: '+needle);
 for(const needle of ["function tidyOverdue(rec=todayIntelligence())","const recById=new Map((rec?.overdue||[])","showUndoToast('Tidied '","clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)","showIntelligenceWhy(dayPlanRecommendations","state.intelligenceSnoozeDate===localKey(new Date())||!engine?.analyse"])if(!s.app.includes(needle))fail('I2 review #97 invariant missing: '+needle);
 {const a=s.app.indexOf('function tidyOverdue('),b=s.app.indexOf('\nfunction showIntelligenceWhy',a),block=s.app.slice(a,b);if(block.includes('rescheduleTaskWithUndo('))fail('I2 Tidy up regressed to per-task Undo');if(!block.includes("t.deferCount=Math.max(0,Number(t.deferCount||t.data?.deferCount||0))+1"))fail('I2 Tidy batch must increment deferCount in the batch');}
 if(!s.app.includes("t.date===key&&t.visibility!=='household'&&t._planlyOwnedByMe!==false&&!t.completed"))fail('I2 Suggest 3 must not clear household Top 3 state');
@@ -181,3 +181,22 @@ if(s.app.includes("rec.day.status==='over'?-20:12")||s.app.includes("['Work day'
 if(!s.app.includes('class="i2CloseButton"')||!s.app.includes('href="#pi-plus"'))fail('I2 sheets must use sprite close controls');
 
 if(!s.app.includes("factor.points!==null&&factor.points!==undefined&&Number.isFinite(Number(factor.points))"))fail('I2 Why must not coerce unweighted factors to zero');
+
+for(const needle of ["const VERSION='5.0.0-i3'","projectSignals.push","nextStepId"])if(!s.intelligence.includes(needle))fail('I3 engine invariant missing: '+needle);for(const needle of ["function openPlanWeek()","function planProjectBlock(p)","projectStatusHtml(p)","data-plan-week","plan-block","showUndoToast('Week plan saved'"])if(!s.app.includes(needle))fail('I3 runtime invariant missing: '+needle);
+
+for(const needle of ["calendarClashes=new Set","taskClashes=new Set","<span>Clashes</span>"])if(!s.app.includes(needle))fail('I3 Timeline clash consistency invariant missing: '+needle);
+
+{const a=s.app.indexOf('function planProjectBlock('),b=s.app.indexOf('\nfunction openPlanWeek',a),block=s.app.slice(a,b);if(!block.includes("t.visibility==='household'"))fail('I3 Plan a Block household boundary missing');if(!block.includes('stageChangedTasksFromSnapshot(before)')||!block.includes("showUndoToast('Planned "))fail('I3 Plan a Block cloud/Undo path missing');}
+{const a=s.app.indexOf('function openPlanWeek('),b=s.app.indexOf('\nfunction projectById',a),block=s.app.slice(a,b);for(const needle of ["t.visibility==='household'","rec.day.overnightRest||rec.day.isWorkDay","stageChangedTasksFromSnapshot(before)","showUndoToast('Week plan saved'","clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)","queuePlanlyPendingReplay('Week plan synced')","syncPendingGoogle()"]){if(!block.includes(needle))fail('I3 Plan My Week acceptance invariant missing: '+needle)}if(block.indexOf('save();')<block.indexOf('[data-week-save]'))fail('I3 Plan My Week must remain draft-only before Save week');}
+if(!s.intelligence.includes("owned(t)&&t.visibility!=='household'&&!t.completed&&String(t.projectId||'')"))fail('I3 project actions must rank personal owner-safe tasks only');
+
+const i3r1=read('v2/core-redesign-r1.js'),i3projects=read('v2/core-projects-v3.3c.js');
+for(const needle of ["typeof projectStatusHtml==='function'?projectStatusHtml(p)"]){if(!i3r1.includes(needle))fail('I3 R1 composed project status missing: '+needle);if(!i3projects.includes(needle))fail('I3 3.3C composed project status missing: '+needle)}
+for(const needle of ['projectIntelligence(p.id)','Next step','data-project-action="plan-block"',"typeof planProjectBlock==='function'"])if(!i3projects.includes(needle))fail('I3 composed project detail/action missing: '+needle);
+for(const needle of ["Array.from({length:7},(_,i)=>addDays(today,i))","baseRec?.weekCandidates||[]","row.date<today","function firstPlanningGap(","todayTime||firstPlanningGap(tomorrow,t,0)"])if(!s.app.includes(needle))fail('I3 review #99 planning invariant missing: '+needle);
+for(const needle of ["activeAll=all.filter(t=>!t.completed)","status='done'","status='not-scheduled'",'weekCandidates'])if(!s.intelligence.includes(needle))fail('I3 review #99 engine invariant missing: '+needle);
+if(!read('v2/index.html').includes('.projectIntelStatus{font-size:11px')||!read('v2/index.html').includes('.planWeekDays small{font-size:11px'))fail('I3 review #99 mobile type floor missing');
+
+// I3 #100 composed project-detail execution guard: execute the final override in a minimal runtime harness.
+{const source=s.projects,start=source.indexOf('renderProjectsPanel=function()'),end=source.indexOf('\nopenProjects=function',start);if(start<0||end<0)fail('I3 project detail override not found');const fn=source.slice(start,end);const nodes={projectsContent:{innerHTML:'',hidden:false},projectsTitle:{textContent:'',hidden:false},projectsEyebrow:{textContent:'',hidden:false},projectsBack:{hidden:false}};const dollar=sel=>nodes[sel.slice(1)]||null,state0={projects:[{id:'p1',name:'Project',dueDate:'',notes:'',visibility:'private',archived:false}],tasks:[{id:'t1',projectId:'p1',title:'Task',completed:false,visibility:'private',_planlyOwnedByMe:true}]};const args=[dollar,state0,'detail','p1','','',null,id=>state0.projects.find(p=>p.id===id),()=>({done:0,total:1,pct:0,active:state0.tasks,completed:[]}),()=>true,()=>'',()=>({status:'on-track',reasons:['Active work is scheduled'],nextStepId:'t1',nextStepReasons:['High priority']}),()=>'<span>On track</span>',x=>x,t=>'<div>'+t.title+'</div>',x=>String(x),x=>String(x),()=> '2026-10-01'];try{const run=new Function('$','state','projectPanelMode','activeProjectId','editingProjectId','activeProjectOwnerId','planlyHousehold','projectById','projectStats','planlyProjectOwnedByMe','planlyProjectShareLabel','projectIntelligence','projectStatusHtml','sortTasks','taskHtml','esc','fmt','localKey',fn+';renderProjectsPanel();');run(...args)}catch(err){fail('I3 composed project detail runtime error: '+err.message)}if(!nodes.projectsContent.innerHTML.includes('Next step')||!nodes.projectsContent.innerHTML.includes('Plan a block')||!nodes.projectsContent.innerHTML.includes('Add task')||!nodes.projectsContent.innerHTML.includes('Edit project'))fail('I3 composed project detail did not render expected actions')}
+if(!s.app.includes("const prefix=!t.date?(t.projectId?'Project task':'Inbox'):'Overdue';"))fail('I3 week candidate labels must identify undated project tasks before Inbox fallback');
