@@ -749,7 +749,7 @@ function finishCalendarChange(t){if(!t?.addToCalendar||!t.date||!googleConnected
 function completeTaskWithUndo(t,meta={}){
   if(!t||t.completed)return;
   const before=cloneTasks();t.completed=true;if(t.visibility==='household'&&planlySession?.user?.id)t.completedBy=String(planlySession.user.id);t.updatedAt=Date.now();createNextRecurring(t);const pendingIds=stageChangedTasksFromSnapshot(before);save();render();
-  const learningSampleAt=meta.focusMs?recordIntelligenceCompletion(t,meta.focusMs):null;const recurrencePrompt=recurringLearningCandidate(t);const next=nextUpSuggestion();showUndoToast('Task completed'+(next?' · Next: '+next:''),()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)},()=>{queuePlanlyPendingReplay('Task completion synced');if(googleConnected())syncPendingGoogle().then(()=>render()).catch(()=>{});if(recurrencePrompt)maybeOfferRecurringLearning(t)});
+  const learningSampleAt=meta.focusMs?recordIntelligenceCompletion(t,meta.focusMs):null;const recurrencePrompt=recurringLearningCandidate(t);const next=nextUpSuggestion();showUndoToast('Task completed'+(next?' · Next: '+next:''),()=>{clearPendingTaskIds(pendingIds);removeIntelligenceCompletionSample(learningSampleAt);restoreTaskSnapshot(before)},()=>{queuePlanlyPendingReplay('Task completion synced');if(googleConnected())syncPendingGoogle().then(()=>render()).catch(()=>{});if(recurrencePrompt)maybeOfferRecurringLearning(t)});
 }
 function rescheduleTaskWithUndo(t,newDate,message){
   if(!t||!newDate||t.date===newDate)return;
