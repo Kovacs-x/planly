@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=500r105'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-500f-36'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-510a-39'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,8 +145,8 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=500f01'"))fail('Intelligence app runtime boot marker mismatch');
-const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=500i104')fail('Intelligence must be final runtime module');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=510a03'"))fail('Intelligence app runtime boot marker mismatch');
+const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=510i202')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
 if(/__planly33cBaseRenderPlanDay[\s\S]{0,300}innerHTML/.test(s.calendar))fail('Household calendar wrapper must not replace composed Plan My Day UI');
@@ -162,3 +162,22 @@ if(/async function planlyCompleteHouseholdTaskDirect\(t\)\{[\s\S]{0,300}await pl
 if(!s.safety.includes("fields=['date','time','pinned','top3Order','calendarSync']")||!s.safety.includes("$$('#planDayContent [data-plan-time]')")||s.safety.includes('state.tasks=[...ownedDraft'))fail('Final composed commitPlanDay is not delta-only');
 if(!s.safety.includes('if(!planlyTaskOwnedByMe(draft))continue')||!s.safety.includes('!planlyTaskOwnedByMe(live)'))fail('Final composed commitPlanDay owner boundary missing');
 if(!s.assignment.includes("stagePlanlyHouseholdCompletion(t,next,nextDate)"))fail('Direct B2 completion must stage household RPC');
+
+for(const needle of ['todayDayCheckHtml','data-i2-suggest3','data-i2-tidy','Next: ','deferCount','intelligenceWhySheet','intelligenceSnoozeDate'])if(!s.app.includes(needle))fail('I2 runtime invariant missing: '+needle);
+if(!s.app.includes("t._planlyOwnedByMe!==false)).forEach((t,i)=>{t.top3Order=i})"))fail('normalizeTop3Orders must be owner-only');
+if(fs.existsSync('v2/app.js'))fail('Legacy v2/app.js must remain deleted');
+if(!s.app.includes("externalTimelineIntervals(key).map(x=>({start:x.start,end:x.end}))"))fail('Today intelligence must reuse loaded calendar state');
+if(!s.app.includes("window.PlanlyBudget?.getTodayBills?.()"))fail('Today bill summary must reuse loaded Budget state');
+
+if(!s.app.includes("data-i2-tidy-choice")||!s.app.includes("data-i2-accept-tidy"))fail('I2 Tidy up must be a review sheet with Accept all');
+if(!s.app.includes("showUndoToast('Suggested Top 3 added'"))fail('I2 Suggest 3 must provide batch Undo');
+if(!s.app.includes("state.intelligenceSnoozeDate=localKey(new Date())"))fail('I2 no-suggestions control must be device-day scoped');
+
+for(const needle of ["const VERSION='5.0.0-i2'","factors:x.factors","score:x.score"])if(!s.intelligence.includes(needle))fail('I2 weighted explanation invariant missing: '+needle);
+for(const needle of ["function tidyOverdue(rec=todayIntelligence())","const recById=new Map((rec?.overdue||[])","showUndoToast('Tidied '","clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)","showIntelligenceWhy(dayPlanRecommendations","state.intelligenceSnoozeDate===localKey(new Date())||!engine?.analyse"])if(!s.app.includes(needle))fail('I2 review #97 invariant missing: '+needle);
+{const a=s.app.indexOf('function tidyOverdue('),b=s.app.indexOf('\nfunction showIntelligenceWhy',a),block=s.app.slice(a,b);if(block.includes('rescheduleTaskWithUndo('))fail('I2 Tidy up regressed to per-task Undo');if(!block.includes("t.deferCount=Math.max(0,Number(t.deferCount||t.data?.deferCount||0))+1"))fail('I2 Tidy batch must increment deferCount in the batch');}
+if(!s.app.includes("t.date===key&&t.visibility!=='household'&&t._planlyOwnedByMe!==false&&!t.completed"))fail('I2 Suggest 3 must not clear household Top 3 state');
+if(s.app.includes("rec.day.status==='over'?-20:12")||s.app.includes("['Work day',-8")||s.app.includes("['Night rest',-10"))fail('I2 Why contains invented weights');
+if(!s.app.includes('class="i2CloseButton"')||!s.app.includes('href="#pi-plus"'))fail('I2 sheets must use sprite close controls');
+
+if(!s.app.includes("factor.points!==null&&factor.points!==undefined&&Number.isFinite(Number(factor.points))"))fail('I2 Why must not coerce unweighted factors to zero');
