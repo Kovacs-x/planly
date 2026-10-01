@@ -140,7 +140,7 @@ if(!s.app.includes("detail:{taskId:task?.id||'',readOnly,assigneeId:"))fail('H2 
 
 
 // Planly Intelligence I1 release invariants.
-for(const needle of ["window.PlanlyIntelligence","function analyse(input={})","visibility!=='household'","isWorkDay=busyMinutes>=360","projects:[],household:"])if(!s.intelligence.includes(needle))fail('Intelligence I1 engine invariant missing: '+needle);
+for(const needle of ["window.PlanlyIntelligence","function analyse(input={})","visibility!=='household'","isWorkDay=busyMinutes>=360","projects:projectSignals,household:"])if(!s.intelligence.includes(needle))fail('Intelligence I1 engine invariant missing: '+needle);
 if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\.|localStorage/.test(s.intelligence))fail('Intelligence engine purity regression');
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
@@ -183,3 +183,5 @@ if(!s.app.includes('class="i2CloseButton"')||!s.app.includes('href="#pi-plus"'))
 if(!s.app.includes("factor.points!==null&&factor.points!==undefined&&Number.isFinite(Number(factor.points))"))fail('I2 Why must not coerce unweighted factors to zero');
 
 for(const needle of ["const VERSION='5.0.0-i3'","projectSignals.push","nextStepId"])if(!s.intelligence.includes(needle))fail('I3 engine invariant missing: '+needle);for(const needle of ["function openPlanWeek()","function planProjectBlock(p)","projectStatusHtml(p)","data-plan-week","plan-block","showUndoToast('Week plan saved'"])if(!s.app.includes(needle))fail('I3 runtime invariant missing: '+needle);
+
+for(const needle of ["calendarClashes=new Set","taskClashes=new Set","<span>Clashes</span>"])if(!s.app.includes(needle))fail('I3 Timeline clash consistency invariant missing: '+needle);
