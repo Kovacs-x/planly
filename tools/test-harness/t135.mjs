@@ -1,0 +1,15 @@
+import { launch } from './harness.mjs';
+import { ME } from './mock.mjs';
+await fetch('http://localhost:8802/__switch?to=pr');
+const h=await launch({uid:ME}); const {page:p,W}=h; const q=(f,a)=>p.evaluate(f,a); const R={};
+await p.clock.setFixedTime(new Date('2026-10-01T10:00:00Z'));
+const MOCKX=h.MOCK;{const pr=MOCKX.db.planly_projects.find(x=>x.client_id==='proj-renov');const done={...structuredClone(pr),cloud_id:crypto.randomUUID(),client_id:'proj-done',name:'Finished project',due_date:null};done.data={...(pr.data||{}),id:'proj-done',name:'Finished project',dueDate:''};MOCKX.db.planly_projects.push(done);const tt=MOCKX.db.planly_tasks.find(x=>x.client_id==='task-done');tt.project_client_id='proj-done';tt.data={...tt.data,projectId:'proj-done'};}
+await p.goto('http://localhost:8802/planly/v2/'); await W(4000); await p.reload(); await W(10000);
+await q(()=>document.querySelector('[data-section="plan"]')?.click());await W(800);
+await q(()=>document.querySelector('[data-plan-segment="projects"]')?.click());await W(1500);
+R.list=await q(()=>[...document.querySelectorAll('#view .planProjectCard')].map(c=>c.innerText.replace(/\n/g,' | ')+' {'+[...c.querySelectorAll('.projectIntelStatus')].map(s=>s.title+' '+getComputedStyle(s).fontSize).join(';')+'}'));
+R.chips=await q(()=>document.querySelectorAll('#view .projectIntelStatus').length);
+await q(()=>{});R.examEl=await q(()=>{const c=[...document.querySelectorAll('#view button, #view [role=button], #view a, #view div')].filter(e=>/^Exam revision/.test(e.innerText.trim())).pop();if(!c)return 'none';c.click();return c.outerHTML.slice(0,200)});await W(1200);R.wrapOpen=await q(()=>document.querySelector('#projectsWrap')?.className);R.panel=await q(()=>document.querySelector('#projectsContent')?.innerText.replace(/\n/g,' | ').slice(0,600));R.panelBlock=await q(()=>!!document.querySelector('#projectsContent [data-project-action="plan-block"]'));R.panelChip=await q(()=>[...document.querySelectorAll('.projectIntelStatus')].map(e=>e.innerText+' '+getComputedStyle(e).fontSize));
+R.detail=await q(()=>document.querySelector('#view')?.innerText.replace(/\n/g,' | ').slice(0,500));
+R.planBlock=await q(()=>!!document.querySelector('#view [data-project-action="plan-block"]'));
+const writes=[];p.on('request',r=>{if(['POST','PATCH'].includes(r.method())&&r.url().includes('/rest/v1/planly_tasks'))writes.push((r.postData()||'').match(/"title":"[^"]*"|"date":"[^"]*"|"time":"[^"]*"/g)?.slice(0,3).join(' '))});await q(()=>document.querySelector('#projectsContent [data-project-action="plan-block"]')?.click());await W(700);R.undoAvail=await q(()=>[...document.querySelectorAll('button')].some(b=>/^Undo$/.test(b.innerText.trim())&&b.offsetParent));await W(6500);R.blockWrites=writes.slice();{const t=h.MOCK.db.planly_tasks.find(t=>t.client_id==='task-rev4');R.dbRev4=t&&(t.data?.date+' '+t.data?.time+' v'+t.cloud_version)}R.panelAfter=await q(()=>document.querySelector('#projectsContent')?.innerText.replace(/\n/g,' | ').slice(0,300));R.errors=h.errors;for(const [k,v] of Object.entries(R))console.log(k,JSON.stringify(v));await h.browser.close();

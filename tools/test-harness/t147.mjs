@@ -1,0 +1,16 @@
+import { launch } from './harness.mjs';
+import { ME } from './mock.mjs';
+await fetch('http://localhost:8802/__switch?to=pr');
+const h=await launch({uid:ME}); const {page:p,W}=h; const q=(f,a)=>p.evaluate(f,a); const R={};
+await p.setViewportSize({width:390,height:844});
+await p.goto('http://localhost:8802/planly/v2/'); await W(4000); await p.reload(); await W(10000);
+R.nav=await q(()=>[...document.querySelectorAll('.nav button')].map(b=>b.innerText.trim()+' '+(b.querySelector('svg use')?.getAttribute('href')||'inline-svg')));
+R.profileBtn=await q(()=>{const b=document.querySelector('#profileToggle');const r=b?.getBoundingClientRect();return b?Math.round(r.width)+'x'+Math.round(r.height):null});
+await q(()=>document.querySelector('#profileToggle')?.click());await W(500);
+R.profileSheet=await q(()=>document.querySelector('#profileWrap.open')?.innerText.replace(/\n/g,' | '));
+await q(()=>document.querySelector('[data-profile-settings]')?.click());await W(900);
+R.settingsGroups=await q(()=>[...document.querySelectorAll('.settingsGroupHead h2')].map(h=>h.innerText));
+R.settingsIds=await q(()=>['intelligenceSuggestions','intelligenceChoreBalance','intelligenceNightRest','intelligenceResetHistory','autoCalendarTimed','planningStart','planningEnd'].map(id=>id+':'+!!document.getElementById(id)));
+R.dayCheck=await q(async()=>{document.querySelector('[data-section="today"]')?.click();await new Promise(r=>setTimeout(r,800));return [...document.querySelectorAll('.todayDayCheck button')].map(b=>b.innerText.replace(/\n/g,' | ')+' '+Math.round(b.getBoundingClientRect().width)+'x'+Math.round(b.getBoundingClientRect().height)+' '+getComputedStyle(b.querySelector('strong')||b).fontSize)});
+R.welcomeSignedOut=null;
+R.errors=h.errors;for(const [k,v] of Object.entries(R))console.log(k,JSON.stringify(v));await h.browser.close();

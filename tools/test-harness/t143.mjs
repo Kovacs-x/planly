@@ -1,0 +1,33 @@
+import { launch } from './harness.mjs';
+import { ME } from './mock.mjs';
+await fetch('http://localhost:8802/__switch?to=pr');
+const CLOCK=process.env.CLOCK;const h=await launch({uid:ME}); const {page:p,W,MOCK}=h; const q=(f,a)=>p.evaluate(f,a); const R={clock:CLOCK};
+await p.clock.setFixedTime(new Date(CLOCK));
+const tpl=MOCK.db.external_calendar_events.find(e=>e.external_uid==='shift-today');
+const ev=(uid,s,e,title)=>({...structuredClone(tpl),id:crypto.randomUUID(),external_uid:uid,title,starts_at:s,ends_at:e,start_date:s.slice(0,10),end_date:e.slice(0,10)});
+MOCK.db.external_calendar_events=MOCK.db.external_calendar_events.filter(e=>e.external_uid!=='shift-today');
+MOCK.db.external_calendar_events.push(ev('n1','2026-10-01T19:00:00+00:00','2026-10-02T07:00:00+00:00','N'),ev('n2','2026-10-24T19:00:00+00:00','2026-10-25T08:00:00+00:00','N'));
+// untimed personal tasks on test days
+const base=MOCK.db.planly_tasks.find(t=>t.client_id==='task-groceries');
+const mk=(id,date)=>{const r=structuredClone(base);r.cloud_id=crypto.randomUUID();r.client_id=id;r.title='Task '+id;r.task_date=date;r.task_time=null;r.pinned=false;r.duration_minutes=30;r.data={...r.data,id,title:'Task '+id,date,time:'',pinned:false,durationMinutes:30,priority:'high'};return r};
+for(const d of ['2026-10-02','2026-10-25','2026-10-26'])for(const i of [1,2,3])MOCK.db.planly_tasks.push(mk(d+'-'+i,d));
+await p.goto('http://localhost:8802/planly/v2/'); await W(4000); await p.reload(); await W(10000);
+R.header=await q(()=>document.querySelector('.topbar')?.innerText.replace(/\n/g,' | ').slice(0,80));
+R.dayCheck=await q(()=>document.querySelector('.todayDayCheck button')?.innerText.replace(/\n/g,' | '));
+R.todayTasks=await q(()=>[...document.querySelectorAll('#view .taskTitle')].map(x=>x.innerText).filter(t=>/^Task /.test(t)));
+await q(()=>document.querySelector('[data-i2-why]')?.click());await W(400);R.whyDay=await q(()=>document.querySelector('#intelligenceWhySheet.open')?.innerText.replace(/\n/g,' | '));await q(()=>document.querySelector('[data-i2-close-why]')?.click());
+await q(()=>document.querySelector('#planMyDayBtn')?.click());await W(800);
+R.pmdTitle=await q(()=>document.querySelector('#planDayTitle')?.innerText);R.chooser=await q(()=>document.querySelector('.planDayDateChoice')?.innerText.replace(/\n/g,' | '));
+for(let i=0;i<2;i++){await q(()=>document.querySelector('#planDayNext')?.click());await W(400)}
+R.capacity=await q(()=>document.querySelector('.planCapacityStrip')?.innerText.replace(/\n/g,' | '));
+await q(()=>document.querySelector('#planDayNext')?.click());await W(400);
+R.top3=await q(()=>document.querySelector('.planTop3Count')?.innerText+' '+[...document.querySelectorAll('.planTop3Card .planSuggestedTag')].length+' suggested');
+await q(()=>document.querySelector('#planDayNext')?.click());await W(400);
+R.times=await q(()=>[...document.querySelectorAll('.planSuggestedTimes label')].map(l=>l.innerText.replace(/\n/g,' | ')));
+await q(()=>document.querySelector('#planDayCancel,[data-plan-cancel],#planDayClose')?.click());await p.keyboard.press('Escape');await W(300);
+await q(()=>document.querySelector('#planDayWrap')?.classList.remove('open'));
+await q(()=>document.querySelector('[data-section="plan"]')?.click());await W(700);await q(()=>document.querySelector('[data-plan-segment="upcoming"]')?.click());await W(700);
+R.review=await q(()=>document.querySelector('.weeklyReview')?.innerText.replace(/\n/g,' | ')||null);
+await q(()=>document.querySelector('[data-plan-week]')?.click());await W(700);
+R.week=await q(()=>[...document.querySelectorAll('#planWeekSheet .planWeekDays section > strong')].map(s=>s.innerText));
+R.errors=h.errors;for(const [k,v] of Object.entries(R))console.log(k,JSON.stringify(v));await h.browser.close();

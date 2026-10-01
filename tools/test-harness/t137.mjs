@@ -1,0 +1,28 @@
+import { launch } from './harness.mjs';
+import { ME, PARTNER } from './mock.mjs';
+await fetch('http://localhost:8802/__switch?to=pr');
+const who=process.argv[2]||'owner',UNDO=process.env.UNDO==='1';
+const h=await launch({uid:who==='partner'?PARTNER:ME}); const {page:p,W,MOCK}=h; const q=(f,a)=>p.evaluate(f,a); const R={};
+await p.clock.setFixedTime(new Date('2026-10-01T10:00:00Z'));
+const bins=MOCK.db.planly_tasks.find(t=>t.client_id==='task-bins');bins.completed=true;bins.completed_by=PARTNER;bins.completed_at='2026-09-30T18:00:00Z';bins.data={...bins.data,completed:true,completedBy:PARTNER,completedAt:'2026-09-30T18:00:00Z'};
+await p.goto('http://localhost:8802/planly/v2/'); await W(4000); await p.reload(); await W(10000);
+const home=async()=>{await q(()=>document.querySelector('[data-section="home"]')?.click());await W(1200)};
+await home();
+R.offSections=await q(()=>[...document.querySelectorAll('#view .homeSection h2')].map(h=>h.innerText));R.offHasBalance=await q(()=>!!document.querySelector('.homeChoreBalance'));
+await q(()=>document.querySelector('[data-section="settings"]')?.click());await W(1000);
+R.settingDefault=await q(()=>document.querySelector('#intelligenceChoreBalance')?.checked);
+await q(()=>document.querySelector('#intelligenceChoreBalance')?.click());await W(500);
+await home();
+R.balance=await q(()=>document.querySelector('.homeChoreBalance')?.innerText.replace(/\n/g,' | '));
+R.shareBtn=await q(()=>{const b=document.querySelector('[data-share-out]');if(!b)return null;const r=b.getBoundingClientRect();return Math.round(r.width)+'x'+Math.round(r.height)});
+const writes=[];p.on('request',r=>{if(['POST','PATCH'].includes(r.method())&&r.url().includes('/rest/v1/planly_tasks'))writes.push(r.method()+' '+((r.postData()||'').match(/"client_id":"[^"]*"|"assignee_id":[^,]*/g)||[]).join(' '))});
+await q(()=>document.querySelector('[data-share-out]')?.click());await W(600);
+R.sheet=await q(()=>document.querySelector('#shareOutSheet.open')?.innerText.replace(/\n/g,' | '));
+R.toast=await q(()=>[...document.querySelectorAll('div,span')].filter(e=>e.offsetParent&&/No chores you own/.test(e.innerText)&&e.childElementCount<3).map(e=>e.innerText)[0]);
+await q(()=>document.querySelectorAll('#shareOutSheet [data-share-accept]').forEach(i=>{if(!i.checked)i.click()}));
+await q(()=>document.querySelector('#shareOutSheet [data-share-apply]')?.click());await W(700);
+if(UNDO){await q(()=>{const b=[...document.querySelectorAll('button')].find(b=>/^Undo$/.test(b.innerText.trim())&&b.offsetParent);b?.click()});}
+await W(7000);
+R.writes=writes;const row=MOCK.db.planly_tasks.find(t=>t.client_id==='task-bathroom');R.dbBathroom=row&&{assignee_id:row.assignee_id,dataAssignee:row.data?.assigneeId,v:row.cloud_version};
+R.homeAfter=await q(()=>document.querySelector('.homeChoreBalance')?.innerText.replace(/\n/g,' | '));
+R.errors=h.errors;for(const [k,v] of Object.entries(R))console.log(k,JSON.stringify(v));await h.browser.close();

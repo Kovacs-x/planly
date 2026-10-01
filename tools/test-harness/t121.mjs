@@ -1,0 +1,10 @@
+import { launch } from './harness.mjs';
+import { PARTNER } from './mock.mjs';
+await fetch('http://localhost:8802/__switch?to=pr');
+const h=await launch({uid:PARTNER}); const {page:p,W}=h; const q=(f,a)=>p.evaluate(f,a);
+p.on('dialog',d=>d.dismiss());
+await p.goto('http://localhost:8802/planly/v2/'); await W(4000); await p.reload(); await W(10000);
+await q(()=>document.querySelector('.nav button[data-section="home"]').click());await W(900);
+await q(()=>{const b=[...document.querySelectorAll('[data-chore-open]')].find(b=>/Clean bathroom/.test(b.innerText));b?.click()});await W(1200);
+console.log(JSON.stringify(await q(()=>({open:!!document.querySelector('.sheetWrap.open,.sheet.open,#taskForm'),readOnlyClass:document.getElementById('taskForm')?.classList.contains('taskReadOnlySheet'),titleDisabled:document.getElementById('taskTitle')?.disabled,saveHidden:document.getElementById('formActions')?.hidden,shareBtns:[...document.querySelectorAll('[data-task-visibility]')].map(b=>(b.classList.contains('active')?'*':'')+b.innerText+(b.disabled?'(dis)':'')).join(','),assignBtns:[...document.querySelectorAll('[data-task-assignee]')].map(b=>(b.classList.contains('active')?'*':'')+b.innerText+(b.disabled?'(dis)':'')).join(',')}))),JSON.stringify(h.errors));
+await h.browser.close();

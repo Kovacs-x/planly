@@ -1,0 +1,16 @@
+import { launch } from './harness.mjs';
+import { ME, PARTNER } from './mock.mjs';
+await fetch('http://localhost:8802/__switch?to=pr');
+const who=process.argv[2]||'owner';const h=await launch({uid:who==='partner'?PARTNER:ME}); const {page:p,W,MOCK}=h; const q=(f,a)=>p.evaluate(f,a); const R={};
+MOCK.db.planly_household_members.find(m=>m.user_id===ME).display_name='Musti';MOCK.db.planly_household_members.find(m=>m.user_id===PARTNER).display_name='Sarah';
+p.on('dialog',d=>d.dismiss());
+await p.goto('http://localhost:8802/planly/v2/'); await W(4000); await p.reload(); await W(10000);
+const st=()=>q(()=>{const vis=(s)=>{const e=document.querySelector(s);if(!e)return 'missing';const r=e.getBoundingClientRect();return r.height>0&&getComputedStyle(e).display!=='none'&&!e.closest('[hidden]')};const more=document.querySelector('#taskMoreOptions,.taskMoreOptions,details.taskMore');return {share:vis('#taskVisibilitySegments'),assign:vis('#taskAssigneeSegments'),shareActive:[...document.querySelectorAll('[data-task-visibility]')].filter(b=>b.classList.contains('active')).map(b=>b.innerText).join(','),assignBtns:[...document.querySelectorAll('[data-task-assignee]')].map(b=>(b.classList.contains('active')?'*':'')+b.innerText+(b.disabled?'(dis)':'')).join(','),visVal:document.getElementById('taskVisibility')?.value,asgVal:document.getElementById('taskAssignee')?.value,shareBeforeMore:(()=>{const s=document.getElementById('taskHouseholdControls'),m=[...document.querySelectorAll('#taskForm *')].find(e=>/More options/.test(e.textContent)&&e.children.length<4);return s&&m?!!(s.compareDocumentPosition(m)&Node.DOCUMENT_POSITION_FOLLOWING):'?'})()}});
+MOCK.log=[];h.errors.length=0;
+await q(()=>document.getElementById('addBtn').click());await W(900);R.open=await st();
+await q(()=>document.querySelector('[data-task-visibility="household"]').click());await W(900);R.afterHousehold=await st();
+await q(()=>document.querySelector('[data-task-assignee]:not([data-task-assignee=""])')?.click());await W(400);R.afterAssign=await st();
+await q(()=>{document.getElementById('taskTitle').value='H2 shared test';document.getElementById('taskForm').requestSubmit()});await W(3000);
+const t=MOCK.db.planly_tasks.find(x=>x.data?.title==='H2 shared test'||x.title==='H2 shared test');R.saved=t?{vis:t.visibility,hh:!!t.household_id,assignee:t.assignee_id===PARTNER?'Sarah':t.assignee_id===ME?'Musti':t.assignee_id}:'NOT SAVED';
+R.errors=h.errors.slice(0,5);R.errCount=h.errors.length;
+for(const [k,v] of Object.entries(R))console.log(who,k,JSON.stringify(v));await h.browser.close();
