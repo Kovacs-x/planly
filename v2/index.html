@@ -266,6 +266,13 @@ body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-
 .homeChoreBalance h2{font-size:17px!important}
 .tidyTaskText{font-size:15px}
 </style>
+<style id="planlyStage4Part2Fixes">
+/* iPhone follow-up: the meta line wraps whole items onto a second line instead of squeezing the last one */
+.compactTaskMeta{flex-wrap:wrap;row-gap:1px;column-gap:10px;white-space:normal;overflow:visible}
+.compactTaskMeta>span,.compactTaskMeta>button,.compactTaskMeta>.compactRepeat,.compactTaskMeta>.compactCategory,.compactTaskMeta>.compactProjectLink{flex:0 1 auto;min-width:0;max-width:100%}
+.compactTaskMeta>span[aria-hidden]{display:none}
+.dayCheckHidden{min-height:44px}.dayCheckHidden .dayCheckText{flex:1 1 auto;min-width:0}.dayCheckHidden small{font-size:13px;color:var(--muted)}
+</style>
 </head>
 <body>
 <svg class="planlyIconSprite" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="pi-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></symbol><symbol id="pi-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="pi-today" viewBox="0 0 24 24"><path d="M5 4v3M19 4v3M4 9h16"/><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="m8.5 14 2 2 5-5"/></symbol><symbol id="pi-plan" viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h6"/><path d="m16 15 3 3-3 3"/></symbol><symbol id="pi-home" viewBox="0 0 24 24"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></symbol><symbol id="pi-budget" viewBox="0 0 24 24"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></symbol><symbol id="pi-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol><symbol id="pi-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></symbol><symbol id="pi-spark" viewBox="0 0 24 24"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6z"/><path d="m18 15 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></symbol><symbol id="pi-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol><symbol id="pi-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></symbol><symbol id="pi-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></symbol><symbol id="pi-grip" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8"/></symbol><symbol id="pi-checklist" viewBox="0 0 24 24"><path d="m4 7 2 2 3-4M11 7h9M4 14l2 2 3-4M11 14h9"/></symbol><symbol id="pi-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol></defs></svg>
@@ -329,7 +336,7 @@ body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=560a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=570a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

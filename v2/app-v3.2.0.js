@@ -1067,7 +1067,7 @@ function todayView(){
   const overdue=sortTasks(state.tasks.filter(isOverdue)),pins=sortTop3(activeToday.filter(t=>t.pinned)).slice(0,3),remaining=activeToday.filter(t=>!t.pinned);
   const scheduled=sortTasks(remaining.filter(t=>t.time)),anytime=sortTasks(remaining.filter(t=>!t.time)),householdEvents=externalEventsForDate(key,'today');
   setHeader('Today',new Intl.DateTimeFormat(undefined,{weekday:'long',day:'numeric',month:'long'}).format(new Date()));
-  const pct=todayAll.length?Math.round(completed.length/todayAll.length*100):0,dashboard=todayDashboardHtml(activeToday,todayAll,overdue),billsDue=planlyBudgetBillsDueHtml(),intel=todayIntelligence(),dayCheck=todayDayCheckHtml(intel);
+  const pct=todayAll.length?Math.round(completed.length/todayAll.length*100):0,dashboard=todayDashboardHtml(activeToday,todayAll,overdue),billsDue=planlyBudgetBillsDueHtml(),intel=todayIntelligence(),dayCheck=intel?todayDayCheckHtml(intel):(state.intelligenceSuggestions!==false&&state.intelligenceSnoozeDate===key?'<div class="todayDayCheck dayCheckSlim dayCheckHidden"><span class="dayCheckText"><small>Suggestions hidden today</small></span><span class="dayCheckLinks"><button type="button" class="dayCheckLink" data-i2-unsnooze>Show</button></span></div>':'');
   const allDone=!activeToday.length&&!overdue.length&&todayAll.length>0,nothingPlanned=!todayAll.length&&!overdue.length;
   const statusCard=allDone?'<div class="dayStatus doneStatus"><strong>All done for today</strong><span>✓</span></div>':nothingPlanned?'<div class="dayStatus"><strong>Nothing planned yet</strong><span class="muted">Tap + to add something.</span></div>':'';
   const household=householdEvents.length?`<section class="householdCard"><div class="sectionHead"><div><span class="householdEyebrow">Household</span><h2>Wife’s schedule</h2></div><span class="muted">${householdEvents.length}</span></div><div class="externalEventList">${householdEvents.map(e=>externalEventHtml(e,key)).join('')}</div></section>`:'';
@@ -2280,6 +2280,7 @@ function handleViewClick(e){
   if(e.target.closest('[data-i2-tidy]')){tidyOverdue(todayIntelligence());return}
   if(e.target.closest('[data-plan-week]')){openPlanWeek();return}
   const why=e.target.closest('[data-i2-why]');if(why){showIntelligenceWhy(todayIntelligence(),why.dataset.i2Why);return}
+  if(e.target.closest('[data-i2-unsnooze]')){state.intelligenceSnoozeDate='';persistPlanlyDeviceSettings();render();return}
   if(e.target.closest('[data-i2-snooze]')){state.intelligenceSnoozeDate=localKey(new Date());persistPlanlyDeviceSettings();render();return}
   const calendarSeries=e.target.closest('[data-calendar-series]');if(calendarSeries){const source=state.tasks.find(x=>x.id===calendarSeries.dataset.calendarSeries);if(source)openSheet(source);return}
   const dashboardFocus=e.target.closest('[data-dashboard-focus]');if(dashboardFocus){openFocus(dashboardFocus.dataset.dashboardFocus);return}
