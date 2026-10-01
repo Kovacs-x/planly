@@ -483,6 +483,17 @@ body.welcomeOpen{overflow:hidden}
 .todayCardToggle{display:flex!important;align-items:center;gap:12px;flex-direction:row-reverse;justify-content:space-between;min-height:56px}
 @media (prefers-reduced-motion:reduce){.settingsPaged input[type="checkbox"],.settingsPaged input[type="checkbox"]::before{transition:none}}
 </style>
+<style id="planlyPolish">
+/* Polish: the profile initial is a true 40px circle centred in its 44px target (the button's 1px 6px padding squeezed it into a 30x40 oval). Completed rows carry an Undo button. */
+#profileToggle.profileIcon:has(.profileInitial){padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;display:grid!important;place-items:center!important}
+#profileToggle.profileIcon .profileInitial{width:40px!important;height:40px!important;flex:none;aspect-ratio:1/1;font-size:17px;font-weight:700;line-height:1;box-shadow:0 0 0 2px var(--card),0 2px 8px rgba(47,111,235,.28)}
+.profileIcon.active .profileInitial{box-shadow:0 0 0 2px var(--card),0 0 0 4px #2F6FEB!important}
+:root[data-theme="dark"] .profileIcon.active .profileInitial{box-shadow:0 0 0 2px var(--card),0 0 0 4px #7AA7FF!important}
+.compactTask.done{opacity:1!important}
+.compactTask.done .check,.compactTask.done .taskBody,.compactTask.done .taskActions>:not(.undoDoneBtn){opacity:.72}
+.undoDoneBtn{min-height:44px;min-width:56px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--cardSoft);color:var(--text);font-size:14px;font-weight:600;flex:none}
+.undoDoneBtn:active{transform:scale(.97)}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -547,7 +558,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=620a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=630a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

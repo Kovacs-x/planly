@@ -72,8 +72,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=610r113'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-620a-52'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=630r114'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-630a-53'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,7 +145,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:externalTimelineIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=620a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=630a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -299,3 +299,13 @@ for(const id of ['appearance','planning','intelligence','calendars','household',
 {const html=read('v2/index.html');if(!html.includes('.settingsPaged label:has(>input[type="checkbox"]){min-height:48px;align-items:center}')||!html.includes('width:51px;height:31px;margin:7px 0;'))fail('Settings switch rows must be >=44px tap targets');}
 // Settings identity card: name and email are opaque white (>=5.17:1 on every gradient stop; 88% white was 4.37:1 on #2563EB).
 {const html=read('v2/index.html');if(!html.includes('.settingsHubIdentity small{font-size:14px;color:#fff}')||!html.includes('.settingsHubIdentity strong{font-size:20px;font-weight:700;letter-spacing:-.02em;color:#fff}'))fail('Settings identity text must be opaque white');}
+// Tab switching: every tab switch starts at the top (no inherited scroll); re-tapping the current tab scrolls smoothly to the top; Plan segment changes reset too.
+{for(const needle of ["function planlyScrollTop(smooth){","document.addEventListener('click',e=>{const b=e.target.closest?.('.nav button[data-section]');if(!b)return;const same=b.dataset.section===sectionForTab(state.tab);requestAnimationFrame(()=>planlyScrollTop(same))},true);","render();if(segmentChanged)planlyScrollTop(false)}"])if(!s.redesignR1.includes(needle))fail('Tab scroll reset missing: '+needle);
+if(s.redesignR1.lastIndexOf('function planlyScrollTop(')>s.redesignR1.lastIndexOf('})();'))fail('Tab scroll reset must live inside the R1 scope');}
+// Polish: no pop-ups for successful syncs or completing / reopening a task; completed rows carry Undo; the profile initial is a true circle.
+{const q=s.app.slice(s.app.indexOf('function queueCloudWrite('),s.app.indexOf('function queueCloudWrite(')+700);if(/if\(success\)showToast\(success\)/.test(q))fail('Successful syncs must not show a pop-up');
+if(s.app.includes("showToast('Saved and synced to Google Calendar')"))fail('Google save success must not show a pop-up');
+for(const needle of ["const PLANLY_SILENT_UNDO=/^(Task completed|Task reopened|Checklist finished)/;","if(PLANLY_SILENT_UNDO.test(String(message||''))){try{finalize?.()}catch{}return}","class=\"undoDoneBtn\" data-action=\"toggle\""])if(!s.app.includes(needle))fail('Silent completion / Undo missing: '+needle);
+if((s.app.match(/class=\\?"undoDoneBtn\\?"/g)||[]).length<2)fail('Undo button must be on both compact and comfortable rows');
+if(!/showToast\(offline\?'Offline · changes remain queued'/.test(s.app))fail('Sync failure pop-ups must remain');
+const html=read('v2/index.html');for(const needle of ['<style id="planlyPolish">','#profileToggle.profileIcon:has(.profileInitial){padding:0!important;','#profileToggle.profileIcon .profileInitial{width:40px!important;height:40px!important;','.undoDoneBtn{min-height:44px;','.compactTask.done .check,.compactTask.done .taskBody,.compactTask.done .taskActions>:not(.undoDoneBtn){opacity:.72}'])if(!html.includes(needle))fail('Polish CSS missing: '+needle);}
