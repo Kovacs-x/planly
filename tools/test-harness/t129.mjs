@@ -2,7 +2,7 @@ import { launch } from './harness.mjs';
 import { ME } from './mock.mjs';
 await fetch('http://localhost:8802/__switch?to=pr');
 const h=await launch({uid:ME}); const {page:p,W,MOCK}=h; const q=(f,a)=>p.evaluate(f,a); const R={};
-await p.clock.setFixedTime(new Date(process.env.CLOCK||'2026-09-30T08:30:00Z'));
+await p.clock.setFixedTime(new Date(process.env.CLOCK||(new Date().toISOString().slice(0,10)+'T08:30:00Z')));
 const tiles=MOCK.db.planly_tasks.find(t=>t.client_id==='task-tiles');tiles.task_date='2026-09-26';tiles.data={...tiles.data,date:'2026-09-26'};
 await p.setViewportSize({width:Number(process.env.VW||390),height:844});
 await p.goto('http://localhost:8802/planly/v2/'); await W(4000); await p.reload(); await W(10000);
