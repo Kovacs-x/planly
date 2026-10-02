@@ -72,8 +72,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=630r114'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-660a-56'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=670r115'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-670a-57'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,7 +145,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=660a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=670a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -323,3 +323,7 @@ if(!read('supabase/migrations/045_calendar_source_represents.sql').includes("che
 {for(const needle of ["const PLANLY_AUTH_LINK=(()=>{","sessionStorage.setItem(PLANLY_RECOVERY_KEY,'1')","async function planlySignOut({everywhere=false}={}){if(!initPlanlySupabase())return;await planlySupabase.auth.signOut({scope:everywhere?'global':'local'});","function planlySignInMethods(u)","await planlySupabase.auth.updateUser({password})","await planlySupabase.auth.updateUser({email},{emailRedirectTo:PLANLY_APP_URL})","await planlySupabase.auth.resetPasswordForEmail(email,{redirectTo:PLANLY_APP_URL})","const PLANLY_APP_URL='https://kovacs-x.github.io/planly/v2/';",'id="planlySignOutAllBtn"','id="planlyChangePasswordForm"','id="planlyChangeEmailForm"','id="planlyWelcomeForgot">Forgot password?</button>',"function planlyRecoverySync()","planlyWelcomeSync();planlyRecoverySync();"])if(!s.app.includes(needle))fail('Stage 4b missing: '+needle);
 if(/auth\.signOut\(\)/.test(s.app))fail('Sign out must pass an explicit scope');
 if(!read('v2/index.html').includes('<style id="planlyStage4b">'))fail('Stage 4b CSS missing');}
+// Stage 5: weekly chore rotation (client rule mirrors SQL 046; the owner's own completion assigns the next occurrence by rotation).
+{for(const needle of ["function planlyRotationAssignee(t,dateKey)","return ((weeks%2)+2)%2===0?String(r.a):String(r.b)","if(!ids.has(String(r.a))||!ids.has(String(r.b)))return null;","assigneeId:planlyRotationAssignee(t,nextDate)||t.assigneeId,","function planlyRotationEligible(t){return !!t&&t.visibility==='household'&&t._planlyOwnedByMe!==false","data-task-menu=\"rotate\"","if(action==='rotate'){planlyToggleRotation(t);","t.rotation={enabled:true,a,b,anchorWeek:startMonday(t.date)}"])if(!s.app.includes(needle))fail('Stage 5 missing: '+needle);
+if(!s.redesignR1.includes("t.rotation?.enabled?' · <span class=\"choreSwap\">⇄ Swaps weekly</span>'"))fail('Home chore swap label missing');
+const m=read('supabase/migrations/046_household_chore_rotation.sql');for(const needle of ['create or replace function planly_private.household_rotation_assignee(','revoke all on function planly_private.household_rotation_assignee(uuid,jsonb,date,uuid) from public, anon, authenticated;',"v_next_assignee := planly_private.household_rotation_assignee(v_task.household_id, v_task.data->'rotation', p_next_date, v_task.assignee_id);",'      v_next_assignee, null, null'])if(!m.includes(needle))fail('Migration 046 missing: '+needle);}

@@ -531,6 +531,15 @@ body.welcomeOpen{overflow:hidden}
 .recoveryHead strong{font-size:24px!important}
 @media (prefers-reduced-motion:reduce){.accountSection>summary::after{transition:none}}
 </style>
+<style id="planlyStage5">
+/* Stage 5: weekly chore rotation: the "Rotate weekly" switch in a chore's menu and the "Swaps weekly" label. */
+.taskActionRotate{width:100%;min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);text-align:left}
+.taskActionRotate span:first-child{display:grid;gap:2px}.taskActionRotate strong{font-size:15px;font-weight:600}.taskActionRotate small{font-size:13px;color:var(--muted)}
+.taskActionRotateState{min-width:44px;text-align:center;padding:4px 10px;border-radius:999px;background:var(--cardSoft);border:1px solid var(--line);font-size:13px;font-weight:700;color:var(--muted)}
+.taskActionRotate.on .taskActionRotateState{background:color-mix(in srgb,#22A86A 16%,var(--card));border-color:color-mix(in srgb,#22A86A 40%,var(--line));color:#15633d}
+:root[data-theme="dark"] .taskActionRotate.on .taskActionRotateState{color:#A5E3C2}
+.choreSwap{font-weight:600;color:var(--personAnyoneText,#15633d)}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -595,7 +604,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=660a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=670a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
