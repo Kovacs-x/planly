@@ -331,3 +331,8 @@ const m=read('supabase/migrations/046_household_chore_rotation.sql');for(const n
 if(!/function planlyRotationEligible\(t\)\{[^\n]*&&!!t\.assigneeId&&!!planlyRotationOther\(t\.assigneeId\)\}/.test(app))fail('Stage 5: Rotate must require an assigned partner (Anyone stays Anyone)');
 if(!app.includes("function planlyRotationNormalize(t)")||!/function stageTaskMutation\(t\)\{[^\n]*planlyRotationNormalize\(t\);/.test(app))fail('Stage 5: every staged task write must normalise rotation');
 if(!hard.includes("nextData.rotation={enabled:false}"))fail('Stage 5: assignment changes must switch rotation off when the assignee leaves the pair');}
+// Stage 5 (reviewer N4): the privileged rotation helper must never become client-callable.
+{const fs=await import('node:fs');const dir='supabase/migrations',all=fs.readdirSync(dir).filter(f=>f.endsWith('.sql')).sort().map(f=>fs.readFileSync(dir+'/'+f,'utf8')).join('\n'),m046=fs.readFileSync(dir+'/046_household_chore_rotation.sql','utf8');
+if(!/revoke all on function planly_private\.household_rotation_assignee\(uuid,jsonb,date,uuid\) from public, anon, authenticated;/.test(m046))fail('N4: rotation helper must revoke execute from public, anon, authenticated');
+if(/grant[^;]*household_rotation_assignee/i.test(all))fail('N4: rotation helper must never be granted to any role');
+if(!/household_rotation_assignee[\s\S]*?security definer[\s\S]*?set search_path/i.test(m046))fail('N4: rotation helper must be security definer with a pinned search_path');}
