@@ -540,6 +540,16 @@ body.welcomeOpen{overflow:hidden}
 :root[data-theme="dark"] .taskActionRotate.on .taskActionRotateState{color:#A5E3C2}
 .choreSwap{font-weight:600;color:var(--personAnyoneText,#15633d)}
 </style>
+<style id="planlyBudgetReset">
+/* Household Budget reset: owner-only, typed confirmation */
+.budgetResetSheet{position:fixed;inset:0;z-index:130;display:grid;align-items:end;background:rgba(0,0,0,.42);padding:0 0 env(safe-area-inset-bottom)}
+.budgetResetCard{background:var(--card);color:var(--text);border-radius:22px 22px 0 0;padding:20px 18px 22px;display:grid;gap:10px;max-width:560px;width:100%;margin:0 auto;box-shadow:var(--shadowLift)}
+.budgetResetCard h2{margin:0;font-size:20px}.budgetResetCard p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+.budgetResetCheck{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px}.budgetResetCheck input{width:22px;height:22px}
+.budgetResetStatus{min-height:18px;font-size:13px;color:var(--danger)}
+.budgetResetActions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.budgetResetActions button{min-height:48px}
+.budgetResetActions .dangerBtn:disabled{opacity:.45}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -604,7 +614,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=670a02';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=673a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
