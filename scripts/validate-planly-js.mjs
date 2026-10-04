@@ -73,9 +73,12 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=670r115'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-674a-62'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-675a-63'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
+if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
+if(!r1Html.includes('html{touch-action:pan-x pan-y}'))fail('pinch/double-tap zoom must be disabled with touch-action');
+if(!r1Html.includes("for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>e.preventDefault(),{passive:false});"))fail('iOS pinch gestures must be cancelled');
 for(const m of r1Html.matchAll(/([^{}]*\b(?:input|select|textarea)\b[^{}]*)\{[^}]*?font-size:\s*(\d+(?:\.\d+)?)px/g))if(+m[2]<16)fail('form field font-size under 16px causes iOS focus zoom: '+m[1].trim().slice(-80)+' '+m[2]+'px');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
