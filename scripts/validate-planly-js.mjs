@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=670r115'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-672a-60'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-673a-61'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -145,7 +145,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=670a02'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=673a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -344,3 +344,10 @@ for(const needle of ["replayRequested=false","function replay(){replayRequested=
 for(const needle of ['function repeatingSources(row)','async function deleteEntryFlow(row)',"await mutate('entry',src.id,{recurring_monthly:false})",'window.PlanlyBudgetActions={mutate,deleteEntryFlow,'])if(!actions.includes(needle))fail('Budget repeating-delete invariant missing: '+needle);
 if(!ui.includes('await window.PlanlyBudgetActions.deleteEntryFlow(row)')||ui.includes("window.PlanlyBudgetActions.mutate('entry',row.id,{}, {remove:true})"))fail('Payment Delete must use deleteEntryFlow');
 if(!life.includes('await window.PlanlyBudgetActions.deleteEntryFlow(entry)'))fail('Income Delete must use deleteEntryFlow');}
+
+// Household Budget reset: owner-only server function (auth.uid + role='owner' of the scope's household; anon revoked),
+// UI shown only to the owner, typed RESET confirmation, reload after reset.
+{const mig=read('supabase/migrations/047_household_budget_reset.sql');for(const needle of ['create or replace function public.planly_reset_household_budget(','security definer','v_user uuid := auth.uid();',"and m.role = 'owner'","raise exception 'Not authorized'",'revoke all on function public.planly_reset_household_budget(uuid, boolean) from public, anon;','grant execute on function public.planly_reset_household_budget(uuid, boolean) to authenticated;','set deleted_at = v_now'])if(!mig.includes(needle))fail('Household Budget reset migration invariant missing: '+needle);
+if(/delete\s+from/i.test(mig))fail('Household Budget reset must soft-delete, never hard delete');
+for(const needle of ['function planlyIsHouseholdOwner()',"function planlyBudgetResetCardHtml(){if(!planlyIsHouseholdOwner())return '';","planlySupabase.rpc('planly_reset_household_budget',{p_scope_id:scope.id,p_include_categories:!!includeCategories})","go.disabled=input.value.trim().toUpperCase()!=='RESET'",'await budget?.bootstrap?.()',"getPending?.().some(x=>x.status==='queued')"])if(!s.app.includes(needle))fail('Household Budget reset UI invariant missing: '+needle);
+if(!read('v2/index.html').includes('<style id="planlyBudgetReset">'))fail('Household Budget reset styles missing');}
