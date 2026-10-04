@@ -104,12 +104,14 @@ async function replayQueuedPlanlyHouseholdCompletions(){
     }
   }
 }
-function stagePlanlyHouseholdSubtask(t,subtaskId,done){
+function stagePlanlyHouseholdSubtask(t,subtaskId,done,autoComplete=false){
   const ownerId=String(t._planlyOwnerId||''),clientId=String(t.id),id=clientId+'|'+String(subtaskId);
   const list=readPlanlyPendingWrites().filter(x=>!(x.kind==='householdSubtask'&&x.id===id&&String(x.data?.ownerId||'')===ownerId));
-  list.push({kind:'householdSubtask',action:'set',id,data:{ownerId,clientId,subtaskId:String(subtaskId),done:!!done},baseVersion:Number(t._planlyCloudVersion||0),operationId:uid(),stagedAt:new Date().toISOString(),lastEditedAt:new Date().toISOString(),attempts:0,lastAttemptAt:'',lastError:'',status:'queued'});
+  list.push({kind:'householdSubtask',action:'set',id,data:{ownerId,clientId,subtaskId:String(subtaskId),done:!!done},baseVersion:Number(t._planlyCloudVersion||0),operationId:uid(),stagedAt:new Date().toISOString(),lastEditedAt:new Date().toISOString(),attempts:0,lastAttemptAt:'',lastError:'',status:'queued',...(autoComplete?{autoComplete:true}:{})});
   writePlanlyPendingWrites(list);persistPlanlyCloudCache();
 }
+/* The auto-complete intent rides on the queued tick (the queue survives an app restart); unticking drops it from every queued tick of that task. */
+function clearPlanlyHouseholdAutoCompleteFlag(ownerId,clientId){const list=readPlanlyPendingWrites();let changed=false;for(const x of list)if(x.kind==='householdSubtask'&&x.autoComplete&&String(x.data?.clientId)===String(clientId)&&String(x.data?.ownerId||'')===String(ownerId)){delete x.autoComplete;changed=true}if(changed){writePlanlyPendingWrites(list);persistPlanlyCloudCache()}}
 /* Acknowledge exactly the operation that was sent: a newer tap on the same item (same queue id, new operationId)
    made while that request was in flight must stay queued and be sent next, never cleared by the older reply. */
 function settleHouseholdSubtaskOp(op){const cur=readPlanlyPendingWrites().find(x=>x.kind==='householdSubtask'&&x.id===op.id);if(cur&&cur.operationId===op.operationId)clearPlanlyPendingWrite('householdSubtask',op.id)}
@@ -127,6 +129,7 @@ async function runQueuedPlanlyHouseholdSubtasks(){
     if(!original)break;
     sent.add(original.operationId);
     const op=markPlanlyPendingAttempt(original)||original,p=op.data||{},key=householdSubtaskTaskKey(p.ownerId,p.clientId);
+    if(op.autoComplete)planlyHouseholdAutoCompleteIntent.add(key);
     try{
       const {data,error}=await planlySupabase.rpc('planly_set_household_subtask_done',{p_owner_id:p.ownerId,p_client_id:p.clientId,p_subtask_id:p.subtaskId,p_done:!!p.done});
       if(error)throw error;
@@ -155,9 +158,11 @@ async function runQueuedPlanlyHouseholdSubtasks(){
 function toggleHouseholdTaskSubtask(t,subtaskId){
   if(!planlyHouseholdCompletionEligible(t)||!Array.isArray(t.subtasks))return;
   const s=t.subtasks.find(x=>String(x.id)===String(subtaskId));if(!s)return;
-  s.done=!s.done;stagePlanlyHouseholdSubtask(t,s.id,s.done);
-  const key=householdSubtaskTaskKey(t._planlyOwnerId||'',t.id);
-  if(state.autoCompleteParentSubtasks&&s.done&&!t.completed&&t.subtasks.every(x=>x.done))planlyHouseholdAutoCompleteIntent.add(key);else planlyHouseholdAutoCompleteIntent.delete(key);
+  s.done=!s.done;
+  const key=householdSubtaskTaskKey(t._planlyOwnerId||'',t.id),autoComplete=!!(state.autoCompleteParentSubtasks&&s.done&&!t.completed&&t.subtasks.every(x=>x.done));
+  if(!autoComplete)clearPlanlyHouseholdAutoCompleteFlag(t._planlyOwnerId||'',t.id);
+  stagePlanlyHouseholdSubtask(t,s.id,s.done,autoComplete);
+  if(autoComplete)planlyHouseholdAutoCompleteIntent.add(key);else planlyHouseholdAutoCompleteIntent.delete(key);
   render();
   void replayQueuedPlanlyHouseholdSubtasks().catch(()=>{});
 }
