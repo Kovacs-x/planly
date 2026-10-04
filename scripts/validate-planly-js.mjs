@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=670r115'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-679a-67'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-680a-68'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -101,6 +101,8 @@ for(const x of ["function planlyAccountDisplayName(){return String(planlySession
  "async function carryPlanlyNameIntoHousehold()","await carryPlanlyNameIntoHousehold();showToast('Household created')","await carryPlanlyNameIntoHousehold();showToast('Household joined')","return inviteCard+planlyNamePanelHtml()+",
  "if(e.key==='Enter'&&e.target?.id==='planlyDisplayName')","if(e.target?.id==='planlyDisplayName')void savePlanlyDisplayName()",'id="planlyDisplayNameStatus"',"if(planlyNameSaving)return;"])if(!app.includes(x))fail('profile name invariant missing: '+x.slice(0,70));
 if(app.includes("showToast('Join a household first.')"))fail('profile name must not require a household');}
+// Collapsible category page: payment Edit/Delete inside a closed <details> row (one open at a time), To pay/Paid folds remembered, Category options folded.
+for(const x of ['<details class="budgetRowDetails" data-budget-row=','data-budget-section="topay" ${sectionOpen(\'topay\')?\'open\':\'\'}'.replace(/\\'/g,"'"),'data-budget-section="paid"','<details class="budgetFold budgetCategoryOptions">',"const SECTION_KEY='planly-budget-sections-v1'","o.open=false","rememberSection(d.dataset.budgetSection,d.open)"])if(!ui.includes(x))fail('Budget collapsible layout invariant missing: '+x.slice(0,60));
 for(const dead of ["'<div class=\"budgetEmpty\">Create an income category first.</div>'","'<div class=\"budgetEmpty\">Create a category first.</div>'"])if(ui.includes(dead.replace(/\\"/g,'"')))fail('Budget dead-end empty state returned: '+dead);}
 if(app.includes('else await cloudUpdateTask(conflict.localData,true,server.serverVersion);'))fail('Keep my version must reconcile Google, not only write the cloud row');}
 if(!r1Html.includes("for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>e.preventDefault(),{passive:false});"))fail('iOS pinch gestures must be cancelled');
