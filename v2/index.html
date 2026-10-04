@@ -622,7 +622,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=688a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=689a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
@@ -696,4 +696,15 @@ body.welcomeOpen{overflow:hidden}
 html{scroll-padding-bottom:calc(var(--planly-nav-h) + 16px + env(safe-area-inset-bottom))}
 #addBtn{bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom))!important}
 .app{padding-bottom:calc(var(--planly-nav-clearance) + 72px)!important}
+</style>
+<style id="planlyRefineA">
+/* Impeccable stage A: sheets sit above the tab bar, the + button steps aside while any sheet is open, and no decorative glows or gradients. */
+#sheetWrap{z-index:70!important}
+#searchWrap{z-index:45!important}
+body:has(#sheetWrap.open,#searchWrap.open,#planDayWrap.open,#timelineWrap.open,#taskActionWrap.open,#profileWrap.open) #addBtn{opacity:0!important;pointer-events:none!important;visibility:hidden!important}
+.dashboardActions .primaryDash{background:var(--today)!important;background-image:none!important;color:var(--bg)!important;border:0!important;box-shadow:none!important}
+.dashboardHero:after{display:none!important}
+#profileToggle.profileIcon .profileInitial{box-shadow:0 0 0 2px var(--card)!important}
+#profileToggle.profileIcon.active .profileInitial{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--today)!important}
+#addBtn{box-shadow:0 6px 16px rgba(0,0,0,.24)!important}
 </style>
