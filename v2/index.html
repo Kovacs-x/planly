@@ -622,7 +622,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=687a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=688a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
@@ -674,4 +674,26 @@ body.welcomeOpen{overflow:hidden}
 #planlyDisplayName{min-height:44px!important;height:44px!important}
 :root:not([data-theme="dark"]) .day.isToday:not(.selected)>span{background:#238AA6!important;color:#041419!important}:root:not([data-theme="dark"]) .day.isToday.selected>span{background:#17687D!important;color:#fff!important}
 .calendarColourControl input[type="color"][data-planly-calendar-colour]{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+</style>
+<style id="planlyDockedNav">
+/* Bottom tab bar: docked to the screen edge like a native app (no floating pill), safe-area aware, content never shows beneath it. */
+:root{--planly-nav-h:58px;--planly-nav-clearance:calc(var(--planly-nav-h) + 24px + env(safe-area-inset-bottom))}
+.nav{position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;transform:none!important;width:100%!important;max-width:none!important;margin:0!important;
+ display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;
+ padding:6px max(8px,calc((100% - 560px)/2)) calc(6px + env(safe-area-inset-bottom))!important;
+ border:0!important;border-radius:0!important;box-shadow:0 -1px 0 color-mix(in srgb,var(--line) 55%,transparent)!important;
+ background:var(--bg)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;z-index:40}
+.nav button,.nav button.active,.nav button:hover:not(.active){min-height:var(--planly-nav-h)!important;background:transparent!important;border-radius:0!important;padding:4px 2px 2px!important;gap:4px!important;
+ font-size:11px!important;font-weight:600!important;letter-spacing:.01em;color:var(--muted)!important;-webkit-tap-highlight-color:transparent}
+/* Active tab: a soft pill behind the icon only, label in the section colour. */
+.nav .pIcon{width:22px!important;height:22px!important;padding:4px 18px;box-sizing:content-box;border-radius:999px;transition:background-color .18s ease,color .18s ease}
+.nav button.active,.nav button[data-section].active,.nav button[data-tab].active{font-weight:750!important;background:transparent!important}
+.nav button[data-section="today"].active{color:var(--today)!important}.nav button[data-section="today"].active .pIcon{background:var(--todayTint)}
+.nav button[data-section="plan"].active{color:var(--plan)!important}.nav button[data-section="plan"].active .pIcon{background:var(--planTint)}
+.nav button[data-section="home"].active{color:var(--home)!important}.nav button[data-section="home"].active .pIcon{background:var(--homeTint)}
+.nav button[data-section="budget"].active{color:var(--budget)!important}.nav button[data-section="budget"].active .pIcon{background:var(--budgetTint)}
+.nav button:focus-visible{outline:2px solid var(--today);outline-offset:-4px;border-radius:12px!important}
+html{scroll-padding-bottom:calc(var(--planly-nav-h) + 16px + env(safe-area-inset-bottom))}
+#addBtn{bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom))!important}
+.app{padding-bottom:calc(var(--planly-nav-clearance) + 72px)!important}
 </style>
