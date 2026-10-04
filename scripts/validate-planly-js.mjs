@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=670r115'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-670a-58'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-672a-60'"))fail('R1 cache marker mismatch');
 
 const r2Html=read('v2/index.html'),r2App=read('v2/app-v3.2.0.js');
 for(const x of ['grid-template-columns:minmax(0,1fr) auto auto','searchIcon{grid-column:3;width:44px!important;height:44px!important}','grid-template-columns:44px minmax(0,1fr) auto!important','min-width:44px!important;height:44px!important','id="pi-star"','id="pi-more"','id="pi-repeat"','id="pi-clock"'])if(!r2Html.includes(x))fail('R2 presentation invariant missing: '+x);
@@ -336,3 +336,11 @@ if(!hard.includes("nextData.rotation={enabled:false}"))fail('Stage 5: assignment
 if(!/revoke all on function planly_private\.household_rotation_assignee\(uuid,jsonb,date,uuid\) from public, anon, authenticated;/.test(m046))fail('N4: rotation helper must revoke execute from public, anon, authenticated');
 if(/grant[^;]*household_rotation_assignee/i.test(all))fail('N4: rotation helper must never be granted to any role');
 if(!/household_rotation_assignee[\s\S]*?security definer[\s\S]*?set search_path/i.test(m046))fail('N4: rotation helper must be security definer with a pinned search_path');}
+
+// Budget: (1) replay drains mutations staged while a replay is in flight (lost wake-up, from PR #209);
+// (2) deleting a repeating payment/income stops the series (recurring_monthly off on earlier sources) so it is never re-offered.
+{const core=read('v2/core-budget-v4.0b.js'),actions=read('v2/core-budget-actions-v4.0l.js'),ui=read('v2/core-budget-ui-v4.0b.js'),life=read('v2/core-budget-lifecycle-v4.0d.js');
+for(const needle of ["replayRequested=false","function replay(){replayRequested=true;if(replayPromise)return replayPromise","while(replayRequested){replayRequested=false;await replayNow()}","if(replayRequested)void replay().catch(console.warn)","replayPromise=null;replayRequested=false;cancelReplayTimer();"])if(!core.includes(needle))fail('Budget replay drain invariant missing: '+needle);
+for(const needle of ['function repeatingSources(row)','async function deleteEntryFlow(row)',"await mutate('entry',src.id,{recurring_monthly:false})",'window.PlanlyBudgetActions={mutate,deleteEntryFlow,'])if(!actions.includes(needle))fail('Budget repeating-delete invariant missing: '+needle);
+if(!ui.includes('await window.PlanlyBudgetActions.deleteEntryFlow(row)')||ui.includes("window.PlanlyBudgetActions.mutate('entry',row.id,{}, {remove:true})"))fail('Payment Delete must use deleteEntryFlow');
+if(!life.includes('await window.PlanlyBudgetActions.deleteEntryFlow(entry)'))fail('Income Delete must use deleteEntryFlow');}
