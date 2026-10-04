@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=670r115'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-678a-66'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-679a-67'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -95,6 +95,12 @@ for(const x of ['data-act="create-category" data-kind="expense">+ Create categor
 // Every Budget page change goes through navigate()/swapView() so the scroll module returns to the top (no mid-page carry-over).
 for(const x of ["selectedCategory=chosen;navigate('category',()=>categoryView(chosen))","navigate('dashboard',dashboard)};rendered()}","selectedCategory='';navigate('dashboard',dashboard)","function swapView(from,to,fn)","swapView(mode,'edit-payment',","swapView(mode,'edit-category',","swapView('edit-payment','category',","swapView('edit-category','category',","const from=mode;mode='dashboard';dashboard();if(from!=='dashboard')emitViewChange(from);return}"])if(!ui.includes(x))fail('Budget page change must reset scroll: '+x.slice(0,60));
 if(/mode='(dashboard|category)';(dashboard|categoryView)\(/.test(ui.replace("const from=mode;mode='dashboard';dashboard();if(from!=='dashboard')emitViewChange(from);return}","")))fail('Budget page change bypasses navigate() (scroll stays mid-page)');
+// Profile name: saved on the account (works with no household), carried into a household, saves on Done/tap-away, failures inline.
+{const app=read('v2/app-v3.2.0.js');
+for(const x of ["function planlyAccountDisplayName(){return String(planlySession?.user?.user_metadata?.planly_display_name||'').trim()}","planlySupabase.auth.updateUser({data:{planly_display_name:name||null}})","if(planlyHousehold){const {error}=await planlySupabase.rpc('planly_set_household_display_name'",
+ "async function carryPlanlyNameIntoHousehold()","await carryPlanlyNameIntoHousehold();showToast('Household created')","await carryPlanlyNameIntoHousehold();showToast('Household joined')","return inviteCard+planlyNamePanelHtml()+",
+ "if(e.key==='Enter'&&e.target?.id==='planlyDisplayName')","if(e.target?.id==='planlyDisplayName')void savePlanlyDisplayName()",'id="planlyDisplayNameStatus"',"if(planlyNameSaving)return;"])if(!app.includes(x))fail('profile name invariant missing: '+x.slice(0,70));
+if(app.includes("showToast('Join a household first.')"))fail('profile name must not require a household');}
 for(const dead of ["'<div class=\"budgetEmpty\">Create an income category first.</div>'","'<div class=\"budgetEmpty\">Create a category first.</div>'"])if(ui.includes(dead.replace(/\\"/g,'"')))fail('Budget dead-end empty state returned: '+dead);}
 if(app.includes('else await cloudUpdateTask(conflict.localData,true,server.serverVersion);'))fail('Keep my version must reconcile Google, not only write the cloud row');}
 if(!r1Html.includes("for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>e.preventDefault(),{passive:false});"))fail('iOS pinch gestures must be cancelled');
@@ -126,7 +132,7 @@ for(const needle of ['for="planlyCalendarName"','for="planlyCalendarUrl"','for="
 for(const needle of ['.monthControls button{width:auto;min-width:44px!important;height:44px!important','.calendarFilters button{min-height:44px!important}','.calendarShiftLabel{font-size:10px!important'])if(!r3BudgetHtml.includes(needle))fail('R3 Month accessibility invariant missing: '+needle);
 
 // R4 member names + Bills on Today release invariants.
-for(const needle of ["'+namePanel+planlyHouseholdMemberRowsHtml()","id=\"planlyDisplayName\"","Join a household first.","characters Planly can't show","function planlyBudgetBillsDueHtml()","getTodayBills?.()","mutateTodayEntry(row.id,row.cloud_version"])if(!r2App.includes(needle))fail('R4 app invariant missing: '+needle);
+for(const needle of ["'+namePanel+planlyHouseholdMemberRowsHtml()","id=\"planlyDisplayName\"","Your name could not be saved. Check your connection and try again.","characters Planly can't show","function planlyBudgetBillsDueHtml()","getTodayBills?.()","mutateTodayEntry(row.id,row.cloud_version"])if(!r2App.includes(needle))fail('R4 app invariant missing: '+needle);
 for(const needle of ["name=String(m.display_name||'').trim()","escR1(label)"])if(!r1.includes(needle))fail('R4 Home member-name invariant missing: '+needle);
 for(const needle of ["async function refreshTodayBills({force=false}={})","getTodayBills:()=>structuredClone(todayBills)",".eq('show_on_today',true)",".neq('allocation_status','paid')","planly:foreground-resume","planly:household-remote-change"])if(!s.budget.includes(needle))fail('R4 fresh Today bills invariant missing: '+needle);
 for(const needle of ["async function mutateTodayEntry(id,expectedVersion,patch)","eq('cloud_version',version)"])if(!read('v2/core-budget-actions-v4.0l.js').includes(needle))fail('R4 Today mutation invariant missing: '+needle);
@@ -170,7 +176,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=676a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=679a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
