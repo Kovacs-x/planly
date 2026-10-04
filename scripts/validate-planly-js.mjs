@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=670r115'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-677a-65'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-678a-66'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -92,6 +92,9 @@ for(const x of ["function settlePlanlyPendingWrite(kind,id,mark,version)","settl
 {const ui=read('v2/core-budget-ui-v4.0b.js');
 for(const x of ['data-act="create-category" data-kind="expense">+ Create category</button>',"${d.cats.length?'<button class=\"budgetLink\" data-act=\"manage\">Edit</button>':''}".replace(/\\"/g,'"'),'function createCategoryView()','id="budgetCategoryCreateForm"',
  'id="allocNewCategory"',"chosen=d.a.addCategory({name:newCat.value,kind:'expense'",'id="incomeNewCategory"',"cat=d.a.addCategory({name:newCat.value,kind:'income'","else if(mode==='create-category')createCategoryView();"])if(!ui.includes(x))fail('Budget category flow invariant missing: '+x.slice(0,70));
+// Every Budget page change goes through navigate()/swapView() so the scroll module returns to the top (no mid-page carry-over).
+for(const x of ["selectedCategory=chosen;navigate('category',()=>categoryView(chosen))","navigate('dashboard',dashboard)};rendered()}","selectedCategory='';navigate('dashboard',dashboard)","function swapView(from,to,fn)","swapView(mode,'edit-payment',","swapView(mode,'edit-category',","swapView('edit-payment','category',","swapView('edit-category','category',","const from=mode;mode='dashboard';dashboard();if(from!=='dashboard')emitViewChange(from);return}"])if(!ui.includes(x))fail('Budget page change must reset scroll: '+x.slice(0,60));
+if(/mode='(dashboard|category)';(dashboard|categoryView)\(/.test(ui.replace("const from=mode;mode='dashboard';dashboard();if(from!=='dashboard')emitViewChange(from);return}","")))fail('Budget page change bypasses navigate() (scroll stays mid-page)');
 for(const dead of ["'<div class=\"budgetEmpty\">Create an income category first.</div>'","'<div class=\"budgetEmpty\">Create a category first.</div>'"])if(ui.includes(dead.replace(/\\"/g,'"')))fail('Budget dead-end empty state returned: '+dead);}
 if(app.includes('else await cloudUpdateTask(conflict.localData,true,server.serverVersion);'))fail('Keep my version must reconcile Google, not only write the cloud row');}
 if(!r1Html.includes("for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>e.preventDefault(),{passive:false});"))fail('iOS pinch gestures must be cancelled');

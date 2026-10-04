@@ -12,7 +12,7 @@ for(const marker of ['readPreference(owner)',"api.switchScope('household')",'api
 if(lifecycle.includes('decorateCategory(')||lifecycle.includes('data-life-quick-delete'))fail('Legacy index-mapped expense action owner remains active');
 for(const marker of ['api.updateEntry=','api.deleteEntry=','api.updateCategory=','__legacyMutationGuard','runtime-modules.json','__planly_sw_probe__'])if(!guard.includes(marker))fail(`Missing legacy/offline guard: ${marker}`);
 if(guard.includes("const CACHE='planly-v2-")||guard.includes("SW='planly-v2-sw-"))fail('Core guard hard-codes release cache/version markers');
-for(const marker of ['planly:budget-ui-rendered','PlanlyBudgetActions.mutate',"mode='category'",'planly:budget-mutation-confirmed','refreshVisible','Coming up','Unplanned'])if(!ui.includes(marker))fail(`Missing Budget lifecycle/UX invariant: ${marker}`);
+for(const marker of ['planly:budget-ui-rendered','PlanlyBudgetActions.mutate',"navigate('category',()=>categoryView(chosen))",'planly:budget-mutation-confirmed','refreshVisible','Coming up','Unplanned'])if(!ui.includes(marker))fail(`Missing Budget lifecycle/UX invariant: ${marker}`);
 for(const marker of ['planly:budget-ui-rendered','decorateManage()'])if(!actions.includes(marker))fail(`Missing Manage redecorate invariant: ${marker}`);
 for(const file of budgetFiles){const name=path.basename(file);if(!sw.includes(name))fail(`Service worker composition missing ${name}`)}
 const cache=sw.match(/const CACHE='([^']+)'/)?.[1],version=sw.match(/const VERSION='([^']+)'/)?.[1];if(!cache||!version)fail('Offline composition cache/version marker missing');
