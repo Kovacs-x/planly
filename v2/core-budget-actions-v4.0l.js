@@ -14,6 +14,13 @@ async function persistedEntryUpdate(id,patch){return mutate('entry',id,patch)}
 async function persistedDelete(id){return mutate('entry',id,{}, {remove:true})}
 async function persistedCategoryUpdate(id,patch){return mutate('category',id,patch)}
 async function persistedCategoryArchive(id){return persistedCategoryUpdate(id,{archived:true})}
+function seriesKey(x){return [x.owner_id,x.kind,x.category_id||'',String(x.description||'').trim().toLowerCase()].join('|')}
+function repeatingSources(row){const s=api().getState(),key=seriesKey(row),month=String(row.entry_date||'').slice(0,7);return (s.entries||[]).filter(x=>x.id!==row.id&&!x.deleted_at&&x.recurring_monthly&&x.owner_id===row.owner_id&&seriesKey(x)===key&&String(x.entry_date||'').slice(0,7)<=month)}
+async function deleteEntryFlow(row){if(!row)return false;const label=String(row.description||'').trim()||(row.kind==='income'?'this income':'this payment'),sources=repeatingSources(row),repeats=!!row.recurring_monthly||sources.length>0;
+if(!confirm(repeats?'“'+label+'” repeats every month.\n\nDelete it and stop it repeating? Earlier months stay in your history.':'Delete “'+label+'”?'))return false;
+await mutate('entry',row.id,{}, {remove:true});
+for(const src of repeatingSources(row)){const fresh=api().getState().entries.find(x=>x.id===src.id);if(fresh?.recurring_monthly)await mutate('entry',src.id,{recurring_monthly:false})}
+return true}
 function selectedCategory(){const el=host?.querySelector('[data-act="allocation"][data-category]');return el?.dataset.category||''}
 function rerender(){return window.PlanlyBudgetUI?.renderTab?.(host)}
 function decorateCategory(){if(!host)return;const id=selectedCategory();if(!id||host.querySelector('[data-budget-remove-category]'))return;const a=api(),state=a.getState(),category=state.categories.find(x=>x.id===id);if(!category||!a.canAdmin())return;const card=host.querySelector('.budgetCard');if(!card)return;const used=state.entries.some(x=>x.category_id===id);const b=document.createElement('button');b.type='button';b.className='budgetBtn budgetCategoryRemove';b.dataset.budgetRemoveCategory='1';b.textContent='Remove category';b.onclick=async()=>{const message=used?`Remove ${category.name} from active Budget categories? Existing payment history will be kept.`:`Remove ${category.name} from Budget categories?`;if(!confirm(message))return;b.disabled=true;try{await persistedCategoryArchive(id);await rerender()}catch(err){b.disabled=false;alert(err?.message||String(err))}};card.appendChild(b);if(used){const note=document.createElement('div');note.className='budgetRemoveNote';note.textContent='Removing a category hides it from active budgeting but keeps its existing payment history.';card.appendChild(note)}}
@@ -23,5 +30,5 @@ function decorate(){queueMicrotask(()=>{decorateCategory();decorateManage()})}
 const base=window.PlanlyBudgetUI;if(!base?.renderTab)return;const baseRender=base.renderTab.bind(base);async function renderTab(target){style();host=target||host;const result=await baseRender(host);decorate();return result}
 window.addEventListener('planly:budget-view-changed',()=>decorate());
 window.addEventListener('planly:budget-ui-rendered',()=>decorate());
-window.PlanlyBudgetUI={...base,renderTab};window.PlanlyBudgetActions={mutate,mutateTodayEntry,persistedEntryUpdate,persistedDelete,persistedCategoryUpdate,persistedCategoryArchive,classifyZero};
+window.PlanlyBudgetUI={...base,renderTab};window.PlanlyBudgetActions={mutate,deleteEntryFlow,mutateTodayEntry,persistedEntryUpdate,persistedDelete,persistedCategoryUpdate,persistedCategoryArchive,classifyZero};
 })();
