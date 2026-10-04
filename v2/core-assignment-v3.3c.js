@@ -3,7 +3,7 @@
 function planlyHouseholdCompletionEligible(t){
   if(!t||t.visibility!=='household'||t._planlyOwnedByMe!==false)return false;
   const userId=String(planlySession?.user?.id||'');
-  return !!userId&&(!t.assigneeId||String(t.assigneeId)===userId);
+  return !!userId;
 }
 function planlyCompletionActorLabel(userId){
   const id=String(userId||'');if(!id)return '';
@@ -104,12 +104,48 @@ async function replayQueuedPlanlyHouseholdCompletions(){
     }
   }
 }
+function stagePlanlyHouseholdSubtask(t,subtaskId,done){
+  const ownerId=String(t._planlyOwnerId||''),clientId=String(t.id),id=clientId+'|'+String(subtaskId);
+  const list=readPlanlyPendingWrites().filter(x=>!(x.kind==='householdSubtask'&&x.id===id&&String(x.data?.ownerId||'')===ownerId));
+  list.push({kind:'householdSubtask',action:'set',id,data:{ownerId,clientId,subtaskId:String(subtaskId),done:!!done},baseVersion:Number(t._planlyCloudVersion||0),operationId:uid(),stagedAt:new Date().toISOString(),lastEditedAt:new Date().toISOString(),attempts:0,lastAttemptAt:'',lastError:'',status:'queued'});
+  writePlanlyPendingWrites(list);persistPlanlyCloudCache();
+}
+async function replayQueuedPlanlyHouseholdSubtasks(){
+  if(!planlySession?.user||!navigator.onLine||!initPlanlySupabase())return;
+  for(const original of readPlanlyPendingWrites().filter(x=>x.kind==='householdSubtask')){
+    const op=markPlanlyPendingAttempt(original)||original,p=op.data||{};
+    try{
+      const {data,error}=await planlySupabase.rpc('planly_set_household_subtask_done',{p_owner_id:p.ownerId,p_client_id:p.clientId,p_subtask_id:p.subtaskId,p_done:!!p.done});
+      if(error)throw error;
+      const row=Array.isArray(data)?data[0]:data,t=state.tasks.find(x=>String(x.id)===String(p.clientId)&&String(x._planlyOwnerId||'')===String(p.ownerId));
+      clearPlanlyPendingWrite('householdSubtask',op.id);
+      // Keep any of this device's still-queued ticks for the same task on top of the server copy.
+      if(t&&row&&Array.isArray(row.subtasks)){const queued=readPlanlyPendingWrites().filter(x=>x.kind==='householdSubtask'&&x.data?.clientId===p.clientId&&String(x.data?.ownerId||'')===String(p.ownerId));t.subtasks=row.subtasks.map(s=>{const q=queued.find(x=>String(x.data.subtaskId)===String(s.id));return q?{...s,done:!!q.data.done}:s});t._planlyCloudVersion=Number(row.cloud_version||t._planlyCloudVersion||0)}
+      persistPlanlyCloudCache();
+    }catch(err){
+      const code=String(err?.code||'');
+      if(code==='42501'||code==='P0002'){clearPlanlyPendingWrite('householdSubtask',op.id);await reconcilePlanlyCloud({render:false,replay:false}).catch(()=>{});render();showToast(code==='42501'?'You can no longer tick this checklist.':'This checklist item is no longer available.');continue}
+      if(isOfflineCloudError(err)){updatePlanlyPendingWrite('householdSubtask',op.id,{status:'queued',lastError:String(err?.message||err)});break}
+      updatePlanlyPendingWrite('householdSubtask',op.id,{status:'error',lastError:String(err?.message||err)});
+    }
+  }
+  render();
+}
+let planlyHouseholdSubtaskFlight=Promise.resolve();
+function toggleHouseholdTaskSubtask(t,subtaskId){
+  if(!planlyHouseholdCompletionEligible(t)||!Array.isArray(t.subtasks))return;
+  const s=t.subtasks.find(x=>String(x.id)===String(subtaskId));if(!s)return;
+  s.done=!s.done;stagePlanlyHouseholdSubtask(t,s.id,s.done);render();
+  planlyHouseholdSubtaskFlight=planlyHouseholdSubtaskFlight.catch(()=>{}).then(()=>replayQueuedPlanlyHouseholdSubtasks());
+  if(state.autoCompleteParentSubtasks&&s.done&&!t.completed&&t.subtasks.every(x=>x.done))planlyHouseholdSubtaskFlight.then(()=>planlyCompleteHouseholdTaskDirect(t)).catch(()=>{});
+}
 const __planlyBaseReplayPendingWrites=replayPlanlyPendingWrites;
 replayPlanlyPendingWrites=async function(){
+  await replayQueuedPlanlyHouseholdSubtasks();
   await replayQueuedPlanlyHouseholdCompletions();
-  const custom=readPlanlyPendingWrites().filter(x=>x.kind==='householdCompletion');
+  const customKinds=new Set(['householdCompletion','householdSubtask']),custom=readPlanlyPendingWrites().filter(x=>customKinds.has(x.kind));
   if(!custom.length)return __planlyBaseReplayPendingWrites();
-  writePlanlyPendingWrites(readPlanlyPendingWrites().filter(x=>x.kind!=='householdCompletion'));
+  writePlanlyPendingWrites(readPlanlyPendingWrites().filter(x=>!customKinds.has(x.kind)));
   try{return await __planlyBaseReplayPendingWrites()}
   finally{
     const basePending=readPlanlyPendingWrites();
