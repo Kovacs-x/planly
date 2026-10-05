@@ -16,14 +16,19 @@ This file records how Planly's UI looks, as refined with Impeccable. It covers t
   | Budget | `--budget` (amber) | `--budgetTint` |
 
 - **Current section:** `--sec` and `--secTint` hold the colours of the active tab, set from the bottom bar's active button. Use them rather than hard-coding a section colour.
-- **Where colour goes:**
+- **Where section colour goes:**
   - primary actions;
   - selected states;
   - the active tab;
   - list counts;
-  - person chips (Musti, Laki, Anyone).
+  - quiet actions.
 
-  Use it nowhere else.
+  Don't use section colour as decoration anywhere else.
+- **Meaning colours are separate and always allowed where they carry meaning:**
+  - danger and overdue (red);
+  - paid, to pay and unplanned in Budget;
+  - person colours on chips, avatars and "Done by" (you, partner, anyone);
+  - calendar source colours.
 - **Not allowed:** gradients on controls, coloured glows, radial halos, and coloured side stripes on cards.
 
 ## Shape
@@ -35,7 +40,8 @@ This file records how Planly's UI looks, as refined with Impeccable. It covers t
 | Sheets | rounded top corners only |
 
 ## Surfaces
-- **Lists:** consecutive task rows share one surface with hairline dividers. Don't give each task its own card, and never put a card inside a card.
+- **Sections** (Home, Budget, the Today summary) are borderless 16px surfaces.
+- **Lists:** consecutive task rows share one surface with hairline dividers. Rows inside a section (chores, lists, projects, categories) are flat, with dividers. Don't give each task its own card, and never put a card inside a card.
 - **Overlays** (sheets, dialogs) get their elevation from a soft shadow only, with no hairline border on top.
 - **The bottom tab bar** is docked flush to the screen edge, opaque, safe-area aware, with a single hairline above it.
 
@@ -45,11 +51,16 @@ There are three kinds, plus one selected state.
 | Kind | Look | Used for |
 |---|---|---|
 | **Primary** | Solid `--sec`, text `--bg`, 12px, weight 600 | One per view: Plan my day, Save task, + Payment |
-| **Secondary** | Transparent, 1px `--line` outline, text `--text`, weight 600 | Timeline, + Income, Quick fill, month arrows, chips |
-| **Quiet** | Text only, in `--sec`, weight 600 | + Add chore, + New list, Why?, Hide today |
+| **Secondary** | Transparent, 1px `--line` outline, text `--text`, weight 600 | Timeline, + Income, Quick fill, chips |
+| **Quiet** | Text only, in `--sec`, weight 600 | + Add chore, + New list, Why?, Hide today, the Budget month arrows |
 | **Selected** | `--secTint` background, `--sec` text | Segments, date chips, Just me / Household |
 
 Text on primary buttons must have a contrast of at least 4.5:1 in both themes. This is tested.
+
+## People
+- Show the name a person has chosen.
+- If they haven't chosen one, show "You" for yourself and "Partner" for the other member.
+- Person colours tell you and your partner apart, but always together with the name, never colour alone.
 
 ## Header
 - The sync status, search and profile controls are the same size (40px) and have no fill.
