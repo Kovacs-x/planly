@@ -622,7 +622,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=691a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=693a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
@@ -767,4 +767,25 @@ body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--to
 /* Overlays: elevation from the shadow alone, no hairline border on top of it. */
 .sheet,.taskActionSheet{border:0!important}
 .dashboardNextCard{border:0!important;box-shadow:none!important;border-radius:var(--rSurface)!important}
+</style>
+<style id="planlyRefineE">
+/* Impeccable stage E: Home and Budget follow DESIGN.md. Sections are borderless 16px surfaces; rows inside a section are flat
+   with hairline dividers (no card inside a card); Budget loses its gradient, violet note and icon tiles. */
+/* Home */
+.homeSection{border:0!important;box-shadow:none!important;border-radius:var(--rSurface)!important}
+#view .homeChoreGroup .task.homeChore,#view .homeChoreGroup .task.homeChore .taskSurface{border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;margin:0!important}
+#view .homeChoreGroup .task.homeChore:has(+.task.homeChore){box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--line) 75%,transparent)!important}
+.homeRows>.homeListCard,.homeRows>.homeProjectCard{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding-left:0!important;padding-right:0!important}
+.homeRows>.homeListCard+.homeListCard,.homeRows>.homeProjectCard+.homeProjectCard{border-top:1px solid color-mix(in srgb,var(--line) 75%,transparent)!important}
+.homeRows .homeOpenCount{color:var(--sec)!important;font-weight:600}
+/* Budget */
+.budgetHero,.budgetCard{background:var(--card)!important;background-image:none!important;border:0!important;box-shadow:none!important;border-radius:var(--rSurface)!important}
+.budgetHero:before,.budgetHero:after{display:none!important}
+.budgetSharedNote{background:transparent!important;color:var(--muted)!important;border:0!important;padding:4px 2px!important}
+.budgetSharedNote strong,.budgetSharedNote b{color:var(--text)!important}
+.budgetSharedNote .pIcon,.budgetSharedNote svg{color:var(--muted)!important}
+.budgetIcon{background:transparent!important;color:var(--budget)!important;width:28px!important;min-width:28px!important}
+.budgetMonthBar button{border:0!important;background:transparent!important;color:var(--text)!important;min-width:44px!important;min-height:44px!important}
+.budgetMonthBar button:hover{background:var(--cardSoft)!important}
+.budgetScopeBar{border:0!important;background:var(--card)!important;border-radius:var(--rSurface)!important}
 </style>

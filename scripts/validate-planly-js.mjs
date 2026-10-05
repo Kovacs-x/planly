@@ -72,8 +72,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=685r117'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-692a-80'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=693r118'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-693a-81'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -152,6 +152,13 @@ if(!read('v2/index.html').includes('<style id="planlyRefineC">'))fail('refine st
 for(const x of ['#searchToggle,#profileToggle{width:40px!important;height:40px!important','#planMyDayBtn,#taskForm .formActions .primary,.budgetBtn.budgetPrimary{background:var(--sec)!important','.planSegments button.active,.budgetScopeBar button.active,.taskChoiceSegments button.active,#quickDates .chip.active{background:var(--secTint)!important;color:var(--sec)!important','.sheet,.taskActionSheet{border:0!important}','.weeklyReview button'])if(!css.includes(x))fail('stage D invariant missing: '+x);
 if(/linear-gradient|radial-gradient/.test(css))fail('stage D must not add gradients');}
 for(const f of ['DESIGN.md','PRODUCT.md'])if(!read(f).length)fail(f+' missing');}
+// Impeccable stage E: Home and Budget follow DESIGN.md; unnamed people fall back to "You" / "Partner".
+{const html=read('v2/index.html'),app=read('v2/app-v3.2.0.js'),r1=read('v2/core-redesign-r1.js'),i=html.indexOf('<style id="planlyRefineE">');if(i<0)fail('refine stage E styles missing');else{const css=html.slice(i,html.indexOf('</style>',i));
+for(const x of ['.homeRows>.homeListCard,.homeRows>.homeProjectCard{background:transparent!important;border:0!important','#view .homeChoreGroup .task.homeChore,#view .homeChoreGroup .task.homeChore .taskSurface{border:0!important;border-radius:0!important','.budgetHero,.budgetCard{background:var(--card)!important;background-image:none!important','.budgetSharedNote{background:transparent!important','.budgetIcon{background:transparent!important'])if(!css.includes(x))fail('stage E invariant missing: '+x);
+if(/linear-gradient|radial-gradient/.test(css))fail('stage E must not add gradients');}
+if(!app.includes("if(id&&id===me)return 'You';return 'Partner'}"))fail('unnamed partner must fall back to "Partner"');
+if(/'Household member'/.test(r1))fail('core-redesign-r1 must label an unnamed member "Partner", not "Household member"');
+if(!read('PRODUCT.md').includes('"Partner"'))fail('PRODUCT.md must record the naming rule');}
 for(const dead of ["'<div class=\"budgetEmpty\">Create an income category first.</div>'","'<div class=\"budgetEmpty\">Create a category first.</div>'"])if(ui.includes(dead.replace(/\\"/g,'"')))fail('Budget dead-end empty state returned: '+dead);}
 if(app.includes('else await cloudUpdateTask(conflict.localData,true,server.serverVersion);'))fail('Keep my version must reconcile Google, not only write the cloud row');}
 if(!r1Html.includes("for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>e.preventDefault(),{passive:false});"))fail('iOS pinch gestures must be cancelled');
@@ -227,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=691a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=693a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
