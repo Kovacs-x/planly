@@ -52,3 +52,34 @@ const learned=api.analyse({...base,today:'2026-10-01',realToday:'2026-10-01',now
 
 // Stage 4 correctness regression fixtures.
 const fixedLearned=api.analyse({...base,today:'2026-10-01',realToday:'2026-10-01',nowMinutes:480,planningStart:'08:00',planningEnd:'12:00',learning:{Health:{usualMinutes:30,bestTimeMinutes:600,samples:3}},tasks:[{id:'fixed',title:'Fixed health',category:'Health',date:'2026-10-01',time:'09:00',durationMinutes:60,priority:'normal',_planlyOwnedByMe:true}]});if(fixedLearned.day.plannedMinutes!==60)throw Error('Stage4 fixed-time learned duration changed planned occupancy');const fixedClash=api.analyse({...base,today:'2026-10-01',realToday:'2026-10-01',nowMinutes:480,planningStart:'08:00',planningEnd:'12:00',busy:[{start:570,end:585}],learning:{Health:{usualMinutes:30,bestTimeMinutes:600,samples:3}},tasks:[{id:'fixed-clash',title:'Fixed health',category:'Health',date:'2026-10-01',time:'09:00',durationMinutes:60,priority:'normal',_planlyOwnedByMe:true}]});if(!fixedClash.day.clashes.some(x=>x.a==='fixed-clash'&&x.b==='calendar'))throw Error('Stage4 fixed-time interval was shortened by learning');const malformed=api.analyse({...base,today:'2026-10-01',realToday:'2026-10-01',nowMinutes:480,planningStart:'08:00',planningEnd:'12:00',defaultDuration:35,tasks:[{id:'bad-duration',title:'Bad duration',date:'2026-10-01',durationMinutes:'oops',priority:'normal',_planlyOwnedByMe:true}]});if(!Number.isFinite(malformed.day.plannedMinutes)||malformed.day.plannedMinutes!==35)throw Error('Stage4 malformed duration fallback failed');const restTop=api.analyse({...base,today:'2026-10-01',realToday:'2026-10-01',nowMinutes:480,planningStart:'08:00',planningEnd:'23:00',busy:[{start:60,end:420}],prefs:{nightRest:true,nightRestHours:8},tasks:[1,2,3].map(i=>({id:'rest-'+i,title:'Rest '+i,date:'2026-10-01',priority:'high',_planlyOwnedByMe:true}))});if(restTop.top3.length>2)throw Error('Stage4 protected-rest Top 3 must be limited to two');console.log('Planly Stage4 correctness fixtures passed');
+// ---- Suggestions (6.0) ----
+{const S=api.suggest;if(typeof S!=='function')throw Error('suggest() missing');
+const t=(id,o={})=>({id,title:id,date:'2026-10-05',priority:'normal',durationMinutes:30,completed:false,visibility:'private',category:'Personal',createdAt:1,...o});
+const base={today:'2026-10-05',tomorrow:'2026-10-06',weekend:'2026-10-10',nowMinutes:9*60,planningStart:'08:00',planningEnd:'22:00',currentUserId:'me',defaultDuration:30,busy:[{start:600,end:720}],learning:{},dismissed:[],nightRestHours:0};
+const keys=r=>r.suggestions.map(x=>x.key);
+const a=S({...base,tasks:[t('call')]}),b=S(JSON.parse(JSON.stringify({...base,tasks:[t('call')]})));if(JSON.stringify(a)!==JSON.stringify(b))throw Error('suggest not deterministic');
+// free slot: after now (09:00 → first 15-min boundary after now+10 = 09:15), avoiding the 10:00–12:00 busy block
+const slot=a.suggestions.find(x=>x.kind==='slot');if(!slot||slot.actions[0].time!=='09:15'||slot.actions[0].op!=='move'||slot.actions[0].date!=='2026-10-05')throw Error('free slot wrong: '+JSON.stringify(a.suggestions));
+const crowded=S({...base,nowMinutes:9*60+50,tasks:[t('call',{durationMinutes:60})]});if(crowded.suggestions[0]?.actions[0].time!=='12:00')throw Error('slot must skip busy block: '+JSON.stringify(crowded.suggestions));
+// timed tasks block slots too
+const timed=S({...base,tasks:[t('call'),t('meet',{time:'09:15',durationMinutes:45})]});if(timed.suggestions.find(x=>x.kind==='slot').actions[0].time!=='12:00')throw Error('slot must avoid timed task: '+JSON.stringify(timed.suggestions));
+// learned best time is preferred when there are enough samples
+const learned=S({...base,learning:{Personal:{usualMinutes:30,bestTimeMinutes:18*60+30,samples:4}},tasks:[t('call')]}),ls=learned.suggestions[0];if(ls.actions[0].time!=='18:30'||!/usually do Personal tasks around 18:30/.test(ls.why))throw Error('learned time not used: '+JSON.stringify(ls));
+// never suggest household, partner-owned or completed tasks
+const scoped=S({...base,tasks:[t('chore',{visibility:'household',assigneeId:'me'}),t('theirs',{_planlyOwnedByMe:false}),t('done',{completed:true})]});if(scoped.suggestions.length)throw Error('suggest leaked non-own task: '+keys(scoped));
+// slipping: overdue task gets today's free slot; repeated moves are explained
+const late=S({...base,tasks:[t('insurance',{date:'2026-10-04',deferCount:2})]}),l=late.suggestions[0];if(l.kind!=='late'||!/1 day late/.test(l.title)||!/moved it 2 times/.test(l.why)||l.actions[0].date!=='2026-10-05'||!l.actions[0].time||l.actions[1].date!=='2026-10-06')throw Error('late suggestion wrong: '+JSON.stringify(l));
+// overload: day over → move the least important untimed task; no slot suggestions while over
+const over=S({...base,nowMinutes:20*60,tasks:[t('a',{durationMinutes:90,priority:'high'}),t('b',{durationMinutes:60,priority:'low'}),t('c',{durationMinutes:30})]});
+if(over.suggestions[0]?.kind!=='over'||over.suggestions[0].actions[0].id!=='b'||over.suggestions[0].actions[0].date!=='2026-10-06'||over.suggestions.some(x=>x.kind==='slot'))throw Error('overload wrong: '+JSON.stringify(over));
+// durations: only with ≥5 samples and a real difference
+const d5=S({...base,learning:{Work:{usualMinutes:45,bestTimeMinutes:600,samples:5}},tasks:[t('w1',{category:'Work',time:'13:00'}),t('w2',{category:'Work',time:'14:00'})]});const ds=d5.suggestions.find(x=>x.kind==='duration');if(!ds||ds.actions[0].minutes!==45||ds.actions[0].ids.length!==2)throw Error('duration suggestion wrong: '+JSON.stringify(d5.suggestions));
+if(S({...base,learning:{Work:{usualMinutes:45,bestTimeMinutes:600,samples:4}},tasks:[t('w1',{category:'Work',time:'13:00'})]}).suggestions.some(x=>x.kind==='duration'))throw Error('duration suggestion needs 5 samples');
+// dismissed suggestions stay hidden; at most 5
+if(S({...base,dismissed:[slot.key],tasks:[t('call')]}).suggestions.length)throw Error('dismissed suggestion returned');
+if(S({...base,tasks:['a','b','c','d','e','f','g'].map(x=>t(x,{date:'2026-10-0'+(x==='a'?'1':'5')}))}).suggestions.length>5)throw Error('more than 5 suggestions');
+// protected rest after an overnight block
+const rest=S({...base,busy:[{start:0,end:420}],nightRestHours:8,tasks:[t('call')]});if(rest.suggestions[0]?.actions[0].time<'15:00')throw Error('slot inside protected rest: '+JSON.stringify(rest.suggestions));
+// nothing to suggest is an empty list
+if(S({...base,tasks:[]}).suggestions.length!==0)throw Error('empty day must have no suggestions');
+console.log('Planly Suggestions engine checks passed');}

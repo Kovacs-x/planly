@@ -72,8 +72,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=700r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-700a-88'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=701r01'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-701a-89'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -144,7 +144,7 @@ for(const x of ['#view .task .taskSurface,#view .task .swipeUnderlay{border:0!im
 for(const l of ['Time blocked','Flexible','Needs attention','Priorities'])if(app.includes('calendarGroupLabel">'+l+'<'))fail('decorative eyebrow label returned: '+l);
 if(app.includes('<span class="dashboardLabel">Today</span>'))fail('decorative Today eyebrow returned');}
 // Impeccable stage C: Today shows tasks first; Top 3, deadlines and the capacity check sit below the lists; compact summary.
-{const app=read('v2/app-v3.2.0.js');if(!app.includes("$('#view').innerHTML=`${planlyPushPromptHtml()}${dashboard}${statusCard}${billsDue}${schedule}${anytimeSection}${overdueSection}${household}${top3}${todayDeadlinesHtml()}${dayCheck}${completedSection(completed,'today:'+key)}`"))fail('Today order must put tasks before Top 3, deadlines and the day check');
+{const app=read('v2/app-v3.2.0.js');if(!app.includes("$('#view').innerHTML=`${planlyPushPromptHtml()}${dashboard}${todayCardOn('suggestions')?planlySuggestLineHtml():''}${statusCard}${billsDue}${schedule}${anytimeSection}${overdueSection}${household}${top3}${todayDeadlinesHtml()}${completedSection(completed,'today:'+key)}`"))fail('Today order must put tasks before Top 3 and deadlines, with the Suggestions line under the summary');
 for(const x of ['function todayDeadlinesHtml(){','class="dashboardHero dashboardCompact"','class="dashboardSummaryLine"','role="progressbar"'])if(!app.includes(x))fail('compact Today summary invariant missing: '+x);
 if(!read('v2/index.html').includes('<style id="planlyRefineC">'))fail('refine stage C styles missing');}
 // Impeccable stage D: one design vocabulary (header, primary/secondary/quiet buttons, selected state, overlays), recorded in DESIGN.md.
@@ -234,8 +234,8 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=700a01'"))fail('Intelligence app runtime boot marker mismatch');
-const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=701a01'"))fail('Intelligence app runtime boot marker mismatch');
+const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=701i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
 if(/__planly33cBaseRenderPlanDay[\s\S]{0,300}innerHTML/.test(s.calendar))fail('Household calendar wrapper must not replace composed Plan My Day UI');
@@ -380,7 +380,7 @@ for(const needle of ['function planlyGoogleSignInEnabled(){return window.PLANLY_
 // Settings redesign: coloured icon squares on hub rows/tiles/Log out, gradient profile card, iOS switches.
 {const html=read('v2/index.html');for(const needle of ['<style id="planlySettingsDesign">','.settingsPaged input[type="checkbox"]{-webkit-appearance:none;appearance:none;','.settingsHubRow>.setIcon,.settingsHubTile>.setIcon,.settingsHubSignOut>.setIcon{flex:0 0 32px!important'])if(!html.includes(needle))fail('Settings design CSS missing: '+needle);
 if(html.lastIndexOf('<style id="planlySettingsDesign">')<html.lastIndexOf('<style id="planlyStage4Part4">'))fail('Settings design styles must load after Part 4');
-for(const needle of ["function planlySettingsIcon(id){",'data-settings-page="\'+x[0]+\'">\'+planlySettingsIcon(x[0])+\'<span><strong>',"planlySettingsIcon('household')+'<small>Household</small>","planlySettingsIcon('intelligence')+'<small>Planly Intelligence</small>","planlySettingsIcon('logout')+'<span>Log out</span></button>","(planlyGoogleSignInEnabled()?'<button id=\"planlyAccountGoogleBtn\""])if(!s.app.includes(needle))fail('Settings design runtime missing: '+needle);
+for(const needle of ["function planlySettingsIcon(id){",'data-settings-page="\'+x[0]+\'">\'+planlySettingsIcon(x[0])+\'<span><strong>',"planlySettingsIcon('household')+'<small>Household</small>","planlySettingsIcon('intelligence')+'<small>Suggestions</small>","planlySettingsIcon('logout')+'<span>Log out</span></button>","(planlyGoogleSignInEnabled()?'<button id=\"planlyAccountGoogleBtn\""])if(!s.app.includes(needle))fail('Settings design runtime missing: '+needle);
 for(const id of ['appearance','planning','intelligence','calendars','household','account','data'])if(!html.includes('.set-'+id+'{background:'))fail('Settings icon colour missing: '+id);}
 // The composed sign-in is the core-assignment override: it must accept the welcome form's credentials and return the session.
 {if(!s.assignment.includes("planlySignIn=async function(creds){")||!s.assignment.includes("const email=creds?String(creds.email||'').trim():$('#planlyAuthEmail')?.value.trim()")||!/showToast\('Signed in to Planly'\);\n  render\(\);\n  return data\.session;\n\};/.test(s.assignment))fail('Composed sign-in must accept welcome credentials');}
@@ -468,3 +468,9 @@ if(!html.includes('<style id="planlyPushPromptStyle">'))fail('Notification promp
 for(const needle of ["const HOME_CHORE_FOLD_KEY='planly-home-chore-fold-v1';","data-chore-fold=","const open=items.filter(t=>!t.completed)","isOpen=fold[key]!==false","doneOpen=fold.done===true","(total?rows+doneRows:"])if(!r1.includes(needle))fail('Home chore folding missing: '+needle);
 if(!html.includes('<style id="planlyHomeChoreFold">'))fail('Home chore folding styles missing');}
 if(!read('v2/core-redesign-r1.js').includes("(actor&&t.completed?' · <span class=\"personChip tone-'"))fail('"Done by" must only show on finished chores');
+{const app=read('v2/app-v3.2.0.js'),r1=read('v2/core-redesign-r1.js'),html=read('v2/index.html'),intel=read('v2/core-intelligence-v5.js');
+for(const needle of ['function planlySuggestions(){if(state.intelligenceSuggestions===false','window.PlanlyIntelligence.suggest({today','busy:planlyBusyIntervals(today).map(x=>({start:x.start,end:x.end}))','function planlySuggestLineHtml(){','function openSuggestions(){','function applySuggestion(act){',"t._planlyOwnedByMe!==false&&t.visibility!=='household'&&!t.completed",'const pendingIds=stageChangedTasksFromSnapshot(before);save();render();','clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)',"const PLANLY_SUGGEST_DISMISSED_KEY='planly-suggest-dismissed-v1';","['suggestions','Suggestions','A short line when Planly has suggestions for today.']",'<button id="suggestBtn" type="button" class="primaryDash" data-suggest-open>','data-suggest-open>✨ Suggest</button></div>',"if(e.target.closest('[data-suggest-open]')){openSuggestions();return}"])if(!app.includes(needle))fail('Suggestions missing: '+needle);
+for(const gone of ['id="planMyDayBtn"','>Plan my day</button>','data-plan-week>Plan my week','data-i2-suggest3>Suggest 3</button>','data-i2-tidy>Tidy up</button>','${dayCheck}'])if(app.includes(gone))fail('Old Intelligence entry point still reachable: '+gone);
+if(r1.includes("planSegmentsHtml()+(planSegment==='upcoming'?weeklyReviewHtml():'')"))fail('Monday review must no longer render');
+if(!intel.includes('window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest});'))fail('Suggest engine not exported');
+if(!html.includes('<style id="planlySuggestions">'))fail('Suggestions styles missing');}
