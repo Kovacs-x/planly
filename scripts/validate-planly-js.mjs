@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=693r118'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-695a-83'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-696a-84'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -446,3 +446,7 @@ if(/state\.haptics[^;]*stagePreferenceMutation/.test(app))fail('Haptics setting 
 for(const needle of ['if(s.done)window.planlyHaptic?.();','if(next)window.planlyHaptic?.();'])if(!asg.includes(needle))fail('Household haptics missing: '+needle);
 if(!bui.includes("if(next==='paid')window.planlyHaptic?.();"))fail('Budget paid haptic missing');
 if(!html.includes('.budgetEmojiTab{min-width:36px;min-height:44px;'))fail('Emoji picker tabs must be 44px tall');}
+{const html=read('v2/index.html'),sw=read('v2/sw.js');
+if(!html.includes('<link rel="apple-touch-icon" sizes="180x180" href="../icon-180.png" />'))fail('Home Screen icon must use the 180px icon');
+if(!sw.includes("'../icon-180.png','../icon-192.png','../icon-512.png'"))fail('Service worker must cache all app icons');
+for(const f of ['icon-180.png','icon-192.png','icon-512.png','icon-source.svg'])if(!fs.existsSync(f))fail('Missing icon file '+f);}
