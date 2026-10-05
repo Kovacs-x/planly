@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=693r118'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-697a-85'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-698a-86'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -144,7 +144,7 @@ for(const x of ['#view .task .taskSurface,#view .task .swipeUnderlay{border:0!im
 for(const l of ['Time blocked','Flexible','Needs attention','Priorities'])if(app.includes('calendarGroupLabel">'+l+'<'))fail('decorative eyebrow label returned: '+l);
 if(app.includes('<span class="dashboardLabel">Today</span>'))fail('decorative Today eyebrow returned');}
 // Impeccable stage C: Today shows tasks first; Top 3, deadlines and the capacity check sit below the lists; compact summary.
-{const app=read('v2/app-v3.2.0.js');if(!app.includes("$('#view').innerHTML=`${dashboard}${statusCard}${billsDue}${schedule}${anytimeSection}${overdueSection}${household}${top3}${todayDeadlinesHtml()}${dayCheck}${completedSection(completed,'today:'+key)}`"))fail('Today order must put tasks before Top 3, deadlines and the day check');
+{const app=read('v2/app-v3.2.0.js');if(!app.includes("$('#view').innerHTML=`${planlyPushPromptHtml()}${dashboard}${statusCard}${billsDue}${schedule}${anytimeSection}${overdueSection}${household}${top3}${todayDeadlinesHtml()}${dayCheck}${completedSection(completed,'today:'+key)}`"))fail('Today order must put tasks before Top 3, deadlines and the day check');
 for(const x of ['function todayDeadlinesHtml(){','class="dashboardHero dashboardCompact"','class="dashboardSummaryLine"','role="progressbar"'])if(!app.includes(x))fail('compact Today summary invariant missing: '+x);
 if(!read('v2/index.html').includes('<style id="planlyRefineC">'))fail('refine stage C styles missing');}
 // Impeccable stage D: one design vocabulary (header, primary/secondary/quiet buttons, selected state, overlays), recorded in DESIGN.md.
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=697a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=698a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -461,3 +461,6 @@ if(/calendar_source|ical/i.test(mig.replace(/--.*$/gm,'')))fail('Push must never
 if(!fn.includes("req.headers.get('x-planly-cron')")||!fn.includes("rpc('planly_push_worklist')")||!fn.includes('sameSecret('))fail('planly-push function must check the cron secret');
 if(!wp.includes("'Content-Encoding': 'aes128gcm'")||!wp.includes("'WebPush: info\\0'"))fail('Web Push encryption must be RFC 8291 aes128gcm');
 for(const f of [app,sw,html,mig,fn,wp])if(/"d"\s*:\s*"[A-Za-z0-9_-]{40,}"/.test(f))fail('A private key must never be committed');}
+{const app=read('v2/app-v3.2.0.js'),html=read('v2/index.html');
+for(const needle of ["$('#view').innerHTML=`${planlyPushPromptHtml()}${dashboard}","Notification.permission!=='default')return ''","if(p.optedOut||(p.snoozedUntil&&Date.now()<Number(p.snoozedUntil)))return ''","planlyPushPromptSave({snoozedUntil:Date.now()+14*86400000})","planlyPushPromptSave({optedOut:true})","if(b.dataset.pushPrompt==='on'){planlyPushEnable();return}"])if(!app.includes(needle))fail('Notification prompt missing: '+needle);
+if(!html.includes('<style id="planlyPushPromptStyle">'))fail('Notification prompt styles missing');}
