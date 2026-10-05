@@ -617,7 +617,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=698a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=700a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
@@ -784,6 +784,17 @@ body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--to
 .budgetMonthBar button{border:0!important;background:transparent!important;color:var(--text)!important;min-width:44px!important;min-height:44px!important}
 .budgetMonthBar button:hover{background:var(--cardSoft)!important}
 .budgetScopeBar{border:0!important;background:var(--card)!important;border-radius:var(--rSurface)!important}
+</style>
+<style id="planlyHomeChoreFold">
+#view .homeChoreGroupHead[data-chore-fold]{width:100%;min-height:44px;margin:0;border:0;background:transparent;font:inherit;font-size:15px;color:var(--muted);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:0 2px}
+#view .homeChoreGroupHead[data-chore-fold] strong{font-weight:600}
+#view .homeChoreGroupHead[data-chore-fold]>span{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+#view .homeChoreFoldChevron{display:inline-block;font-size:18px;line-height:1;transform:rotate(90deg);transition:transform .2s ease;color:var(--muted)}
+#view .homeChoreGroup.folded .homeChoreFoldChevron{transform:rotate(0deg)}
+#view .homeChoreDone{margin-top:6px;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);padding-top:4px}
+#view .homeChoreDoneHead strong{color:var(--text)}
+#view .homeChoreAllDone{padding:6px 2px 10px 18px;color:var(--muted);font-size:14px}
+@media (prefers-reduced-motion:reduce){#view .homeChoreFoldChevron{transition:none}}
 </style>
 <style id="planlyBudgetEmoji">
 /* Budget categories: emoji picture tiles with labels, a picker with search and tabs, and one-tap suggestions. */

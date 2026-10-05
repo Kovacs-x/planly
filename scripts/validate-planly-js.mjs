@@ -72,8 +72,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=693r118'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-699a-87'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=700r01'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-700a-88'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=698a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=700a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -464,3 +464,7 @@ for(const f of [app,sw,html,mig,fn,wp])if(/"d"\s*:\s*"[A-Za-z0-9_-]{40,}"/.test(
 {const app=read('v2/app-v3.2.0.js'),html=read('v2/index.html');
 for(const needle of ["$('#view').innerHTML=`${planlyPushPromptHtml()}${dashboard}","Notification.permission!=='default')return ''","if(p.optedOut||(p.snoozedUntil&&Date.now()<Number(p.snoozedUntil)))return ''","planlyPushPromptSave({snoozedUntil:Date.now()+14*86400000})","planlyPushPromptSave({optedOut:true})","if(b.dataset.pushPrompt==='on'){planlyPushEnable();return}"])if(!app.includes(needle))fail('Notification prompt missing: '+needle);
 if(!html.includes('<style id="planlyPushPromptStyle">'))fail('Notification prompt styles missing');}
+{const r1=read('v2/core-redesign-r1.js'),html=read('v2/index.html');
+for(const needle of ["const HOME_CHORE_FOLD_KEY='planly-home-chore-fold-v1';","data-chore-fold=","const open=items.filter(t=>!t.completed)","isOpen=fold[key]!==false","doneOpen=fold.done===true","(total?rows+doneRows:"])if(!r1.includes(needle))fail('Home chore folding missing: '+needle);
+if(!html.includes('<style id="planlyHomeChoreFold">'))fail('Home chore folding styles missing');}
+if(!read('v2/core-redesign-r1.js').includes("(actor&&t.completed?' · <span class=\"personChip tone-'"))fail('"Done by" must only show on finished chores');
