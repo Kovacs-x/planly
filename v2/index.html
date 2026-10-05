@@ -622,7 +622,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=688a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=691a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
@@ -696,4 +696,50 @@ body.welcomeOpen{overflow:hidden}
 html{scroll-padding-bottom:calc(var(--planly-nav-h) + 16px + env(safe-area-inset-bottom))}
 #addBtn{bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom))!important}
 .app{padding-bottom:calc(var(--planly-nav-clearance) + 72px)!important}
+</style>
+<style id="planlyRefineA">
+/* Impeccable stage A: sheets sit above the tab bar, the + button steps aside while any sheet is open, and no decorative glows or gradients. */
+#sheetWrap{z-index:70!important}
+#searchWrap{z-index:45!important}
+body:has(#sheetWrap.open,#searchWrap.open,#planDayWrap.open,#timelineWrap.open,#taskActionWrap.open,#profileWrap.open) #addBtn{opacity:0!important;pointer-events:none!important;visibility:hidden!important}
+.dashboardActions .primaryDash{background:var(--today)!important;background-image:none!important;color:var(--bg)!important;border:0!important;box-shadow:none!important}
+.dashboardHero:after{display:none!important}
+#profileToggle.profileIcon .profileInitial{box-shadow:0 0 0 2px var(--card)!important}
+#profileToggle.profileIcon.active .profileInitial{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--today)!important}
+#addBtn{box-shadow:0 6px 16px rgba(0,0,0,.24)!important}
+</style>
+<style id="planlyRefineB">
+/* Impeccable stage B: calmer lists. Consecutive task rows share one surface with hairline dividers (no card per task),
+   no coloured side stripes (the person chip says who), lighter row icons, and the section colour on list counts. */
+body:has(.nav [data-section="today"].active){--sec:var(--today);--secTint:var(--todayTint)}
+body:has(.nav [data-section="plan"].active){--sec:var(--plan);--secTint:var(--planTint)}
+body:has(.nav [data-section="home"].active){--sec:var(--home);--secTint:var(--homeTint)}
+body:has(.nav [data-section="budget"].active){--sec:var(--budget);--secTint:var(--budgetTint)}
+#view .task{margin-top:0!important;margin-bottom:0!important;border-radius:0!important}
+#view .task .taskSurface,#view .task .swipeUnderlay{border:0!important;border-radius:0!important;box-shadow:none!important}
+#view .task:has(+.task) .taskSurface{box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--line) 75%,transparent)!important}
+#view .task:not(.task+.task),#view .task:not(.task+.task) .taskSurface,#view .task:not(.task+.task) .swipeUnderlay{border-top-left-radius:16px!important;border-top-right-radius:16px!important}
+#view .task:not(:has(+.task)),#view .task:not(:has(+.task)) .taskSurface,#view .task:not(:has(+.task)) .swipeUnderlay{border-bottom-left-radius:16px!important;border-bottom-right-radius:16px!important}
+#view .task{overflow:hidden}
+#view .task:not(:has(+.task)){margin-bottom:6px!important}
+#view .taskTitle{font-weight:600!important}
+#view .task .taskActions .smallbtn:not(.isPinned){color:var(--muted)!important}
+#view .sectionHead .muted{background:var(--secTint,var(--cardSoft))!important;color:var(--sec,var(--muted))!important;border:0!important;font-weight:700}
+.projectCard:before{display:none!important}
+.prioritySection{border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important}
+.prioritySection .compactEmpty{border:0!important;background:var(--card)!important;border-radius:16px!important}
+</style>
+<style id="planlyRefineC">
+/* Impeccable stage C: a compact Today summary (one headline, one line of numbers, actions) so the task lists start near the top. */
+.dashboardHero.dashboardCompact{display:grid!important;gap:10px!important;padding:14px 16px!important;background:var(--card)!important;background-image:none!important;border:0!important;box-shadow:none!important;border-radius:16px!important}
+.dashboardCompact .dashboardHeroTop{display:flex!important;align-items:baseline!important;justify-content:space-between!important;gap:12px;margin:0!important}
+.dashboardCompact .dashboardHeroTop strong{font-size:20px!important;line-height:1.2;font-weight:700}
+.dashboardCompact .dashboardPercent{all:unset;font-size:13px;font-weight:650;color:var(--today);white-space:nowrap}
+.dashboardCompact .dashboardProgress{height:4px!important;margin:0!important}
+.dashboardSummaryLine{margin:0;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dashboardSummaryLine .dashboardOverdue{color:var(--danger);font-weight:650}
+.dashboardCompact .dashboardActions{margin:2px 0 0!important}
+.dashboardCompact .dashboardActions button{min-height:44px!important}
+.dashboardDeadlines{border:0!important;box-shadow:none!important;border-radius:16px!important;margin-top:16px!important}
+#view>.todayDayCheck{margin-top:12px!important;border:0!important}
 </style>
