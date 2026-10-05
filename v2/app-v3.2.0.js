@@ -2243,9 +2243,9 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-696a-84';
-const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Planly Intelligence','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
-const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
+const PLANLY_RELEASE='planly-v2-697a-85';
+const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Planly Intelligence','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
+const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
 function planlyIsHouseholdOwner(){const me=String(planlySession?.user?.id||'');return !!planlyHousehold?.id&&planlyHouseholdMembers.some(m=>String(m.user_id||'')===me&&m.role==='owner')}
 function planlyBudgetResetCardHtml(){if(!planlyIsHouseholdOwner())return '';return '<div class="settingsCard settingsDanger budgetResetCard" data-sp="household"><h3>Reset Household Budget</h3><div class="muted settingsHelp">Clears every payment, income and target in the shared Household Budget, including ones your partner added, and stops them repeating. Your personal Budget, tasks, lists and calendars are not touched. Only the household owner can do this.</div><button type="button" class="dangerBtn" data-budget-reset-open>Reset Household Budget…</button></div>'}
@@ -2263,11 +2263,63 @@ resetHouseholdBudget(inc).then(r=>{closeBudgetResetSheet();showToast('Household 
 function settingsHubHtml(){const me=String(planlySession?.user?.id||''),name=planlyMyDisplayName(),email=planlySession?.user?.email||'',members=Array.isArray(planlyHouseholdMembers)?planlyHouseholdMembers:[],partner=members.find(m=>String(m.user_id||'')!==me),partnerName=String(partner?.display_name||'').trim(),household=members.length>1?'With '+(partnerName||'your partner'):planlyHousehold?'Just you':'Not set up',intel=state.intelligenceSuggestions===false?'Off':'On',row=id=>{const x=PLANLY_SETTINGS_PAGES.find(v=>v[0]===id);return '<button type="button" class="settingsHubRow" data-settings-page="'+x[0]+'">'+planlySettingsIcon(x[0])+'<span><strong>'+esc(x[1])+'</strong><small>'+esc(x[2])+'</small></span><span class="settingsHubChevron" aria-hidden="true">›</span></button>'};
 return '<div class="settingsHub"><button type="button" class="settingsHubIdentity" data-settings-page="household" data-settings-focus-name><span class="personAvatar settingsHubAvatar">'+esc(planlySelfInitial())+'</span><span class="settingsHubIdentityText"><strong>'+esc(name||'Add your name')+'</strong><small>'+esc(email||'Not signed in')+'</small></span><span class="settingsHubChevron" aria-hidden="true">›</span></button>'
 +'<div class="settingsHubTiles"><button type="button" class="settingsHubTile" data-settings-page="household">'+planlySettingsIcon('household')+'<small>Household</small><strong>'+esc(household)+'</strong></button><button type="button" class="settingsHubTile" data-settings-page="intelligence">'+planlySettingsIcon('intelligence')+'<small>Planly Intelligence</small><strong>'+intel+'</strong></button></div>'
-+'<h3 class="settingsHubLabel">Preferences</h3><div class="settingsHubGroup">'+['appearance','planning','intelligence','calendars'].map(row).join('')+'</div>'
++'<h3 class="settingsHubLabel">Preferences</h3><div class="settingsHubGroup">'+['appearance','notifications','planning','intelligence','calendars'].map(row).join('')+'</div>'
 +'<h3 class="settingsHubLabel">Household & account</h3><div class="settingsHubGroup">'+['household','account','data'].map(row).join('')+'</div>'
 +'<div class="settingsAbout">Planly · '+esc(PLANLY_RELEASE.replace('planly-v2-',''))+' · Private planner with account sync and offline support. Your data stays in your account; suggestions are worked out on this device.</div>'
 +(planlySession?.user?'<button type="button" class="dangerBtn settingsHubSignOut" id="planlySettingsHubSignOut">'+planlySettingsIcon('logout')+'<span>Log out</span></button>':'')+'</div>'}
-function openSettingsPage(page,focusName=false){settingsPage=PLANLY_SETTINGS_PAGES.some(x=>x[0]===page)?page:'';state.tab='settings';render();window.scrollTo(0,0);if(focusName)setTimeout(()=>{const f=document.getElementById('planlyDisplayName');f?.scrollIntoView({block:'center'});f?.focus()},60)}
+// ---- Push notifications (migration 050 + planly-push Edge Function). Ownership is always auth.uid() on the server. ----
+const PLANLY_PUSH_PUBLIC_KEY='BK_sXeVJK-GXVrVfvXq3MeFYqh4VasMiB8IZdRPsqW_RkqSwLGkhJpH5VI8iubRFRk6mVkTOZgsOihLXzEaCuFI';
+let planlyPushState={checked:false,endpoint:'',prefs:null,busy:false,note:''};
+function planlyPushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+function planlyPushIsIos(){return /iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+function planlyPushStandalone(){return window.matchMedia?.('(display-mode: standalone)')?.matches||navigator.standalone===true}
+function planlyPushKeyBytes(s){const pad='='.repeat((4-s.length%4)%4),bin=atob((s+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(bin,c=>c.charCodeAt(0))}
+function planlyPushTimeOptions(sel){let h='';for(let m=7*60;m<=10*60;m+=15){const v=String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');h+='<option value="'+v+'"'+(v===sel?' selected':'')+'>'+v+'</option>'}return h}
+function planlyPushPanelHtml(){
+  const st=planlyPushState,p=st.prefs,note=st.note?'<p class="muted settingsHelp" role="status">'+esc(st.note)+'</p>':'';
+  if(!planlySession?.user)return '<p class="muted settingsHelp">Sign in to use notifications.</p>';
+  if(!planlyPushSupported())return '<p class="muted settingsHelp">'+(planlyPushIsIos()&&!planlyPushStandalone()?'On iPhone, notifications only work in the Home Screen app. Open Planly from your Home Screen, then come back here.':'This browser can’t receive notifications.')+'</p>';
+  if(Notification.permission==='denied')return '<p class="muted settingsHelp">Notifications are blocked for Planly. Turn them on in your phone’s Settings › Notifications › Planly, then come back here.</p>';
+  if(!st.checked)return '<p class="muted settingsHelp">Checking this phone…</p>';
+  if(!p)return '<p class="muted settingsHelp">Get a reminder for your timed tasks, a short morning summary of today’s tasks, and an alert when your partner gives you a chore. Each phone has its own switches.</p><button type="button" class="primary" id="planlyPushEnable"'+(st.busy?' disabled':'')+'>Turn on notifications</button>'+note;
+  const row=(id,label,help,on)=>'<label class="todayCardToggle"><input type="checkbox" id="'+id+'"'+(on?' checked':'')+(st.busy?' disabled':'')+'><span><strong>'+label+'</strong><small>'+help+'</small></span></label>';
+  return row('planlyPushTasks','Task reminders','Your timed tasks, at their reminder time or when they start.',p.notify_tasks)
+    +row('planlyPushSummary','Morning summary','A short list of today’s tasks. Chores aren’t included.',p.notify_summary)
+    +(p.notify_summary?'<label class="muted smallLabel" for="planlyPushSummaryTime">Summary time</label><select id="planlyPushSummaryTime" class="select"'+(st.busy?' disabled':'')+'>'+planlyPushTimeOptions(p.summary_time||'07:30')+'</select>':'')
+    +row('planlyPushChores','New chores','When your partner assigns you a chore.',p.notify_chores)
+    +'<p class="muted settingsHelp">Nothing is sent between 10pm and 7am. Chore alerts wait until 7am.</p>'
+    +'<div class="planlyPushActions"><button type="button" class="secondaryBtn" id="planlyPushTest"'+(st.busy?' disabled':'')+'>Send a test</button><button type="button" class="secondaryBtn" id="planlyPushDisable"'+(st.busy?' disabled':'')+'>Turn off on this phone</button></div>'+note}
+function planlyPushRender(){const el=document.getElementById('planlyPushPanel');if(el){el.innerHTML=planlyPushPanelHtml();planlyPushBind()}}
+async function planlyPushCurrent(){const reg=await navigator.serviceWorker.ready;return reg.pushManager.getSubscription()}
+async function planlyPushCheck(){
+  if(!planlySession?.user||!planlyPushSupported()||Notification.permission==='denied'){planlyPushState.checked=true;planlyPushRender();return}
+  try{const sub=await planlyPushCurrent();planlyPushState.endpoint=sub?.endpoint||'';
+    if(sub&&Notification.permission==='granted'){const {data,error}=await planlySupabase.rpc('planly_get_push_subscription',{p_endpoint:sub.endpoint});planlyPushState.prefs=error?null:(data||null)}else planlyPushState.prefs=null}
+  catch{planlyPushState.prefs=null}
+  planlyPushState.checked=true;planlyPushRender()}
+async function planlyPushSave(sub,prefs){
+  const j=sub.toJSON(),tz=(Intl.DateTimeFormat().resolvedOptions().timeZone)||'Europe/London';
+  const {data,error}=await planlySupabase.rpc('planly_save_push_subscription',{p_endpoint:j.endpoint,p_p256dh:j.keys?.p256dh||'',p_auth:j.keys?.auth||'',p_time_zone:tz,p_notify_tasks:prefs.notify_tasks!==false,p_notify_chores:prefs.notify_chores!==false,p_notify_summary:prefs.notify_summary!==false,p_summary_time:prefs.summary_time||'07:30'});
+  if(error)throw error;planlyPushState.prefs=data;planlyPushState.endpoint=j.endpoint}
+async function planlyPushRun(work){if(planlyPushState.busy)return;planlyPushState.busy=true;planlyPushState.note='';planlyPushRender();try{await work()}catch(err){planlyPushState.note=err?.message||'Something went wrong. Please try again.'}finally{planlyPushState.busy=false;planlyPushRender()}}
+function planlyPushEnable(){
+  // The permission prompt must start inside the tap, so it is requested before anything else is awaited.
+  const ask=Notification.requestPermission();
+  planlyPushRun(async()=>{const perm=await ask;if(perm!=='granted'){planlyPushState.note='Notifications weren’t allowed. You can allow them in your phone’s Settings › Notifications › Planly.';return}
+    const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:planlyPushKeyBytes(PLANLY_PUSH_PUBLIC_KEY)});
+    await planlyPushSave(sub,{});showToast('Notifications are on for this phone')})}
+function planlyPushUpdate(change){planlyPushRun(async()=>{const sub=await planlyPushCurrent();if(!sub){planlyPushState.prefs=null;return}await planlyPushSave(sub,{...planlyPushState.prefs,...change})})}
+function planlyPushBind(){
+  const on=(id,ev,fn)=>{const el=document.getElementById(id);if(el)el['on'+ev]=fn};
+  on('planlyPushEnable','click',planlyPushEnable);
+  on('planlyPushTasks','change',e=>planlyPushUpdate({notify_tasks:e.target.checked}));
+  on('planlyPushSummary','change',e=>planlyPushUpdate({notify_summary:e.target.checked}));
+  on('planlyPushChores','change',e=>planlyPushUpdate({notify_chores:e.target.checked}));
+  on('planlyPushSummaryTime','change',e=>planlyPushUpdate({summary_time:e.target.value}));
+  on('planlyPushTest','click',()=>planlyPushRun(async()=>{const {data,error}=await planlySupabase.rpc('planly_queue_test_push');if(error)throw error;planlyPushState.note=data?'Test sent. It should arrive within 5 minutes.':'A test was just sent. Please wait a minute before sending another.'}));
+  on('planlyPushDisable','click',()=>planlyPushRun(async()=>{const sub=await planlyPushCurrent();if(sub){const {error}=await planlySupabase.rpc('planly_revoke_push_subscription',{p_endpoint:sub.endpoint});if(error)throw error;await sub.unsubscribe().catch(()=>{})}planlyPushState.prefs=null;showToast('Notifications are off for this phone')}))}
+function openSettingsPage(page,focusName=false){if(page==='notifications'){planlyPushState.checked=false;planlyPushState.note=''}settingsPage=PLANLY_SETTINGS_PAGES.some(x=>x[0]===page)?page:'';state.tab='settings';render();window.scrollTo(0,0);if(focusName)setTimeout(()=>{const f=document.getElementById('planlyDisplayName');f?.scrollIntoView({block:'center'});f?.focus()},60)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-settings-page]');if(!b||!b.closest('#view'))return;openSettingsPage(b.dataset.settingsPage,b.hasAttribute('data-settings-focus-name'))});
 document.addEventListener('click',e=>{if(e.target.closest('#planlySettingsHubSignOut')){if(confirm('Log out of Planly on this device?'))planlySignOut().catch(err=>alert(err.message))}});
 function settingsView(){
@@ -2276,6 +2328,7 @@ function settingsView(){
   const pendingCount=state.tasks.filter(t=>t.addToCalendar&&t.date&&t.calendarSync!=='synced').length+getDeleteQueue().length;
   const page=PLANLY_SETTINGS_PAGES.some(x=>x[0]===settingsPage)?settingsPage:'';if(page)setHeader('Settings',PLANLY_SETTINGS_PAGES.find(x=>x[0]===page)[1]);
   $('#view').innerHTML=`<div class="settingsPaged" data-page="${page||'hub'}">${page?`<div class="settingsPageHead"><button type="button" class="settingsBack" data-settings-page="">‹ Settings</button><h2>${esc(PLANLY_SETTINGS_PAGES.find(x=>x[0]===page)[1])}</h2></div>`:settingsHubHtml()}
+  <div class="settingsCard" data-sp="notifications"><h3>Notifications</h3><div id="planlyPushPanel">${planlyPushPanelHtml()}</div></div>
   <section class="settingsGroup" data-sp="account household calendars"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">Account</span><h2>Your Planly</h2><p>Identity, cloud state and household calendar sources.</p></div></div>
     <div class="settingsCard" data-sp="account"><h3>Planly Account</h3>${planlyAccountHtml()}</div>
     <div class="settingsCard" data-sp="account"><h3>Cloud Sync</h3>${planlyCloudPreviewHtml()}</div>
@@ -2336,6 +2389,7 @@ function settingsView(){
   $('#planningEnd').value=state.planningEnd||'23:00';
   $('#themeSetting').onchange=e=>{state.theme=e.target.value;save();applyTheme()};
   document.querySelectorAll('[data-today-card]').forEach(c=>{c.checked=todayCardOn(c.dataset.todayCard);c.onchange=()=>{const hidden=new Set(planlyTodayHiddenList());if(c.checked)hidden.delete(c.dataset.todayCard);else hidden.add(c.dataset.todayCard);state.todayHidden=[...hidden];persistPlanlyDeviceSettings();save()}});
+  if(document.getElementById('planlyPushPanel')){planlyPushBind();if(!planlyPushState.checked)planlyPushCheck()}
   if($('#taskRowDensity'))$('#taskRowDensity').onchange=e=>{state.taskRowDensity=e.target.value==='comfortable'?'comfortable':'compact';save();render()};
   if($('#hapticsSetting'))$('#hapticsSetting').onchange=e=>{state.haptics=e.target.checked;save();if(state.haptics)planlyHaptic()};
   $('#defaultCat').onchange=e=>{state.defaultCategory=e.target.value;stagePreferenceMutation();save();queuePlanlyPendingReplay('Preferences synced')};
