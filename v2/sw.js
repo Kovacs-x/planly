@@ -1,5 +1,5 @@
-const CACHE='planly-v2-695a-83';
-const VERSION='planly-v2-sw-695a-83';
+const CACHE='planly-v2-696a-84';
+const VERSION='planly-v2-sw-696a-84';
 const APP_URL='./app-v3.2.0.js?v=695a01';
 const HARDENING_URL='./hardening-v3.3b.js?v=670h16';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
@@ -33,7 +33,7 @@ const SAFARI_DIAGNOSTICS_URL='./core-safari-diagnostics-v4.3b.js?v=430b01';
 const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_HOUSEHOLD_PLANNING_SAFETY_URL,CORE_CLOSEOUT_URL,CORE_CLOUD_READINESS_URL,CORE_RELEASE_GATE_URL,CORE_BUDGET_NAV_URL,CORE_REDESIGN_R1_URL];
 const APPEND_URLS=[BUDGET_RUNTIME_URL,BUDGET_UI_URL,BUDGET_SCOPE_URL,BUDGET_LIFECYCLE_URL,BUDGET_MONTHLY_URL,BUDGET_MONTH_STATE_URL,BUDGET_INSIGHTS_URL,BUDGET_ACTIONS_URL,BUDGET_SCROLL_URL,BUDGET_REVIEW_URL,BUDGET_CORE_GUARD_URL,LISTS_RUNTIME_URL,HOUSEHOLD_DASHBOARD_URL,UPDATE_RUNTIME_URL,SAFARI_DIAGNOSTICS_URL,INTELLIGENCE_RUNTIME_URL];
 const REQUIRED=['./index.html',APP_URL,HARDENING_URL,RUNTIME_MANIFEST_URL,...CORE_URLS,...APPEND_URLS,'./supabase-config.js','./manifest.webmanifest'];
-const OPTIONAL=['./','../icon-192.png','../icon-512.png','./fonts/outfit-400.woff2','./fonts/outfit-500.woff2','./fonts/outfit-600.woff2','./fonts/outfit-700.woff2'];
+const OPTIONAL=['./','../icon-180.png','../icon-192.png','../icon-512.png','./fonts/outfit-400.woff2','./fonts/outfit-500.woff2','./fonts/outfit-600.woff2','./fonts/outfit-700.woff2'];
 const FETCH_TIMEOUT=8000;
 function timedFetch(input,init={}){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),FETCH_TIMEOUT);return fetch(input,{...init,signal:controller.signal}).finally(()=>clearTimeout(timer))}
 async function cacheOne(cache,url){try{const response=await timedFetch(url,{cache:'no-store'});if(response?.ok){await cache.put(url,response.clone());return true}}catch{}return false}

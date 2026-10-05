@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Planly" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="../icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../icon-180.png" />
   <title>Planly</title>
   <script>
     (()=>{try{const saved=JSON.parse(localStorage.getItem('planly-device-settings-v1')||'null');let theme=saved?.theme||'system';if(theme==='system')theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=theme==='dark'?'dark':'light'}catch{document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}})();
