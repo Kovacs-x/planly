@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=693r118'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-696a-84'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-697a-85'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['function buildDayPlanRecommendations','engine.analyse','busy:planlyBusyIntervals(target).map(x=>({start:x.start,end:x.end}))','Plan tomorrow','Use suggested Top 3','Chores today','Accept suggestions (','Suggested times','id="intelligenceSuggestions"','id="intelligenceNightRest"','data-plan-chore','data-plan-why','No suggestions today','t.date===target&&t.visibility'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=695a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=697a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=560i504')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -450,3 +450,14 @@ if(!html.includes('.budgetEmojiTab{min-width:36px;min-height:44px;'))fail('Emoji
 if(!html.includes('<link rel="apple-touch-icon" sizes="180x180" href="../icon-180.png" />'))fail('Home Screen icon must use the 180px icon');
 if(!sw.includes("'../icon-180.png','../icon-192.png','../icon-512.png'"))fail('Service worker must cache all app icons');
 for(const f of ['icon-180.png','icon-192.png','icon-512.png','icon-source.svg'])if(!fs.existsSync(f))fail('Missing icon file '+f);}
+{const app=read('v2/app-v3.2.0.js'),sw=read('v2/sw.js'),html=read('v2/index.html'),mig=read('supabase/migrations/050_push_notifications.sql'),fn=read('supabase/functions/planly-push/index.ts'),wp=read('supabase/functions/planly-push/webpush.js');
+for(const needle of ["['notifications','Notifications','Reminders, morning summary, chores']","const PLANLY_PUSH_PUBLIC_KEY='B","planlySupabase.rpc('planly_save_push_subscription',{p_endpoint:j.endpoint,p_p256dh:","planlySupabase.rpc('planly_revoke_push_subscription'","planlySupabase.rpc('planly_queue_test_push')","const ask=Notification.requestPermission();","userVisibleOnly:true",'id="planlyPushPanel"'])if(!app.includes(needle))fail('Notifications client missing: '+needle);
+if(/p_user_id|p_owner_id/.test(app.slice(app.indexOf('// ---- Push notifications'),app.indexOf('function openSettingsPage('))))fail('Push client must never send an owner/user id');
+if(!sw.includes("self.addEventListener('push'")||!sw.includes('showNotification(')||!sw.includes("self.addEventListener('notificationclick'"))fail('Service worker push handlers missing');
+if(!html.includes('.settingsPaged[data-page="notifications"] [data-sp~="notifications"]'))fail('Notifications settings page CSS missing');
+for(const needle of ['v_user uuid := auth.uid();','security definer','planly_private.push_subscriptions','push_endpoint_service','grant execute on function public.planly_push_worklist(timestamptz) to service_role;','revoke all on function public.planly_push_config() from public, anon, authenticated;',"v_quiet := v_local::time >= time '22:00' or v_local::time < time '07:00';","t.visibility is distinct from 'household'","exception when others then\n  -- A notification problem must never block saving a task.\n  return new;","cron.schedule('planly-push', '*/5 * * * *'","vault.decrypted_secrets"])if(!mig.includes(needle))fail('Migration 050 missing: '+needle);
+if(/grant execute on function public\.planly_push_(worklist|config|report)[^;]*to (authenticated|anon)/.test(mig))fail('Worker functions must be service_role only');
+if(/calendar_source|ical/i.test(mig.replace(/--.*$/gm,'')))fail('Push must never read calendar sources');
+if(!fn.includes("req.headers.get('x-planly-cron')")||!fn.includes("rpc('planly_push_worklist')")||!fn.includes('sameSecret('))fail('planly-push function must check the cron secret');
+if(!wp.includes("'Content-Encoding': 'aes128gcm'")||!wp.includes("'WebPush: info\\0'"))fail('Web Push encryption must be RFC 8291 aes128gcm');
+for(const f of [app,sw,html,mig,fn,wp])if(/"d"\s*:\s*"[A-Za-z0-9_-]{40,}"/.test(f))fail('A private key must never be committed');}
