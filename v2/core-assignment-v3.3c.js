@@ -159,6 +159,7 @@ function toggleHouseholdTaskSubtask(t,subtaskId){
   if(!planlyHouseholdCompletionEligible(t)||!Array.isArray(t.subtasks))return;
   const s=t.subtasks.find(x=>String(x.id)===String(subtaskId));if(!s)return;
   s.done=!s.done;
+  if(s.done)window.planlyHaptic?.();
   const key=householdSubtaskTaskKey(t._planlyOwnerId||'',t.id),autoComplete=!!(state.autoCompleteParentSubtasks&&s.done&&!t.completed&&t.subtasks.every(x=>x.done));
   if(!autoComplete)clearPlanlyHouseholdAutoCompleteFlag(t._planlyOwnerId||'',t.id);
   stagePlanlyHouseholdSubtask(t,s.id,s.done,autoComplete);
@@ -249,6 +250,7 @@ async function planlyCompleteHouseholdTaskDirect(t){
   if(!planlyHouseholdCompletionEligible(t))return false;
   const before={completed:!!t.completed,completedBy:t.completedBy||null,completedAt:t.completedAt||null};
   const next=!before.completed,nextDate=next?planlyHouseholdNextDate(t):null;
+  if(next)window.planlyHaptic?.();
   t.completed=next;t.completedBy=next?String(planlySession.user.id):null;t.completedAt=next?new Date().toISOString():null;t.updatedAt=Date.now();
   persistPlanlyCloudCache();render();
   showUndoToast(next?'Task completed':'Task reopened',()=>{
