@@ -7,8 +7,8 @@
 web
 
 ## Users
-- Primary: a two-person household, the primary account and their partner (currently Musti and Laki). Each uses Planly on their own iPhone, installed to the home screen as a PWA.
-- Names: show the name a person has chosen. If they haven't chosen one, show "You" for yourself and "Partner" for the other member. (Confirmed by Musti, 5 Oct 2026.)
+- Primary: a two-person household, the primary account and their partner. Each uses Planly on their own iPhone, installed to the home screen as a PWA.
+- Names: show the name a person has chosen. If they haven't chosen one, show "You" for yourself and "Partner" for the other member. (Confirmed by the owner, 5 Oct 2026.)
 - Later: other family members or households may join. The app must stay understandable to someone who didn't build it, but it isn't a public product. (Confirmed 4 Oct 2026.)
 
 ## Product Purpose
