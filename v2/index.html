@@ -743,3 +743,28 @@ body:has(.nav [data-section="budget"].active){--sec:var(--budget);--secTint:var(
 .dashboardDeadlines{border:0!important;box-shadow:none!important;border-radius:16px!important;margin-top:16px!important}
 #view>.todayDayCheck{margin-top:12px!important;border:0!important}
 </style>
+<style id="planlyRefineD">
+/* Impeccable stage D: one design vocabulary. Radii: controls 12px, surfaces 16px, chips 999px. Buttons come in three kinds:
+   primary (solid section colour), secondary (outline), quiet (text in the section colour). Selected = section tint + section colour. */
+:root{--rControl:12px;--rSurface:16px}
+body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--todayTint)}
+/* Header: three calm, same-size controls. */
+.syncChip{background:transparent!important;border:0!important;box-shadow:none!important;min-height:40px!important;padding:0 6px!important}
+#searchToggle,#profileToggle{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:999px!important}
+#searchToggle,#searchToggle .pIcon{color:var(--text)!important}
+#searchToggle:hover,#profileToggle:hover{background:var(--cardSoft)!important}
+/* Primary */
+#planMyDayBtn,#taskForm .formActions .primary,.budgetBtn.budgetPrimary{background:var(--sec)!important;background-image:none!important;color:var(--bg)!important;border:0!important;box-shadow:none!important;border-radius:var(--rControl)!important;font-weight:600!important;min-height:44px!important}
+/* Secondary */
+#timelineBtn,.budgetBtn:not(.budgetPrimary),#quickFillBtn,.subtaskAddBtn,.weeklyReview button,.budgetMonthBar button,#view .chip:not(.active),#sheetWrap .chip:not(.active){background:transparent!important;background-image:none!important;color:var(--text)!important;border:1px solid var(--line)!important;box-shadow:none!important;font-weight:600!important;min-height:44px}
+#timelineBtn,.budgetBtn:not(.budgetPrimary),#quickFillBtn,.subtaskAddBtn,.weeklyReview button,.budgetMonthBar button{border-radius:var(--rControl)!important}
+#view .chip,#sheetWrap .chip{border-radius:999px!important}
+/* Quiet */
+.dayCheckLink,[data-add-chore],[data-r1-lists]{background:transparent!important;border:0!important;box-shadow:none!important;color:var(--sec)!important;font-weight:600!important;text-decoration:none!important;border-radius:var(--rControl)!important}
+/* Selected: segments, date chips and sharing choice. */
+.planSegments button,.budgetScopeBar button,.taskChoiceSegments button{background:transparent!important;color:var(--muted)!important;border:1px solid transparent!important;box-shadow:none!important;font-weight:600!important;border-radius:var(--rControl)!important}
+.planSegments button.active,.budgetScopeBar button.active,.taskChoiceSegments button.active,#quickDates .chip.active{background:var(--secTint)!important;color:var(--sec)!important;border-color:transparent!important;box-shadow:none!important;font-weight:600!important}
+/* Overlays: elevation from the shadow alone, no hairline border on top of it. */
+.sheet,.taskActionSheet{border:0!important}
+.dashboardNextCard{border:0!important;box-shadow:none!important;border-radius:var(--rSurface)!important}
+</style>

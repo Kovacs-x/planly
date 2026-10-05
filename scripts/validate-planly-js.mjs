@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=685r117'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-691a-79'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-692a-80'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -147,6 +147,11 @@ if(app.includes('<span class="dashboardLabel">Today</span>'))fail('decorative To
 {const app=read('v2/app-v3.2.0.js');if(!app.includes("$('#view').innerHTML=`${dashboard}${statusCard}${billsDue}${schedule}${anytimeSection}${overdueSection}${household}${top3}${todayDeadlinesHtml()}${dayCheck}${completedSection(completed,'today:'+key)}`"))fail('Today order must put tasks before Top 3, deadlines and the day check');
 for(const x of ['function todayDeadlinesHtml(){','class="dashboardHero dashboardCompact"','class="dashboardSummaryLine"','role="progressbar"'])if(!app.includes(x))fail('compact Today summary invariant missing: '+x);
 if(!read('v2/index.html').includes('<style id="planlyRefineC">'))fail('refine stage C styles missing');}
+// Impeccable stage D: one design vocabulary (header, primary/secondary/quiet buttons, selected state, overlays), recorded in DESIGN.md.
+{const html=read('v2/index.html'),i=html.indexOf('<style id="planlyRefineD">');if(i<0)fail('refine stage D styles missing');else{const css=html.slice(i,html.indexOf('</style>',i));
+for(const x of ['#searchToggle,#profileToggle{width:40px!important;height:40px!important','#planMyDayBtn,#taskForm .formActions .primary,.budgetBtn.budgetPrimary{background:var(--sec)!important','.planSegments button.active,.budgetScopeBar button.active,.taskChoiceSegments button.active,#quickDates .chip.active{background:var(--secTint)!important;color:var(--sec)!important','.sheet,.taskActionSheet{border:0!important}','.weeklyReview button'])if(!css.includes(x))fail('stage D invariant missing: '+x);
+if(/linear-gradient|radial-gradient/.test(css))fail('stage D must not add gradients');}
+for(const f of ['DESIGN.md','PRODUCT.md'])if(!read(f).length)fail(f+' missing');}
 for(const dead of ["'<div class=\"budgetEmpty\">Create an income category first.</div>'","'<div class=\"budgetEmpty\">Create a category first.</div>'"])if(ui.includes(dead.replace(/\\"/g,'"')))fail('Budget dead-end empty state returned: '+dead);}
 if(app.includes('else await cloudUpdateTask(conflict.localData,true,server.serverVersion);'))fail('Keep my version must reconcile Google, not only write the cloud row');}
 if(!r1Html.includes("for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>e.preventDefault(),{passive:false});"))fail('iOS pinch gestures must be cancelled');
