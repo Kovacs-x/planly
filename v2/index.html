@@ -622,7 +622,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=693a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=695a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
@@ -805,7 +805,7 @@ body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--to
 .budgetEmojiPicker[hidden]{display:none}
 .budgetEmojiSearch{min-height:44px}
 .budgetEmojiTabs{display:flex;justify-content:space-between;gap:2px}
-.budgetEmojiTab{min-width:36px;min-height:40px;border:0;border-radius:10px;background:transparent;font-size:20px;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.budgetEmojiTab{min-width:36px;min-height:44px;border:0;border-radius:10px;background:transparent;font-size:20px;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .budgetEmojiTab.active{background:var(--secTint)}
 .budgetEmojiGroupLabel{font-size:12px;color:var(--muted);font-weight:600}
 .budgetEmojiGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
