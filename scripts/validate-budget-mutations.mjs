@@ -13,7 +13,8 @@ const migration=read('supabase/migrations/041_collaborative_household_budget_ent
 const fail=m=>{throw new Error(m)};
 for(const marker of ["const versionBucket=k=>({category:'categories',target:'targets',entry:'entries'})[k]||null",'function acceptServer(op,server)','rows[i]={...rows[i],...server}','clearPending(op);clearConflict(op.kind,op.id)'])if(!core.includes(marker))fail('Authoritative create reconciliation invariant missing: '+marker);
 if(core.includes("const bucket=k+'s'"))fail('Legacy misspelled Budget version bucket derivation is still active');
-for(const marker of ["state.scope.owner_id===viewer","isOwner?'owner':'member'"])if(!scope.includes(marker))fail('Household Budget viewer-role label invariant missing: '+marker);
+// The viewer-role label lived only in the "Household Budget · owner/member" explainer, which was removed so the Household budget mirrors Me.
+if(/isOwner\?'owner':'member'|budgetSharedNote/.test(scope))fail('Household Budget explainer must stay removed');
 for(const marker of ['mutate','persistedEntryUpdate','classifyZero','cloud_version',"code:'conflict'","code:'denied'",'select(\'*\').maybeSingle','await a.bootstrap()','planly:budget-mutation-confirmed','persistedCategoryUpdate','persistedDelete'])if(!actions.includes(marker))fail('Missing authoritative Budget mutation invariant: '+marker);
 for(const marker of ['const used=state.entries.some','if(used){'])if(!actions.includes(marker))fail('Budget category removal note invariant missing: '+marker);
 for(const marker of ['planly:budget-ui-rendered','mutate','persistedCategoryUpdate'])if(!actions.includes(marker))fail('Budget action composition invariant missing: '+marker);
