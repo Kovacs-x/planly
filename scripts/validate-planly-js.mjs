@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=702r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-706a-94'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-707a-95'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=704a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=707a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -485,6 +485,17 @@ if(html.indexOf('<style id="planlyDockedNav">')<0||html.indexOf('<style id="plan
 for(const needle of ["async function cachedOrFresh(cache,url){const hit=await cache.match(url);return hit||freshOrCached(cache,url)}","const cache=await caches.open(CACHE),saved=await cache.match('./index.html');if(saved)return saved;","await Promise.all([cachedOrFresh(cache,APP_URL),cachedOrFresh(cache,HARDENING_URL),...CORE_URLS.map(url=>cachedOrFresh(cache,url)),...appendUrls.map(url=>cachedOrFresh(cache,url))]);","response=await cachedOrFresh(cache,RUNTIME_MANIFEST_URL)","if(event.request.url===SUPABASE_JS_URL){"])if(!sw.includes(needle))fail('Instant open invariant missing: '+needle);
 const pinned=(sw.match(/const SUPABASE_JS_URL='([^']+)'/)||[])[1];if(!pinned||!html.includes('<script src="'+pinned+'"></script>'))fail('Service worker must cache exactly the supabase-js URL the page loads');
 if(!/@\d+\.\d+\.\d+$/.test(pinned))fail('Cached supabase-js URL must be an exact version');}
+// Settled first screen: drawn for the account already signed in on this phone (display only), with saved calendar and bills,
+// after every module has run; the sign-in is then confirmed in the background and a rejected one ends on the welcome screen.
+{const app=read('v2/app-v3.2.0.js'),budget=read('v2/core-budget-v4.0b.js'),a=app.indexOf('function planlyStoredSignedInUser('),stored=app.slice(a,app.indexOf('\n',app.indexOf('function planlyAdoptStoredUser(')));
+if(a<0)fail('stored signed-in user missing');
+if(!stored.includes("String(u.id)!==String(localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||''))return null"))fail('Stored user must match the last account on this phone');
+if(/access_token|refresh_token/.test(stored))fail('The early (unconfirmed) session must not carry any token');
+if(!stored.includes("planlySession={user,provisional:true};restorePlanlyCalendarCache();return true"))fail('Early session must be marked provisional');
+if(!app.includes("onAuthStateChange((_event,session)=>{const previousUser=planlySession?.provisional?'':String(planlySession?.user?.id||''),"))fail('A provisional session must not skip the first confirmed sign-in work');
+if(!app.includes("load();applyTheme();if(PLANLY_CLOUD_PREVIEW)planlyAdoptStoredUser();"))fail('Stored user must be adopted before the first render');
+if(!app.includes("queueMicrotask(()=>render());"))fail('Render after all modules have run (before first paint) missing');
+for(const needle of ["const TODAY_BILLS_COPY='planly-budget-today-bills-v1:';","{const last=String(localStorage.getItem('planly-cloud-last-account-v1')||''),copy=last&&readTodayBillsCopy(last);if(copy)todayBills=copy}","if(!owner||owner!==String(localStorage.getItem('planly-cloud-last-account-v1')||''))todayBills=[];","todayBillsRefreshedAt=now();saveTodayBillsCopy();"])if(!budget.includes(needle))fail('Today bills copy invariant missing: '+needle);}
 // Cleanup: Focus mode and the old Intelligence screens (Plan My Day, Plan my week, Day check, Suggest 3, Tidy up, Why, Monday review) are gone.
 {const html=read('v2/index.html'),sw=read('v2/sw.js'),runtime=[s.app,s.hardening,...[...new Set(sw.match(/core-[a-z0-9.-]+\.js/g))].map(f=>read('v2/'+f))].join('\n');
 for(const gone of ['openFocus','closeFocus','renderFocus','refreshFocusIfOpen','focusTicker','data-timeline-focus','data-task-menu="focus"','data-dashboard-focus','focusMs','openPlanDay','renderPlanDay','commitPlanDay','dayPlanDraft','openPlanWeek','weeklyReviewHtml','data-plan-week','todayDayCheckHtml','suggestTop3WithUndo','tidyOverdue','showIntelligenceWhy','intelligenceSnoozeDate','data-i2-','recordIntelligenceCompletion','removeIntelligenceCompletionSample'])if(runtime.includes(gone))fail('Removed feature still referenced: '+gone);
