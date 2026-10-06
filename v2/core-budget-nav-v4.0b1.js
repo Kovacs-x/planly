@@ -21,7 +21,7 @@ async function renderBudgetStable(view){
 render=function(){
   if(state.tab!=='budget'){budgetRenderGeneration++;budgetInvalidated=true;return baseRender()}
   $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab==='budget'));
-  $('#addBtn').style.display='none';setHeader('Budget','Private finance');
+  $('#addBtn').style.display='none';setHeader('Budget',window.PlanlyBudget?.getScopeType?.()==='household'?'Household':'Personal');
   const view=$('#view');
   if(view&&budgetInvalidated&&!budgetRenderPromise&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){view.classList.remove('viewEntering');void view.offsetWidth;view.classList.add('viewEntering')}
   renderBudgetStable(view);
