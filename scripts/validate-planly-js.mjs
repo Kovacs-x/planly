@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=710r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-710a-99'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-711a-100'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=710a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=711a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -514,6 +514,17 @@ if(read('v2/core-budget-nav-v4.0b1.js').includes('Private finance')||!read('v2/c
  if(!/\.planlyTapSwitch\{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;clip-path:inset\(0 round 999px\)/.test(html)||/\.planlyTapSwitch\{[^}]*appearance/.test(html))fail('tap switch must cover the button, invisible and unstyled');
  if(!html.includes('html.planlyNoHaptics .planlyTapSwitch{display:none}')||!app.includes("function render(){planlySyncHaptics();")||!app.includes('save();planlySyncHaptics();'))fail('Haptic feedback off must remove the tap switch');
  if(!app.includes("if(Date.now()-planlyNativeTapAt<1000)return;")||!app.includes("e.target?.classList?.contains('planlyTapSwitch'))e.stopPropagation()"))fail('native tap must not double the haptic or leak change events');}
+// Google Calendar stays connected: the refresh token lives only server-side (migration 051 + google-calendar-token Edge Function).
+{const app=read('v2/app-v3.2.0.js'),mig=read('supabase/migrations/051_google_calendar_tokens.sql'),fn=read('supabase/functions/google-calendar-token/index.ts'),cfg=read('v2/supabase-config.js');
+ if(!app.includes("google.accounts.oauth2.initCodeClient({")||!app.includes("ux_mode:'popup'")||!app.includes("planlyGoogleTokenCall('exchange',{code:resp.code})"))fail('signed-in Google connect must use the one-time code flow through the server');
+ if(/refresh_?token/i.test(app.replace(/refresh_token:'r'/g,'').split('function googleTokenFresh')[1]?.split('function getDeleteQueue')[0]||'x')||/GOOGLE_CLIENT_SECRET|client_secret/.test(app+cfg))fail('browser code must never hold a Google refresh token or client secret');
+ if(!app.includes("function googleLinked(a=getGoogleAuth()){return !!a.linked&&!!planlySession?.user?.id&&a.user===String(planlySession.user.id)}"))fail('a Google link must belong to the signed-in Planly account');
+ if(!app.includes("if(ownerChanged||explicitSignOut){resetPlanlyCloudRuntimeState();clearGoogleAuth()}"))fail('signing out or switching account must forget the Google connection on this phone');
+ if(!/revoke all on planly_private\.google_calendar_tokens from public, anon, authenticated/.test(mig)||!mig.includes('enable row level security'))fail('Google token table must be closed to browser roles');
+ for(const f of ['planly_google_token_save(uuid,text,text)','planly_google_token_get(uuid)','planly_google_token_delete(uuid)']){if(!mig.includes('revoke all on function public.'+f+' from public, anon, authenticated')||!mig.includes('grant execute on function public.'+f+' to service_role'))fail('Google token RPC must be service_role only: '+f);if(new RegExp('grant execute on function public\\.'+f.replace(/[().]/g,'\\$&')+' to (authenticated|anon)').test(mig))fail('Google token RPC granted to browser role: '+f)}
+ if(!fn.includes("fetch(SB + '/auth/v1/user', { headers: { apikey: ANON, Authorization: auth } })")||/p_user:\s*body\.|body\.(user|owner)/.test(fn))fail('Edge Function must take the user from the verified session, never the body');
+ if(!fn.includes("Deno.env.get('GOOGLE_CLIENT_SECRET')")||/client_secret:\s*'[^']/.test(fn))fail('Google client secret must come from an Edge Function secret');
+ if(!fn.includes("'Access-Control-Allow-Origin': 'https://kovacs-x.github.io'")||/refresh_token\s*:\s*String\(r\.data\.refresh_token\)\s*}/.test(fn)||/json\(\{[^}]*refresh/.test(fn))fail('Edge Function must not return the refresh token and must limit CORS');}
 // Cleanup: Focus mode and the old Intelligence screens (Plan My Day, Plan my week, Day check, Suggest 3, Tidy up, Why, Monday review) are gone.
 {const html=read('v2/index.html'),sw=read('v2/sw.js'),runtime=[s.app,s.hardening,...[...new Set(sw.match(/core-[a-z0-9.-]+\.js/g))].map(f=>read('v2/'+f))].join('\n');
 for(const gone of ['openFocus','closeFocus','renderFocus','refreshFocusIfOpen','focusTicker','data-timeline-focus','data-task-menu="focus"','data-dashboard-focus','focusMs','openPlanDay','renderPlanDay','commitPlanDay','dayPlanDraft','openPlanWeek','weeklyReviewHtml','data-plan-week','todayDayCheckHtml','suggestTop3WithUndo','tidyOverdue','showIntelligenceWhy','intelligenceSnoozeDate','data-i2-','recordIntelligenceCompletion','removeIntelligenceCompletionSample'])if(runtime.includes(gone))fail('Removed feature still referenced: '+gone);
