@@ -1,5 +1,5 @@
 {
-  "version": 51,
+  "version": 52,
   "modules": [
     "./core-budget-v4.0b.js?v=400k12",
     "./core-budget-ui-v4.0b.js?v=695b01",
@@ -14,7 +14,7 @@
     "./core-household-dashboard-v4.2.js?v=420a03",
     "./core-budget-review-hardening-v4.0p.js?v=400p05",
     "./core-budget-core-guard-v4.0q.js?v=400q04",
-    "./core-update-v4.3.js?v=430a01",
+    "./core-update-v4.3.js?v=702u01",
     "./core-safari-diagnostics-v4.3b.js?v=430b01",
     "./core-intelligence-v5.js?v=701i01"
   ]

@@ -25,7 +25,7 @@ render=function(){
   const view=$('#view');
   if(view&&budgetInvalidated&&!budgetRenderPromise&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){view.classList.remove('viewEntering');void view.offsetWidth;view.classList.add('viewEntering')}
   renderBudgetStable(view);
-  refreshProjectsIfOpen();refreshTimelineIfOpen();refreshFocusIfOpen();refreshTaskActionsIfOpen();
+  refreshProjectsIfOpen();refreshTimelineIfOpen();refreshTaskActionsIfOpen();
 };
 window.addEventListener('planly:budget-invalidated',()=>{budgetInvalidated=true;if(state.tab==='budget')render()});
 })();
