@@ -93,9 +93,16 @@ const base={today,tomorrow:'2026-10-07',weekend:'2026-10-10',nowMinutes:9*60,pla
 const yearEnd=['2026-12-13','2026-12-20','2026-12-27','2027-01-03'].map((d,i)=>H('y'+i,'Bins',d,600));const ye=L({today:'2027-01-05',history:yearEnd});
 if(ye.habits.length!==1||ye.habits[0].weekday!==jsWd('2027-01-03')||ye.habits[0].unit!=='weeks'||ye.habits[0].interval!==1)throw Error('weekly habit across a year end wrong: '+JSON.stringify(ye.habits));
 for(let i=-400;i<=400;i+=37){const k=shift('2026-10-06',i),r=L({today:k,history:[0,7,14].map(n=>H('w'+n,'W',shift(k,-21+n),600))});if(r.habits[0]?.weekday!==jsWd(shift(k,-7)))throw Error('weekday maths wrong near '+k)}
-// learn() does not change its input, is deterministic, and ignores rows before "since", in the future or older than 180 days
+// learn() does not change its input, is deterministic, and ignores rows in the future or older than 180 days
 const hist=[H('a','Call mum','2026-09-20',1140),H('b','Call mum','2026-09-27',1140),H('c','Call mum','2026-10-04',1140)],snap=JSON.stringify(hist);const l1=L({today,history:hist});if(JSON.stringify(hist)!==snap||JSON.stringify(l1)!==JSON.stringify(L({today,history:JSON.parse(snap)})))throw Error('learn not pure');
-if(L({today,history:hist,since:'2026-09-28'}).n!==1)throw Error('since not respected');
+// learning is continuous: recent days count more, so a changed routine wins within a few weeks
+{const old=[60,67,74,81,88,95,102,109].map(k=>H('o'+k,'Gym',shift(today,-k),8*60,{dur:60})),now=[6,13,20].map(k=>H('n'+k,'Gym',shift(today,-k),19*60,{dur:60}));
+ const g=L({today,history:[...old,...now]}).byKey.gym;if(g.start!==18*60)throw Error('a new routine must win over older history: '+JSON.stringify(g));
+ if(L({today,history:old}).byKey.gym.start!==7*60)throw Error('old routine baseline wrong');
+ const slips=[90,97,104,111,118,125].map(k=>H('s'+k,'Admin',shift(today,-k),600,{date:shift(today,-k-2),defer:1})),onTime=[5,12,19].map(k=>H('t'+k,'Admin',shift(today,-k),600));
+ const a=L({today,history:[...slips,...onTime]}).byKey.admin;if(!(a.slipRate<0.5))throw Error('a task that stopped slipping must stop being flagged: '+a.slipRate);
+ if(S({...base,history:[...slips,...onTime],tasks:[t('Admin')]}).suggestions.some(x=>x.kind==='slip'))throw Error('slip suggested for a task that no longer slips');
+ if(!(L({today,history:slips}).byKey.admin.slipRate===1))throw Error('slip baseline wrong');}
 if(L({today,history:[H('f','F','2026-10-07',600),H('o','O','2026-03-01',600)]}).n!==0)throw Error('future/old rows must be ignored');
 // habits: a steady rhythm of hand-made tasks → "Make it repeat"
 const habit=S({...base,history:hist,tasks:[]}).suggestions.find(x=>x.kind==='habit');

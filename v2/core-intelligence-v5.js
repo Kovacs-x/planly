@@ -50,22 +50,25 @@ function analyse(input={}){const today=String(input.today||'');if(!dateParts(tod
 }
 
 // Learning (6.1): plain statistics over the caller's own completed tasks. Pure: no clock, no storage.
-// Each history row: {id,title,category,date,time,durationMinutes,deferCount,recurring,doneDay:'YYYY-MM-DD',doneMin:0-1439}.
+// Learning never resets: older days simply count less. Each history row: {id,title,category,date,time,durationMinutes,deferCount,recurring,doneDay:'YYYY-MM-DD',doneMin:0-1439}.
 const fromSerial=n=>{const era=Math.floor(n/146097),doe=n-era*146097,yoe=Math.floor((doe-Math.floor(doe/1460)+Math.floor(doe/36524)-Math.floor(doe/146096))/365),doy=doe-(365*yoe+Math.floor(yoe/4)-Math.floor(yoe/100)),mp=Math.floor((5*doy+2)/153),d=doy-Math.floor((153*mp+2)/5)+1,m=mp+(mp<10?3:-9),y=yoe+era*400+(m<=2?1:0);return y+'-'+pad(m)+'-'+pad(d)};
 const addDaysKey=(s,n)=>fromSerial(serial(s)+n),weekdayOf=s=>(((serial(s)-serial('1970-01-01'))%7)+7+4)%7;
 const WEEKDAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const titleKey=s=>String(s||'').toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/g,' ').replace(/\b\d+\b/g,' ').replace(/\s+/g,' ').trim().slice(0,40);
 const median=a=>{if(!a.length)return NaN;const b=a.slice().sort((x,y)=>x-y),m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2};
+// Recent days count more (half-life 30 days), so a change in routine shows within a few weeks.
+const HALF_LIFE=30,recency=age=>Math.pow(0.5,Math.max(0,age)/HALF_LIFE);
+const wMedian=(rows,f)=>{const a=[];for(const r of rows){const v=f(r);if(v!=null&&Number.isFinite(v))a.push([v,r.w])}if(!a.length)return NaN;a.sort((x,y)=>x[0]-y[0]);let total=0;for(const x of a)total+=x[1];let run=0;for(const x of a){run+=x[1];if(run>=total/2)return x[0]}return a[a.length-1][0]};
 const hasTime=s=>/^\d{1,2}:\d{2}/.test(String(s||''));
-function groupStats(rows){const starts=rows.map(r=>r.start),actual=rows.map(r=>r.actual).filter(x=>x!=null),wd={};for(let w=0;w<7;w++){const s=rows.filter(r=>r.wd===w).map(r=>r.start);if(s.length>=3)wd[w]=Math.round(median(s)/15)*15}
- const counts=[0,0,0,0,0,0,0];for(const r of rows)counts[r.wd]++;let mode=-1;for(let w=0;w<7;w++)if(counts[w]>(mode<0?0:counts[mode]))mode=w;
- return {n:rows.length,start:Math.round(median(starts)/15)*15,startByWd:wd,actual:actual.length?Math.max(5,Math.round(median(actual)/5)*5):null,actualN:actual.length,slipRate:rows.length?rows.filter(r=>r.slipped).length/rows.length:0,mostDoneWd:mode>=0&&counts[mode]>=Math.max(2,rows.length/2)?mode:-1}}
+function groupStats(rows){const actualN=rows.filter(r=>r.actual!=null).length,wd={};for(let w=0;w<7;w++){const s=rows.filter(r=>r.wd===w);if(s.length>=3)wd[w]=Math.round(wMedian(s,r=>r.start)/15)*15}
+ const counts=[0,0,0,0,0,0,0],wts=[0,0,0,0,0,0,0];let wsum=0,wslip=0;for(const r of rows){counts[r.wd]++;wts[r.wd]+=r.w;wsum+=r.w;if(r.slipped)wslip+=r.w}let mode=-1;for(let w=0;w<7;w++)if(counts[w]&&(mode<0||wts[w]>wts[mode]))mode=w;
+ return {n:rows.length,start:Math.round(wMedian(rows,r=>r.start)/15)*15,startByWd:wd,actual:actualN?Math.max(5,Math.round(wMedian(rows,r=>r.actual)/5)*5):null,actualN,slipRate:wsum?wslip/wsum:0,mostDoneWd:mode>=0&&counts[mode]>=2&&wts[mode]>=wsum/2?mode:-1}}
 function learn(input={}){const today=String(input.today||'');if(!dateParts(today))return {n:0,byKey:{},byCat:{},habits:[],usualByWd:null};
- const from=addDaysKey(today,-180),since=String(input.since||'');
- const rows=[];for(const h of (Array.isArray(input.history)?input.history:[])){const doneDay=String(h?.doneDay||'');if(!dateParts(doneDay)||doneDay>today||doneDay<from||(since&&doneDay<since))continue;
+ const from=addDaysKey(today,-180);
+ const rows=[];for(const h of (Array.isArray(input.history)?input.history:[])){const doneDay=String(h?.doneDay||'');if(!dateParts(doneDay)||doneDay>today||doneDay<from)continue;
   const dur=clamp(finiteDuration(h.durationMinutes,30),5,720),doneMin=clamp(Math.round(Number(h.doneMin)||0),0,1439),planned=String(h.date||''),onDay=planned===doneDay,timed=hasTime(h.time)&&onDay,start=timed?timeMin(h.time):Math.max(0,doneMin-dur);
   const actual=timed&&doneMin>=start+5&&doneMin<=start+Math.max(dur*2.5,dur+60)?doneMin-start:null;
-  rows.push({id:String(h.id||''),title:String(h.title||''),key:titleKey(h.title),cat:String(h.category||'Personal'),doneDay,doneMin,wd:weekdayOf(doneDay),start,actual,recurring:!!h.recurring,slipped:Number(h.deferCount||0)>0||(!!planned&&dateParts(planned)&&doneDay>planned)})}
+  rows.push({w:recency(dayDiff(today,doneDay)),id:String(h.id||''),title:String(h.title||''),key:titleKey(h.title),cat:String(h.category||'Personal'),doneDay,doneMin,wd:weekdayOf(doneDay),start,actual,recurring:!!h.recurring,slipped:Number(h.deferCount||0)>0||(!!planned&&dateParts(planned)&&doneDay>planned)})}
  const group=f=>{const g={};for(const r of rows){const k=f(r);if(!k)continue;(g[k]||(g[k]=[])).push(r)}const out={};for(const k of Object.keys(g).sort())out[k]=groupStats(g[k]);return out};
  const byKey=group(r=>r.key),byCat=group(r=>r.cat);
  // Habits: the same task done by hand at a steady rhythm (daily, weekly, fortnightly, monthly).
@@ -90,7 +93,7 @@ function suggest(input={}){
  const startP=timeMin(input.planningStart||'08:00'),endP=Math.max(startP+60,timeMin(input.planningEnd||'23:00')||1439),learning=input.learning||{},dismissed=new Set((input.dismissed||[]).map(String));
  const tomorrow=String(input.tomorrow||''),weekend=String(input.weekend||''),restHours=clamp(Number(input.nightRestHours)||0,0,12);
  const fb=input.feedback||{},fbKinds=fb.kinds||{},fbSubjects=fb.subjects||{};
- const profile=learn({today,history:input.history,since:input.since});
+ const profile=learn({today,history:input.history});
  const tasks=Array.isArray(input.tasks)?input.tasks:[],live=t=>t&&!t.completed&&!t.deleted&&!t.deleted_at;
  const mine=t=>live(t)&&owned(t)&&String(t.visibility||'private')!=='household';
  const blocksMe=t=>live(t)&&(owned(t)||String(t.assigneeId||t.assignee_id||'')===uid);
