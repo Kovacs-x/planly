@@ -587,7 +587,7 @@ body.welcomeOpen{overflow:hidden}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=702a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=703a01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
@@ -787,6 +787,14 @@ body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--to
 .suggestDismiss{flex:0 0 44px;min-height:44px;border:0;background:transparent;color:var(--muted);font-size:18px;cursor:pointer}
 .suggestEmpty{display:grid;gap:4px;padding:18px 4px;text-align:center}
 .suggestEmpty span{color:var(--muted);font-size:14px;line-height:1.4}
+.suggestActions button{white-space:normal;line-height:1.2;padding-left:10px;padding-right:10px}
+.learnedSummary{margin:14px 0 12px;padding:14px;border-radius:var(--rSurface,16px);background:var(--cardSoft,var(--bg))}
+.learnedSummary>strong{display:block;font-size:15px;font-weight:600;margin-bottom:8px}
+.learnedSummary dl{display:grid;gap:8px;margin:0}
+.learnedSummary dl>div{display:grid;grid-template-columns:88px minmax(0,1fr);gap:8px;align-items:baseline}
+.learnedSummary dt{font-size:12px;font-weight:600;color:var(--sec)}
+.learnedSummary dd{margin:0;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+.learnedSummary p{margin:8px 0 0;font-size:12px;line-height:1.4}
 </style>
 <style id="planlyBudgetEmoji">
 /* Budget categories: emoji picture tiles with labels, a picker with search and tabs, and one-tap suggestions. */

@@ -83,3 +83,64 @@ const rest=S({...base,busy:[{start:0,end:420}],nightRestHours:8,tasks:[t('call')
 // nothing to suggest is an empty list
 if(S({...base,tasks:[]}).suggestions.length!==0)throw Error('empty day must have no suggestions');
 console.log('Planly Suggestions engine checks passed');}
+// ---- Smarter Suggestions (6.1): learning from your own finished tasks, habits, slips, timings, your week, feedback ----
+{const S=api.suggest,L=api.learn;if(typeof L!=='function')throw Error('learn() missing');
+const jsWd=k=>new Date(k+'T12:00:00Z').getUTCDay(),shift=(k,n)=>{const d=new Date(k+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const today='2026-10-06',H=(id,title,doneDay,doneMin,o={})=>({id,title,category:o.cat||'Personal',date:o.date??doneDay,time:o.time||'',durationMinutes:o.dur||30,deferCount:o.defer||0,recurring:!!o.rec,doneDay,doneMin});
+const t=(id,o={})=>({id,title:id,date:today,priority:'normal',durationMinutes:30,completed:false,visibility:'private',category:'Personal',createdAt:1,...o});
+const base={today,tomorrow:'2026-10-07',weekend:'2026-10-10',nowMinutes:9*60,planningStart:'08:00',planningEnd:'22:00',currentUserId:'me',defaultDuration:30,busy:[],learning:{},dismissed:[],nightRestHours:0};
+// pure date maths matches the calendar across month and year ends
+const yearEnd=['2026-12-13','2026-12-20','2026-12-27','2027-01-03'].map((d,i)=>H('y'+i,'Bins',d,600));const ye=L({today:'2027-01-05',history:yearEnd});
+if(ye.habits.length!==1||ye.habits[0].weekday!==jsWd('2027-01-03')||ye.habits[0].unit!=='weeks'||ye.habits[0].interval!==1)throw Error('weekly habit across a year end wrong: '+JSON.stringify(ye.habits));
+for(let i=-400;i<=400;i+=37){const k=shift('2026-10-06',i),r=L({today:k,history:[0,7,14].map(n=>H('w'+n,'W',shift(k,-21+n),600))});if(r.habits[0]?.weekday!==jsWd(shift(k,-7)))throw Error('weekday maths wrong near '+k)}
+// learn() does not change its input, is deterministic, and ignores rows before "since", in the future or older than 180 days
+const hist=[H('a','Call mum','2026-09-20',1140),H('b','Call mum','2026-09-27',1140),H('c','Call mum','2026-10-04',1140)],snap=JSON.stringify(hist);const l1=L({today,history:hist});if(JSON.stringify(hist)!==snap||JSON.stringify(l1)!==JSON.stringify(L({today,history:JSON.parse(snap)})))throw Error('learn not pure');
+if(L({today,history:hist,since:'2026-09-28'}).n!==1)throw Error('since not respected');
+if(L({today,history:[H('f','F','2026-10-07',600),H('o','O','2026-03-01',600)]}).n!==0)throw Error('future/old rows must be ignored');
+// habits: a steady rhythm of hand-made tasks → "Make it repeat"
+const habit=S({...base,history:hist,tasks:[]}).suggestions.find(x=>x.kind==='habit');
+if(!habit||habit.actions[0].op!=='repeat'||habit.actions[0].id!=='c'||habit.actions[0].unit!=='weeks'||habit.actions[0].interval!==1||habit.actions[0].weekday!==0||!/every week/.test(habit.title)||!/3 times on Sundays/.test(habit.why))throw Error('habit wrong: '+JSON.stringify(habit));
+if(S({...base,history:hist,tasks:[t('Call mum',{date:'2026-10-11'})]}).suggestions.some(x=>x.kind==='habit'))throw Error('habit suggested although an open task exists');
+if(S({...base,history:hist,tasks:[t('call mum',{completed:true,recurrence:'weekly'})]}).suggestions.some(x=>x.kind==='habit'))throw Error('habit suggested although it already repeats');
+if(L({today,history:[H('a','X','2026-09-01',600),H('b','X','2026-09-04',600),H('c','X','2026-09-20',600)]}).habits.length)throw Error('irregular rhythm must not be a habit');
+if(L({today,history:hist.slice(0,2)}).habits.length)throw Error('two times is not a habit');
+if(L({today,history:hist.map(h=>({...h,recurring:true}))}).habits.length)throw Error('already-repeating tasks are not habits');
+if(L({today:'2026-10-30',history:hist}).habits.length)throw Error('a habit not done for over two periods is stale');
+const fort=L({today,history:['2026-08-25','2026-09-08','2026-09-22','2026-10-06'].map((d,i)=>H('p'+i,'Pay window cleaner',d,600))}).habits[0];if(fort?.interval!==2||fort.unit!=='weeks')throw Error('fortnightly habit wrong: '+JSON.stringify(fort));
+// usual time: the task's own history (by weekday when there is enough) beats its category
+const gymHist=['2026-09-15','2026-09-22','2026-09-29'].map((d,i)=>H('g'+i,'Gym',d,19*60,{dur:60}));const g=S({...base,history:gymHist,tasks:[t('Gym',{durationMinutes:60})]}).suggestions.find(x=>x.kind==='slot');
+if(!g||g.actions[0].time!=='18:00'||!/On Tuesdays you usually do “Gym” around 18:00/.test(g.why))throw Error('learned weekday time wrong: '+JSON.stringify(g));
+const g2=S({...base,history:['2026-09-14','2026-09-23','2026-09-30'].map((d,i)=>H('g'+i,'Gym',d,19*60,{dur:60})),tasks:[t('Gym',{durationMinutes:60})]}).suggestions.find(x=>x.kind==='slot');if(!g2||g2.actions[0].time!=='18:00'||!/usually do “Gym” around 18:00 \(3 times\)/.test(g2.why))throw Error('learned title time wrong: '+JSON.stringify(g2));
+// a task with its own history gets its usual time first; a busy best time falls to the nearest free one, not the start of the gap
+{const r=S({...base,history:gymHist,learning:{Admin:{usualMinutes:30,bestTimeMinutes:1080,samples:3}},tasks:[t('Call mum',{priority:'high',category:'Admin'}),t('Gym',{durationMinutes:60})]}).suggestions.filter(x=>x.kind==='slot'),gy=r.find(x=>x.actions[0].id==='Gym'),cm=r.find(x=>x.actions[0].id==='Call mum');
+if(gy?.actions[0].time!=='18:00'||!cm||cm.actions[0].time==='18:00')throw Error('own history must claim its usual time first: '+JSON.stringify(r));
+const near=S({...base,history:gymHist,busy:[{start:17*60+45,end:18*60+30}],tasks:[t('Gym',{durationMinutes:60})]}).suggestions.find(x=>x.kind==='slot');if(near?.actions[0].time!=='18:30')throw Error('busy usual time must fall to the nearest free time: '+JSON.stringify(near))}
+{const r=S({...base,history:gymHist,learning:{Admin:{usualMinutes:30,bestTimeMinutes:1080,samples:3}},tasks:[t('Old admin',{category:'Admin',date:'2026-10-03',priority:'high'}),t('Gym',{durationMinutes:60})]}).suggestions,late=r.find(x=>x.kind==='late'),gy=r.find(x=>x.kind==='slot');
+if(gy?.actions[0].time!=='18:00'||!late||late.actions[0].time==='18:00')throw Error('an overdue task must not take a time held by a task with its own history: '+JSON.stringify(r))}
+// real durations from ticking timed tasks (needs 3; planned 60m, ticked ~75m after start)
+const dh=['2026-09-22','2026-09-24','2026-09-29'].map((d,i)=>H('d'+i,'Gym',d,19*60+15,{time:'18:00',dur:60}));const ds=S({...base,history:dh,tasks:[t('Gym',{time:'18:00',durationMinutes:60})]}).suggestions.find(x=>x.kind==='duration');
+if(!ds||ds.actions[0].minutes!==75||ds.actions[0].ids[0]!=='Gym'||!/usually takes you 1h 15m/.test(ds.title))throw Error('learned duration wrong: '+JSON.stringify(ds));
+if(S({...base,history:dh.slice(0,2),tasks:[t('Gym',{time:'18:00',durationMinutes:60})]}).suggestions.some(x=>x.kind==='duration'))throw Error('duration needs 3 timed ticks');
+if(L({today,history:[H('z','Gym','2026-09-22',23*60,{time:'08:00',dur:60})]}).byKey.gym.actualN!==0)throw Error('a tick hours after the end must not count as a duration');
+if(S({...base,nowMinutes:19*60,history:dh,tasks:[t('Gym',{time:'18:00',durationMinutes:60})]}).suggestions.some(x=>x.kind==='duration'))throw Error('duration suggested for a task already started');
+// likely to slip: a task you keep pushing back gets a firm time, or the weekday it usually gets done
+const slipHist=['2026-09-10','2026-09-17','2026-09-24','2026-10-01'].map((d,i)=>H('s'+i,'Do admin',d,11*60,{date:shift(d,-2),defer:1}));const sl=S({...base,history:slipHist,tasks:[t('Do admin')]}).suggestions.find(x=>x.kind==='slip');
+if(!sl||!/^Lock in 10:30$/.test(sl.actions[0].label)||sl.actions[1]?.date!=='2026-10-08'||!/pushed it back 4 of the last 4 times/.test(sl.why))throw Error('slip wrong: '+JSON.stringify(sl));
+if(S({...base,history:slipHist,tasks:[t('Do admin')]}).suggestions.some(x=>x.kind==='slot'&&x.actions[0].id==='Do admin'))throw Error('slip and slot duplicated for one task');
+if(!S({...base,tasks:[t('Renew',{deferCount:2})]}).suggestions.some(x=>x.kind==='slip'&&/moved 2 times/.test(x.why)))throw Error('task moved twice should be flagged');
+// your week: a coming day with far more planned than usual, moved to a lighter day (needs 4 weeks of history)
+const weekHist=[];for(let k=1;k<=42;k++){const d=shift(today,-k);if(jsWd(d)===6)for(let j=0;j<5;j++)weekHist.push(H('h'+k+j,'Thing '+j+k,d,600+j*30))}
+const wk=S({...base,history:weekHist,tasks:[1,2,3,4,5].map(i=>t('thu'+i,{date:'2026-10-08'}))}).suggestions.find(x=>x.kind==='week');
+if(!wk||wk.title!=='Thursday looks heavy'||wk.actions[0].date!=='2026-10-10'||wk.actions[0].id!=='thu1')throw Error('week wrong: '+JSON.stringify(wk));
+if(S({...base,history:weekHist.slice(0,10),tasks:[1,2,3,4,5].map(i=>t('thu'+i,{date:'2026-10-08'}))}).suggestions.some(x=>x.kind==='week'))throw Error('week hint needs 4 weeks of history');
+// feedback: kinds you keep dismissing are muted, a task dismissed twice is left alone, accepted kinds rank higher
+const mix={...base,history:weekHist,tasks:[t('Read'),...[1,2,3,4,5].map(i=>t('thu'+i,{date:'2026-10-08'}))]};const plain=S(mix).suggestions.map(x=>x.kind);
+if(plain.indexOf('slot')>plain.indexOf('week'))throw Error('slot should outrank week by default: '+plain);
+const liked=S({...mix,feedback:{kinds:{week:{a:6,d:0},slot:{a:0,d:2}}}}).suggestions.map(x=>x.kind);if(liked.indexOf('week')>liked.indexOf('slot'))throw Error('accepted kind must rank higher: '+liked);
+if(S({...mix,feedback:{kinds:{slot:{a:0,d:5}}}}).suggestions.some(x=>x.kind==='slot'))throw Error('a kind dismissed 5 times without use must be muted');
+if(!S({...mix,feedback:{kinds:{slot:{a:1,d:5}}}}).suggestions.some(x=>x.kind==='slot'))throw Error('a kind you sometimes use must not be muted');
+if(S({...mix,feedback:{subjects:{Read:2}}}).suggestions.some(x=>x.actions.some(a=>a.id==='Read')))throw Error('a task dismissed twice must be left alone');
+// never more than five; still only your own private open tasks
+if(S({...base,history:[...hist,...gymHist,...slipHist,...weekHist],tasks:[t('Gym'),t('Do admin'),t('a'),t('b'),t('c'),t('old',{date:'2026-10-01'}),...[1,2,3,4,5].map(i=>t('thu'+i,{date:'2026-10-08'}))]}).suggestions.length>5)throw Error('more than five suggestions');
+if(S({...base,history:slipHist,tasks:[t('Do admin',{visibility:'household'}),t('Do admin 2',{title:'Do admin',_planlyOwnedByMe:false})]}).suggestions.some(x=>x.actions.some(a=>a.op!=='repeat')))throw Error('suggested a task that is not yours');
+console.log('Planly Smarter Suggestions engine checks passed');}
