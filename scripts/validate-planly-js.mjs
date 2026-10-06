@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=702r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-707a-95'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-708a-96'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=707a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=708a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -491,7 +491,9 @@ if(!/@\d+\.\d+\.\d+$/.test(pinned))fail('Cached supabase-js URL must be an exact
 if(a<0)fail('stored signed-in user missing');
 if(!stored.includes("String(u.id)!==String(localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||''))return null"))fail('Stored user must match the last account on this phone');
 if(/access_token|refresh_token/.test(stored))fail('The early (unconfirmed) session must not carry any token');
-if(!stored.includes("planlySession={user,provisional:true};restorePlanlyCalendarCache();return true"))fail('Early session must be marked provisional');
+if(!stored.includes("planlySession={user,provisional:true};restorePlanlyHouseholdCopy(user.id);restorePlanlyCalendarCache();return true"))fail('Early session must be marked provisional');
+{const save=app.slice(app.indexOf('function savePlanlyHouseholdCopy('),app.indexOf('function restorePlanlyHouseholdCopy('));if(!save||/invite/i.test(save.replace('never invites','')))fail('Household copy must hold names and roles only, never invites');if((app.match(/;savePlanlyHouseholdCopy\(userId\);/g)||[]).length!==2)fail('Household copy must be saved whenever the household is confirmed');}
+{const hard=read('v2/hardening-v3.3b.js');if(!hard.includes("if(userId&&shared.householdId&&userId===String(localStorage.getItem(LAST_ACCOUNT_KEY)||''))assignmentContext=assignmentContextFromShared(shared,userId)"))fail('Assignment names must start from the household the app already has (same account only)');}
 if(!app.includes("onAuthStateChange((_event,session)=>{const previousUser=planlySession?.provisional?'':String(planlySession?.user?.id||''),"))fail('A provisional session must not skip the first confirmed sign-in work');
 if(!app.includes("load();applyTheme();if(PLANLY_CLOUD_PREVIEW)planlyAdoptStoredUser();"))fail('Stored user must be adopted before the first render');
 if(!app.includes("queueMicrotask(()=>render());"))fail('Render after all modules have run (before first paint) missing');
