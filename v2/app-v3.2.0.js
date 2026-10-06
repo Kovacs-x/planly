@@ -696,11 +696,42 @@ function setGoogleClientId(v){const id=(v||'').trim();if(id)localStorage.setItem
 function getGoogleAuth(){try{return JSON.parse(localStorage.getItem(GOOGLE_AUTH_KEY)||'{}')}catch{return {}}}
 function saveGoogleAuth(auth){localStorage.setItem(GOOGLE_AUTH_KEY,JSON.stringify(auth))}
 function clearGoogleAuth(){localStorage.removeItem(GOOGLE_AUTH_KEY);googleTokenClient=null}
-function googleConnected(){const a=getGoogleAuth();return !!a.accessToken&&Number(a.expiresAt||0)>Date.now()}
+/* Google Calendar stays connected: the long-lived refresh token is kept server-side (google-calendar-token Edge Function,
+   migration 051). This phone only holds a one-hour access token plus a "linked" flag for the signed-in Planly account. */
+function googleTokenFresh(a=getGoogleAuth()){return !!a.accessToken&&Number(a.expiresAt||0)>Date.now()&&(!a.user||a.user===String(planlySession?.user?.id||''))}
+function googleLinked(a=getGoogleAuth()){return !!a.linked&&!!planlySession?.user?.id&&a.user===String(planlySession.user.id)}
+function googleConnected(){return googleTokenFresh()||googleLinked()}
+async function planlyGoogleTokenCall(action,extra={}){
+  const sb=initPlanlySupabase()?planlySupabase:null;const session=sb?(await sb.auth.getSession()).data?.session:null;
+  if(!session?.access_token)throw new Error('Sign in to Planly first.');
+  const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/google-calendar-token',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action,...extra})});
+  const body=await res.json().catch(()=>({}));if(!res.ok){const err=new Error(body.error||'Google Calendar connection failed.');err.status=res.status;throw err}
+  return {...body,user:String(session.user?.id||'')};
+}
+function saveGoogleLinkedToken(r){saveGoogleAuth({accessToken:r.accessToken,expiresAt:Date.now()+Math.max(60,Number(r.expiresIn||3600)-60)*1000,linked:true,user:r.user})}
+let planlyGoogleRenewing=null;
+/* A fresh access token, renewed through the server when it has run out. Null when not connected (or Google revoked it). */
+function planlyGoogleAccessToken(){
+  const a=getGoogleAuth();if(googleTokenFresh(a))return Promise.resolve(a.accessToken);
+  if(!googleLinked(a))return Promise.resolve(null);
+  if(!planlyGoogleRenewing)planlyGoogleRenewing=planlyGoogleTokenCall('token').then(r=>{
+    if(r.linked&&r.accessToken){saveGoogleLinkedToken(r);return r.accessToken}
+    if(r.reconnect)saveGoogleAuth({accessToken:'expired',expiresAt:0});else clearGoogleAuth();return null;
+  }).finally(()=>{planlyGoogleRenewing=null});
+  return planlyGoogleRenewing;
+}
+/* Another phone connected Google for this account: pick that up quietly, once per sign-in. */
+let planlyGoogleDiscoveredFor='';
+function planlyGoogleDiscover(){
+  const uid=String(planlySession?.user?.id||'');if(!uid||planlyGoogleDiscoveredFor===uid||googleConnected())return;
+  if(!state.tasks.some(t=>t.addToCalendar)&&!getGoogleAuth().accessToken)return;
+  planlyGoogleDiscoveredFor=uid;
+  planlyGoogleTokenCall('token').then(r=>{if(r.linked&&r.accessToken&&r.user===String(planlySession?.user?.id||'')){saveGoogleLinkedToken(r);syncPendingGoogle().then(()=>render()).catch(()=>{})}}).catch(()=>{});
+}
 function googleStatusText(){
   const a=getGoogleAuth();
   if(googleConnected())return 'Connected';
-  if(a.accessToken)return 'Connection expired — reconnect to sync';
+  if(a.accessToken&&(!a.user||a.user===String(planlySession?.user?.id||'')))return 'Connection expired — reconnect to sync';
   return 'Not connected';
 }
 function getDeleteQueue(){try{const q=JSON.parse(localStorage.getItem(GOOGLE_DELETE_QUEUE_KEY)||'[]');return Array.isArray(q)?q:[]}catch{return []}}
@@ -760,6 +791,7 @@ async function requestGoogleAccess(prompt='consent'){
   const clientId=getGoogleClientId();
   if(!clientId)throw new Error('Add your Google OAuth client ID in Planly Settings first.');
   await waitForGoogleIdentity();
+  if(planlySession?.user?.id&&!planlySession.provisional)return requestGoogleLasting(clientId);
   return new Promise((resolve,reject)=>{
     googleTokenClient=google.accounts.oauth2.initTokenClient({
       client_id:clientId,
@@ -776,6 +808,28 @@ async function requestGoogleAccess(prompt='consent'){
   });
 }
 
+/* Signed in: Google gives a one-time code, the server swaps it for a lasting connection. */
+function requestGoogleLasting(clientId){
+  return new Promise((resolve,reject)=>{
+    googleTokenClient=google.accounts.oauth2.initCodeClient({
+      client_id:clientId,scope:GOOGLE_SCOPE,ux_mode:'popup',
+      callback:async(resp)=>{
+        if(resp?.error||!resp?.code)return reject(new Error(resp?.error_description||resp?.error||'Google sign-in was cancelled.'));
+        try{
+          const r=await planlyGoogleTokenCall('exchange',{code:resp.code});
+          if(!r.stays){
+            /* Google only issues the lasting part on a fresh approval. Clear the old approval so the next tap asks again. */
+            try{google.accounts.oauth2.revoke(r.accessToken,()=>{})}catch{}
+            clearGoogleAuth();return reject(new Error('Almost there: tap Connect once more and approve Planly again.'));
+          }
+          saveGoogleLinkedToken(r);resolve(r);
+        }catch(err){reject(err)}
+      },
+      error_callback:(err)=>reject(new Error(err?.message||'Google sign-in was cancelled.'))
+    });
+    googleTokenClient.requestCode();
+  });
+}
 async function ensureGoogleForTaskSync(){
   if(googleConnected())return true;
   if(!getGoogleClientId())return false;
@@ -787,15 +841,19 @@ async function ensureGoogleForTaskSync(){
   }
 }
 
-async function googleRequest(path,{method='GET',body}={}){
-  const auth=getGoogleAuth();
-  if(!googleConnected()){clearGoogleAuth();throw new Error('Google connection expired. Reconnect in Settings.')}
+async function googleRequest(path,{method='GET',body}={},retried=false){
+  const token=await planlyGoogleAccessToken().catch(()=>null);
+  if(!token){if(!googleLinked())clearGoogleAuth();throw new Error('Google connection expired. Reconnect in Settings.')}
   const res=await fetch('https://www.googleapis.com/calendar/v3'+path,{
     method,
-    headers:{Authorization:'Bearer '+auth.accessToken,'Content-Type':'application/json'},
+    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
     body:body===undefined?undefined:JSON.stringify(body)
   });
-  if(res.status===401){clearGoogleAuth();throw new Error('Google connection expired. Reconnect in Settings.')}
+  if(res.status===401){
+    const a=getGoogleAuth();
+    if(googleLinked(a)&&!retried){saveGoogleAuth({...a,accessToken:'',expiresAt:0});return googleRequest(path,{method,body},true)}
+    clearGoogleAuth();throw new Error('Google connection expired. Reconnect in Settings.')
+  }
   if(res.status===204)return null;
   const data=await res.json().catch(()=>({}));
   if(!res.ok){const err=new Error(data?.error?.message||('Google Calendar error '+res.status));err.status=res.status;throw err}
@@ -890,7 +948,8 @@ async function connectGoogle(){
   showToast('Google Calendar connected');
 }
 function disconnectGoogle(){
-  const token=getGoogleAuth().accessToken;
+  const a=getGoogleAuth(),token=a.accessToken;
+  if(a.linked)planlyGoogleTokenCall('disconnect').catch(()=>{});
   clearGoogleAuth();
   if(token&&window.google?.accounts?.oauth2?.revoke){try{google.accounts.oauth2.revoke(token,()=>{})}catch{}}
   showToast('Google Calendar disconnected');
@@ -1094,7 +1153,8 @@ function adoptPlanlySession(session,{explicitSignOut=false}={}){
   const previousOwner=String(planlySession?.user?.id||localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||''),nextOwner=String(session?.user?.id||''),ownerChanged=!!previousOwner&&!!nextOwner&&previousOwner!==nextOwner;
   planlySession=session||null;
   ['planlyHouseholdDashboardBtn','planlyListsBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.hidden=!nextOwner});
-  if(ownerChanged||explicitSignOut)resetPlanlyCloudRuntimeState();
+  if(ownerChanged||explicitSignOut){resetPlanlyCloudRuntimeState();clearGoogleAuth()}
+  if(nextOwner&&session?.access_token)setTimeout(planlyGoogleDiscover,4000);
   if(nextOwner)localStorage.setItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY,nextOwner);
   else if(explicitSignOut)localStorage.removeItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY);
   planlyWelcomeSync();planlyRecoverySync();
@@ -2100,7 +2160,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-710a-99';
+const PLANLY_RELEASE='planly-v2-711a-100';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -2251,7 +2311,7 @@ function settingsView(){
     <div class="settingsCard"><h3>Time planning</h3><div class="row2"><div class="field"><label for="planningStart">Planning day starts</label><input id="planningStart" type="time" step="900" class="input"></div><div class="field"><label for="planningEnd">Planning day ends</label><input id="planningEnd" type="time" step="900" class="input"></div></div><div class="muted settingsHelp">The Timeline uses these hours to calculate free time. Tasks outside the range are still shown.</div></div>
   </section>
   <section class="settingsGroup" data-sp="intelligence"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">Suggested</span><h2>Suggestions</h2><p>Concrete suggestions for today, worked out on this device from your tasks, free time and timings.</p></div></div><div class="settingsCard"><label class="settingToggle"><input id="intelligenceSuggestions" type="checkbox"><span><strong>Suggestions</strong><small>Show suggestions on Today and Plan. Nothing changes until you tap one.</small></span></label><label class="settingToggle"><input id="intelligenceChoreBalance" type="checkbox"><span><strong>Chore balance on Home</strong><small>Show neutral weekly household chore counts and optional share-out suggestions on this device.</small></span></label><label class="settingToggle"><input id="intelligenceNightRest" type="checkbox"><span><strong>Protect rest after night shifts</strong><small>Don’t suggest times during your rest after a long overnight block.</small></span></label><label class="muted smallLabel" for="intelligenceNightRestHours">Protected rest</label><select id="intelligenceNightRestHours" class="select"><option value="6">6 hours</option><option value="7">7 hours</option><option value="8">8 hours</option><option value="9">9 hours</option><option value="10">10 hours</option><option value="11">11 hours</option><option value="12">12 hours</option></select><div class="muted settingsHelp">These settings apply to this device. Suggestions are worked out on this phone; no AI or outside service is used.</div></div></section>\n  <section class="settingsGroup" data-sp="calendars"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">Connections</span><h2>Google Calendar</h2><p>Control how Planly writes timed tasks to your private Planly calendar.</p></div></div>
-    <div class="settingsCard"><div class="calendarStatusRow"><span class="statusDot ${googleConnected()?'connected':'offline'}"></span><strong>${esc(googleStatus)}</strong>${pendingCount?`<span class="muted">${pendingCount} pending</span>`:''}</div><div class="muted settingsHelp">Sync destination: your private <strong>Planly</strong> Google calendar. Planly refreshes Google access when you save a Calendar task when possible. Outlook is never modified.</div><label class="settingToggle"><input id="autoCalendarTimed" type="checkbox"><span><strong>Automatically sync timed tasks</strong><small>When a new task has a time, turn on “Add to Google Calendar” automatically.</small></span></label><details class="advancedSettings"><summary>Connection settings</summary><label class="muted smallLabel" for="googleClientId">Google OAuth client ID</label><input id="googleClientId" class="input" value="${esc(googleId)}" placeholder="...apps.googleusercontent.com" autocomplete="off"></details><button id="googleConnectBtn" class="primary">${googleConnected()?'Reconnect Google':'Connect Google Calendar'}</button><button id="googleSyncBtn" class="secondaryBtn">Sync pending items${pendingCount?` (${pendingCount})`:''}</button>${googleConnected()?'<button id="googleDisconnectBtn" class="dangerBtn">Disconnect Google</button>':''}</div>
+    <div class="settingsCard"><div class="calendarStatusRow"><span class="statusDot ${googleConnected()?'connected':'offline'}"></span><strong>${esc(googleStatus)}</strong>${pendingCount?`<span class="muted">${pendingCount} pending</span>`:''}</div><div class="muted settingsHelp">Sync destination: your private <strong>Planly</strong> Google calendar. Connect once and Planly stays connected; there is no need to reconnect. Outlook is never modified.</div><label class="settingToggle"><input id="autoCalendarTimed" type="checkbox"><span><strong>Automatically sync timed tasks</strong><small>When a new task has a time, turn on “Add to Google Calendar” automatically.</small></span></label><details class="advancedSettings"><summary>Connection settings</summary><label class="muted smallLabel" for="googleClientId">Google OAuth client ID</label><input id="googleClientId" class="input" value="${esc(googleId)}" placeholder="...apps.googleusercontent.com" autocomplete="off"></details><button id="googleConnectBtn" class="primary">${googleConnected()?'Reconnect Google':'Connect Google Calendar'}</button><button id="googleSyncBtn" class="secondaryBtn">Sync pending items${pendingCount?` (${pendingCount})`:''}</button>${googleConnected()?'<button id="googleDisconnectBtn" class="dangerBtn">Disconnect Google</button>':''}</div>
   </section>
   <section class="settingsGroup" data-sp="appearance data"><div class="settingsGroupHead"><div><span class="calendarGroupLabel">App</span><h2>Appearance & data</h2><p>Device appearance, backups and destructive actions.</p></div></div>
     <div class="settingsCard" data-sp="appearance"><h3>Appearance</h3><label class="muted smallLabel" for="themeSetting">Theme</label><select id="themeSetting" class="select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select><label class="muted smallLabel" for="taskRowDensity">Task rows</label><select id="taskRowDensity" class="select"><option value="compact">Compact</option><option value="comfortable">Comfortable</option></select><label class="todayCardToggle hapticsToggle"><input id="hapticsSetting" type="checkbox"><span><strong>Haptic feedback</strong><small>A light tap when you complete or save something. Works on Android and on iPhone with iOS 18 or later.</small></span></label></div>
