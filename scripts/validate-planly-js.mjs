@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=702r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-704a-92'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-705a-93'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -474,6 +474,12 @@ if(!html.includes('<div id="quickUnderstood" class="quickUnderstood" hidden aria
 for(const gone of ['parseNaturalTaskInput','smartAddSuggestionHtml','refreshSmartAddSuggestion','data-learning-category'])if(app.includes(gone))fail('Old quick fill still present: '+gone);
 if(!intel.includes('window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest,learn,parseQuick,titleKey});'))fail('parseQuick not exported');
 if(/\(\?<[=!]/.test(intel))fail('Engine must not use regex lookbehind (older iPhone Safari cannot parse it)');}
+// Reopen paint: every style must be read before the first script that waits on the network (supabase-js from the CDN),
+// otherwise iPhone paints a half-styled screen (menu stacked down the left) while that download is pending.
+{const html=read('v2/index.html'),firstNet=html.search(/<script[^>]+src="https?:/);if(firstNet<0)fail('external script marker missing');
+if(html.indexOf('<style',firstNet)>=0)fail('A <style> block comes after a network script: it would paint half-styled on reopen');
+if(html.trimEnd().slice(-7)!=='</html>')fail('Nothing may follow </html>');
+if(html.indexOf('<style id="planlyDockedNav">')<0||html.indexOf('<style id="planlyDockedNav">')>html.indexOf('</head>'))fail('Docked nav styles must be in <head>');}
 // Cleanup: Focus mode and the old Intelligence screens (Plan My Day, Plan my week, Day check, Suggest 3, Tidy up, Why, Monday review) are gone.
 {const html=read('v2/index.html'),sw=read('v2/sw.js'),runtime=[s.app,s.hardening,...[...new Set(sw.match(/core-[a-z0-9.-]+\.js/g))].map(f=>read('v2/'+f))].join('\n');
 for(const gone of ['openFocus','closeFocus','renderFocus','refreshFocusIfOpen','focusTicker','data-timeline-focus','data-task-menu="focus"','data-dashboard-focus','focusMs','openPlanDay','renderPlanDay','commitPlanDay','dayPlanDraft','openPlanWeek','weeklyReviewHtml','data-plan-week','todayDayCheckHtml','suggestTop3WithUndo','tidyOverdue','showIntelligenceWhy','intelligenceSnoozeDate','data-i2-','recordIntelligenceCompletion','removeIntelligenceCompletionSample'])if(runtime.includes(gone))fail('Removed feature still referenced: '+gone);
