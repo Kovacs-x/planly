@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=702r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-703a-91'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-704a-92'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,8 +234,8 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=703a01'"))fail('Intelligence app runtime boot marker mismatch');
-const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=703i01')fail('Intelligence must be final runtime module');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=704a01'"))fail('Intelligence app runtime boot marker mismatch');
+const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
 
@@ -283,10 +283,10 @@ for(const needle of ['completedDate','weekCounts','ownerUnassigned','shareOut','
 if(!s.app.includes("assignee_id:visibility==='household'?(t.assigneeId||t.assignee_id||null):null"))fail('I4 authoritative assignee column must travel through optimistic taskCloudRow');
 
 // I5 final Intelligence invariants.
-for(const needle of ["PLANLY_INTELLIGENCE_HISTORY_KEY","intelligenceLearning","learnedPlanningDuration","smartAddSuggestionHtml","recurringLearningCandidate",'<option value="11">11 hours</option>','<option value="12">12 hours</option>'])if(!s.app.includes(needle))fail('I5 app invariant missing: '+needle);
+for(const needle of ["PLANLY_INTELLIGENCE_HISTORY_KEY","intelligenceLearning","learnedPlanningDuration","recurringLearningCandidate",'<option value="11">11 hours</option>','<option value="12">12 hours</option>'])if(!s.app.includes(needle))fail('I5 app invariant missing: '+needle);
 if(!s.intelligence.includes("Number(loads[ordered[0].id]||0)===Number(loads[ordered[1].id]||0)"))fail('I5 Share out must leave equal-load ties as Anyone');
 
-for(const needle of ["function similarOwnedTasks(title)","learning:intelligenceLearningInput()","function dismissRecurringLearning(t)","data-repeat-no"])if(!s.app.includes(needle))fail('I5 review fix missing: '+needle);
+for(const needle of ["learning:intelligenceLearningInput()","function dismissRecurringLearning(t)","data-repeat-no"])if(!s.app.includes(needle))fail('I5 review fix missing: '+needle);
 
 // Stage 4 correctness invariants.
 for(const needle of ['finiteDuration','fixedDuration','t.time?fixedDuration(t,defaultDuration):duration(t,defaultDuration,learning)',"top3=targetPersonal.slice(0,(isWorkDay||overnightRest)?2:3)"])if(!s.intelligence.includes(needle))fail('Stage4 Intelligence correctness invariant missing: '+needle);
@@ -451,7 +451,7 @@ if(!read('v2/core-redesign-r1.js').includes("(actor&&t.completed?' · <span clas
 for(const needle of ['function planlySuggestions(){if(state.intelligenceSuggestions===false','window.PlanlyIntelligence.suggest(planlySuggestInput())',"function planlySuggestInput(){","today,tomorrow:addDays(today,1),weekend:sat,nowMinutes:",'busy:planlyBusyIntervals(today).map(x=>({start:x.start,end:x.end}))','function planlySuggestLineHtml(){','function openSuggestions(){','function applySuggestion(act){',"t._planlyOwnedByMe!==false&&t.visibility!=='household'&&!t.completed",'const pendingIds=stageChangedTasksFromSnapshot(before);save();render();','clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)',"const PLANLY_SUGGEST_DISMISSED_KEY='planly-suggest-dismissed-v1',","['suggestions','Suggestions','A short line when Planly has suggestions for today.']",'<button id="suggestBtn" type="button" class="primaryDash" data-suggest-open>','data-suggest-open>✨ Suggest</button></div>',"if(e.target.closest('[data-suggest-open]')){openSuggestions();return}"])if(!app.includes(needle))fail('Suggestions missing: '+needle);
 for(const gone of ['id="planMyDayBtn"','>Plan my day</button>','data-plan-week>Plan my week','data-i2-suggest3>Suggest 3</button>','data-i2-tidy>Tidy up</button>','${dayCheck}'])if(app.includes(gone))fail('Old Intelligence entry point still reachable: '+gone);
 if(r1.includes("planSegmentsHtml()+(planSegment==='upcoming'?weeklyReviewHtml():'')"))fail('Monday review must no longer render');
-if(!intel.includes('window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest,learn});'))fail('Suggest engine not exported');
+if(!intel.includes('window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest,learn,parseQuick,titleKey});'))fail('Suggest engine not exported');
 if(!html.includes('<style id="planlySuggestions">'))fail('Suggestions styles missing');}
 // Smarter Suggestions: learning runs on this phone from your own private finished tasks; nothing new is sent anywhere.
 {const app=read('v2/app-v3.2.0.js'),a=app.indexOf("const PLANLY_SUGGEST_DISMISSED_KEY="),b=app.indexOf('\nfunction openSettingsPage(',a),block=app.slice(a,b);if(a<0||b<0)fail('Suggestions block not found');
@@ -463,6 +463,17 @@ if(/resetIntelligenceHistory|intelligenceResetHistory|Start learning again|planl
 if(!read('v2/core-intelligence-v5.js').includes('const HALF_LIFE=30,recency=age=>Math.pow(0.5,Math.max(0,age)/HALF_LIFE);'))fail('Learning must weight recent days');
 // Learning stays in the background: nothing in the app shows what was learned.
 if(/planlyLearnedSummary|What Planly has learned/.test(app)||read('v2/index.html').includes('.learnedSummary'))fail('Learned summary must not be shown');}
+// Smart quick add: new tasks are read as you type (engine parseQuick, pure); fields you change yourself are never overwritten; nothing leaves the phone.
+{const app=read('v2/app-v3.2.0.js'),html=read('v2/index.html'),intel=read('v2/core-intelligence-v5.js'),a=app.indexOf('// Smart quick add:'),b=app.indexOf('function renderSubtaskEditor(',a),block=app.slice(a,b);if(a<0||b<0)fail('Smart quick add block missing');
+if(/fetch\(|planlySupabase|\.from\(|\.rpc\(|XMLHttpRequest|sendBeacon/.test(block))fail('Smart quick add must not call the network');
+for(const needle of ["function planlyQuickAddActive(){return !$('#taskId')?.value&&!$('#taskForm')?.classList.contains('taskReadOnlySheet')","if(!t.has('date'))","if(!t.has('repeat'))","if(!e.target?.closest?.('#taskForm'))return;","t._planlyOwnedByMe!==false&&t.visibility!=='household'&&api.titleKey(t.title)===key","function planlySetDuration(minutes){"])if(!block.includes(needle))fail('Smart quick add invariant missing: '+needle);
+if(!app.includes("  planlyQuickFinal();\n  const id=$('#taskId').value,now=Date.now(),wasExisting=!!id;")||!app.includes('  planlySetDuration(task?.durationMinutes||state.defaultDuration||30);')||!app.includes('  planlyQuickAddReset();\n  refreshQuickDateSelection();'))fail('Smart quick add wiring missing');
+{const q=app.slice(app.indexOf('// Smart quick add:'),app.indexOf('function renderSubtaskEditor('));if(/dispatchEvent/.test(q))fail('Quick add must never fire input/change events (they mark fields as changed by the user)')}
+if(app.includes("$('#taskDuration').value=String("))fail('Duration must go through planlySetDuration so any length survives editing');
+if(!html.includes('<div id="quickUnderstood" class="quickUnderstood" hidden aria-live="polite"></div>')||html.includes('quickFillBtn')||!html.includes('.quickChip{display:inline-flex;align-items:center;gap:6px;min-height:44px;'))fail('Smart quick add markup/styles wrong');
+for(const gone of ['parseNaturalTaskInput','smartAddSuggestionHtml','refreshSmartAddSuggestion','data-learning-category'])if(app.includes(gone))fail('Old quick fill still present: '+gone);
+if(!intel.includes('window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest,learn,parseQuick,titleKey});'))fail('parseQuick not exported');
+if(/\(\?<[=!]/.test(intel))fail('Engine must not use regex lookbehind (older iPhone Safari cannot parse it)');}
 // Cleanup: Focus mode and the old Intelligence screens (Plan My Day, Plan my week, Day check, Suggest 3, Tidy up, Why, Monday review) are gone.
 {const html=read('v2/index.html'),sw=read('v2/sw.js'),runtime=[s.app,s.hardening,...[...new Set(sw.match(/core-[a-z0-9.-]+\.js/g))].map(f=>read('v2/'+f))].join('\n');
 for(const gone of ['openFocus','closeFocus','renderFocus','refreshFocusIfOpen','focusTicker','data-timeline-focus','data-task-menu="focus"','data-dashboard-focus','focusMs','openPlanDay','renderPlanDay','commitPlanDay','dayPlanDraft','openPlanWeek','weeklyReviewHtml','data-plan-week','todayDayCheckHtml','suggestTop3WithUndo','tidyOverdue','showIntelligenceWhy','intelligenceSnoozeDate','data-i2-','recordIntelligenceCompletion','removeIntelligenceCompletionSample'])if(runtime.includes(gone))fail('Removed feature still referenced: '+gone);
