@@ -151,3 +151,44 @@ if(S({...mix,feedback:{subjects:{Read:2}}}).suggestions.some(x=>x.actions.some(a
 if(S({...base,history:[...hist,...gymHist,...slipHist,...weekHist],tasks:[t('Gym'),t('Do admin'),t('a'),t('b'),t('c'),t('old',{date:'2026-10-01'}),...[1,2,3,4,5].map(i=>t('thu'+i,{date:'2026-10-08'}))]}).suggestions.length>5)throw Error('more than five suggestions');
 if(S({...base,history:slipHist,tasks:[t('Do admin',{visibility:'household'}),t('Do admin 2',{title:'Do admin',_planlyOwnedByMe:false})]}).suggestions.some(x=>x.actions.some(a=>a.op!=='repeat')))throw Error('suggested a task that is not yours');
 console.log('Planly Smarter Suggestions engine checks passed');}
+// ---- Smart quick add (6.2): reading a typed task ----
+{const Q=api.parseQuick;if(typeof Q!=='function')throw Error('parseQuick missing');const today='2026-10-06';// a Tuesday
+const cases=[
+ ['Call mum tomorrow 6pm 20m',{title:'Call mum',date:'2026-10-07',time:'18:00',minutes:20}],
+ ['Gym tomorrow morning 1h',{title:'Gym',date:'2026-10-07',time:'09:00',minutes:60}],
+ ['gym 1h30 thurs evening',{title:'gym',date:'2026-10-08',time:'19:00',minutes:90}],
+ ['Dentist on 14 Oct at 9:30',{title:'Dentist',date:'2026-10-14',time:'09:30'}],
+ ['Book MOT for March 3',{title:'Book MOT',date:'2027-03-03'}],
+ ['Doctor 12/10 10.15am !high #health',{title:'Doctor',date:'2026-10-12',time:'10:15',priority:'high',category:'Health'}],
+ ['Meeting next week at 3',{title:'Meeting',date:'2026-10-12',time:'15:00'}],
+ ['Dinner at 7',{title:'Dinner',time:'19:00'}],['pick up at 4:30',{title:'pick up',time:'16:30'}],['alarm 07:30',{title:'alarm',time:'07:30'}],
+ ['lunch at noon',{title:'lunch',time:'12:00'}],['tonight bins out',{title:'bins out',date:today,time:'19:00'}],
+ ['Haircut in 2 weeks',{title:'Haircut',date:'2026-10-20'}],['Pay bill in 3 days high priority',{title:'Pay bill',date:'2026-10-09',priority:'high'}],
+ ['renew passport by end of month',{title:'renew passport',date:'2026-10-31'}],['tidy garage this weekend',{title:'tidy garage',date:'2026-10-10'}],
+ ['meet on sat at 7',{title:'meet',date:'2026-10-10',time:'19:00'}],['call bank half an hour',{title:'call bank',minutes:30}],
+ ['Football every Wednesday 9pm',{title:'Football',date:'2026-10-07',time:'21:00',repeat:{unit:'weeks',interval:1,weekdays:[3]}}],
+ ['Football every other wednesday 8pm for 90 mins',{title:'Football',date:'2026-10-07',time:'20:00',minutes:90,repeat:{unit:'weeks',interval:2,weekdays:[3]}}],
+ ['Water plants every Mon and Thu',{title:'Water plants',date:'2026-10-08',repeat:{unit:'weeks',weekdays:[1,4]}}],
+ ['Team sync every Tuesday',{title:'Team sync',date:today,repeat:{unit:'weeks',weekdays:[2]}}],
+ ['Pay rent on the 1st of every month',{title:'Pay rent',date:'2026-11-01',repeat:{unit:'months',monthDay:1}}],
+ ['Payday last friday of every month',{title:'Payday',date:'2026-10-30',repeat:{unit:'months',monthlyMode:'ordinal',ordinal:-1,weekday:5}}],
+ ['team call every 2 weeks',{title:'team call',repeat:{unit:'weeks',interval:2}}],['Run every morning',{title:'Run',time:'09:00',repeat:{unit:'days'}}],
+ ['Stand-up weekdays 9:15',{title:'Stand-up',time:'09:15',repeat:{type:'weekdays'}}],['urgent fix boiler',{title:'fix boiler',priority:'high'}],
+ // things that must stay in the title
+ ['Read chapter 12',{title:'Read chapter 12'}],['Buy 2 milk',{title:'Buy 2 milk'}],['Morning run',{title:'Morning run'}],['Sat nav fix',{title:'Sat nav fix'}],
+ ['version 1.5 release',{title:'version 1.5 release'}],['Pay 30/02 bill',{title:'Pay 30/02 bill'}],['call 3 people',{title:'call 3 people'}],['Pay £12.50 to Sam friday',{title:'Pay £12.50 to Sam',date:'2026-10-09'}],
+ ['#nosuchcategory notes',{title:'#nosuchcategory notes'}]];
+for(const [text,want] of cases){const got=Q(text,{today,planningStart:'08:00'});for(const [k,v] of Object.entries({date:'',time:'',minutes:0,priority:'',category:'',...want})){if(k==='repeat'){for(const [rk,rv] of Object.entries(v))if(JSON.stringify(got.repeat?.[rk])!==JSON.stringify(rv))throw Error('quick add "'+text+'" repeat.'+rk+': '+JSON.stringify(got.repeat));continue}if(JSON.stringify(got[k])!==JSON.stringify(v))throw Error('quick add "'+text+'" '+k+': got '+JSON.stringify(got[k])+' want '+JSON.stringify(v))}
+ if(!want.repeat&&got.repeat)throw Error('quick add "'+text+'" invented a repeat')}
+// planning day start decides bare hours; a part you ignore stays in the title; dates roll into next year; months clamp
+if(Q('Dinner at 7',{today,planningStart:'06:00'}).time!=='07:00')throw Error('bare hour must respect the planning day start');
+const ig=Q('Today show tickets',{today,ignore:['date']});if(ig.title!=='Today show tickets'||ig.date)throw Error('ignored part must stay in the title: '+JSON.stringify(ig));
+if(Q('Today show tickets',{today}).date!==today)throw Error('today not read');
+if(Q('Party on 5 Jan',{today}).date!=='2027-01-05')throw Error('past day-month must roll to next year');
+if(Q('Report in 1 month',{today:'2026-01-31'}).date!=='2026-02-28')throw Error('month add must clamp to month end');
+if(Q('Rent every month on the 31st',{today:'2026-02-10'}).date!=='2026-02-28')throw Error('monthly day 31 must clamp in short months');
+const pr=Q('Call mum tomorrow 6pm 20m #health',{today});if(pr.parts.map(p=>p.kind).join()!=='date,time,duration,category'||pr.parts[0].label!=='Tomorrow')throw Error('parts wrong: '+JSON.stringify(pr.parts));
+if(Q('x on 14 Oct',{today}).parts[0].label!=='Wed 14 Oct'||Q('x friday',{today}).parts[0].label!=='Friday'||Q('x on 3 Mar',{today}).parts[0].label!=='Wed 3 Mar 2027')throw Error('date labels wrong');
+const before='Call mum tomorrow';Q(before,{today});if(JSON.stringify(Q(before,{today}))!==JSON.stringify(Q(before,{today})))throw Error('parseQuick not deterministic');
+if(Q('anything',{}).title!=='anything')throw Error('no today must leave text alone');
+console.log('Planly Smart quick add checks passed ('+cases.length+' phrases)');}

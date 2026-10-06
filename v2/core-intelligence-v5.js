@@ -168,4 +168,94 @@ function suggest(input={}){
  const out=cands.sort((a,b)=>b.score-a.score||a.order-b.order).slice(0,5).map(x=>x.s);
  return {engineVersion:VERSION,date:today,overBy:Math.max(0,overBy),suggestions:out};
 }
-window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest,learn});})();
+// Smart quick add (6.2): reads a typed task such as "Call mum tomorrow 6pm 20m" into its parts.
+// Pure: today comes from the caller. Anything listed in `ignore` (a part the user tapped away) is left in the title.
+const MONTH_RE='(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+const monthNum=s=>['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(String(s).slice(0,3).toLowerCase())+1;
+const MONTH_SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WD_FULL={sunday:0,monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6},WD_ANY={...WD_FULL,sun:0,mon:1,tue:2,tues:2,wed:3,weds:3,thu:4,thur:4,thurs:4,fri:5,sat:6};
+const WD_RE='(sunday|monday|tuesday|wednesday|thursday|friday|saturday)',WD_ANY_RE='(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tues|tue|weds|wed|thurs|thur|thu|fri|sat)';
+const validKey=(y,m,d)=>{const k=y+'-'+pad(m)+'-'+pad(d);return y>=2000&&y<=2100&&m>=1&&m<=12&&d>=1&&d<=31&&fromSerial(serial(k))===k?k:''};
+const nextWeekday=(today,w,allowToday)=>{const diff=(w-weekdayOf(today)+7)%7;return addDaysKey(today,diff===0&&!allowToday?7:diff)};
+const addMonthsKey=(k,n)=>{const p=dateParts(k);let y=p[0],m=p[1]+n;y+=Math.floor((m-1)/12);m=((m-1)%12+12)%12+1;let d=p[2];while(d>28&&!validKey(y,m,d))d--;return validKey(y,m,d)};
+function parseQuick(text,opt={}){
+ const original=String(text||''),today=String(opt.today||'');if(!dateParts(today))return {title:original.trim(),date:'',time:'',minutes:0,priority:'',category:'',repeat:null,parts:[]};
+ const ignore=new Set((opt.ignore||[]).map(String)),cats=(Array.isArray(opt.categories)&&opt.categories.length?opt.categories:['Personal','Work','Home','Health','Finance','Errands']).map(String);
+ let s=' '+original.replace(/\s+/g,' ')+' ';
+ const r={date:'',time:'',minutes:0,priority:'',category:'',repeat:null};
+ // Find `re`; if fn accepts the match, cut it out of the text. Returns fn's value or null.
+ const take=(kind,re,fn)=>{if(ignore.has(kind))return null;const m=s.match(re);if(!m)return null;const v=fn(m);if(v===false||v==null)return null;s=s.slice(0,m.index)+' '+s.slice(m.index+m[0].length);return v};
+ // #category
+ const c=take('category',/#([a-z][\w-]*)/i,m=>cats.find(x=>x.toLowerCase()===m[1].toLowerCase())||false);if(c)r.category=c;
+ // priority
+ const p=take('priority',/(?:!\s*|\bpriority\s+)(high|low)\b|\b(high|low)\s+priority\b|\b(urgent|asap)\b|\s(high|low)\s*$/i,m=>String(m[1]||m[2]||m[4]||'high').toLowerCase());if(p)r.priority=p;
+ // duration: "20m", "1h", "1h30", "1.5 hours", "for 45 mins", "an hour", "half an hour"
+ let mins=take('duration',/\b(?:for\s+)?(\d{1,2}(?:\.\d+)?)\s*(?:h|hrs?|hours?)(?![a-z])(?:\s*(?:and\s+)?(\d{1,2})\s*(?:m|mins?|minutes?)?(?![a-z\d]))?/i,m=>Math.round(Number(m[1])*60)+Number(m[2]||0));
+ if(mins==null)mins=take('duration',/\b(?:for\s+)?(\d{1,3})\s*(?:m|mins?|minutes?)(?![a-z])/i,m=>Number(m[1]));
+ if(mins==null)mins=take('duration',/\b(?:for\s+)?(an hour and a half|half an hour|(?:a\s+)?quarter of an hour|an hour)\b/i,m=>({'an hour and a half':90,'half an hour':30,'an hour':60})[m[1].toLowerCase()]||15);
+ if(mins!=null)r.minutes=clamp(mins,5,720);
+ // repeats
+ const ord={first:1,second:2,third:3,fourth:4,fifth:5,last:-1};
+ let rep=take('repeat',new RegExp('\\b(?:on\\s+the\\s+)?(first|second|third|fourth|fifth|last)\\s+'+WD_RE+'\\s+(?:of\\s+)?(?:every|each)\\s+month\\b|\\b(?:every|each)\\s+month\\s+on\\s+the\\s+(first|second|third|fourth|fifth|last)\\s+'+WD_RE+'\\b|\\b(?:on\\s+the\\s+)?(first|second|third|fourth|fifth|last)\\s+'+WD_RE+'\\s+monthly\\b','i'),m=>({type:'custom',unit:'months',interval:1,monthlyMode:'ordinal',ordinal:ord[(m[1]||m[3]||m[5]).toLowerCase()],weekday:WD_FULL[(m[2]||m[4]||m[6]).toLowerCase()],label:'Monthly on the '+(m[1]||m[3]||m[5]).toLowerCase()+' '+WEEKDAYS[WD_FULL[(m[2]||m[4]||m[6]).toLowerCase()]]}));
+ if(!rep)rep=take('repeat',/\b(?:on\s+the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(?:every|each)\s+month\b|\b(?:every|each)\s+month\s+(?:on\s+the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b/i,m=>{const d=clamp(Number(m[1]||m[2]),1,31);return {type:'monthly',unit:'months',interval:1,monthlyMode:'day',monthDay:d,label:'Monthly on the '+d+(d%10===1&&d!==11?'st':d%10===2&&d!==12?'nd':d%10===3&&d!==13?'rd':'th')}});
+ if(!rep)rep=take('repeat',new RegExp('\\b(?:every|each)\\s+(?:other|second|2nd)\\s+'+WD_ANY_RE+'s?\\b','i'),m=>{const w=WD_ANY[m[1].toLowerCase()];return {type:'custom',unit:'weeks',interval:2,weekdays:[w],label:'Every other '+WEEKDAYS[w]}});
+ if(!rep)rep=take('repeat',/\b(?:every|each)\s+(\d{1,2}|other|second|2nd)\s+(day|week|month)s?\b/i,m=>{const n=/^\d+$/.test(m[1])?clamp(Number(m[1]),1,99):2,u=m[2].toLowerCase()+'s';return {type:'custom',unit:u,interval:n,label:'Every '+n+' '+u}});
+ if(!rep)rep=take('repeat',/\bfortnightly\b/i,()=>({type:'custom',unit:'weeks',interval:2,label:'Every 2 weeks'}));
+ if(!rep)rep=take('repeat',/\b(?:every\s+weekdays?|weekdays|mon(?:day)?\s*(?:-|to)\s*fri(?:day)?)\b/i,()=>({type:'weekdays',unit:'weeks',interval:1,weekdays:[1,2,3,4,5],label:'Weekdays'}));
+ if(!rep)rep=take('repeat',/\b(?:daily|every\s+day|each\s+day|every\s+morning|every\s+night|every\s+evening)\b/i,m=>({type:'daily',unit:'days',interval:1,label:'Every day',partOfDay:(m[0].match(/morning|night|evening/i)||[''])[0].toLowerCase()}));
+ if(!rep)rep=take('repeat',new RegExp('\\b(?:every|each)\\s+((?:'+WD_ANY_RE+'s?(?:\\s*(?:,|and|&|\\+)\\s*|\\s+(?='+WD_ANY_RE+')))*'+WD_ANY_RE+'s?)\\b','i'),m=>{const days=[];for(const w of m[1].toLowerCase().split(/[^a-z]+/))if(w&&WD_ANY[w.replace(/s$/,'')]!=null)days.push(WD_ANY[w.replace(/s$/,'')]);else if(w&&WD_ANY[w]!=null)days.push(WD_ANY[w]);const u=[...new Set(days)].sort((a,b)=>a-b);if(!u.length)return false;return {type:u.length===1?'weekly':'custom',unit:'weeks',interval:1,weekdays:u,label:u.length===1?'Every '+WEEKDAYS[u[0]]:'Every '+u.map(w=>WEEKDAYS[w].slice(0,3)).join(', ')}});
+ if(!rep)rep=take('repeat',/\b(?:weekly|every\s+week|each\s+week)\b/i,()=>({type:'weekly',unit:'weeks',interval:1,label:'Every week'}));
+ if(!rep)rep=take('repeat',/\b(?:monthly|every\s+month|each\s+month)\b/i,()=>({type:'monthly',unit:'months',interval:1,monthlyMode:'day',label:'Every month'}));
+ if(rep)r.repeat=rep;
+ // time
+ const bad=i=>/[£$€\d.,]/.test(s[i-1]||''),dayStart=timeMin(opt.planningStart||'08:00')||480,bare=h=>h>=1&&h<=11&&h*60<dayStart?h+12:h;
+ let tm=take('time',/(?:\bat\s+|@\s*|\b)(1[0-2]|0?[1-9])(?:[:.]([0-5]\d))?\s*(a\.?m\.?|p\.?m\.?)(?![a-z])/i,m=>{let h=Number(m[1])%12;if(/^p/i.test(m[3]))h+=12;return pad(h)+':'+pad(Number(m[2]||0))});
+ if(!tm)tm=take('time',/(?:\bat\s+|@\s*|\b)([01]?\d|2[0-3])[:.]([0-5]\d)\b(?![.,]?\d)/,m=>bad(m.index+(m[0].length-m[0].trimStart().length))&&!/^(?:\s*at|@)/i.test(m[0])?false:pad(/^0/.test(m[1])?Number(m[1]):bare(Number(m[1])))+':'+m[2]);
+ if(!tm)tm=take('time',/\b(?:at\s+)?(noon|midday|midnight)\b/i,m=>/midnight/i.test(m[1])?'00:00':'12:00');
+ if(!tm)tm=take('time',/\bat\s+(\d{1,2})\b(?![:.]\d|\s*(?:%|am|pm|a\.m|p\.m|h|hrs?|hours?|m|mins?|minutes?|st|nd|rd|th)\b)/i,m=>{const h=Number(m[1]);if(h>23)return false;return pad(bare(h))+':00'});
+ if(tm)r.time=tm;
+ // parts of the day: "tonight", "this evening", "tomorrow morning" (only next to a day word, so "Morning run" stays a title)
+ const PART={morning:'09:00',afternoon:'14:00',evening:'19:00',night:'20:00'};
+ if(!ignore.has('time')&&!r.time){const m=s.match(new RegExp('\\b(this\\s+|in\\s+the\\s+|(?:on\\s+|next\\s+)?(today|tomorrow|tmrw|'+WD_ANY_RE.slice(1,-1)+')\\s+)(morning|afternoon|evening|night)\\b','i'));
+  if(m){r.time=PART[m[3].toLowerCase()];const day=(m[2]||'').toLowerCase();let keep='';
+   if(day&&WD_ANY[day]!=null&&!ignore.has('date')&&!r.date)r.date=nextWeekday(today,WD_ANY[day],false);else if(day)keep=day+' ';
+   s=s.slice(0,m.index)+' '+keep+s.slice(m.index+m[0].length)}}
+ if(!ignore.has('time')&&!r.time&&rep&&rep.partOfDay){r.time=PART[rep.partOfDay]}
+ if(!ignore.has('date')||!ignore.has('time')){const m=s.match(/\btonight\b/i);if(m){if(!ignore.has('time')&&!r.time)r.time='19:00';if(!ignore.has('date'))r.date=today;s=s.slice(0,m.index)+' '+s.slice(m.index+m[0].length)}}
+ // dates
+ const dateRules=[
+  [/\b(?:the\s+)?day\s+after\s+tomorrow\b/i,()=>addDaysKey(today,2)],
+  [/\b(?:on\s+)?(?:tomorrow|tmrw|tmr|tomoz)\b/i,()=>addDaysKey(today,1)],
+  [/\b(?:on\s+)?today\b/i,()=>today],
+  [/\bin\s+(\d{1,3}|a|an|one|two|three|four|five|six)\s+(day|week|month|fortnight)s?\b/i,m=>{const n=({a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6})[m[1].toLowerCase()]||Number(m[1]),u=m[2].toLowerCase();return u==='month'?addMonthsKey(today,n):addDaysKey(today,n*(u==='day'?1:u==='week'?7:14))}],
+  [/\bnext\s+weekend\b/i,()=>{const w=weekdayOf(today);return addDaysKey(today,w===6?7:w===0?6:6-w+7)}],
+  [/\b(?:this\s+|at\s+the\s+|on\s+the\s+)?weekend\b/i,()=>{const w=weekdayOf(today);return w===6||w===0?today:addDaysKey(today,6-w)}],
+  [/\bnext\s+week\b/i,()=>addDaysKey(today,((8-weekdayOf(today))%7)||7)],
+  [/\bnext\s+month\b/i,()=>{const p=dateParts(addMonthsKey(today,1));return validKey(p[0],p[1],1)}],
+  [/\b(?:by\s+)?(?:the\s+)?end\s+of\s+(?:the\s+)?month\b/i,()=>{const p=dateParts(addMonthsKey(today,1));return addDaysKey(validKey(p[0],p[1],1),-1)}],
+  [new RegExp('\\b(?:on\\s+)?(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?'+MONTH_RE+'\\b(?:,?\\s+(\\d{4}))?','i'),m=>abs(m[3],monthNum(m[2]),Number(m[1]))],
+  [new RegExp('\\b(?:on\\s+)?'+MONTH_RE+'\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b(?:,?\\s+(\\d{4}))?','i'),m=>abs(m[3],monthNum(m[1]),Number(m[2]))],
+  [/\b(?:on\s+)?(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?\b/,m=>abs(m[3]?(m[3].length===2?'20'+m[3]:m[3]):'',Number(m[2]),Number(m[1]))],
+  [/\b(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)\b/i,m=>{const p=dateParts(today),d=Number(m[1]);for(let i=0;i<3;i++){const k=validKey(dateParts(addMonthsKey(validKey(p[0],p[1],1),i))[0],dateParts(addMonthsKey(validKey(p[0],p[1],1),i))[1],d);if(k&&k>=today)return k}return false}],
+  [new RegExp('\\b(?:on\\s+|this\\s+|next\\s+|by\\s+)?'+WD_RE+'\\b','i'),m=>nextWeekday(today,WD_FULL[m[1].toLowerCase()],/^this/i.test(m[0].trim()))],
+  [/\b(?:on|this|next|by)\s+(sun|mon|tues|tue|weds|wed|thurs|thur|thu|fri|sat)\b/i,m=>nextWeekday(today,WD_ANY[m[1].toLowerCase()],/^this/i.test(m[0].trim()))]];
+ function abs(y,m,d){if(y)return validKey(Number(y),m,d)||false;const p=dateParts(today);const k=validKey(p[0],m,d);if(!k)return false;return k>=today?k:(validKey(p[0]+1,m,d)||false)}
+ if(!r.date)for(const [re,fn] of dateRules){const v=take('date',re,fn);if(v){r.date=v;break}}
+ // A repeat with no date starts on its next matching day (today counts).
+ if(rep&&!r.date&&!ignore.has('date')&&rep.unit==='months'){const p=dateParts(today),first=validKey(p[0],p[1],1);for(let i=0;i<14&&!r.date;i++){const mp=dateParts(addMonthsKey(first,i));let k='';
+   if(rep.monthlyMode==='ordinal'){const days=[];for(let d=1;d<=31;d++){const kk=validKey(mp[0],mp[1],d);if(kk&&weekdayOf(kk)===rep.weekday)days.push(kk)}k=rep.ordinal===-1?days[days.length-1]:days[rep.ordinal-1]||''}
+   else if(rep.monthDay){k=validKey(mp[0],mp[1],rep.monthDay);if(!k){let d=rep.monthDay;while(d>28&&!k)k=validKey(mp[0],mp[1],--d)}}
+   if(k&&k>=today)r.date=k;if(!rep.monthDay&&rep.monthlyMode!=='ordinal')break}}
+ if(rep&&!r.date&&!ignore.has('date')&&Array.isArray(rep.weekdays)&&rep.type!=='weekdays'){let best='';for(const w of rep.weekdays){const k=nextWeekday(today,w,true);if(!best||k<best)best=k}r.date=best}
+ // Title: what is left, without dangling "at", "on", "for"…
+ let title=s.replace(/\s+/g,' ').trim(),prev='';while(prev!==title){prev=title;title=title.replace(/^(?:at|on|by|for|in|from|every|each|the|and|,|-|–|—)\s+/i,'').replace(/\s+(?:at|on|by|for|in|from|every|each|the|and)$/i,'').replace(/^[,;:\-–—\s]+|[,;:\-–—\s]+$/g,'').trim()}
+ const parts=[],dd=r.date?dayDiff(r.date,today):null;
+ if(r.date){const p=dateParts(r.date),wd=WEEKDAYS[weekdayOf(r.date)];parts.push({kind:'date',label:dd===0?'Today':dd===1?'Tomorrow':dd>1&&dd<7?wd:wd.slice(0,3)+' '+p[2]+' '+MONTH_SHORT[p[1]-1]+(p[0]!==dateParts(today)[0]?' '+p[0]:'')})}
+ if(r.time)parts.push({kind:'time',label:r.time});
+ if(r.minutes)parts.push({kind:'duration',label:humanMinutes(r.minutes)});
+ if(r.repeat)parts.push({kind:'repeat',label:r.repeat.label});
+ if(r.priority)parts.push({kind:'priority',label:r.priority==='high'?'High priority':r.priority==='low'?'Low priority':r.priority});
+ if(r.category)parts.push({kind:'category',label:r.category});
+ return {title,...r,parts};
+}
+window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest,learn,parseQuick,titleKey});})();

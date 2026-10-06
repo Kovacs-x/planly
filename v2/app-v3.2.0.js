@@ -56,10 +56,6 @@ function recurrenceLearningKey(t){return String(t?.title||'').trim().toLowerCase
 function recurringLearningCandidate(t){if(!t||t._planlyOwnedByMe===false||t.visibility==='household'||t.recurrence&&t.recurrence!=='none'||!t.completed)return null;const h=loadIntelligenceHistory(),key=recurrenceLearningKey(t);if(h.dismissed?.[key])return null;const same=state.tasks.filter(x=>x!==t&&x._planlyOwnedByMe!==false&&x.visibility!=='household'&&x.completed&&recurrenceLearningKey(x)===key&&x.date).sort((a,b)=>String(b.date).localeCompare(String(a.date)));if(same.length<1||!t.date)return null;const days=Math.abs(Math.round((parseKey(t.date)-parseKey(same[0].date))/86400000));return days>=12&&days<=16?{label:'Make it every 2 weeks?',interval:2,unit:'weeks'}:null}
 function dismissRecurringLearning(t){const d=loadIntelligenceHistory(),key=recurrenceLearningKey(t);d.dismissed=d.dismissed||{};d.dismissed[key]=Date.now();saveIntelligenceHistory(d)}
 function maybeOfferRecurringLearning(t){const s=recurringLearningCandidate(t);if(!s)return;let el=document.getElementById('recurrenceLearningSheet');if(!el){el=document.createElement('div');el.id='recurrenceLearningSheet';el.className='intelligenceWhySheet';document.body.appendChild(el)}el.innerHTML='<div class="intelligenceWhyCard"><div class="sectionHead"><div><span class="calendarGroupLabel">Suggestion</span><h2>Repeat '+esc(t.title)+'?</h2></div></div><p class="muted">You completed this about two weeks after the previous one. Make a future task every 2 weeks?</p><div class="planDayFooter"><button type="button" data-repeat-no>Not for this task</button><button type="button" class="primary" data-repeat-yes>Make it every 2 weeks</button></div></div>';el.classList.add('open');el.querySelector('[data-repeat-no]').onclick=()=>{dismissRecurringLearning(t);el.classList.remove('open')};el.querySelector('[data-repeat-yes]').onclick=()=>{el.classList.remove('open');const source=state.tasks.find(x=>x.id===t.id);if(!source)return;const before=cloneTasks(),nextDate=addDays(source.date,14),next={...source,id:uid(),date:nextDate,time:source.time||'',completed:false,completedBy:'',completedAt:null,recurrence:'custom',recurrenceConfig:{unit:'weeks',interval:2,weekdays:[parseKey(source.date).getDay()],anchorDate:source.date,endMode:'never'},seriesId:source.seriesId||source.id,occurrenceNumber:2,googleEventId:'',calendarSync:source.addToCalendar?'pending':'',createdAt:Date.now(),updatedAt:Date.now(),_planlyOwnedByMe:true};state.tasks.push(next);const pendingIds=stageChangedTasksFromSnapshot(before);save();render();showUndoToast('Future repeat created',()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)},()=>queuePlanlyPendingReplay('Repeat synced'))}}
-function intelligenceTitleTokens(s){return [...new Set(String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/).filter(x=>x.length>=3))]}
-function similarOwnedTasks(title){const tokens=intelligenceTitleTokens(title);if(!tokens.length)return [];return state.tasks.filter(t=>t._planlyOwnedByMe!==false&&t.visibility!=='household'&&String(t.title||'').trim()).map(t=>{const tt=intelligenceTitleTokens(t.title),overlap=tokens.filter(x=>tt.includes(x)).length;return {t,overlap}}).filter(x=>x.overlap>0).sort((a,b)=>b.overlap-a.overlap||Number(b.t.completed)-Number(a.t.completed)||Number(b.t.updatedAt||0)-Number(a.t.updatedAt||0)).map(x=>x.t)}
-function smartAddSuggestionHtml(){const title=String($('#taskTitle')?.value||'').trim();if($('#taskId')?.value||title.length<3)return '';const matches=similarOwnedTasks(title);if(!matches.length)return '';const categories={};for(const t of matches)categories[String(t.category||'Personal')]=(categories[String(t.category||'Personal')]||0)+1;const category=Object.entries(categories).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]?.[0];if(!category)return '';const learned=intelligenceLearning().byCategory[category],durations=matches.map(t=>Number(t.durationMinutes||0)).filter(n=>n>=5),usual=learned?.n>=3?learned.usualMinutes:(durations.length?Math.round((durations.reduce((a,b)=>a+b,0)/durations.length)/5)*5:0);return '<div class="taskLearningHint"><span>Suggested from similar tasks</span><button type="button" data-learning-category="'+esc(category)+'">'+esc(category)+'</button>'+(usual?'<button type="button" data-learning-duration="'+usual+'">'+esc(durationLabel(usual))+'</button>':'')+'</div>'}
-function refreshSmartAddSuggestion(){const old=document.getElementById('taskLearningHint');if(old)old.remove();const html=smartAddSuggestionHtml();if(!html)return;const more=document.getElementById('taskMoreOptions');if(more){more.insertAdjacentHTML('beforebegin',html);more.previousElementSibling.id='taskLearningHint'}}
 const PLANLY_TODAY_CARDS=[['summary','Today summary','Progress and the next task. Timeline and Suggest stay as small buttons.'],['deadlines','Project deadlines',''],['suggestions','Suggestions','A short line when Planly has suggestions for today.'],['top3','Top 3 priorities',''],['bills','Bills due',''],['household','Household calendar','Calendar items shared with your household.']];
 function planlyTodayHiddenList(){return Array.isArray(state.todayHidden)?state.todayHidden.filter(k=>PLANLY_TODAY_CARDS.some(c=>c[0]===k)):[]}
 function todayCardOn(key){return !planlyTodayHiddenList().includes(key)}
@@ -2096,7 +2092,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-703a-91';
+const PLANLY_RELEASE='planly-v2-704a-92';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -2587,118 +2583,49 @@ function readRecurrenceForm(){
   if(unit==='months'&&cfg.interval===1&&cfg.monthlyMode==='day')recurrence='monthly';
   return {recurrence,recurrenceConfig:cfg};
 }
-function nextWeekdayDate(weekday,fromKey=localKey(new Date())){
-  const d=parseKey(fromKey);
-  let diff=(weekday-d.getDay()+7)%7;
-  if(diff===0)diff=7;
-  d.setDate(d.getDate()+diff);
-  return localKey(d);
-}
-function parseTimeToken(text){
-  let match=text.match(/\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/i);
-  if(match){
-    let h=Number(match[1])%12;if(match[3].toLowerCase()==='pm')h+=12;
-    return {time:String(h).padStart(2,'0')+':'+String(Number(match[2]||0)).padStart(2,'0'),token:match[0]};
-  }
-  match=text.match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/);
-  if(match)return {time:String(Number(match[1])).padStart(2,'0')+':'+match[2],token:match[0]};
-  return null;
-}
-function parseNaturalTaskInput(){
-  const input=$('#taskTitle');
-  const original=input.value.trim();
-  if(!original)return;
-  let text=original;
-  let date='',time='',priority='',category='',repeatType='',repeatCfg=null;
-  const today=localKey(new Date());
-  const categories=['Personal','Work','Home','Health','Finance','Errands'];
-
-  const categoryMatch=text.match(/#(personal|work|home|health|finance|errands)\b/i);
-  if(categoryMatch){category=categories.find(c=>c.toLowerCase()===categoryMatch[1].toLowerCase())||'';text=text.replace(categoryMatch[0],' ')}
-
-  const priorityMatch=text.match(/(?:!|\bpriority\s+)(high|low)\b|\b(high|low)\s*$/i);
-  if(priorityMatch){priority=(priorityMatch[1]||priorityMatch[2]).toLowerCase();text=text.replace(priorityMatch[0],' ')}
-
-  const timeParsed=parseTimeToken(text);
-  if(timeParsed){time=timeParsed.time;text=text.replace(timeParsed.token,' ')}
-
-  if(/\btomorrow\b/i.test(text)){date=addDays(today,1);text=text.replace(/\btomorrow\b/i,' ')}
-  else if(/\btoday\b/i.test(text)){date=today;text=text.replace(/\btoday\b/i,' ')}
-  else if(/\bnext\s+week\b/i.test(text)){date=addDays(today,7);text=text.replace(/\bnext\s+week\b/i,' ')}
-
-  const weekdayMap={sunday:0,sun:0,monday:1,mon:1,tuesday:2,tue:2,tues:2,wednesday:3,wed:3,thursday:4,thu:4,thur:4,thurs:4,friday:5,fri:5,saturday:6,sat:6};
-  const monthlyOrdinal=text.match(/\b(?:every\s+month\s+on\s+the\s+|on\s+the\s+)?(first|second|third|fourth|fifth|last)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)(?:\s+every\s+month|\s+monthly)?\b/i);
-  if(monthlyOrdinal&&(/every\s+month|monthly/i.test(monthlyOrdinal[0]))){
-    const ordMap={first:1,second:2,third:3,fourth:4,fifth:5,last:-1};
-    repeatType='custom';repeatCfg=defaultRecurrenceConfig('monthly',date||today);
-    repeatCfg.unit='months';repeatCfg.monthlyMode='ordinal';repeatCfg.ordinal=ordMap[monthlyOrdinal[1].toLowerCase()];repeatCfg.weekday=weekdayMap[monthlyOrdinal[2].toLowerCase()];
-    text=text.replace(monthlyOrdinal[0],' ');
-  }
-
-  const monthlyDay=text.match(/\b(?:on\s+the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?every\s+month\b|\bevery\s+month\s+(?:on\s+the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b/i);
-  if(monthlyDay){
-    repeatType='monthly';repeatCfg=defaultRecurrenceConfig('monthly',date||today);
-    repeatCfg.monthDay=clampInt(monthlyDay[1]||monthlyDay[2],1,31,1);
-    text=text.replace(monthlyDay[0],' ');
-  }
-
-  const everyInterval=text.match(/\bevery\s+(\d+)\s+(day|days|week|weeks|month|months)\b/i);
-  if(everyInterval){
-    const unitWord=everyInterval[2].toLowerCase();
-    repeatType='custom';repeatCfg=defaultRecurrenceConfig('daily',date||today);
-    repeatCfg.interval=clampInt(everyInterval[1],1,99,1);
-    repeatCfg.unit=unitWord.startsWith('day')?'days':unitWord.startsWith('week')?'weeks':'months';
-    if(repeatCfg.unit==='weeks')repeatCfg.weekdays=[date?parseKey(date).getDay():new Date().getDay()];
-    if(repeatCfg.unit==='months')repeatCfg.monthDay=(date?parseKey(date):new Date()).getDate();
-    text=text.replace(everyInterval[0],' ');
-  }
-
-  if(!repeatCfg&&/\bevery\s+weekday(?:s)?\b|\bweekdays\b/i.test(text)){
-    repeatType='weekdays';repeatCfg=defaultRecurrenceConfig('weekdays',date||today);text=text.replace(/\bevery\s+weekday(?:s)?\b|\bweekdays\b/i,' ');
-  }
-
-  if(!repeatCfg&&/\b(daily|every\s+day)\b/i.test(text)){repeatType='daily';repeatCfg=defaultRecurrenceConfig('daily',date||today);text=text.replace(/\b(daily|every\s+day)\b/i,' ')}
-  if(!repeatCfg&&/\bweekly\b/i.test(text)){repeatType='weekly';repeatCfg=defaultRecurrenceConfig('weekly',date||today);text=text.replace(/\bweekly\b/i,' ')}
-  if(!repeatCfg&&/\bmonthly\b/i.test(text)){repeatType='monthly';repeatCfg=defaultRecurrenceConfig('monthly',date||today);text=text.replace(/\bmonthly\b/i,' ')}
-
-  if(!repeatCfg&&/\bevery\b/i.test(text)){
-    const found=[];
-    Object.entries(weekdayMap).forEach(([name,num])=>{if(new RegExp('\\b'+name+'s?\\b','i').test(text))found.push(num)});
-    const unique=[...new Set(found)];
-    if(unique.length){
-      repeatType=unique.length===1?'weekly':'custom';repeatCfg=defaultRecurrenceConfig('weekly',date||today);repeatCfg.weekdays=unique.sort((a,b)=>a-b);
-      text=text.replace(/\bevery\b/i,' ');
-      Object.keys(weekdayMap).sort((a,b)=>b.length-a.length).forEach(name=>{text=text.replace(new RegExp('\\b'+name+'s?\\b','ig'),' ')});
-      text=text.replace(/\b(and|on)\b/ig,' ');
-      if(!date&&unique.length===1)date=nextWeekdayDate(unique[0],today);
-    }
-  }
-
-  if(!date){
-    const wd=text.match(/\b(?:next\s+)?(sunday|sun|monday|mon|tuesday|tue|tues|wednesday|wed|thursday|thu|thur|thurs|friday|fri|saturday|sat)\b/i);
-    if(wd){date=nextWeekdayDate(weekdayMap[wd[1].toLowerCase()],today);text=text.replace(wd[0],' ')}
-  }
-
-  text=text.replace(/\s+/g,' ').replace(/^[,;:\-\s]+|[,;:\-\s]+$/g,'').trim();
-  if(text)input.value=text;
-  if(date){$('#taskDate').value=date;refreshQuickDateSelection()}
-  if(time)$('#taskTime').value=time;
-  if(priority)$('#taskPriority').value=priority;
-  if(category)$('#taskCategory').value=category;
-  if(time&&state.autoCalendarTimed)$('#taskCalendar').checked=true;
-  if(repeatCfg){
-    if(date&&!repeatCfg.anchorDate)repeatCfg.anchorDate=date;
-    const synthetic={recurrence:repeatType||'custom',recurrenceConfig:repeatCfg,date:date||$('#taskDate').value||today};
-    writeRecurrenceForm(synthetic);
-  }
-  const parts=[];
-  if(date)parts.push(fmt(date,{day:'numeric',month:'short'}));
-  if(time)parts.push(time);
-  if(priority)parts.push(priority+' priority');
-  if(category)parts.push(category);
-  if(repeatCfg)parts.push(recurrenceLabel({recurrence:repeatType||'custom',recurrenceConfig:repeatCfg,date:date||$('#taskDate').value||today}));
-  showToast(parts.length?'Filled: '+parts.join(' · '):'No date, time or recurrence detected');
-}
+// Smart quick add: while you type a new task, Planly reads its date, time, duration, repeat, priority and #category,
+// fills the form and shows what it understood. Tap a part to ignore it. The title is tidied when you save.
+let planlyQuickAdd={base:null,touched:new Set(),ignore:new Set(),timer:0,parsed:null};
+function planlyQuickAddActive(){return !$('#taskId')?.value&&!$('#taskForm')?.classList.contains('taskReadOnlySheet')&&!!window.PlanlyIntelligence?.parseQuick}
+function planlyQuickAddReset(){clearTimeout(planlyQuickAdd.timer);planlyQuickAdd={base:null,touched:new Set(),ignore:new Set(),timer:0,parsed:null};planlyRenderQuickUnderstood(null)}
+// Any length works (e.g. 20m or 1h 15m): a missing length is added to the list instead of falling back to 30m.
+function planlySetDuration(minutes){const sel=$('#taskDuration');if(!sel)return;const v=String(clampInt(minutes,5,720,30));for(const o of [...sel.options])if(o.dataset.custom&&o.value!==v)o.remove();if(![...sel.options].some(o=>o.value===v)){const o=document.createElement('option');o.value=v;o.textContent=durationLabel(Number(v));o.dataset.custom='1';sel.insertBefore(o,[...sel.options].find(x=>Number(x.value)>Number(v))||null)}sel.value=v}
+// For a task you've had before (same title): its usual category and how long it really takes you.
+function planlyQuickLearned(title){const api=window.PlanlyIntelligence,key=api?.titleKey?api.titleKey(title):'';if(!key)return {};const same=state.tasks.filter(t=>t&&t._planlyOwnedByMe!==false&&t.visibility!=='household'&&api.titleKey(t.title)===key),out={};
+  if(same.length>=2){const c={};for(const t of same){const k=String(t.category||'Personal');c[k]=(c[k]||0)+1}const top=Object.entries(c).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0];if(top&&top[1]>=2&&top[1]/same.length>=0.6)out.category=top[0]}
+  try{const g=api.learn({today:localKey(new Date()),history:planlyLearningHistory()}).byKey[key];if(g&&g.actualN>=3)out.minutes=g.actual}catch{}
+  if(!out.minutes&&same.length>=2){const d={};for(const t of same){const m=Number(t.durationMinutes||0);if(m>=5)d[m]=(d[m]||0)+1}const top=Object.entries(d).sort((a,b)=>b[1]-a[1]||Number(a[0])-Number(b[0]))[0];if(top&&top[1]>=2)out.minutes=Number(top[0])}
+  return out}
+function planlyQuickParse(){const q=planlyQuickAdd,title=$('#taskTitle').value,p=window.PlanlyIntelligence.parseQuick(title,{today:localKey(new Date()),planningStart:String(state.planningStart||'08:00').slice(0,5),ignore:[...q.ignore],categories:[...$('#taskCategory').options].map(o=>o.value)}),learned=planlyQuickLearned(p.title||title);
+  if(!p.category&&learned.category&&!q.ignore.has('category')){p.category=learned.category;p.parts.push({kind:'category',label:learned.category,learned:true})}
+  if(!p.minutes&&learned.minutes&&!q.ignore.has('duration')){p.minutes=learned.minutes;p.parts.push({kind:'duration',label:durationLabel(learned.minutes),learned:true})}
+  return p}
+function planlyQuickRecurrence(x,date){const type=x.type==='weekdays'?'weekdays':x.unit==='days'?'daily':x.unit==='months'?'monthly':'weekly',cfg=defaultRecurrenceConfig(type,date);cfg.unit=x.unit;cfg.interval=clampInt(x.interval,1,99,1);
+  if(x.unit==='weeks')cfg.weekdays=Array.isArray(x.weekdays)&&x.weekdays.length?x.weekdays.slice():[parseKey(date).getDay()];
+  if(x.unit==='months'){cfg.monthlyMode=x.monthlyMode==='ordinal'?'ordinal':'day';if(cfg.monthlyMode==='ordinal'){cfg.ordinal=x.ordinal;cfg.weekday=x.weekday}else cfg.monthDay=clampInt(x.monthDay||parseKey(date).getDate(),1,31,1)}
+  cfg.anchorDate=date;return {recurrence:['daily','weekly','weekdays','monthly'].includes(x.type)?x.type:'custom',recurrenceConfig:cfg,date}}
+// Fill each field from what was typed, or put back what it was before; a field you change yourself is left alone.
+// (Planly sets these fields without firing input/change events, so any such event on them is the user's own change.)
+function planlyQuickApply(p){const q=planlyQuickAdd,b=q.base,t=q.touched,today=localKey(new Date());
+  if(!t.has('date')){$('#taskDate').value=p.date||b.date;refreshQuickDateSelection()}
+  if(!t.has('time'))$('#taskTime').value=p.time||b.time;
+  if(!t.has('duration'))planlySetDuration(p.minutes||b.duration);
+  if(!t.has('priority'))$('#taskPriority').value=p.priority||b.priority;
+  if(!t.has('category'))$('#taskCategory').value=p.category||b.category;
+  if(!t.has('calendar'))$('#taskCalendar').checked=b.calendar||!!(p.time&&state.autoCalendarTimed);
+  if(!t.has('repeat')){const date=$('#taskDate').value||today;writeRecurrenceForm(p.repeat?planlyQuickRecurrence(p.repeat,date):b.repeat,date)}}
+function planlyRenderQuickUnderstood(p){const box=$('#quickUnderstood'),hint=$('#quickAddHint');if(!box)return;const parts=p?.parts||[];box.hidden=!parts.length;if(hint)hint.hidden=!!parts.length;if(!parts.length){box.innerHTML='';return}
+  const rd=readRecurrenceForm(),repeatLabel=p.repeat&&rd.recurrence!=='none'?recurrenceLabel({recurrence:rd.recurrence,recurrenceConfig:rd.recurrenceConfig,date:$('#taskDate').value}):'';
+  box.innerHTML='<span class="quickUnderstoodLabel">Understood</span>'+parts.map(x=>{const label=x.kind==='repeat'&&repeatLabel?repeatLabel:x.label;return '<button type="button" class="quickChip'+(x.learned?' learned':'')+'" data-quick-ignore="'+esc(x.kind)+'" aria-label="Ignore '+esc(label)+'"><span>'+esc(label)+'</span>'+(x.learned?'<small>usual</small>':'')+'<b aria-hidden="true">✕</b></button>'}).join('')}
+function planlyQuickRun(){if(!planlyQuickAddActive())return null;const q=planlyQuickAdd;
+  if(!q.base){const rd=readRecurrenceForm();q.base={date:$('#taskDate').value,time:$('#taskTime').value,duration:Number($('#taskDuration').value||state.defaultDuration||30),priority:$('#taskPriority').value,category:$('#taskCategory').value,calendar:$('#taskCalendar').checked,repeat:rd.recurrence==='none'?'none':{recurrence:rd.recurrence,recurrenceConfig:rd.recurrenceConfig,date:$('#taskDate').value}}}
+  let p;try{p=planlyQuickParse()}catch{return null}q.parsed=p;planlyQuickApply(p);planlyRenderQuickUnderstood(p);return p}
+// Before saving: the latest reading, and the title without the date/time words (kept as typed if nothing else is left).
+function planlyQuickFinal(){if(!planlyQuickAddActive()||!planlyQuickAdd.base)return;clearTimeout(planlyQuickAdd.timer);const p=planlyQuickRun();if(p&&p.title)$('#taskTitle').value=p.title}
+const PLANLY_QUICK_FIELDS={taskDate:'date',taskTime:'time',taskDuration:'duration',taskPriority:'priority',taskCategory:'category',taskCalendar:'calendar'};
+document.addEventListener('input',e=>{if(e.target?.id==='taskTitle'&&planlyQuickAddActive()){clearTimeout(planlyQuickAdd.timer);planlyQuickAdd.timer=setTimeout(planlyQuickRun,300)}});
+for(const type of ['input','change'])document.addEventListener(type,e=>{if(!e.target?.closest?.('#taskForm'))return;const id=e.target.id||'',kind=PLANLY_QUICK_FIELDS[id]||(id==='taskRepeat'||id.startsWith('repeat')||e.target.closest('#repeatAdvanced')?'repeat':'');if(kind)planlyQuickAdd.touched.add(kind)},true);
+document.addEventListener('click',e=>{if(e.target.closest?.('#quickDates .chip'))planlyQuickAdd.touched.add('date');const chip=e.target.closest?.('[data-quick-ignore]');if(chip){planlyQuickAdd.ignore.add(chip.dataset.quickIgnore);planlyQuickRun();$('#taskTitle')?.focus()}},true);
 
 function renderSubtaskEditor(){
   const list=$('#subtaskList');
@@ -2818,7 +2745,7 @@ function openSheet(task,projectId=''){
   $('#taskTitle').value=task?.title||'';
   $('#taskDate').value=task?.date??defaultDateForNewTask();
   $('#taskTime').value=task?.time||'';
-  $('#taskDuration').value=String(task?.durationMinutes||state.defaultDuration||30);
+  planlySetDuration(task?.durationMinutes||state.defaultDuration||30);
   $('#taskPriority').value=task?.priority||'normal';
   $('#taskCategory').value=task?.category||state.defaultCategory;
   refreshProjectSelect(task?.projectId||projectId||'');
@@ -2834,7 +2761,7 @@ function openSheet(task,projectId=''){
   $('#formActions').classList.toggle('editing',!!task);
   const form=$('#taskForm');if(form){form.classList.toggle('taskReadOnlySheet',readOnly);form.querySelectorAll('input,select,textarea,button').forEach(el=>{if(el.closest('.sheetDragZone'))return;el.disabled=readOnly});const actions=$('#formActions');if(actions)actions.hidden=readOnly;const duplicate=$('#duplicateTask');if(duplicate)duplicate.hidden=readOnly}
   setTaskMoreOptions(taskHasMoreOptions(task));
-  refreshSmartAddSuggestion();
+  planlyQuickAddReset();
   refreshQuickDateSelection();
   window.dispatchEvent(new CustomEvent('planly:task-sheet-open',{detail:{taskId:task?.id||'',readOnly,assigneeId:String(task?.assigneeId||task?.assignee_id||''),visibility:task?.visibility||'private'}}));
 }
@@ -3061,6 +2988,7 @@ $('#importFile').addEventListener('change',async e=>{
 $('#taskForm').addEventListener('submit',async e=>{
   e.preventDefault();
   if(e.target.classList.contains('taskReadOnlySheet'))return;
+  planlyQuickFinal();
   const id=$('#taskId').value,now=Date.now(),wasExisting=!!id;
   const repeatData=readRecurrenceForm();
   const timedAutoCalendar=!id&&state.autoCalendarTimed&&!!$('#taskTime').value;
@@ -3128,8 +3056,6 @@ $('#taskForm').addEventListener('submit',async e=>{
     await processPendingDeletes();render();
   }
 })
-document.addEventListener('input',e=>{if(e.target?.id==='taskTitle')refreshSmartAddSuggestion()});
-document.addEventListener('click',e=>{const cat=e.target.closest('[data-learning-category]');if(cat){$('#taskCategory').value=cat.dataset.learningCategory;setTaskMoreOptions(true);refreshSmartAddSuggestion();return}const dur=e.target.closest('[data-learning-duration]');if(dur){$('#taskDuration').value=dur.dataset.learningDuration;setTaskMoreOptions(true);refreshSmartAddSuggestion();return}});
 document.addEventListener('click',e=>{const b=e.target.closest('#planlyCloudMigrateBtn');if(!b)return;const s=planlyCloudLocalStatus();if(s.state==='cloud-loaded'){if(confirm('Enable Planly Cloud Sync for this account?'))enableCloudWritePreview();return}if(s.state==='cloud-write-test')return;$('#planlyMigrationFile')?.click()});
 document.addEventListener('click',e=>{const b=e.target.closest('#planlyConflictTestBtn');if(!b)return;openCloudConflictTestTask(b).catch(err=>{showToast('Conflict-test setup failed');alert(err?.message||'Could not prepare conflict-test task.')})});
 document.addEventListener('click',e=>{const b=e.target.closest('#planlyDeterministicConflictBtn');if(!b)return;runDeterministicConflictTest(b).catch(err=>{showToast('Conflict protection test failed');alert(err?.message||'Conflict protection test failed.')})});
@@ -3228,7 +3154,7 @@ sheetDragZone.addEventListener('touchstart',beginSheetDrag,{passive:true});
 sheetDragZone.addEventListener('touchmove',moveSheetDrag,{passive:false});
 sheetDragZone.addEventListener('touchend',endSheetDrag,{passive:true});
 sheetDragZone.addEventListener('touchcancel',endSheetDrag,{passive:true});
-$('#taskActionClose').onclick=closeTaskActions;$('#taskActionWrap').addEventListener('click',e=>{if(e.target.classList.contains('taskActionBackdrop'))closeTaskActions();else handleTaskActionClick(e)});$('#taskActionContent').addEventListener('change',handleTaskActionChange);$('#timelineClose').onclick=closeTimeline;$('#timelinePrev').onclick=()=>{timelineDate=addDays(timelineDate,-1);renderTimeline()};$('#timelineNext').onclick=()=>{timelineDate=addDays(timelineDate,1);renderTimeline()};$('#timelineDate').addEventListener('change',e=>{if(e.target.value){timelineDate=e.target.value;renderTimeline()}});$('#timelineContent').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('change',handleTimelineChange);$('#timelineContent').addEventListener('touchstart',beginTimelineDrag,{passive:true});$('#timelineContent').addEventListener('touchmove',moveTimelineDrag,{passive:false});$('#timelineContent').addEventListener('touchend',endTimelineDrag,{passive:true});$('#timelineContent').addEventListener('touchcancel',endTimelineDrag,{passive:true});$('#projectsToggle').onclick=()=>openProjects();$('#projectsClose').onclick=closeProjects;$('#projectsBack').onclick=()=>{if(projectPanelMode==='editor'&&editingProjectId){activeProjectId=editingProjectId;editingProjectId='';projectPanelMode='detail'}else if(projectPanelMode==='editor'){editingProjectId='';projectPanelMode='list'}else{activeProjectId='';projectPanelMode='list'}renderProjectsPanel()};$('#projectsContent').addEventListener('click',e=>{handleProjectsClick(e);handleViewClick(e)});$('#projectsContent').addEventListener('submit',e=>{if(e.target.id==='projectForm'){e.preventDefault();saveProjectEditor()}});$('#projectsContent').addEventListener('touchstart',beginTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchmove',moveTaskSwipe,{passive:false});$('#projectsContent').addEventListener('touchend',endTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchcancel',endTaskSwipe,{passive:true});$('#sheetWrap').addEventListener('click',e=>{if(e.target===$('#sheetWrap'))closeSheet()});$('#quickFillBtn').addEventListener('click',parseNaturalTaskInput);$('#subtaskAdd').addEventListener('click',addEditingSubtask);$('#subtaskInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addEditingSubtask()}});$('#subtaskList').addEventListener('click',handleSubtaskEditorClick);$('#taskDate').addEventListener('change',()=>{refreshQuickDateSelection();if($('#taskRepeat').value!=='none'&&$('#taskRepeat').value!=='custom')applyRepeatPreset()});$('#taskTime').addEventListener('change',()=>{if(!$('#taskId').value&&state.autoCalendarTimed&&$('#taskTime').value)$('#taskCalendar').checked=true});$('#taskRepeat').addEventListener('change',applyRepeatPreset);
+$('#taskActionClose').onclick=closeTaskActions;$('#taskActionWrap').addEventListener('click',e=>{if(e.target.classList.contains('taskActionBackdrop'))closeTaskActions();else handleTaskActionClick(e)});$('#taskActionContent').addEventListener('change',handleTaskActionChange);$('#timelineClose').onclick=closeTimeline;$('#timelinePrev').onclick=()=>{timelineDate=addDays(timelineDate,-1);renderTimeline()};$('#timelineNext').onclick=()=>{timelineDate=addDays(timelineDate,1);renderTimeline()};$('#timelineDate').addEventListener('change',e=>{if(e.target.value){timelineDate=e.target.value;renderTimeline()}});$('#timelineContent').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('change',handleTimelineChange);$('#timelineContent').addEventListener('touchstart',beginTimelineDrag,{passive:true});$('#timelineContent').addEventListener('touchmove',moveTimelineDrag,{passive:false});$('#timelineContent').addEventListener('touchend',endTimelineDrag,{passive:true});$('#timelineContent').addEventListener('touchcancel',endTimelineDrag,{passive:true});$('#projectsToggle').onclick=()=>openProjects();$('#projectsClose').onclick=closeProjects;$('#projectsBack').onclick=()=>{if(projectPanelMode==='editor'&&editingProjectId){activeProjectId=editingProjectId;editingProjectId='';projectPanelMode='detail'}else if(projectPanelMode==='editor'){editingProjectId='';projectPanelMode='list'}else{activeProjectId='';projectPanelMode='list'}renderProjectsPanel()};$('#projectsContent').addEventListener('click',e=>{handleProjectsClick(e);handleViewClick(e)});$('#projectsContent').addEventListener('submit',e=>{if(e.target.id==='projectForm'){e.preventDefault();saveProjectEditor()}});$('#projectsContent').addEventListener('touchstart',beginTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchmove',moveTaskSwipe,{passive:false});$('#projectsContent').addEventListener('touchend',endTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchcancel',endTaskSwipe,{passive:true});$('#sheetWrap').addEventListener('click',e=>{if(e.target===$('#sheetWrap'))closeSheet()});$('#subtaskAdd').addEventListener('click',addEditingSubtask);$('#subtaskInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addEditingSubtask()}});$('#subtaskList').addEventListener('click',handleSubtaskEditorClick);$('#taskDate').addEventListener('change',()=>{refreshQuickDateSelection();if($('#taskRepeat').value!=='none'&&$('#taskRepeat').value!=='custom')applyRepeatPreset()});$('#taskTime').addEventListener('change',()=>{if(!$('#taskId').value&&state.autoCalendarTimed&&$('#taskTime').value)$('#taskCalendar').checked=true});$('#taskRepeat').addEventListener('change',applyRepeatPreset);
 $('#repeatInterval').addEventListener('input',markRepeatCustom);
 $('#repeatUnit').addEventListener('change',()=>{markRepeatCustom();refreshRecurrenceAdvancedUI()});
 $('#repeatWeekdays').addEventListener('click',e=>{const b=e.target.closest('[data-weekday]');if(!b)return;b.classList.toggle('active');markRepeatCustom()});
