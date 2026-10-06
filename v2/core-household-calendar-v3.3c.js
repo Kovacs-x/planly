@@ -9,11 +9,6 @@ function planlyMonthExternalForDate(key,context,filter){
      Legacy audit equivalence was: filter==='all'||filter==='wife'?externalEventsForDate(key,context):[] */
   return filter==='all'||filter==='calendar'?externalEventsForDate(key,context):[];
 }
-const __planly33cBaseDayPlanTask=dayPlanTask;dayPlanTask=function(id){const candidates=dayPlanDraft?.filter(t=>String(t.id)===String(id))||[];return candidates.find(planlyTaskOwnedByMe)||__planly33cBaseDayPlanTask(id)};
-const __planly33cBaseOpenPlanDay=openPlanDay;openPlanDay=function(){__planly33cBaseOpenPlanDay();for(const key of ['overdue','inbox','today'])dayPlanGroups[key]=(dayPlanGroups[key]||[]).filter(id=>planlyTaskOwnedByMe(dayPlanTask(id)));renderPlanDay()};
-const __planly33cBaseMoveDayPlanTask=moveDayPlanTask;moveDayPlanTask=function(id,target){const t=dayPlanTask(id);if(t&&!planlyTaskOwnedByMe(t)){showToast('Shared task · only its creator can reschedule it');return}return __planly33cBaseMoveDayPlanTask(id,target)};
-const __planly33cBaseToggleDayPlanTop3=toggleDayPlanTop3;toggleDayPlanTop3=function(id){const t=dayPlanTask(id);if(t&&!planlyTaskOwnedByMe(t)){showToast('Shared task · only its creator can change Top 3');return}return __planly33cBaseToggleDayPlanTop3(id)};
-const __planly33cBaseRenderPlanDay=renderPlanDay;renderPlanDay=function(){return __planly33cBaseRenderPlanDay()};
 monthView=function(){
  const first=monthStart(state.monthAnchor),d=parseKey(first),year=d.getFullYear(),month=d.getMonth(),filter=monthCalendarFilter==='wife'?'calendar':(monthCalendarFilter||'all');if(monthCalendarFilter==='wife')monthCalendarFilter='calendar';setHeader(new Intl.DateTimeFormat(undefined,{month:'long'}).format(d),String(year));
  const offset=(d.getDay()+6)%7,days=new Date(year,month+1,0).getDate();let cal='<div class="calendar">'+['M','T','W','T','F','S','S'].map(x=>`<div class="dow">${x}</div>`).join('');for(let i=0;i<offset;i++)cal+='<div></div>';
