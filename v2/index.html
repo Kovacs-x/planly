@@ -527,111 +527,6 @@ body.welcomeOpen{overflow:hidden}
 .budgetResetActions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.budgetResetActions button{min-height:48px}
 .budgetResetActions .dangerBtn:disabled{opacity:.45}
 </style>
-</head>
-<body>
-<div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
-<svg class="planlyIconSprite" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="pi-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></symbol><symbol id="pi-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="pi-today" viewBox="0 0 24 24"><path d="M5 4v3M19 4v3M4 9h16"/><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="m8.5 14 2 2 5-5"/></symbol><symbol id="pi-plan" viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h6"/><path d="m16 15 3 3-3 3"/></symbol><symbol id="pi-home" viewBox="0 0 24 24"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></symbol><symbol id="pi-budget" viewBox="0 0 24 24"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></symbol><symbol id="pi-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol><symbol id="pi-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></symbol><symbol id="pi-spark" viewBox="0 0 24 24"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6z"/><path d="m18 15 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></symbol><symbol id="pi-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol><symbol id="pi-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></symbol><symbol id="pi-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></symbol><symbol id="pi-grip" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8"/></symbol><symbol id="pi-checklist" viewBox="0 0 24 24"><path d="m4 7 2 2 3-4M11 7h9M4 14l2 2 3-4M11 14h9"/></symbol><symbol id="pi-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol></defs></svg>
-<div id="planlyBootSplash" class="planlyBootSplash"><div class="planlyBootCard"><div class="planlyBootMark">Planly</div><div id="planlyBootMessage" class="planlyBootMessage">Preparing your planner…</div><button id="planlyBootRetry" class="planlyBootRetry" type="button" hidden>Retry</button></div></div>
-<div class="app">
-  <div id="installHelp" class="installHelp" hidden><strong>Add Planly to your iPhone</strong><div class="muted" style="margin-top:6px;font-size:14px">Open in Safari → Share → Add to Home Screen.</div></div>
-  <header class="topbar"><div><div id="eyebrow" class="eyebrow"></div><div id="pageTitle" class="title">Today</div></div><div class="topActions"><div id="planlySyncChip" class="syncChip" aria-live="polite"><span class="syncDot"></span><span class="syncChipText">Synced</span></div><button id="profileToggle" class="iconbtn profileIcon" aria-label="Open profile"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></button><button id="searchToggle" class="iconbtn searchIcon" aria-label="Search tasks"><svg class="pIcon" aria-hidden="true"><use href="#pi-search"/></svg></button><button id="projectsToggle" class="r1HiddenHook" type="button" aria-hidden="true" tabindex="-1"></button><button id="themeToggle" class="r1HiddenHook" type="button" aria-hidden="true" tabindex="-1"></button><button id="planlyHouseholdDashboardBtn" class="r1HiddenHook planlyAuthAction" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="planlyListsBtn" class="r1HiddenHook planlyAuthAction" type="button" hidden aria-hidden="true" tabindex="-1"></button></div></header>
-  <main id="view"></main>
-</div>
-<button id="addBtn" class="fab" aria-label="Add task"><svg class="pIcon" aria-hidden="true"><use href="#pi-plus"/></svg></button>
-<nav class="nav" aria-label="Primary">
-  <button data-tab="today" data-section="today" class="active"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg><span class="navLabel">Today</span></button>
-  <button data-tab="upcoming" data-section="plan"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01" stroke-width="2.4" stroke-linecap="round"/></svg><span class="navLabel">Plan</span></button>
-  <button data-tab="home" data-section="home"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></svg><span class="navLabel">Home</span></button>
-  <button data-tab="budget" data-section="budget" aria-label="Budget"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></svg><span class="navLabel">Budget</span></button>
-</nav>
-<div id="profileWrap" class="profileWrap" aria-hidden="true"><div class="profileBackdrop"></div><section class="profileSheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle"><div class="taskActionGrab"></div><div class="profileHead"><div><span class="calendarGroupLabel">Planly</span><h2 id="profileTitle">Profile</h2></div><button type="button" id="profileClose">Done</button></div><div id="profileContent"></div></section></div>
-
-<div id="taskActionWrap" class="taskActionWrap" aria-hidden="true"><div class="taskActionBackdrop"></div><div class="taskActionSheet"><div class="taskActionGrab"></div><div class="taskActionHeader"><div><span>Task actions</span><strong id="taskActionTitle">Task</strong></div><button id="taskActionClose" type="button">Done</button></div><div id="taskActionContent" class="taskActionContent"></div></div></div>
-
-<div id="timelineWrap" class="timelineWrap" aria-hidden="true"><div class="timelinePanel"><div class="timelineHeader"><div><div class="eyebrow">Time planning</div><div id="timelineTitle" class="timelineTitle">Today</div></div><button id="timelineClose" type="button">Done</button></div><div class="timelineDateNav"><button id="timelinePrev" type="button" aria-label="Previous day">‹</button><input id="timelineDate" type="date" class="input"><button id="timelineNext" type="button" aria-label="Next day">›</button></div><div id="timelineContent" class="timelineContent"></div></div></div>
-
-<div id="projectsWrap" class="projectsWrap" aria-hidden="true"><div class="projectsPanel"><div class="projectsHeader"><button id="projectsBack" type="button" class="projectsBack" hidden aria-label="Back">‹</button><div class="projectsHeading"><div id="projectsEyebrow" class="eyebrow">Outcomes & task groups</div><div id="projectsTitle" class="projectsTitle">Projects</div></div><button id="projectsClose" type="button" class="projectsClose">Done</button></div><div id="projectsContent" class="projectsContent"></div></div></div>
-
-<div id="searchWrap" class="searchWrap" aria-hidden="true"><div class="searchPanel"><div class="searchHeader"><div class="searchInputWrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Search Planly" autocomplete="off" enterkeyhint="search"></div><button id="searchClose" type="button">Cancel</button></div><div class="searchFilters"><div class="searchFilterChips"><button type="button" class="active" data-search-filter="all">All</button><button type="button" data-search-filter="today">Today</button><button type="button" data-search-filter="upcoming">Upcoming</button><button type="button" data-search-filter="completed">Completed</button><button type="button" data-search-filter="inbox">Inbox</button></div><div class="searchFilterSelects"><select id="searchCategory" class="select"><option value="">All categories</option><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select><select id="searchPriority" class="select"><option value="">All priorities</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select><select id="searchProject" class="select"><option value="">All projects</option></select></div></div><div id="searchResults" class="searchResults"></div></div></div>
-
-<div id="sheetWrap" class="sheetWrap" aria-hidden="true"><div class="sheet"><div id="sheetDragZone" class="sheetDragZone" aria-label="Drag down to close"><div class="handle"></div></div><form id="taskForm">
-  <input type="hidden" id="taskId">
-  <div class="field"><label for="taskTitle">Task</label><div class="smartTaskRow"><input id="taskTitle" class="input" maxlength="160" required placeholder="What needs doing?" enterkeyhint="next" autocomplete="off"></div><div id="quickUnderstood" class="quickUnderstood" hidden aria-live="polite"></div><div id="quickAddHint" class="fieldHint">Type it naturally, like “Call mum tomorrow 6pm 20m” or “Football every Wednesday 9pm”.</div></div>
-  <div class="chips" id="quickDates"><button type="button" class="chip active" data-q="today">Today</button><button type="button" class="chip" data-q="tomorrow">Tomorrow</button><button type="button" class="chip" data-q="weekend">This weekend</button><button type="button" class="chip" data-q="nextweek">Next week</button><button type="button" class="chip" data-q="none">No date</button></div>
-  <div class="row2 compactCoreRow" style="margin-top:12px"><div class="field"><label>Date</label><input id="taskDate" type="date" class="input"></div><div class="field"><label>Time</label><input id="taskTime" type="time" class="input"></div></div>
-  <div class="field compactPriority"><label>Priority</label><select id="taskPriority" class="select"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></div>
-  <div id="taskHouseholdControls" class="taskHouseholdControls" hidden>
-    <div class="field taskSharingField"><label>Share</label><div id="taskVisibilitySegments" class="taskChoiceSegments" role="group" aria-label="Share task"><button type="button" data-task-visibility="private" class="active">Just me</button><button type="button" data-task-visibility="household">Household</button></div><select id="taskVisibility" class="select taskChoiceBacking" aria-hidden="true" tabindex="-1"><option value="private">Private — only me</option><option value="household">Household — shared</option></select><div id="taskVisibilityHelp" class="fieldHint">Household tasks are shared with current household members.</div></div>
-  </div>
-
-  <details id="taskMoreOptions" class="taskMoreOptions">
-    <summary><span>More options</span><small>Category, project, reminder, repeat, notes, checklist & calendar</small></summary>
-    <div class="moreOptionsBody">
-      <div class="row2"><div class="field"><label>Category</label><select id="taskCategory" class="select"><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select></div><div class="field"><label>Project</label><select id="taskProject" class="select"><option value="">No project</option></select></div></div>
-      <div class="row2"><div class="field"><label>Duration</label><select id="taskDuration" class="select"><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">1 hr 30</option><option value="120">2 hours</option></select></div><div class="field"><label>Calendar reminder</label><select id="taskReminder" class="select"><option value="none">None</option><option value="at-time">At task time</option><option value="5-min">5 min before</option><option value="15-min">15 min before</option><option value="30-min">30 min before</option><option value="60-min">1 hour before</option><option value="1440-min">1 day before</option></select></div></div>
-      <div class="field recurrenceField"><label>Repeat</label><select id="taskRepeat" class="select"><option value="none">None</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="custom">Custom</option></select><details id="repeatAdvanced" class="repeatAdvanced"><summary>Advanced repeat options</summary><div class="repeatGrid"><div class="field"><label>Every</label><input id="repeatInterval" type="number" min="1" max="99" class="input" value="1" inputmode="numeric"></div><div class="field"><label>Period</label><select id="repeatUnit" class="select"><option value="days">Day(s)</option><option value="weeks">Week(s)</option><option value="months">Month(s)</option></select></div></div><div id="repeatWeekdayWrap" class="repeatOption"><label>On</label><div id="repeatWeekdays" class="weekdayPicker"><button type="button" data-weekday="1">M</button><button type="button" data-weekday="2">T</button><button type="button" data-weekday="3">W</button><button type="button" data-weekday="4">T</button><button type="button" data-weekday="5">F</button><button type="button" data-weekday="6">S</button><button type="button" data-weekday="0">S</button></div></div><div id="repeatMonthlyWrap" class="repeatOption"><label>Monthly pattern</label><select id="repeatMonthMode" class="select"><option value="day">Day of month</option><option value="ordinal">Relative weekday</option></select><div id="repeatMonthDayWrap" class="repeatInline"><span>Day</span><input id="repeatMonthDay" class="input compactInput" type="number" min="1" max="31" value="1" inputmode="numeric"></div><div id="repeatOrdinalWrap" class="repeatGrid"><select id="repeatOrdinal" class="select"><option value="1">First</option><option value="2">Second</option><option value="3">Third</option><option value="4">Fourth</option><option value="5">Fifth</option><option value="-1">Last</option></select><select id="repeatOrdinalWeekday" class="select"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div></div><div class="repeatOption"><label>Ends</label><select id="repeatEndMode" class="select"><option value="never">Never</option><option value="date">On date</option><option value="count">After number of occurrences</option></select><div id="repeatEndDateWrap" class="repeatInline"><input id="repeatEndDate" type="date" class="input"></div><div id="repeatCountWrap" class="repeatInline"><span>After</span><input id="repeatCount" type="number" min="2" max="999" value="10" class="input compactInput" inputmode="numeric"><span>times</span></div></div></details></div>
-      <div class="field"><label>Notes</label><textarea id="taskNotes" class="textarea" maxlength="500" placeholder="Optional details"></textarea></div>
-      <div class="field subtaskField"><label>Subtasks</label><div id="subtaskList" class="subtaskList"></div><div class="subtaskAddRow"><input id="subtaskInput" class="input" maxlength="120" placeholder="Add a checklist item" enterkeyhint="done" autocomplete="off"><button id="subtaskAdd" type="button" class="subtaskAddBtn">Add</button></div></div>
-      
-      <label class="calendarTaskToggle"><input id="taskCalendar" type="checkbox"><span><strong>Add to Google Calendar</strong><small>Syncs time, duration and reminders to your private Planly calendar.</small></span></label>
-    </div>
-  </details>
-
-  <button type="button" id="duplicateTask" class="duplicateTaskBtn" style="display:none">Duplicate task</button>
-  <div id="formActions" class="formActions"><button type="button" id="deleteTask" class="primary" style="background:transparent;color:var(--danger);border:1px solid var(--line);display:none">Delete</button><button type="submit" class="primary">Save task</button></div>
-</form></div></div>
-<input id="importFile" type="file" accept="application/json" hidden>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
-<script src="./supabase-config.js"></script>
-<script>
-(()=>{
-  'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=704a01';
-  const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
-  const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
-  const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
-  const ready=()=>{sessionStorage.removeItem(RELOAD_KEY);document.documentElement.classList.remove('planlyBootPending','planlyWarmStart');if(splash)splash.hidden=true;setBoot('ready')};
-  const loadRuntime=()=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=RUNTIME_URL;script.async=false;script.onload=()=>{ready();resolve()};script.onerror=()=>reject(new Error('runtime-load-failed'));document.body.appendChild(script)});
-  const waitForController=()=>new Promise((resolve,reject)=>{
-    let settled=false;
-    const done=fn=>{if(settled)return;settled=true;clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',onController);fn()};
-    const onController=()=>done(resolve);
-    const timer=setTimeout(()=>done(()=>reject(new Error('controller-timeout'))),TIMEOUT_MS);
-    navigator.serviceWorker.addEventListener('controllerchange',onController);
-    if(navigator.serviceWorker.controller)done(resolve);
-  });
-  retry?.addEventListener('click',()=>{sessionStorage.removeItem(RELOAD_KEY);location.reload()});
-  const maintainRegistration=async()=>{try{const regs=await navigator.serviceWorker.getRegistrations();for(const reg of regs){const path=new URL(reg.scope).pathname;if(path.endsWith('/planly/'))await reg.unregister();if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active)await reg.unregister()}return await navigator.serviceWorker.register('./sw.js',{scope:'./'})}catch{return null}};
-  (async()=>{
-    if(!('serviceWorker' in navigator)){fail('Planly needs service-worker support to start safely in this browser.','unsupported');return}
-    if(navigator.serviceWorker.controller){
-      document.documentElement.classList.remove('planlyBootPending');if(splash)splash.hidden=true;setBoot('warm-start',{controlled:true});
-      maintainRegistration();
-      try{await loadRuntime()}catch{fail('Planly could not finish loading. Tap Retry to try again.','runtime-error')}
-      return
-    }
-    try{
-      const reg=await maintainRegistration();
-      if(!reg)throw new Error('service-worker-registration-failed');
-      setBoot('registered',{scope:reg.scope,controlled:!!navigator.serviceWorker.controller});
-      if(navigator.serviceWorker.controller){await loadRuntime();return}
-      if(sessionStorage.getItem(RELOAD_KEY)==='1'){
-        try{await waitForController();await loadRuntime();return}
-        catch{fail(navigator.onLine?'Planly could not finish setting up. Tap Retry to try again.':'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.','setup-incomplete');return}
-      }
-      await waitForController();
-      sessionStorage.setItem(RELOAD_KEY,'1');
-      location.reload();
-    }catch(err){
-      const offline=!navigator.onLine;
-      fail(offline?'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.':'Planly could not finish setting up. Tap Retry to try again.',offline?'offline-first-visit':'setup-error');
-    }
-  })();
-})();
-</script>
-</body>
-</html>
 <style id="planlyC1Contrast">
 :root:not([data-theme="dark"]) .monthControls .monthToday{color:#115766!important}
 :root:not([data-theme="dark"]) .householdRoleBadge.owner{color:#6B4300!important}
@@ -826,3 +721,108 @@ body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--to
 .budgetToggle{display:flex!important;align-items:center!important;gap:10px!important;min-height:44px}
 .budgetToggle input[type=checkbox]{width:22px!important;height:22px!important;min-height:0!important;max-height:22px!important;padding:0!important;margin:0!important;accent-color:var(--sec);flex:none}
 </style>
+</head>
+<body>
+<div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
+<svg class="planlyIconSprite" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="pi-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></symbol><symbol id="pi-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="pi-today" viewBox="0 0 24 24"><path d="M5 4v3M19 4v3M4 9h16"/><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="m8.5 14 2 2 5-5"/></symbol><symbol id="pi-plan" viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h6"/><path d="m16 15 3 3-3 3"/></symbol><symbol id="pi-home" viewBox="0 0 24 24"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></symbol><symbol id="pi-budget" viewBox="0 0 24 24"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></symbol><symbol id="pi-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol><symbol id="pi-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></symbol><symbol id="pi-spark" viewBox="0 0 24 24"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6z"/><path d="m18 15 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></symbol><symbol id="pi-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol><symbol id="pi-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></symbol><symbol id="pi-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></symbol><symbol id="pi-grip" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8"/></symbol><symbol id="pi-checklist" viewBox="0 0 24 24"><path d="m4 7 2 2 3-4M11 7h9M4 14l2 2 3-4M11 14h9"/></symbol><symbol id="pi-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol></defs></svg>
+<div id="planlyBootSplash" class="planlyBootSplash"><div class="planlyBootCard"><div class="planlyBootMark">Planly</div><div id="planlyBootMessage" class="planlyBootMessage">Preparing your planner…</div><button id="planlyBootRetry" class="planlyBootRetry" type="button" hidden>Retry</button></div></div>
+<div class="app">
+  <div id="installHelp" class="installHelp" hidden><strong>Add Planly to your iPhone</strong><div class="muted" style="margin-top:6px;font-size:14px">Open in Safari → Share → Add to Home Screen.</div></div>
+  <header class="topbar"><div><div id="eyebrow" class="eyebrow"></div><div id="pageTitle" class="title">Today</div></div><div class="topActions"><div id="planlySyncChip" class="syncChip" aria-live="polite"><span class="syncDot"></span><span class="syncChipText">Synced</span></div><button id="profileToggle" class="iconbtn profileIcon" aria-label="Open profile"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></button><button id="searchToggle" class="iconbtn searchIcon" aria-label="Search tasks"><svg class="pIcon" aria-hidden="true"><use href="#pi-search"/></svg></button><button id="projectsToggle" class="r1HiddenHook" type="button" aria-hidden="true" tabindex="-1"></button><button id="themeToggle" class="r1HiddenHook" type="button" aria-hidden="true" tabindex="-1"></button><button id="planlyHouseholdDashboardBtn" class="r1HiddenHook planlyAuthAction" type="button" hidden aria-hidden="true" tabindex="-1"></button><button id="planlyListsBtn" class="r1HiddenHook planlyAuthAction" type="button" hidden aria-hidden="true" tabindex="-1"></button></div></header>
+  <main id="view"></main>
+</div>
+<button id="addBtn" class="fab" aria-label="Add task"><svg class="pIcon" aria-hidden="true"><use href="#pi-plus"/></svg></button>
+<nav class="nav" aria-label="Primary">
+  <button data-tab="today" data-section="today" class="active"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg><span class="navLabel">Today</span></button>
+  <button data-tab="upcoming" data-section="plan"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01" stroke-width="2.4" stroke-linecap="round"/></svg><span class="navLabel">Plan</span></button>
+  <button data-tab="home" data-section="home"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></svg><span class="navLabel">Home</span></button>
+  <button data-tab="budget" data-section="budget" aria-label="Budget"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></svg><span class="navLabel">Budget</span></button>
+</nav>
+<div id="profileWrap" class="profileWrap" aria-hidden="true"><div class="profileBackdrop"></div><section class="profileSheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle"><div class="taskActionGrab"></div><div class="profileHead"><div><span class="calendarGroupLabel">Planly</span><h2 id="profileTitle">Profile</h2></div><button type="button" id="profileClose">Done</button></div><div id="profileContent"></div></section></div>
+
+<div id="taskActionWrap" class="taskActionWrap" aria-hidden="true"><div class="taskActionBackdrop"></div><div class="taskActionSheet"><div class="taskActionGrab"></div><div class="taskActionHeader"><div><span>Task actions</span><strong id="taskActionTitle">Task</strong></div><button id="taskActionClose" type="button">Done</button></div><div id="taskActionContent" class="taskActionContent"></div></div></div>
+
+<div id="timelineWrap" class="timelineWrap" aria-hidden="true"><div class="timelinePanel"><div class="timelineHeader"><div><div class="eyebrow">Time planning</div><div id="timelineTitle" class="timelineTitle">Today</div></div><button id="timelineClose" type="button">Done</button></div><div class="timelineDateNav"><button id="timelinePrev" type="button" aria-label="Previous day">‹</button><input id="timelineDate" type="date" class="input"><button id="timelineNext" type="button" aria-label="Next day">›</button></div><div id="timelineContent" class="timelineContent"></div></div></div>
+
+<div id="projectsWrap" class="projectsWrap" aria-hidden="true"><div class="projectsPanel"><div class="projectsHeader"><button id="projectsBack" type="button" class="projectsBack" hidden aria-label="Back">‹</button><div class="projectsHeading"><div id="projectsEyebrow" class="eyebrow">Outcomes & task groups</div><div id="projectsTitle" class="projectsTitle">Projects</div></div><button id="projectsClose" type="button" class="projectsClose">Done</button></div><div id="projectsContent" class="projectsContent"></div></div></div>
+
+<div id="searchWrap" class="searchWrap" aria-hidden="true"><div class="searchPanel"><div class="searchHeader"><div class="searchInputWrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Search Planly" autocomplete="off" enterkeyhint="search"></div><button id="searchClose" type="button">Cancel</button></div><div class="searchFilters"><div class="searchFilterChips"><button type="button" class="active" data-search-filter="all">All</button><button type="button" data-search-filter="today">Today</button><button type="button" data-search-filter="upcoming">Upcoming</button><button type="button" data-search-filter="completed">Completed</button><button type="button" data-search-filter="inbox">Inbox</button></div><div class="searchFilterSelects"><select id="searchCategory" class="select"><option value="">All categories</option><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select><select id="searchPriority" class="select"><option value="">All priorities</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select><select id="searchProject" class="select"><option value="">All projects</option></select></div></div><div id="searchResults" class="searchResults"></div></div></div>
+
+<div id="sheetWrap" class="sheetWrap" aria-hidden="true"><div class="sheet"><div id="sheetDragZone" class="sheetDragZone" aria-label="Drag down to close"><div class="handle"></div></div><form id="taskForm">
+  <input type="hidden" id="taskId">
+  <div class="field"><label for="taskTitle">Task</label><div class="smartTaskRow"><input id="taskTitle" class="input" maxlength="160" required placeholder="What needs doing?" enterkeyhint="next" autocomplete="off"></div><div id="quickUnderstood" class="quickUnderstood" hidden aria-live="polite"></div><div id="quickAddHint" class="fieldHint">Type it naturally, like “Call mum tomorrow 6pm 20m” or “Football every Wednesday 9pm”.</div></div>
+  <div class="chips" id="quickDates"><button type="button" class="chip active" data-q="today">Today</button><button type="button" class="chip" data-q="tomorrow">Tomorrow</button><button type="button" class="chip" data-q="weekend">This weekend</button><button type="button" class="chip" data-q="nextweek">Next week</button><button type="button" class="chip" data-q="none">No date</button></div>
+  <div class="row2 compactCoreRow" style="margin-top:12px"><div class="field"><label>Date</label><input id="taskDate" type="date" class="input"></div><div class="field"><label>Time</label><input id="taskTime" type="time" class="input"></div></div>
+  <div class="field compactPriority"><label>Priority</label><select id="taskPriority" class="select"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></div>
+  <div id="taskHouseholdControls" class="taskHouseholdControls" hidden>
+    <div class="field taskSharingField"><label>Share</label><div id="taskVisibilitySegments" class="taskChoiceSegments" role="group" aria-label="Share task"><button type="button" data-task-visibility="private" class="active">Just me</button><button type="button" data-task-visibility="household">Household</button></div><select id="taskVisibility" class="select taskChoiceBacking" aria-hidden="true" tabindex="-1"><option value="private">Private — only me</option><option value="household">Household — shared</option></select><div id="taskVisibilityHelp" class="fieldHint">Household tasks are shared with current household members.</div></div>
+  </div>
+
+  <details id="taskMoreOptions" class="taskMoreOptions">
+    <summary><span>More options</span><small>Category, project, reminder, repeat, notes, checklist & calendar</small></summary>
+    <div class="moreOptionsBody">
+      <div class="row2"><div class="field"><label>Category</label><select id="taskCategory" class="select"><option>Personal</option><option>Work</option><option>Home</option><option>Health</option><option>Finance</option><option>Errands</option></select></div><div class="field"><label>Project</label><select id="taskProject" class="select"><option value="">No project</option></select></div></div>
+      <div class="row2"><div class="field"><label>Duration</label><select id="taskDuration" class="select"><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">1 hr 30</option><option value="120">2 hours</option></select></div><div class="field"><label>Calendar reminder</label><select id="taskReminder" class="select"><option value="none">None</option><option value="at-time">At task time</option><option value="5-min">5 min before</option><option value="15-min">15 min before</option><option value="30-min">30 min before</option><option value="60-min">1 hour before</option><option value="1440-min">1 day before</option></select></div></div>
+      <div class="field recurrenceField"><label>Repeat</label><select id="taskRepeat" class="select"><option value="none">None</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="custom">Custom</option></select><details id="repeatAdvanced" class="repeatAdvanced"><summary>Advanced repeat options</summary><div class="repeatGrid"><div class="field"><label>Every</label><input id="repeatInterval" type="number" min="1" max="99" class="input" value="1" inputmode="numeric"></div><div class="field"><label>Period</label><select id="repeatUnit" class="select"><option value="days">Day(s)</option><option value="weeks">Week(s)</option><option value="months">Month(s)</option></select></div></div><div id="repeatWeekdayWrap" class="repeatOption"><label>On</label><div id="repeatWeekdays" class="weekdayPicker"><button type="button" data-weekday="1">M</button><button type="button" data-weekday="2">T</button><button type="button" data-weekday="3">W</button><button type="button" data-weekday="4">T</button><button type="button" data-weekday="5">F</button><button type="button" data-weekday="6">S</button><button type="button" data-weekday="0">S</button></div></div><div id="repeatMonthlyWrap" class="repeatOption"><label>Monthly pattern</label><select id="repeatMonthMode" class="select"><option value="day">Day of month</option><option value="ordinal">Relative weekday</option></select><div id="repeatMonthDayWrap" class="repeatInline"><span>Day</span><input id="repeatMonthDay" class="input compactInput" type="number" min="1" max="31" value="1" inputmode="numeric"></div><div id="repeatOrdinalWrap" class="repeatGrid"><select id="repeatOrdinal" class="select"><option value="1">First</option><option value="2">Second</option><option value="3">Third</option><option value="4">Fourth</option><option value="5">Fifth</option><option value="-1">Last</option></select><select id="repeatOrdinalWeekday" class="select"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div></div><div class="repeatOption"><label>Ends</label><select id="repeatEndMode" class="select"><option value="never">Never</option><option value="date">On date</option><option value="count">After number of occurrences</option></select><div id="repeatEndDateWrap" class="repeatInline"><input id="repeatEndDate" type="date" class="input"></div><div id="repeatCountWrap" class="repeatInline"><span>After</span><input id="repeatCount" type="number" min="2" max="999" value="10" class="input compactInput" inputmode="numeric"><span>times</span></div></div></details></div>
+      <div class="field"><label>Notes</label><textarea id="taskNotes" class="textarea" maxlength="500" placeholder="Optional details"></textarea></div>
+      <div class="field subtaskField"><label>Subtasks</label><div id="subtaskList" class="subtaskList"></div><div class="subtaskAddRow"><input id="subtaskInput" class="input" maxlength="120" placeholder="Add a checklist item" enterkeyhint="done" autocomplete="off"><button id="subtaskAdd" type="button" class="subtaskAddBtn">Add</button></div></div>
+      
+      <label class="calendarTaskToggle"><input id="taskCalendar" type="checkbox"><span><strong>Add to Google Calendar</strong><small>Syncs time, duration and reminders to your private Planly calendar.</small></span></label>
+    </div>
+  </details>
+
+  <button type="button" id="duplicateTask" class="duplicateTaskBtn" style="display:none">Duplicate task</button>
+  <div id="formActions" class="formActions"><button type="button" id="deleteTask" class="primary" style="background:transparent;color:var(--danger);border:1px solid var(--line);display:none">Delete</button><button type="submit" class="primary">Save task</button></div>
+</form></div></div>
+<input id="importFile" type="file" accept="application/json" hidden>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+<script src="./supabase-config.js"></script>
+<script>
+(()=>{
+  'use strict';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=704a01';
+  const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
+  const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
+  const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
+  const ready=()=>{sessionStorage.removeItem(RELOAD_KEY);document.documentElement.classList.remove('planlyBootPending','planlyWarmStart');if(splash)splash.hidden=true;setBoot('ready')};
+  const loadRuntime=()=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=RUNTIME_URL;script.async=false;script.onload=()=>{ready();resolve()};script.onerror=()=>reject(new Error('runtime-load-failed'));document.body.appendChild(script)});
+  const waitForController=()=>new Promise((resolve,reject)=>{
+    let settled=false;
+    const done=fn=>{if(settled)return;settled=true;clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',onController);fn()};
+    const onController=()=>done(resolve);
+    const timer=setTimeout(()=>done(()=>reject(new Error('controller-timeout'))),TIMEOUT_MS);
+    navigator.serviceWorker.addEventListener('controllerchange',onController);
+    if(navigator.serviceWorker.controller)done(resolve);
+  });
+  retry?.addEventListener('click',()=>{sessionStorage.removeItem(RELOAD_KEY);location.reload()});
+  const maintainRegistration=async()=>{try{const regs=await navigator.serviceWorker.getRegistrations();for(const reg of regs){const path=new URL(reg.scope).pathname;if(path.endsWith('/planly/'))await reg.unregister();if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active)await reg.unregister()}return await navigator.serviceWorker.register('./sw.js',{scope:'./'})}catch{return null}};
+  (async()=>{
+    if(!('serviceWorker' in navigator)){fail('Planly needs service-worker support to start safely in this browser.','unsupported');return}
+    if(navigator.serviceWorker.controller){
+      document.documentElement.classList.remove('planlyBootPending');if(splash)splash.hidden=true;setBoot('warm-start',{controlled:true});
+      maintainRegistration();
+      try{await loadRuntime()}catch{fail('Planly could not finish loading. Tap Retry to try again.','runtime-error')}
+      return
+    }
+    try{
+      const reg=await maintainRegistration();
+      if(!reg)throw new Error('service-worker-registration-failed');
+      setBoot('registered',{scope:reg.scope,controlled:!!navigator.serviceWorker.controller});
+      if(navigator.serviceWorker.controller){await loadRuntime();return}
+      if(sessionStorage.getItem(RELOAD_KEY)==='1'){
+        try{await waitForController();await loadRuntime();return}
+        catch{fail(navigator.onLine?'Planly could not finish setting up. Tap Retry to try again.':'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.','setup-incomplete');return}
+      }
+      await waitForController();
+      sessionStorage.setItem(RELOAD_KEY,'1');
+      location.reload();
+    }catch(err){
+      const offline=!navigator.onLine;
+      fail(offline?'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.':'Planly could not finish setting up. Tap Retry to try again.',offline?'offline-first-visit':'setup-error');
+    }
+  })();
+})();
+</script>
+</body>
+</html>
