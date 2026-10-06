@@ -49,17 +49,64 @@ function analyse(input={}){const today=String(input.today||'');if(!dateParts(tod
  return {engineVersion:VERSION,day:{date:today,isWorkDay,planningMinutes,busyMinutes,freeMinutes,plannedMinutes,overBy,clashes,status,overnightRest,restUntil:overnightRest?timeText(Number(nightShift.end)+restHours*60):'',move:moveCandidate?{id:String(moveCandidate.t.id),reasons:['Move this flexible task to free '+duration(moveCandidate.t,defaultDuration)+'m'],factors:moveCandidate.r.factors,score:moveCandidate.r.score}:null},top3,chores,overdue,leftToday,times,weekCandidates,projects:projectSignals,household:{weekCounts,unassigned,shareOut,longShifts}};
 }
 
-// Suggestions (6.0): a short list of concrete, one-tap changes for today, each with a plain reason.
-// Pure: everything (date, time, tasks, busy times, learning, dismissed keys) comes from the caller.
+// Learning (6.1): plain statistics over the caller's own completed tasks. Pure: no clock, no storage.
+// Learning never resets: older days simply count less. Each history row: {id,title,category,date,time,durationMinutes,deferCount,recurring,doneDay:'YYYY-MM-DD',doneMin:0-1439}.
+const fromSerial=n=>{const era=Math.floor(n/146097),doe=n-era*146097,yoe=Math.floor((doe-Math.floor(doe/1460)+Math.floor(doe/36524)-Math.floor(doe/146096))/365),doy=doe-(365*yoe+Math.floor(yoe/4)-Math.floor(yoe/100)),mp=Math.floor((5*doy+2)/153),d=doy-Math.floor((153*mp+2)/5)+1,m=mp+(mp<10?3:-9),y=yoe+era*400+(m<=2?1:0);return y+'-'+pad(m)+'-'+pad(d)};
+const addDaysKey=(s,n)=>fromSerial(serial(s)+n),weekdayOf=s=>(((serial(s)-serial('1970-01-01'))%7)+7+4)%7;
+const WEEKDAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const titleKey=s=>String(s||'').toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/g,' ').replace(/\b\d+\b/g,' ').replace(/\s+/g,' ').trim().slice(0,40);
+const median=a=>{if(!a.length)return NaN;const b=a.slice().sort((x,y)=>x-y),m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2};
+// Recent days count more (half-life 30 days), so a change in routine shows within a few weeks.
+const HALF_LIFE=30,recency=age=>Math.pow(0.5,Math.max(0,age)/HALF_LIFE);
+const wMedian=(rows,f)=>{const a=[];for(const r of rows){const v=f(r);if(v!=null&&Number.isFinite(v))a.push([v,r.w])}if(!a.length)return NaN;a.sort((x,y)=>x[0]-y[0]);let total=0;for(const x of a)total+=x[1];let run=0;for(const x of a){run+=x[1];if(run>=total/2)return x[0]}return a[a.length-1][0]};
+const hasTime=s=>/^\d{1,2}:\d{2}/.test(String(s||''));
+function groupStats(rows){const actualN=rows.filter(r=>r.actual!=null).length,wd={};for(let w=0;w<7;w++){const s=rows.filter(r=>r.wd===w);if(s.length>=3)wd[w]=Math.round(wMedian(s,r=>r.start)/15)*15}
+ const counts=[0,0,0,0,0,0,0],wts=[0,0,0,0,0,0,0];let wsum=0,wslip=0;for(const r of rows){counts[r.wd]++;wts[r.wd]+=r.w;wsum+=r.w;if(r.slipped)wslip+=r.w}let mode=-1;for(let w=0;w<7;w++)if(counts[w]&&(mode<0||wts[w]>wts[mode]))mode=w;
+ return {n:rows.length,start:Math.round(wMedian(rows,r=>r.start)/15)*15,startByWd:wd,actual:actualN?Math.max(5,Math.round(wMedian(rows,r=>r.actual)/5)*5):null,actualN,slipRate:wsum?wslip/wsum:0,mostDoneWd:mode>=0&&counts[mode]>=2&&wts[mode]>=wsum/2?mode:-1}}
+function learn(input={}){const today=String(input.today||'');if(!dateParts(today))return {n:0,byKey:{},byCat:{},habits:[],usualByWd:null};
+ const from=addDaysKey(today,-180);
+ const rows=[];for(const h of (Array.isArray(input.history)?input.history:[])){const doneDay=String(h?.doneDay||'');if(!dateParts(doneDay)||doneDay>today||doneDay<from)continue;
+  const dur=clamp(finiteDuration(h.durationMinutes,30),5,720),doneMin=clamp(Math.round(Number(h.doneMin)||0),0,1439),planned=String(h.date||''),onDay=planned===doneDay,timed=hasTime(h.time)&&onDay,start=timed?timeMin(h.time):Math.max(0,doneMin-dur);
+  const actual=timed&&doneMin>=start+5&&doneMin<=start+Math.max(dur*2.5,dur+60)?doneMin-start:null;
+  rows.push({w:recency(dayDiff(today,doneDay)),id:String(h.id||''),title:String(h.title||''),key:titleKey(h.title),cat:String(h.category||'Personal'),doneDay,doneMin,wd:weekdayOf(doneDay),start,actual,recurring:!!h.recurring,slipped:Number(h.deferCount||0)>0||(!!planned&&dateParts(planned)&&doneDay>planned)})}
+ const group=f=>{const g={};for(const r of rows){const k=f(r);if(!k)continue;(g[k]||(g[k]=[])).push(r)}const out={};for(const k of Object.keys(g).sort())out[k]=groupStats(g[k]);return out};
+ const byKey=group(r=>r.key),byCat=group(r=>r.cat);
+ // Habits: the same task done by hand at a steady rhythm (daily, weekly, fortnightly, monthly).
+ const habits=[];const keyed={};for(const r of rows)if(r.key&&!r.recurring)(keyed[r.key]||(keyed[r.key]=[])).push(r);
+ for(const k of Object.keys(keyed).sort()){const list=keyed[k].slice().sort((a,b)=>a.doneDay.localeCompare(b.doneDay)||a.doneMin-b.doneMin),days=[];for(const r of list)if(days[days.length-1]!==r.doneDay)days.push(r.doneDay);if(days.length<3)continue;
+  const gapsD=[];for(let i=1;i<days.length;i++)gapsD.push(dayDiff(days[i],days[i-1]));const cls=g=>g===1?'d1':g>=6&&g<=8?'w1':g>=13&&g<=15?'w2':g>=27&&g<=32?'m1':'';const first=cls(gapsD[gapsD.length-1]);if(!first)continue;
+  const recent=gapsD.slice(-4);if(recent.filter(g=>cls(g)===first).length<Math.max(2,recent.length-1))continue;
+  const unit=first==='d1'?'days':first==='m1'?'months':'weeks',interval=first==='w2'?2:1,period=first==='d1'?1:first==='w1'?7:first==='w2'?14:30,last=list[list.length-1];
+  if(dayDiff(today,last.doneDay)>period*2)continue;
+  const wdCounts=[0,0,0,0,0,0,0];for(const d of days)wdCounts[weekdayOf(d)]++;let wd=0;for(let w=1;w<7;w++)if(wdCounts[w]>wdCounts[wd])wd=w;
+  habits.push({key:k,title:last.title,category:last.cat,lastId:last.id,lastDay:last.doneDay,times:days.length,unit,interval,period,weekday:wd,time:last.start})}
+ // Your week: how many tasks you usually finish on each weekday, from the last 8 weeks (needs 4 weeks of history).
+ let usualByWd=null;const oldest=rows.reduce((m,r)=>r.doneDay<m?r.doneDay:m,today);
+ if(dayDiff(today,oldest)>=28){usualByWd=[];const perDay={};for(const r of rows)perDay[r.doneDay]=(perDay[r.doneDay]||0)+1;for(let w=0;w<7;w++){const c=[];for(let k=1;k<=56;k++){const d=addDaysKey(today,-k);if(weekdayOf(d)===w&&d>=oldest)c.push(perDay[d]||0)}usualByWd.push(c.length>=4?Math.round(median(c)):null)}}
+ return {n:rows.length,byKey,byCat,habits,usualByWd};
+}
+
+// Suggestions (6.1): a short list of concrete, one-tap changes, each with a plain reason, ranked by what you tend to accept.
+// Pure: date, time, tasks, busy times, history, feedback and dismissed keys all come from the caller.
 function suggest(input={}){
  const today=String(input.today||''),now=clamp(Number(input.nowMinutes)||0,0,1439),uid=String(input.currentUserId||''),defaultDuration=finiteDuration(input.defaultDuration,30);
  const startP=timeMin(input.planningStart||'08:00'),endP=Math.max(startP+60,timeMin(input.planningEnd||'23:00')||1439),learning=input.learning||{},dismissed=new Set((input.dismissed||[]).map(String));
  const tomorrow=String(input.tomorrow||''),weekend=String(input.weekend||''),restHours=clamp(Number(input.nightRestHours)||0,0,12);
+ const fb=input.feedback||{},fbKinds=fb.kinds||{},fbSubjects=fb.subjects||{};
+ const profile=learn({today,history:input.history});
  const tasks=Array.isArray(input.tasks)?input.tasks:[],live=t=>t&&!t.completed&&!t.deleted&&!t.deleted_at;
  const mine=t=>live(t)&&owned(t)&&String(t.visibility||'private')!=='household';
  const blocksMe=t=>live(t)&&(owned(t)||String(t.assigneeId||t.assignee_id||'')===uid);
  const dur=t=>fixedDuration(t,defaultDuration),cat=t=>String(t?.category||'Personal'),q=s=>'“'+short(s||'Untitled')+'”';
- const round15=n=>Math.ceil(n/15)*15;
+ const round15=n=>Math.ceil(n/15)*15,todayWd=dateParts(today)?weekdayOf(today):0;
+ // What you tend to do with each kind of suggestion (last 60 days, counted by the caller).
+ const weight=k=>{const f=fbKinds[k]||{},a=Number(f.a)||0,d=Number(f.d)||0;return (a+1)/(a+d+2)};
+ const muted=k=>{const f=fbKinds[k]||{};return (Number(f.d)||0)>=5&&!(Number(f.a)||0)};
+ const skipSubject=id=>(Number(fbSubjects[String(id)])||0)>=2;
+ // When you usually do this task: its own history first (by weekday when there is enough), then its category.
+ const usualTime=t=>{const k=profile.byKey[titleKey(t.title)];if(k&&k.n>=3){const w=k.startByWd[todayWd];return w!=null?{min:w,n:k.n,text:'On '+WEEKDAYS[todayWd]+'s you usually do '+q(t.title)+' around '+timeText(w)+'.'}:{min:k.start,n:k.n,text:'You usually do '+q(t.title)+' around '+timeText(k.start)+' ('+k.n+' times).'}}
+  const c=profile.byCat[cat(t)];if(c&&c.n>=4)return {min:c.start,n:c.n,text:'You usually do '+cat(t)+' tasks around '+timeText(c.start)+'.'};
+  const o=learning[cat(t)];if(o&&o.samples>=3&&Number.isFinite(Number(o.bestTimeMinutes)))return {min:Number(o.bestTimeMinutes),n:o.samples,text:'You usually do '+cat(t)+' tasks around '+timeText(Number(o.bestTimeMinutes))+'. '};return null};
  // Busy: calendar blocks + timed tasks that are mine to do + protected rest after an overnight block.
  const busyRaw=(Array.isArray(input.busy)?input.busy:[]).map(x=>({start:Number(x.start),end:Number(x.end)}));
  const night=busyRaw.find(x=>x.start<=0&&x.end-x.start>=240);
@@ -67,31 +114,58 @@ function suggest(input={}){
  for(const t of tasks)if(blocksMe(t)&&String(t.date||'')===today&&t.time){const s=timeMin(t.time);busyRaw.push({start:s,end:s+dur(t)})}
  const from=Math.max(startP,round15(now+10)),busy=mergeBusy(busyRaw,from,endP),free=gaps(busy,from,endP).filter(g=>g.minutes>=15);
  const taken=[];
- const slotFor=(t,avoid=[])=>{const d=dur(t),best=learning[cat(t)]?.samples>=3?Number(learning[cat(t)].bestTimeMinutes):null;const opts=[];
-  for(const g of free){let lo=round15(g.start),hi=g.end-d;if(hi<lo)continue;for(let s=lo;s<=hi;s+=15){if(taken.concat(avoid).some(x=>s<x.end&&s+d>x.start))continue;opts.push({start:s,gap:g});break}
-   if(best!=null&&best>lo&&best<=hi){const s=Math.floor(best/15)*15;if(s>=lo&&!taken.concat(avoid).some(x=>s<x.end&&s+d>x.start))opts.push({start:s,gap:g,learned:true})}}
-  if(!opts.length)return null;opts.sort((a,b)=>best!=null?Math.abs(a.start-best)-Math.abs(b.start-best)||a.start-b.start:a.start-b.start);return {...opts[0],learnedTime:best!=null,minutes:d}};
- const out=[],push=s=>{if(!dismissed.has(s.key)&&out.length<5)out.push(s)};
+ // Today's untimed tasks with their own history hold their usual time; other suggestions avoid it when they can.
+ const held=[];for(const t of tasks)if(mine(t)&&String(t.date||'')===today&&!t.time){const k=profile.byKey[titleKey(t.title)];if(k&&k.n>=3){const w=k.startByWd[todayWd],m=w!=null?w:k.start;held.push({id:String(t.id),start:m,end:m+dur(t)})}}
+ const slotFor=(t,avoid=[])=>{const hold=held.filter(h=>h.id!==String(t.id)),first=pick(t,avoid.concat(hold));return first||(hold.length?pick(t,avoid):null)};
+ const pick=(t,avoid)=>{const d=dur(t),u=usualTime(t),best=u?u.min:null;const opts=[];
+  const clear=s=>!taken.concat(avoid).some(x=>s<x.end&&s+d>x.start);
+  for(const g of free){let lo=round15(g.start),hi=g.end-d;if(hi<lo)continue;for(let s=lo;s<=hi;s+=15){if(!clear(s))continue;opts.push({start:s,gap:g});break}
+   // Nearest free start to when you usually do it (not just the start of the gap).
+   if(best!=null){let pick=null;for(let s=lo;s<=hi;s+=15)if(clear(s)&&(pick==null||Math.abs(s-best)<Math.abs(pick-best)))pick=s;if(pick!=null)opts.push({start:pick,gap:g,learned:Math.abs(pick-best)<=60})}}
+  if(!opts.length)return null;opts.sort((a,b)=>best!=null?Math.abs(a.start-best)-Math.abs(b.start-best)||a.start-b.start:a.start-b.start);return {...opts[0],usual:u,minutes:d}};
+ const cands=[],handled=new Set();
+ const add=(s,base,subject)=>{if(dismissed.has(s.key)||muted(s.kind)||(subject&&skipSubject(subject)))return false;s.subject=String(subject||'');cands.push({s,score:base*(0.5+weight(s.kind)),order:cands.length});return true};
  const byPriority=(a,b)=>priority(b)-priority(a)||String(a.date||'').localeCompare(String(b.date||''))||Number(a.createdAt||0)-Number(b.createdAt||0)||String(a.id).localeCompare(String(b.id));
  // 1. Today is over: move the least important flexible task.
  const todayMine=tasks.filter(t=>mine(t)&&String(t.date||'')===today),remaining=todayMine.reduce((n,t)=>n+(t.time&&timeMin(t.time)+dur(t)<=from?0:dur(t)),0);
  const busyCal=mergeBusy((Array.isArray(input.busy)?input.busy:[]).map(x=>({start:Number(x.start),end:Number(x.end)})),from,endP).reduce((n,x)=>n+x.end-x.start,0);
  const overBy=remaining+busyCal-Math.max(0,endP-from);
  if(overBy>=15&&tomorrow){const flex=todayMine.filter(t=>!t.time&&priority(t)<3).sort((a,b)=>priority(a)-priority(b)||dur(b)-dur(a)||String(a.id).localeCompare(String(b.id)))[0];
-  if(flex)push({key:'over:'+flex.id+':'+today,kind:'over',tag:'Busy day',title:'Today is '+humanMinutes(overBy)+' over',why:'Move '+q(flex.title)+' ('+humanMinutes(dur(flex))+') to tomorrow so the rest fits.',actions:[{label:'Move to tomorrow',op:'move',id:String(flex.id),date:tomorrow},...(weekend&&weekend!==tomorrow?[{label:'This weekend',op:'move',id:String(flex.id),date:weekend}]:[])]})}
+  if(flex&&add({key:'over:'+flex.id+':'+today,kind:'over',tag:'Busy day',title:'Today is '+humanMinutes(overBy)+' over',why:'Move '+q(flex.title)+' ('+humanMinutes(dur(flex))+') to tomorrow so the rest fits.',actions:[{label:'Move to tomorrow',op:'move',id:String(flex.id),date:tomorrow},...(weekend&&weekend!==tomorrow?[{label:'This weekend',op:'move',id:String(flex.id),date:weekend}]:[])]},100,flex.id))handled.add(String(flex.id))}
  // 2. Slipping: overdue tasks get a real slot today, or a later day.
  for(const t of tasks.filter(t=>mine(t)&&t.date&&String(t.date)<today).sort(byPriority).slice(0,3)){const late=dayDiff(today,String(t.date)),moved=Number(t.deferCount||t.data?.deferCount||0),slot=overBy>=15?null:slotFor(t);
-  const why=(moved>=2?'You’ve moved it '+moved+' times. ':'')+(slot?timeText(slot.start)+' today is free.':'There’s no free time left today.');
+  const why=(moved>=2?'You’ve moved it '+moved+' times. ':'')+(slot?(slot.usual&&slot.learned?slot.usual.text+' ':'')+timeText(slot.start)+' today is free.':'There’s no free time left today.');
   const actions=slot?[{label:'Today '+timeText(slot.start),op:'move',id:String(t.id),date:today,time:timeText(slot.start)},{label:'Tomorrow',op:'move',id:String(t.id),date:tomorrow}]:[{label:'Tomorrow',op:'move',id:String(t.id),date:tomorrow},...(weekend&&weekend!==tomorrow?[{label:'This weekend',op:'move',id:String(t.id),date:weekend}]:[])];
-  const s={key:'late:'+t.id+':'+today,kind:'late',tag:'Slipping',title:q(t.title)+' is '+late+' day'+(late===1?'':'s')+' late',why,actions};if(!dismissed.has(s.key)&&slot)taken.push({start:slot.start,end:slot.start+slot.minutes});push(s)}
- // 3. Free slot: today's untimed tasks get a time that fits.
- if(overBy<15)for(const t of todayMine.filter(t=>!t.time).sort(byPriority).slice(0,3)){const slot=slotFor(t);if(!slot)continue;const alt=slotFor(t,[{start:slot.start,end:slot.start+slot.minutes+60}]);
-  const why=(slot.learnedTime?'You usually do '+cat(t)+' tasks around '+timeText(Number(learning[cat(t)].bestTimeMinutes))+'. ':'')+'Free from '+timeText(Math.max(slot.gap.start,from))+' to '+timeText(slot.gap.end)+'.';
-  const s={key:'slot:'+t.id+':'+today,kind:'slot',tag:'Free time',title:'Do '+q(t.title)+' at '+timeText(slot.start),why,actions:[{label:'Add at '+timeText(slot.start),op:'move',id:String(t.id),date:today,time:timeText(slot.start)},...(alt&&alt.start!==slot.start?[{label:timeText(alt.start)+' instead',op:'move',id:String(t.id),date:today,time:timeText(alt.start)}]:[])]};
-  if(!dismissed.has(s.key))taken.push({start:slot.start,end:slot.start+slot.minutes});push(s)}
- // 4. Your timings: a category that reliably takes longer (or shorter) than planned.
- for(const [c,g] of Object.entries(learning).sort((a,b)=>a[0].localeCompare(b[0]))){if(!(g?.samples>=5))continue;const usual=Number(g.usualMinutes);const hit=todayMine.filter(t=>cat(t)===c&&!(t.time&&timeMin(t.time)<now)&&Math.abs(dur(t)-usual)>=15);if(!hit.length)continue;
-  push({key:'dur:'+c+':'+today,kind:'duration',tag:'Your timings',title:c+' tasks take you about '+humanMinutes(usual),why:hit.length+' of today’s '+c+' task'+(hit.length===1?' is':'s are')+' planned at '+humanMinutes(dur(hit[0]))+'. Using your real time keeps the day realistic.',actions:[{label:'Use '+humanMinutes(usual),op:'duration',ids:hit.map(t=>String(t.id)),minutes:usual}]});break}
+  if(add({key:'late:'+t.id+':'+today,kind:'late',tag:'Slipping',title:q(t.title)+' is '+late+' day'+(late===1?'':'s')+' late',why,actions},90+priority(t)*2,t.id)&&slot)taken.push({start:slot.start,end:slot.start+slot.minutes});handled.add(String(t.id))}
+ // 3. Likely to slip: today's tasks you (or tasks like it) usually push back get a firm time, or the day they usually get done.
+ if(overBy<15)for(const t of todayMine.filter(t=>!handled.has(String(t.id))&&!(t.time&&timeMin(t.time)<now)).sort(byPriority)){const moved=Number(t.deferCount||t.data?.deferCount||0),k=profile.byKey[titleKey(t.title)],risky=moved>=2||(k&&k.n>=4&&k.slipRate>=0.5);if(!risky)continue;
+  const slot=!t.time?slotFor(t):null,actions=[];if(slot)actions.push({label:'Lock in '+timeText(slot.start),op:'move',id:String(t.id),date:today,time:timeText(slot.start)});
+  if(k&&k.mostDoneWd>=0&&k.mostDoneWd!==todayWd){const ahead=(k.mostDoneWd-todayWd+7)%7,target=addDaysKey(today,ahead);actions.push({label:'Move to '+WEEKDAYS[k.mostDoneWd].slice(0,3),op:'move',id:String(t.id),date:target})}
+  if(!actions.length)continue;
+  const why=(moved>=2?'It’s been moved '+moved+' times already. ':'You’ve pushed it back '+Math.round(k.slipRate*k.n)+' of the last '+k.n+' times. ')+(slot?'A set time makes it likelier to happen.':'It usually gets done on '+WEEKDAYS[k.mostDoneWd]+'s.');
+  if(add({key:'slip:'+t.id+':'+today,kind:'slip',tag:'Likely to slip',title:q(t.title)+' often gets pushed back',why,actions},80+priority(t),t.id)&&slot)taken.push({start:slot.start,end:slot.start+slot.minutes});handled.add(String(t.id));if(cands.filter(x=>x.s.kind==='slip').length>=2)break}
+ // 4. Free slot: today's untimed tasks get a time that fits, near when you usually do them.
+ const ownHistory=t=>(profile.byKey[titleKey(t.title)]?.n||0)>=3?0:1;
+ if(overBy<15)for(const t of todayMine.filter(t=>!t.time&&!handled.has(String(t.id))).sort((a,b)=>ownHistory(a)-ownHistory(b)||byPriority(a,b)).slice(0,3)){const slot=slotFor(t);if(!slot)continue;const alt=slotFor(t,[{start:slot.start,end:slot.start+slot.minutes+60}]);
+  const why=(slot.usual?slot.usual.text+' ':'')+'Free from '+timeText(Math.max(slot.gap.start,from))+' to '+timeText(slot.gap.end)+'.';
+  if(add({key:'slot:'+t.id+':'+today,kind:'slot',tag:'Free time',title:'Do '+q(t.title)+' at '+timeText(slot.start),why,actions:[{label:'Add at '+timeText(slot.start),op:'move',id:String(t.id),date:today,time:timeText(slot.start)},...(alt&&alt.start!==slot.start?[{label:timeText(alt.start)+' instead',op:'move',id:String(t.id),date:today,time:timeText(alt.start)}]:[])]},60+priority(t),t.id))taken.push({start:slot.start,end:slot.start+slot.minutes})}
+ // 5. Your timings: how long a task (or a kind of task) really takes you, from when you tick timed tasks.
+ let durs=0;const notStarted=t=>!(t.time&&timeMin(t.time)<now);
+ for(const [k,g] of Object.entries(profile.byKey)){if(durs>=2||!(g.actualN>=3))continue;const hit=todayMine.filter(t=>titleKey(t.title)===k&&notStarted(t)&&Math.abs(dur(t)-g.actual)>=15);if(!hit.length)continue;
+  if(add({key:'dur:'+k+':'+today,kind:'duration',tag:'Your timings',title:q(hit[0].title)+' usually takes you '+humanMinutes(g.actual),why:'Timed from the last '+g.actualN+' times you ticked it. It’s planned at '+humanMinutes(dur(hit[0]))+' today.',actions:[{label:'Use '+humanMinutes(g.actual),op:'duration',ids:hit.map(t=>String(t.id)),minutes:g.actual}]},50,'dur:'+k))durs++}
+ const catUsual={};for(const [c,g] of Object.entries(profile.byCat))if(g.actualN>=5)catUsual[c]={minutes:g.actual,n:g.actualN};for(const [c,g] of Object.entries(learning))if(!catUsual[c]&&g?.samples>=5)catUsual[c]={minutes:Number(g.usualMinutes),n:g.samples};
+ for(const c of Object.keys(catUsual).sort()){if(durs>=2)break;const usual=catUsual[c].minutes,hit=todayMine.filter(t=>cat(t)===c&&notStarted(t)&&!(profile.byKey[titleKey(t.title)]?.actualN>=3)&&Math.abs(dur(t)-usual)>=15);if(!hit.length)continue;
+  if(add({key:'dur:'+c+':'+today,kind:'duration',tag:'Your timings',title:c+' tasks take you about '+humanMinutes(usual),why:hit.length+' of today’s '+c+' task'+(hit.length===1?' is':'s are')+' planned at '+humanMinutes(dur(hit[0]))+'. Using your real time keeps the day realistic.',actions:[{label:'Use '+humanMinutes(usual),op:'duration',ids:hit.map(t=>String(t.id)),minutes:usual}]},50,'dur:'+c))durs++}
+ // 6. Habits: something you keep adding by hand at a steady rhythm can repeat on its own.
+ const openKeys=new Set(tasks.filter(t=>live(t)&&owned(t)).map(t=>titleKey(t.title))),repeating=new Set(tasks.filter(t=>owned(t)&&t.recurrence&&t.recurrence!=='none').map(t=>titleKey(t.title)));
+ for(const h of profile.habits){if(openKeys.has(h.key)||repeating.has(h.key))continue;const every=h.unit==='days'?'every day':h.unit==='months'?'every month':h.interval===2?'every 2 weeks':'every week',on=h.unit==='weeks'?' on '+WEEKDAYS[h.weekday]+'s':'';
+  add({key:'habit:'+h.key,kind:'habit',tag:'Habit',title:'You do '+q(h.title)+' '+every,why:'Done '+h.times+' times'+on+'. Make it repeat so you don’t have to add it each time.',actions:[{label:'Make it repeat',op:'repeat',id:h.lastId,unit:h.unit,interval:h.interval,weekday:h.weekday}]},45,'habit:'+h.key)}
+ // 7. Your week: a coming day with far more planned than you usually finish on that weekday.
+ if(profile.usualByWd){const days=[];for(let i=1;i<=6;i++){const d=addDaysKey(today,i),w=weekdayOf(d),planned=tasks.filter(t=>mine(t)&&String(t.date||'')===d),usual=profile.usualByWd[w];days.push({d,w,planned,usual,spare:usual==null?0:usual-planned.length})}
+  const heavy=days.filter(x=>x.usual!=null&&x.planned.length>=4&&x.planned.length>=x.usual+3).sort((a,b)=>a.spare-b.spare||a.d.localeCompare(b.d))[0],light=heavy&&days.filter(x=>x.d!==heavy.d&&x.usual!=null&&x.spare>=1).sort((a,b)=>b.spare-a.spare||a.d.localeCompare(b.d))[0];
+  const move=light&&heavy.planned.filter(t=>!t.time&&priority(t)<3).sort((a,b)=>priority(a)-priority(b)||String(a.id).localeCompare(String(b.id)))[0];
+  if(move)add({key:'week:'+heavy.d,kind:'week',tag:'Your week',title:WEEKDAYS[heavy.w]+' looks heavy',why:heavy.planned.length+' tasks planned. You usually finish about '+heavy.usual+' on '+WEEKDAYS[heavy.w]+'s, and '+WEEKDAYS[light.w]+' is lighter.',actions:[{label:'Move '+q(move.title)+' to '+WEEKDAYS[light.w].slice(0,3),op:'move',id:String(move.id),date:light.d}]},55,move.id)}
+ const out=cands.sort((a,b)=>b.score-a.score||a.order-b.order).slice(0,5).map(x=>x.s);
  return {engineVersion:VERSION,date:today,overBy:Math.max(0,overBy),suggestions:out};
 }
-window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest});})();
+window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest,learn});})();
