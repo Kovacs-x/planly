@@ -48,4 +48,50 @@ function analyse(input={}){const today=String(input.today||'');if(!dateParts(tod
  const longShifts=householdTasks.filter(t=>!t.completed&&String(t.date||'')>=weekStart&&String(t.date||'')<=weekEnd&&Number(t.durationMinutes||0)>=360&&String(t.assigneeId||t.assignee_id||'')).map(t=>({id:String(t.id||''),assigneeId:String(t.assigneeId||t.assignee_id||''),date:String(t.date||''),minutes:Number(t.durationMinutes||0)}));
  return {engineVersion:VERSION,day:{date:today,isWorkDay,planningMinutes,busyMinutes,freeMinutes,plannedMinutes,overBy,clashes,status,overnightRest,restUntil:overnightRest?timeText(Number(nightShift.end)+restHours*60):'',move:moveCandidate?{id:String(moveCandidate.t.id),reasons:['Move this flexible task to free '+duration(moveCandidate.t,defaultDuration)+'m'],factors:moveCandidate.r.factors,score:moveCandidate.r.score}:null},top3,chores,overdue,leftToday,times,weekCandidates,projects:projectSignals,household:{weekCounts,unassigned,shareOut,longShifts}};
 }
-window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse});})();
+
+// Suggestions (6.0): a short list of concrete, one-tap changes for today, each with a plain reason.
+// Pure: everything (date, time, tasks, busy times, learning, dismissed keys) comes from the caller.
+function suggest(input={}){
+ const today=String(input.today||''),now=clamp(Number(input.nowMinutes)||0,0,1439),uid=String(input.currentUserId||''),defaultDuration=finiteDuration(input.defaultDuration,30);
+ const startP=timeMin(input.planningStart||'08:00'),endP=Math.max(startP+60,timeMin(input.planningEnd||'23:00')||1439),learning=input.learning||{},dismissed=new Set((input.dismissed||[]).map(String));
+ const tomorrow=String(input.tomorrow||''),weekend=String(input.weekend||''),restHours=clamp(Number(input.nightRestHours)||0,0,12);
+ const tasks=Array.isArray(input.tasks)?input.tasks:[],live=t=>t&&!t.completed&&!t.deleted&&!t.deleted_at;
+ const mine=t=>live(t)&&owned(t)&&String(t.visibility||'private')!=='household';
+ const blocksMe=t=>live(t)&&(owned(t)||String(t.assigneeId||t.assignee_id||'')===uid);
+ const dur=t=>fixedDuration(t,defaultDuration),cat=t=>String(t?.category||'Personal'),q=s=>'“'+short(s||'Untitled')+'”';
+ const round15=n=>Math.ceil(n/15)*15;
+ // Busy: calendar blocks + timed tasks that are mine to do + protected rest after an overnight block.
+ const busyRaw=(Array.isArray(input.busy)?input.busy:[]).map(x=>({start:Number(x.start),end:Number(x.end)}));
+ const night=busyRaw.find(x=>x.start<=0&&x.end-x.start>=240);
+ if(night&&restHours)busyRaw.push({start:0,end:Math.min(1439,night.end+restHours*60)});
+ for(const t of tasks)if(blocksMe(t)&&String(t.date||'')===today&&t.time){const s=timeMin(t.time);busyRaw.push({start:s,end:s+dur(t)})}
+ const from=Math.max(startP,round15(now+10)),busy=mergeBusy(busyRaw,from,endP),free=gaps(busy,from,endP).filter(g=>g.minutes>=15);
+ const taken=[];
+ const slotFor=(t,avoid=[])=>{const d=dur(t),best=learning[cat(t)]?.samples>=3?Number(learning[cat(t)].bestTimeMinutes):null;const opts=[];
+  for(const g of free){let lo=round15(g.start),hi=g.end-d;if(hi<lo)continue;for(let s=lo;s<=hi;s+=15){if(taken.concat(avoid).some(x=>s<x.end&&s+d>x.start))continue;opts.push({start:s,gap:g});break}
+   if(best!=null&&best>lo&&best<=hi){const s=Math.floor(best/15)*15;if(s>=lo&&!taken.concat(avoid).some(x=>s<x.end&&s+d>x.start))opts.push({start:s,gap:g,learned:true})}}
+  if(!opts.length)return null;opts.sort((a,b)=>best!=null?Math.abs(a.start-best)-Math.abs(b.start-best)||a.start-b.start:a.start-b.start);return {...opts[0],learnedTime:best!=null,minutes:d}};
+ const out=[],push=s=>{if(!dismissed.has(s.key)&&out.length<5)out.push(s)};
+ const byPriority=(a,b)=>priority(b)-priority(a)||String(a.date||'').localeCompare(String(b.date||''))||Number(a.createdAt||0)-Number(b.createdAt||0)||String(a.id).localeCompare(String(b.id));
+ // 1. Today is over: move the least important flexible task.
+ const todayMine=tasks.filter(t=>mine(t)&&String(t.date||'')===today),remaining=todayMine.reduce((n,t)=>n+(t.time&&timeMin(t.time)+dur(t)<=from?0:dur(t)),0);
+ const busyCal=mergeBusy((Array.isArray(input.busy)?input.busy:[]).map(x=>({start:Number(x.start),end:Number(x.end)})),from,endP).reduce((n,x)=>n+x.end-x.start,0);
+ const overBy=remaining+busyCal-Math.max(0,endP-from);
+ if(overBy>=15&&tomorrow){const flex=todayMine.filter(t=>!t.time&&priority(t)<3).sort((a,b)=>priority(a)-priority(b)||dur(b)-dur(a)||String(a.id).localeCompare(String(b.id)))[0];
+  if(flex)push({key:'over:'+flex.id+':'+today,kind:'over',tag:'Busy day',title:'Today is '+humanMinutes(overBy)+' over',why:'Move '+q(flex.title)+' ('+humanMinutes(dur(flex))+') to tomorrow so the rest fits.',actions:[{label:'Move to tomorrow',op:'move',id:String(flex.id),date:tomorrow},...(weekend&&weekend!==tomorrow?[{label:'This weekend',op:'move',id:String(flex.id),date:weekend}]:[])]})}
+ // 2. Slipping: overdue tasks get a real slot today, or a later day.
+ for(const t of tasks.filter(t=>mine(t)&&t.date&&String(t.date)<today).sort(byPriority).slice(0,3)){const late=dayDiff(today,String(t.date)),moved=Number(t.deferCount||t.data?.deferCount||0),slot=overBy>=15?null:slotFor(t);
+  const why=(moved>=2?'You’ve moved it '+moved+' times. ':'')+(slot?timeText(slot.start)+' today is free.':'There’s no free time left today.');
+  const actions=slot?[{label:'Today '+timeText(slot.start),op:'move',id:String(t.id),date:today,time:timeText(slot.start)},{label:'Tomorrow',op:'move',id:String(t.id),date:tomorrow}]:[{label:'Tomorrow',op:'move',id:String(t.id),date:tomorrow},...(weekend&&weekend!==tomorrow?[{label:'This weekend',op:'move',id:String(t.id),date:weekend}]:[])];
+  const s={key:'late:'+t.id+':'+today,kind:'late',tag:'Slipping',title:q(t.title)+' is '+late+' day'+(late===1?'':'s')+' late',why,actions};if(!dismissed.has(s.key)&&slot)taken.push({start:slot.start,end:slot.start+slot.minutes});push(s)}
+ // 3. Free slot: today's untimed tasks get a time that fits.
+ if(overBy<15)for(const t of todayMine.filter(t=>!t.time).sort(byPriority).slice(0,3)){const slot=slotFor(t);if(!slot)continue;const alt=slotFor(t,[{start:slot.start,end:slot.start+slot.minutes+60}]);
+  const why=(slot.learnedTime?'You usually do '+cat(t)+' tasks around '+timeText(Number(learning[cat(t)].bestTimeMinutes))+'. ':'')+'Free from '+timeText(Math.max(slot.gap.start,from))+' to '+timeText(slot.gap.end)+'.';
+  const s={key:'slot:'+t.id+':'+today,kind:'slot',tag:'Free time',title:'Do '+q(t.title)+' at '+timeText(slot.start),why,actions:[{label:'Add at '+timeText(slot.start),op:'move',id:String(t.id),date:today,time:timeText(slot.start)},...(alt&&alt.start!==slot.start?[{label:timeText(alt.start)+' instead',op:'move',id:String(t.id),date:today,time:timeText(alt.start)}]:[])]};
+  if(!dismissed.has(s.key))taken.push({start:slot.start,end:slot.start+slot.minutes});push(s)}
+ // 4. Your timings: a category that reliably takes longer (or shorter) than planned.
+ for(const [c,g] of Object.entries(learning).sort((a,b)=>a[0].localeCompare(b[0]))){if(!(g?.samples>=5))continue;const usual=Number(g.usualMinutes);const hit=todayMine.filter(t=>cat(t)===c&&!(t.time&&timeMin(t.time)<now)&&Math.abs(dur(t)-usual)>=15);if(!hit.length)continue;
+  push({key:'dur:'+c+':'+today,kind:'duration',tag:'Your timings',title:c+' tasks take you about '+humanMinutes(usual),why:hit.length+' of today’s '+c+' task'+(hit.length===1?' is':'s are')+' planned at '+humanMinutes(dur(hit[0]))+'. Using your real time keeps the day realistic.',actions:[{label:'Use '+humanMinutes(usual),op:'duration',ids:hit.map(t=>String(t.id)),minutes:usual}]});break}
+ return {engineVersion:VERSION,date:today,overBy:Math.max(0,overBy),suggestions:out};
+}
+window.PlanlyIntelligence=Object.freeze({version:VERSION,analyse,suggest});})();
