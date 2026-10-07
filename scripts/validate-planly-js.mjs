@@ -558,7 +558,8 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
 // Tidy-up 2b-i: the Budget insights, review-hardening and core-guard patch modules are folded into core-budget/month-state.
 {for(const f of ['core-budget-insights-v4.0g.js','core-budget-review-hardening-v4.0p.js','core-budget-core-guard-v4.0q.js'])if(fs.existsSync('v2/'+f)||s.sw.includes(f)||read('v2/runtime-modules.json').includes(f))fail('folded Budget module must stay deleted: '+f);
  if(/BUDGET_(INSIGHTS|REVIEW|CORE_GUARD)_URL/.test(s.sw))fail('service worker still lists a folded Budget module');}
-// New devices start in Light mode; a saved choice (Light, Dark or System) is kept.
-{const html=read('v2/index.html');for(const m of ["tab:'today',theme:'light',","state.theme=d.theme||state.theme||'light';","const device={theme:s.theme||'light',"])if(!s.app.includes(m))fail('new devices must default to Light: '+m);
+// Theme is Light or Dark only. New devices start in Light; an old 'System' choice becomes what the phone shows, and is saved.
+{const html=read('v2/index.html');for(const m of ["tab:'today',theme:'light',","function planlyThemeChoice(t){return t==='dark'?'dark':t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}","state.theme=planlyThemeChoice(savedTheme||state.theme);","if(savedTheme==='system')persistPlanlyDeviceSettings();","state.theme=planlyThemeChoice(d.theme);","const device={theme:planlyThemeChoice(s.theme),","function applyTheme(){document.documentElement.dataset.theme=state.theme==='dark'?'dark':'light'}"])if(!s.app.includes(m))fail('theme must be Light or Dark, defaulting to Light: '+m);
+ if(/<option value="system">/.test(s.app))fail('Settings must not offer a System theme');
  if(!html.includes("let theme=saved?.theme||'light';")||!html.includes("catch{document.documentElement.dataset.theme='light'}"))fail('boot theme must default to Light');
  if(/theme\|\|'system'|theme:'system'/.test(s.app+html))fail('System must not be the default theme');}
