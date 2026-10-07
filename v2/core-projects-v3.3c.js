@@ -1,6 +1,5 @@
 // Planly 3.3C — shared projects integrated into the primary project/cloud model.
 // Runs inside the main application closure via the service worker.
-let activeProjectOwnerId='';
 function planlyProjectOwnerId(p){return String(p?._planlyOwnerId||planlySession?.user?.id||'')}
 function planlyProjectOwnedByMe(p){return p?._planlyOwnedByMe!==false&&planlyProjectOwnerId(p)===String(planlySession?.user?.id||'')}
 function planlyProjectKeyFromParts(ownerId,id){return String(ownerId||'')+'|'+String(id||'')}

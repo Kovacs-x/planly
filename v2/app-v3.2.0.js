@@ -16,6 +16,8 @@ const PLANLY_CALENDAR_ID='95b035b05d2f967eb609d34cb4d79348bfdb21e3b1fe06e0bd076f
 const PLANLY_TIMEZONE='Europe/London';
 let googleTokenClient=null;
 let planlyCloudReadOnly=false;
+/* Which member's project the Projects panel is showing (owned by core-projects; declared here so the project helpers work from the first render). */
+let activeProjectOwnerId='';
 let planlyCloudSyncMeta={tasks:new Map(),projects:new Map(),preferences:0};
 let planlyCloudWriteQueue=Promise.resolve();
 let planlyReconcilePromise=null,planlyLastReconcileAt=0;
