@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=710r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-714a-103'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-715a-104'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=714a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=715a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -558,3 +558,7 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
 // Tidy-up 2b-i: the Budget insights, review-hardening and core-guard patch modules are folded into core-budget/month-state.
 {for(const f of ['core-budget-insights-v4.0g.js','core-budget-review-hardening-v4.0p.js','core-budget-core-guard-v4.0q.js'])if(fs.existsSync('v2/'+f)||s.sw.includes(f)||read('v2/runtime-modules.json').includes(f))fail('folded Budget module must stay deleted: '+f);
  if(/BUDGET_(INSIGHTS|REVIEW|CORE_GUARD)_URL/.test(s.sw))fail('service worker still lists a folded Budget module');}
+// New devices start in Light mode; a saved choice (Light, Dark or System) is kept.
+{const html=read('v2/index.html');for(const m of ["tab:'today',theme:'light',","state.theme=d.theme||state.theme||'light';","const device={theme:s.theme||'light',"])if(!s.app.includes(m))fail('new devices must default to Light: '+m);
+ if(!html.includes("let theme=saved?.theme||'light';")||!html.includes("catch{document.documentElement.dataset.theme='light'}"))fail('boot theme must default to Light');
+ if(/theme\|\|'system'|theme:'system'/.test(s.app+html))fail('System must not be the default theme');}
