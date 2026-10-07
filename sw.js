@@ -1,40 +1,10 @@
-const CACHE='planly-root-v11';
-const LEGACY_ROOT_CACHES=new Set(['planly-v10']);
-const ASSETS=['./','./index.html','./loader-v1.2.4.js','./app.js?v=1.2.4','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
-
-self.addEventListener('install',event=>{
-  event.waitUntil(
-    caches.open(CACHE)
-      .then(cache=>cache.addAll(ASSETS))
-      .then(()=>self.skipWaiting())
-  );
-});
-
+// The old root Planly app was retired. Planly lives at ./v2/ with its own service worker.
+// This worker only removes itself and the old root caches, so phones that still have it stop using it.
+self.addEventListener('install',()=>self.skipWaiting());
 self.addEventListener('activate',event=>{
-  event.waitUntil(
-    caches.keys().then(keys=>Promise.all(
-      keys.filter(key=>LEGACY_ROOT_CACHES.has(key)||key.startsWith('planly-root-')&&key!==CACHE)
-        .map(key=>caches.delete(key))
-    ))
-  );
-});
-
-self.addEventListener('fetch',event=>{
-  if(event.request.method!=='GET')return;
-  const url=new URL(event.request.url);
-  // /v2/ and /v2-preview/ own their service-worker scopes. The root worker must not
-  // intercept their navigations/assets or mutate their caches.
-  if(url.origin===self.location.origin&&(url.pathname.includes('/planly/v2/')||url.pathname.includes('/planly/v2-preview/')))return;
-
-  event.respondWith(
-    fetch(event.request,{cache:'no-store'})
-      .then(response=>{
-        if(response?.ok&&url.origin===self.location.origin){
-          const copy=response.clone();
-          caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});
-        }
-        return response;
-      })
-      .catch(()=>caches.match(event.request,{ignoreSearch:true}).then(cached=>cached||caches.match('./index.html')))
-  );
+  event.waitUntil((async()=>{
+    const keys=await caches.keys();
+    await Promise.all(keys.filter(k=>k==='planly-v10'||k.startsWith('planly-root-')).map(k=>caches.delete(k)));
+    await self.registration.unregister();
+  })());
 });
