@@ -1,9 +1,0 @@
-// Planly 4.0P.3 — independent-review hardening for Budget state, household setup, refresh and entry identity.
-(()=>{'use strict';
-const a=()=>window.PlanlyBudget,money=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format((Number(n)||0)/100),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function normalizedState(){const raw=a().__reviewBaseGetState(),s=structuredClone(raw),v=s.versions||={};v.categories||={};v.targets||={};v.entries||={};for(const row of s.categories||[])if(row?.id&&Number(row.cloud_version)>0)v.categories[row.id]=Number(row.cloud_version);for(const row of s.targets||[])if(row?.id&&Number(row.cloud_version)>0)v.targets[row.id]=Number(row.cloud_version);for(const row of s.entries||[])if(row?.id&&Number(row.cloud_version)>0)v.entries[row.id]=Number(row.cloud_version);return s}
-function readPreference(owner){if(!owner)return'personal';try{return JSON.parse(localStorage.getItem('planly-budget-active-scope-v1:'+owner)||'"personal"')==='household'?'household':'personal'}catch{return'personal'}}
-function installStateGuard(){const api=a();if(!api||api.__reviewHardened)return;api.__reviewBaseGetState=api.getState;api.getState=normalizedState;api.__reviewHardened=true;const baseBootstrap=api.bootstrap.bind(api);api.__reviewBaseBootstrap=baseBootstrap;api.bootstrap=async()=>{const owner=api.getViewerId?.()||'',pref=readPreference(owner),raw=api.__reviewBaseGetState?.();if(pref==='household'&&!(api.getScopeType?.()==='household'&&raw?.scope)){const ok=await api.switchScope('household');if(ok||api.getScopeType?.()==='household')return ok}return baseBootstrap()}}
-function installRenderGuard(){/* R3 owns identity-bound category rows; state/bootstrap hardening remains authoritative. */}
-installStateGuard();installRenderGuard();
-})();
