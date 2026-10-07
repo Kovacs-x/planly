@@ -212,22 +212,12 @@ loadPlanlyHousehold=function(force=false){
   __planlyHouseholdLoadFlight=flight;
   return flight.finally(()=>{if(__planlyHouseholdLoadFlight===flight){__planlyHouseholdLoadFlight=null;__planlyHouseholdLoadOwner=''}});
 };
-const __planlyAssignedLoadVerifiedCloudPreview=loadVerifiedCloudPreview;
-let __planlyCloudLoadFlight=null,__planlyCloudLoadOwner='';
-loadVerifiedCloudPreview=function(){
-  const owner=String(planlySession?.user?.id||'');
-  if(!owner)return __planlyAssignedLoadVerifiedCloudPreview();
-  if(__planlyCloudLoadFlight&&__planlyCloudLoadOwner===owner)return __planlyCloudLoadFlight;
-  __planlyCloudLoadOwner=owner;
-  const flight=Promise.resolve().then(()=>__planlyAssignedLoadVerifiedCloudPreview());
-  __planlyCloudLoadFlight=flight;
-  return flight.finally(()=>{if(__planlyCloudLoadFlight===flight){__planlyCloudLoadFlight=null;__planlyCloudLoadOwner=''}});
-};
+
 
 /* The original sign-in renders immediately after adoptPlanlySession(). That is
    too early for household assignment state. Replace the handler so the first
    authenticated UI waits for both household identity and cloud task hydration. */
-planlySignIn=async function(creds){
+async function planlySignIn(creds){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
   const email=creds?String(creds.email||'').trim():$('#planlyAuthEmail')?.value.trim(),password=creds?String(creds.password||''):$('#planlyAuthPassword')?.value||'';
   if(!email||!password)throw new Error('Enter your email and password.');
@@ -244,7 +234,7 @@ planlySignIn=async function(creds){
   showToast('Signed in to Planly');
   render();
   return data.session;
-};
+}
 
 async function planlyCompleteHouseholdTaskDirect(t){
   if(!planlyHouseholdCompletionEligible(t))return false;

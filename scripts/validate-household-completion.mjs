@@ -48,7 +48,7 @@ if(sql.includes("raise exception 'Recurring series has ended'"))fail('terminal s
 if(!assignment.includes("if(!!fresh.completed===!!payload.completed)"))fail('stale retry must accept already-satisfied completion intent');
 if(!assignment.includes("if(!planlyHouseholdCompletionEligible(fresh))"))fail('stale retry must re-check eligibility');
 
-const taskSelectFiles=['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-cloud-readiness-v3.3d.js','v2/core-assignment-v3.3c.js'];
+const taskSelectFiles=['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-assignment-v3.3c.js'];
 for(const file of taskSelectFiles){
   const src=read(file);
   for(const match of src.matchAll(/from\(['"]planly_tasks['"]\)\.select\(([^)]*)\)/g)){
@@ -66,7 +66,7 @@ const schemaAllowed={
   planly_projects:new Set('owner_id client_id data visibility household_id cloud_version deleted_at'.split(' '))
 };
 const selectConstants={PLANLY_TASK_SELECT:'owner_id,client_id,data,visibility,household_id,assignee_id,completed_by,completed_at,cloud_version,deleted_at',PLANLY_PROJECT_SELECT:'owner_id,client_id,data,visibility,household_id,cloud_version,deleted_at'};
-for(const file of ['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-cloud-readiness-v3.3d.js','v2/core-assignment-v3.3c.js']){
+for(const file of ['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-assignment-v3.3c.js']){
   const src=read(file);
   for(const m of src.matchAll(/from\(['"]([^'"]+)['"]\)\.select\(([^)]*)\)/g)){
     const allowed=schemaAllowed[m[1]];if(!allowed)continue;

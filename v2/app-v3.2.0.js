@@ -231,78 +231,23 @@ function learnedPlanningDuration(t){const s=taskLearningSuggestion(t);return s?M
 function firstPlanningGap(key,t,nowMinutes=0){const bounds=planningBounds(),need=learnedPlanningDuration(t),busy=[...planlyBusyIntervals(key),...state.tasks.filter(x=>x!==t&&!x.completed&&x.date===key&&x.time).map(x=>{const s=timeToMinutes(x.time);return {start:s,end:s+Math.max(5,Number(x.durationMinutes||state.defaultDuration||30))}})].sort((x,y)=>x.start-y.start);let at=Math.max(bounds.start,nowMinutes||bounds.start);for(const row of busy){if(row.end<=at)continue;const slot=Math.ceil(at/15)*15;if(row.start-slot>=need)return minutesToTime(slot);at=Math.max(at,row.end)}const slot=Math.ceil(at/15)*15;return bounds.end-slot>=need?minutesToTime(slot):''}
 function planProjectBlock(p){const x=projectIntelligence(p.id),t=x?.nextStepId&&state.tasks.find(v=>String(v.id)===String(x.nextStepId));if(!t||t._planlyOwnedByMe===false||t.visibility==='household')return showToast('No personal next step is available to plan.');const today=localKey(new Date()),tomorrow=addDays(today,1),now=new Date().getHours()*60+new Date().getMinutes();if(t.date===today&&t.time){const start=timeToMinutes(t.time),end=start+Math.max(5,Number(t.durationMinutes||state.defaultDuration||30)),clash=[...planlyBusyIntervals(today),...state.tasks.filter(v=>v!==t&&!v.completed&&v.date===today&&v.time).map(v=>({start:timeToMinutes(v.time),end:timeToMinutes(v.time)+Math.max(5,Number(v.durationMinutes||state.defaultDuration||30))}))].some(v=>v.start<end&&v.end>start);if(!clash&&end>now)return showToast('Already planned at '+t.time)}const todayTime=firstPlanningGap(today,t,now),target=todayTime?today:tomorrow,suggested=todayTime||firstPlanningGap(tomorrow,t,0);if(!suggested)return showToast('No free block fits today or tomorrow.');const before=cloneTasks();t.date=target;t.time=suggested;t.updatedAt=Date.now();if(t.addToCalendar)t.calendarSync='pending';const pendingIds=stageChangedTasksFromSnapshot(before);save();renderProjectsPanel();render();showUndoToast('Planned '+t.title,()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before);renderProjectsPanel()},()=>{queuePlanlyPendingReplay('Project block synced');if(t.addToCalendar&&googleConnected())syncPendingGoogle().then(()=>render()).catch(()=>{})})}
 
-function projectById(id){return id?state.projects.find(p=>p.id===id):null}
-function projectNameForTask(t){return projectById(t?.projectId)?.name||''}
-function projectTasks(projectId){return state.tasks.filter(t=>t.projectId===projectId)}
-function projectStats(projectId){
-  const tasks=projectTasks(projectId),done=tasks.filter(t=>t.completed).length,total=tasks.length;
-  return {tasks,done,total,pct:total?Math.round(done/total*100):0,active:tasks.filter(t=>!t.completed),completed:tasks.filter(t=>t.completed)};
-}
-function projectOptionsHtml(selectedId=''){
-  const projects=state.projects.filter(p=>!p.archived||p.id===selectedId).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  return '<option value="">No project</option>'+projects.map(p=>`<option value="${esc(p.id)}" ${p.id===selectedId?'selected':''}>${esc(p.name)}${p.archived?' (Archived)':''}</option>`).join('');
-}
-function refreshProjectSelect(selectedId=''){
-  const select=$('#taskProject');if(!select)return;
-  select.innerHTML=projectOptionsHtml(selectedId);
-  select.value=selectedId&&state.projects.some(p=>p.id===selectedId)?selectedId:'';
-}
+
+
+
+
+
+
 function projectCardHtml(p){
   const stats=projectStats(p.id);
   const due=p.dueDate?`<span class="${!p.archived&&p.dueDate<localKey(new Date())?'projectDue overdueProject':'projectDue'}">${esc(projectDueLabel(p.dueDate))} · ${esc(fmt(p.dueDate,{day:'numeric',month:'short'}))}</span>`:'';
   return `<button type="button" class="projectCard ${p.archived?'archived':''}" data-project-open="${esc(p.id)}"><span class="projectCardTop"><strong>${esc(p.name)}</strong><span class="projectCardBadges">${!p.archived?projectStatusHtml(p):''}${p.archived?'<span class="projectArchivedPill">Archived</span>':due}</span></span><span class="projectCardMeta">${stats.total?`${stats.done} of ${stats.total} tasks complete`:'No tasks yet'}</span><span class="projectMiniBar"><span style="width:${stats.pct}%"></span></span></button>`;
 }
-function renderProjectsPanel(){
-  const content=$('#projectsContent'),title=$('#projectsTitle'),eyebrow=$('#projectsEyebrow'),back=$('#projectsBack');
-  if(!content||!title||!eyebrow||!back)return;
-  if(projectPanelMode==='list'){
-    title.textContent='Projects';eyebrow.textContent='Outcomes & task groups';back.hidden=true;
-    const active=state.projects.filter(p=>!p.archived).sort((a,b)=>(a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99')||(a.name||'').localeCompare(b.name||''));
-    const archived=state.projects.filter(p=>p.archived).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-    content.innerHTML=`<div class="projectsToolbar"><button type="button" class="primary projectCreateBtn" data-project-action="new">+ New project</button></div><div class="projectList">${active.length?active.map(projectCardHtml).join(''):'<div class="empty compactEmpty">No projects yet. Create one to group tasks around a larger outcome, then add the next concrete step.</div>'}</div>${archived.length?`<details class="archivedProjects"><summary>Archived projects · ${archived.length}</summary><div class="projectList">${archived.map(projectCardHtml).join('')}</div></details>`:''}`;
-    return;
-  }
-  const p=projectById(activeProjectId||editingProjectId);
-  if(projectPanelMode==='editor'){
-    title.textContent=p?'Edit project':'New project';eyebrow.textContent=p?'Project settings':'Create an outcome';back.hidden=false;
-    content.innerHTML=`<form id="projectForm" class="projectEditor"><div class="field"><label>Project name</label><input id="projectName" class="input" maxlength="100" required value="${esc(p?.name||'')}" placeholder="e.g. Dubai trip"></div><div class="field"><label>Due date</label><input id="projectDueDate" type="date" class="input" value="${esc(p?.dueDate||'')}"></div><div class="field"><label>Notes</label><textarea id="projectNotes" class="textarea" maxlength="800" placeholder="Optional project context">${esc(p?.notes||'')}</textarea></div><button type="submit" class="primary">${p?'Save project':'Create project'}</button>${p?`<button type="button" class="${p.archived?'secondaryBtn':'dangerBtn'}" data-project-action="${p.archived?'restore':'archive'}">${p.archived?'Restore project':'Archive project'}</button>`:''}</form>`;
-    return;
-  }
-  if(!p){projectPanelMode='list';activeProjectId='';renderProjectsPanel();return}
-  title.textContent=p.name;eyebrow.textContent=p.archived?'Archived project':'Project';back.hidden=false;
-  const stats=projectStats(p.id);
-  const due=p.dueDate?`<span class="projectDetailDue ${!p.archived&&p.dueDate<localKey(new Date())?'overdueProject':''}">Due ${esc(fmt(p.dueDate,{weekday:'short',day:'numeric',month:'short'}))}</span>`:'';
-  const notes=p.notes?`<div class="projectNotes">${esc(p.notes).replace(/\n/g,'<br>')}</div>`:'',intel=projectIntelligence(p.id),next=intel?.nextStepId&&state.tasks.find(t=>String(t.id)===String(intel.nextStepId));
-  content.innerHTML=`<div class="projectHero"><div class="projectHeroTop"><div><strong>${stats.done} of ${stats.total} complete</strong><span class="muted">${stats.pct}%</span></div>${due}</div><div class="bar"><span style="width:${stats.pct}%"></span></div>${notes}${intel?`<div class="projectIntelligence"><div><span>${projectStatusHtml(p)}</span><small>${esc((intel.reasons||[]).join(' · '))}</small></div>${next?`<div class="projectNextStep"><span>Next step</span><strong>${esc(next.title)}</strong><small>${esc((intel.nextStepReasons||[]).join(' · '))}</small></div>`:''}</div>`:''}<div class="projectHeroActions">${p.archived?'':`<button type="button" class="primary" data-project-action="add-task">+ Add task</button>${next?`<button type="button" class="secondaryBtn" data-project-action="plan-block">Plan a block</button>`:''}`}<button type="button" class="secondaryBtn" data-project-action="edit">Edit project</button></div></div><section class="section projectTasksSection"><div class="sectionHead"><h2>Active tasks</h2><span class="muted">${stats.active.length}</span></div><div class="projectTaskList">${stats.active.length?sortTasks(stats.active).map(t=>taskHtml(t)).join(''):'<div class="empty compactEmpty">No active tasks yet. Add the next step when you’re ready.</div>'}</div></section>${stats.completed.length?`<section class="section projectTasksSection"><div class="sectionHead"><h2>Completed</h2><span class="muted">${stats.completed.length}</span></div><div class="projectTaskList">${sortTasks(stats.completed).map(t=>taskHtml(t)).join('')}</div></section>`:''}`;
-}
-function openProjects(projectId=''){
-  if($('#taskActionWrap')?.classList.contains('open'))closeTaskActions();
-  if($('#searchWrap')?.classList.contains('open'))closeSearch();
-  closeOpenTaskSwipes();$('#projectsWrap').classList.add('open');$('#projectsWrap').setAttribute('aria-hidden','false');
-  if(projectId&&projectById(projectId)){activeProjectId=projectId;editingProjectId='';projectPanelMode='detail'}else{activeProjectId='';editingProjectId='';projectPanelMode='list'}
-  renderProjectsPanel();
-}
+
+
 function closeProjects(){$('#projectsWrap').classList.remove('open');$('#projectsWrap').setAttribute('aria-hidden','true');projectPanelMode='list';activeProjectId='';editingProjectId=''}
 function refreshProjectsIfOpen(){if($('#projectsWrap')?.classList.contains('open'))renderProjectsPanel()}
-function saveProjectEditor(){
-  const wasExisting=!!projectById(editingProjectId);
-  const name=($('#projectName')?.value||'').trim();if(!name)return;
-  const now=Date.now();let p=projectById(editingProjectId);
-  if(p){p.name=name;p.dueDate=$('#projectDueDate').value||'';p.notes=$('#projectNotes').value.trim();p.updatedAt=now}
-  else{p={id:uid(),name,dueDate:$('#projectDueDate').value||'',notes:$('#projectNotes').value.trim(),archived:false,createdAt:now,updatedAt:now};state.projects.push(p)}
-  stageProjectMutation(p);save();queuePlanlyPendingReplay('Project synced');activeProjectId=p.id;editingProjectId='';projectPanelMode='detail';renderProjectsPanel();render();
-}
-function handleProjectsClick(e){
-  const open=e.target.closest('[data-project-open]');if(open){activeProjectId=open.dataset.projectOpen;editingProjectId='';projectPanelMode='detail';renderProjectsPanel();return}
-  const action=e.target.closest('[data-project-action]')?.dataset.projectAction;if(!action)return;
-  if(action==='new'){editingProjectId='';activeProjectId='';projectPanelMode='editor';renderProjectsPanel();return}
-  const p=projectById(activeProjectId||editingProjectId);
-  if(action==='edit'&&p){editingProjectId=p.id;projectPanelMode='editor';renderProjectsPanel();return}
-  if(action==='add-task'&&p&&!p.archived){openSheet(null,p.id);return}
-  if(action==='plan-block'&&p&&!p.archived){planProjectBlock(p);return}
-  if(action==='archive'&&p&&confirm('Archive this project? Its tasks will stay in Planly.')){p.archived=true;p.updatedAt=Date.now();stageProjectMutation(p);save();queuePlanlyPendingReplay('Project synced');activeProjectId=p.id;editingProjectId='';projectPanelMode='detail';renderProjectsPanel();render();return}
-  if(action==='restore'&&p){p.archived=false;p.updatedAt=Date.now();stageProjectMutation(p);save();queuePlanlyPendingReplay('Project synced');activeProjectId=p.id;editingProjectId='';projectPanelMode='detail';renderProjectsPanel();render();return}
-}
+
+
 
 
 function renderTaskActions(){
@@ -1045,32 +990,7 @@ function upcomingView(){
 }
 function monthStart(key){const d=parseKey(key);d.setDate(1);return localKey(d)}
 function shiftMonth(key,n){const d=parseKey(key);d.setDate(1);d.setMonth(d.getMonth()+n);return localKey(d)}
-function monthView(){
-  const first=monthStart(state.monthAnchor),d=parseKey(first),year=d.getFullYear(),month=d.getMonth();
-  setHeader(new Intl.DateTimeFormat(undefined,{month:'long'}).format(d),String(year));
-  const showMe=monthCalendarFilter==='all'||monthCalendarFilter==='me',showWife=monthCalendarFilter==='all'||monthCalendarFilter==='wife';
-  const offset=(d.getDay()+6)%7,days=new Date(year,month+1,0).getDate();
-  let cal='<div class="calendar">'+['M','T','W','T','F','S','S'].map(x=>`<div class="dow">${x}</div>`).join('');
-  for(let i=0;i<offset;i++)cal+='<div></div>';
-  for(let day=1;day<=days;day++){
-    const k=localKey(new Date(year,month,day,12)),items=showMe?calendarTasksForDate(k):[],external=showWife?externalEventsForDate(k,'month'):[];
-    const activeCount=items.filter(t=>!t.completed).length,completedCount=items.filter(t=>!t.virtualOccurrence&&t.completed).length,dots=(activeCount?'<i class="calendarDot meDot"></i>':'')+(external.length?'<i class="calendarDot wifeDot"></i>':'');
-    const hasAnything=activeCount||external.length,wifeLabel=external.length?externalEventShortLabel(external[0]):'';
-    const calendarMark=showWife&&external.length?'<small class="calendarShiftLabel">'+esc(wifeLabel)+(external.length>1?' +'+(external.length-1):'')+'</small>':dots?'<small class="calendarDots">'+dots+'</small>':completedCount?'<small>✓</small>':'';
-    const isToday=k===localKey(new Date());
-    cal+=`<button class="day ${hasAnything?'has':''} ${!hasAnything&&completedCount?'doneDay':''} ${isToday?'isToday':''} ${state.selectedDate===k?'selected':''}" data-date="${k}" aria-label="${esc(fmt(k,{weekday:'long',day:'numeric',month:'long'}))}"><span>${day}</span>${calendarMark}</button>`;
-  }
-  cal+='</div>';
-  const dayTasks=showMe?calendarTasksForDate(state.selectedDate):[],active=sortTasks(dayTasks.filter(t=>!t.completed)),completed=sortTasks(dayTasks.filter(t=>!t.virtualOccurrence&&t.completed)),external=showWife?externalEventsForDate(state.selectedDate,'month'):[];
-  const filters=`<div class="calendarFilters">${[['all','All'],['me','Me'],['wife','Calendar'],['shared','Shared']].map(([id,label])=>`<button type="button" data-month-filter="${id}" class="${monthCalendarFilter===id?'active':''}">${label}</button>`).join('')}</div>`;
-  const yourPlan=showMe?`<section class="section monthAgenda"><div class="sectionHead"><div><span class="calendarGroupLabel">Selected day</span><h2 class="monthAgendaDate">${fmt(state.selectedDate,{weekday:'long',day:'numeric',month:'long'})}</h2></div><span class="muted">${active.length}</span></div>${active.length?active.map(t=>t.virtualOccurrence?calendarPreviewTaskHtml(t):taskHtml(t)).join(''):'<div class="empty compactEmpty">No active tasks for this date.</div>'}</section>${completedSection(completed,'month:'+state.selectedDate)}`:'';
-  const wifeSourceName=external.length?(planlyCalendarSource(external[0].source_id)?.name||'Private calendar'):'Private calendar';
-  const wifePlan=showWife&&external.length?`<section class="section externalCalendarSection"><div class="sectionHead"><div><span class="calendarGroupLabel">${esc(wifeSourceName)}</span><h2>Read only</h2></div><span class="muted">${external.length}</span></div><div class="externalEventList">${external.map(e=>externalEventHtml(e,state.selectedDate)).join('')}</div></section>`:'';
-  const empty=planlyCalendarDataError?'<div class="empty"><strong>Calendar data could not be loaded.</strong><br><span class="muted">'+esc(planlyCalendarDataError)+'</span></div>':(!showMe&&!external.length?'<div class="empty">No calendar items for this filter and date.</div>':'');
-  $('#view').innerHTML=`<div class="monthShell"><div class="monthControls"><button id="prevMonth" aria-label="Previous month">‹</button><button id="todayMonth" class="monthToday">Jump to today</button><button id="nextMonth" aria-label="Next month">›</button></div>${filters}${cal}</div>${yourPlan}${wifePlan}${empty}`;
-  $('#prevMonth').onclick=()=>{state.monthAnchor=shiftMonth(first,-1);state.selectedDate=state.monthAnchor;render()};$('#nextMonth').onclick=()=>{state.monthAnchor=shiftMonth(first,1);state.selectedDate=state.monthAnchor;render()};$('#todayMonth').onclick=()=>{state.monthAnchor=localKey(new Date());state.selectedDate=localKey(new Date());render()};
-  $$('.day[data-date]').forEach(b=>b.onclick=()=>{state.selectedDate=b.dataset.date;render()});$$('[data-month-filter]').forEach(b=>b.onclick=()=>{monthCalendarFilter=b.dataset.monthFilter||'all';render()})
-}
+
 function inboxView(){setHeader('Inbox','Capture now, schedule later');const arr=visibleTasks(state.tasks.filter(t=>!t.date));$('#view').innerHTML=`<div class="inboxIntro"><div><strong>Your unscheduled tasks</strong><span>Keep ideas here until you are ready to give them a date.</span></div><div class="inboxCount">${arr.length}</div></div><section class="section inboxTasks">${arr.length?arr.map(t=>taskHtml(t)).join(''):`<div class="empty">Your Inbox is clear.<br><span class="muted">Tap + to capture something without scheduling it.</span></div>`}</section>`}
 
 // Planly 3.1 cloud account foundation
@@ -1317,7 +1237,7 @@ function migrationPayloadFromRaw(raw){let parsed={};try{parsed=JSON.parse(raw)||
 function planlyMigrationPayload(){return migrationPayloadFromRaw(localStorage.getItem(STORE)||'{}')}
 function validateMigrationBackupFile(d){if(!d||d.kind!=='planly-cloud-migration-backup'||Number(d.version)!==1||d.storeKey!==STORE||typeof d.raw!=='string')throw new Error('This is not a Planly 3.2 migration backup.');const snapshot=migrationPayloadFromRaw(d.raw);assertUniqueLocalIds(snapshot.projects,'Projects');assertUniqueLocalIds(snapshot.tasks,'Tasks');if(!snapshot.tasks.length&&!snapshot.projects.length)throw new Error('The migration backup contains no tasks or projects.');if(Number(d.taskCount)!==snapshot.tasks.length||Number(d.projectCount)!==snapshot.projects.length)throw new Error('Migration backup counts do not match its embedded Planly data.');return snapshot}
 function taskCloudRow(t,ownerId){const visibility=t.visibility==='household'?'household':'private',householdId=visibility==='household'?(t.householdId||planlyHousehold?.id||null):null,cloudData={...t,visibility,householdId};return {owner_id:ownerId,client_id:String(t.id),data:cloudData,visibility,household_id:householdId,assignee_id:visibility==='household'?(t.assigneeId||t.assignee_id||null):null,series_client_id:t.seriesId?String(t.seriesId):null,title:String(t.title||''),task_date:t.date||null,task_time:t.time||null,duration_minutes:Number(t.durationMinutes||30),priority:String(t.priority||'normal'),category:String(t.category||'Personal'),project_client_id:t.projectId?String(t.projectId):null,recurrence:String(t.recurrence||'none'),recurrence_config:t.recurrenceConfig??null,occurrence_number:Number.isFinite(Number(t.occurrenceNumber))?Number(t.occurrenceNumber):null,reminder:String(t.reminder||'none'),notes:String(t.notes||''),subtasks:Array.isArray(t.subtasks)?t.subtasks:[],completed:!!t.completed,pinned:!!t.pinned,top3_order:Number.isFinite(Number(t.top3Order))?Number(t.top3Order):null,add_to_calendar:!!t.addToCalendar,google_event_id:t.googleEventId||null,google_recurrence_start_date:t.googleRecurrenceStartDate||null,google_recurrence_version:Number.isFinite(Number(t.googleRecurrenceVersion))?Number(t.googleRecurrenceVersion):null,calendar_sync:String(t.calendarSync||''),calendar_synced_at:Number.isFinite(Number(t.calendarSyncedAt))?Number(t.calendarSyncedAt):null,client_created_at:Number.isFinite(Number(t.createdAt))?Number(t.createdAt):null,client_updated_at:Number.isFinite(Number(t.updatedAt))?Number(t.updatedAt):Number(t.createdAt)||Date.now(),deleted_at:null}}
-function projectCloudRow(p,ownerId){return {owner_id:ownerId,client_id:String(p.id),data:p,name:String(p.name||''),due_date:p.dueDate||null,notes:String(p.notes||''),archived:!!p.archived,client_created_at:Number.isFinite(Number(p.createdAt))?Number(p.createdAt):null,client_updated_at:Number.isFinite(Number(p.updatedAt))?Number(p.updatedAt):Number(p.createdAt)||Date.now(),deleted_at:null}}
+
 function migrationEntityMap(rows){return new Map((rows||[]).map(r=>[String(r.client_id),r]))}
 function assertUniqueLocalIds(items,label){const ids=items.map(x=>String(x?.id||''));if(ids.some(id=>!id))throw new Error(label+' contains an item without an ID.');if(new Set(ids).size!==ids.length)throw new Error(label+' contains duplicate IDs. Migration stopped.')}
 async function inspectPlanlyCloud(ownerId){const [projects,tasks,prefs,sync]=await Promise.all([planlySupabase.from('planly_projects').select('client_id,data,deleted_at,cloud_version'),planlySupabase.from('planly_tasks').select('client_id,data,deleted_at,cloud_version'),planlySupabase.from('planly_preferences').select('*').eq('owner_id',ownerId).maybeSingle(),planlySupabase.from('planly_sync_state').select('*').eq('owner_id',ownerId).maybeSingle()]);for(const r of [projects,tasks,prefs,sync])if(r.error)throw r.error;return {projects:projects.data||[],tasks:tasks.data||[],preferences:prefs.data||null,sync:sync.data||null}}
@@ -1564,12 +1484,23 @@ function planlyTaskFromCloudRow(row){if(!row?.data)return null;const visibility=
 function planlyCloudTaskKey(row){return String(row?.owner_id||'')+'|'+String(row?.client_id||'')}
 function planlyLocalTaskKey(task){return String(task?._planlyOwnerId||planlySession?.user?.id||'')+'|'+String(task?.id||'')}
 function planlyOwnedTasks(){return state.tasks.filter(t=>t._planlyOwnedByMe!==false)}
+/* Cloud Sync readiness (formerly core-cloud-readiness 3.3D): the server-side migration boundary is authoritative for legacy and cloud-native accounts. */
+function planlyCloudWriteStatusPersisted(status=planlyCloudLocalStatus()){
+  return ['cloud-write-test','offline-retry-needed','conflict'].includes(String(status?.state||''));
+}
 async function loadVerifiedCloudPreview(){
   if(!PLANLY_CLOUD_PREVIEW||!planlySession?.user||!initPlanlySupabase()){planlyCloudBootstrapPending=false;return false;}
   const ownerId=planlySession.user.id;
+  const previousStatus=planlyCloudLocalStatus();
   const {data:sync,error:syncError}=await planlySupabase.from('planly_sync_state').select('initial_migration_completed_at,migration_project_count,migration_task_count,migration_digest').eq('owner_id',ownerId).maybeSingle();
   if(syncError)throw syncError;
-  const ownCloudReady=!!sync?.initial_migration_completed_at;
+  // The server-side migration boundary is authoritative. For legacy accounts it is set only
+  // after verified migration; for cloud-native accounts it is initialized at signup with a
+  // zero-item completed boundary. A persisted device status remains a compatibility fallback
+  // for accounts explicitly enabled before the server-side cloud-native marker existed.
+  const cloudWritePersisted=planlyCloudWriteStatusPersisted(previousStatus);
+  const serverCloudReady=!!sync?.initial_migration_completed_at;
+  const ownCloudReady=serverCloudReady||cloudWritePersisted;
   const tasksPromise=planlySupabase.from('planly_tasks').select(PLANLY_TASK_SELECT).is('deleted_at',null);
   const projectsPromise=ownCloudReady?planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId).is('deleted_at',null):Promise.resolve({data:[],error:null});
   const prefsPromise=ownCloudReady?planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle():Promise.resolve({data:null,error:null});
@@ -1583,7 +1514,17 @@ async function loadVerifiedCloudPreview(){
   assertUniqueLocalIds(tasks,'Cloud tasks');assertUniqueLocalIds(projects,'Cloud projects');rememberCloudVersions(taskRows,projectRows,prefsRes.data||null);
   state.tasks=tasks;state.projects=projects;
   const p=prefsRes.data;if(p){state.defaultCategory=p.default_category||'Personal';state.defaultDuration=Number(p.default_duration||30);state.autoCompleteParentSubtasks=!!p.auto_complete_parent_subtasks;state.planningStart=p.planning_start||'08:00';state.planningEnd=p.planning_end||'23:00'}
-  const previousStatus=planlyCloudLocalStatus(),pendingBeforeOverlay=readPlanlyPendingWrites();planlyCloudReadOnly=ownCloudReady?(pendingBeforeOverlay.length?false:!['cloud-write-test','offline-retry-needed'].includes(previousStatus.state)):true;planlyCloudBootstrapPending=false;if(ownCloudReady)applyPlanlyPendingToState();persistPlanlyCloudCache();planlyLastReconcileAt=Date.now();if(ownCloudReady)setPlanlyCloudLocalStatus({state:planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',taskCount:tasks.filter(t=>t._planlyOwnedByMe!==false).length,projectCount:projects.length,loadedAt:new Date().toISOString(),pendingWrites:readPlanlyPendingWrites().length});else setPlanlyCloudLocalStatus({...previousStatus,householdLoadedAt:new Date().toISOString(),householdTaskCount:tasks.length});if(ownCloudReady&&!planlyCloudReadOnly&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced');return true;
+  const pendingBeforeOverlay=readPlanlyPendingWrites();
+  // Once the authenticated account has an authoritative completed migration boundary it is
+  // writable immediately. Do not require a second browser-local "Enable cloud sync" click.
+  planlyCloudReadOnly=!ownCloudReady;
+  planlyCloudBootstrapPending=false;
+  if(ownCloudReady)applyPlanlyPendingToState();
+  persistPlanlyCloudCache();planlyLastReconcileAt=Date.now();
+  if(ownCloudReady)setPlanlyCloudLocalStatus({state:'cloud-write-test',taskCount:tasks.filter(t=>t._planlyOwnedByMe!==false).length,projectCount:projects.length,loadedAt:new Date().toISOString(),pendingWrites:readPlanlyPendingWrites().length});
+  else setPlanlyCloudLocalStatus({...previousStatus,householdLoadedAt:new Date().toISOString(),householdTaskCount:tasks.length});
+  if(ownCloudReady&&readPlanlyPendingWrites().length)queueCloudWrite(()=>replayPlanlyPendingWrites(),'Offline changes synced');
+  return true;
 }
 function planlyGoogleSignInEnabled(){return window.PLANLY_GOOGLE_SIGNIN===true}
 async function planlyGoogleSignIn(){
@@ -1591,11 +1532,7 @@ async function planlyGoogleSignIn(){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
   const {error}=await planlySupabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:'https://kovacs-x.github.io/planly/v2/',queryParams:{prompt:'select_account'}}});if(error)throw error;
 }
-async function planlySignIn(creds){
-  if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
-  const email=creds?String(creds.email||'').trim():$('#planlyAuthEmail')?.value.trim(),password=creds?String(creds.password||''):$('#planlyAuthPassword')?.value||'';if(!email||!password)throw new Error('Enter your email and password.');
-  const {data,error}=await planlySupabase.auth.signInWithPassword({email,password});if(error)throw error;adoptPlanlySession(data.session);showToast('Signed in to Planly');render();return data.session;
-}
+
 async function planlySignUp(creds){
   if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');
   const email=creds?String(creds.email||'').trim():$('#planlyAuthEmail')?.value.trim(),password=creds?String(creds.password||''):$('#planlyAuthPassword')?.value||'';if(!email||password.length<8)throw new Error('Enter your email and a password of at least 8 characters.');
@@ -1607,24 +1544,10 @@ function planlySignInMethods(u){const ids=Array.isArray(u?.identities)?u.identit
 async function planlyChangePassword(password,confirm){if(!planlySession?.user||!initPlanlySupabase())throw new Error('Sign in to Planly first.');if(String(password||'').length<8)throw new Error('Use a password of at least 8 characters.');if(password!==confirm)throw new Error('The two passwords do not match.');const {error}=await planlySupabase.auth.updateUser({password});if(error)throw error;return true}
 async function planlyChangeEmail(email){if(!planlySession?.user||!initPlanlySupabase())throw new Error('Sign in to Planly first.');email=String(email||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Enter a valid email address.');if(email.toLowerCase()===String(planlySession.user.email||'').toLowerCase())throw new Error('That is already your email address.');const {error}=await planlySupabase.auth.updateUser({email},{emailRedirectTo:PLANLY_APP_URL});if(error)throw error;return true}
 async function planlyResetPassword(email){if(!initPlanlySupabase())throw new Error('Planly cloud service is unavailable.');email=String(email||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Enter the email address you sign in with.');const {error}=await planlySupabase.auth.resetPasswordForEmail(email,{redirectTo:PLANLY_APP_URL});if(error)throw error;return true}
-async function verifyPlanlyOfflineCache(){
-  if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
-  try{
-    const cache=await caches.open(PLANLY_OFFLINE_CACHE),assets=['./index.html','./app-v3.2.0.js?v=330a12','./supabase-config.js','./manifest.webmanifest'],missing=[];
-    for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
-    return {ok:missing.length===0,missing};
-  }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
-}
+
 function planlyWait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 async function planlyWithTimeout(promise,ms,label){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(label+' timed out')),ms)})])}finally{clearTimeout(timer)}}
-async function probePlanlyServiceWorker(){
-  if(!navigator.serviceWorker?.controller)return {ok:false,reason:'no-controller'};
-  try{
-    const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?v=330a12',{cache:'no-store'}),3000,'Service worker probe');
-    const text=(await res.text()).trim();
-    return {ok:res.ok&&text===PLANLY_SW_PROBE,reason:text||('HTTP '+res.status)};
-  }catch(err){return {ok:false,reason:String(err?.message||err)}}
-}
+
 async function finishPlanlyOfflineReadiness(force=false){
   const probe=await probePlanlyServiceWorker(),cacheCheck=await verifyPlanlyOfflineCache();
   planlyOfflineReady=probe.ok&&cacheCheck.ok;
@@ -2012,54 +1935,7 @@ async function runPlanlySyncIntegritySuite(btn){
   }
 }
 
-async function reconcilePlanlyCloud(options={}){
-  if(!PLANLY_CLOUD_PREVIEW||!planlySession?.user||!navigator.onLine)return {pulled:false,deferred:true};
-  if(planlyReconcilePromise)return planlyReconcilePromise;
-  const minGap=Number(options.minGapMs||0),now=Date.now();
-  if(minGap&&now-planlyLastReconcileAt<minGap)return {pulled:false,throttled:true};
-  planlyReconcilePromise=(async()=>{
-    const ownerId=planlySession.user.id;
-    const [tasksRes,projectsRes,prefsRes]=await Promise.all([
-      planlySupabase.from('planly_tasks').select(PLANLY_TASK_SELECT),
-      planlySupabase.from('planly_projects').select('client_id,data,cloud_version,deleted_at').eq('owner_id',ownerId),
-      planlySupabase.from('planly_preferences').select('default_category,default_duration,auto_complete_parent_subtasks,planning_start,planning_end,cloud_version').eq('owner_id',ownerId).maybeSingle()
-    ]);
-    for(const r of [tasksRes,projectsRes,prefsRes])if(r.error)throw r.error;
-    const pending=readPlanlyPendingWrites(),conflicts=readPlanlyConflicts();
-    const dirtyTasks=new Set(pending.filter(x=>x.kind==='task').map(x=>x.id)),dirtyProjects=new Set(pending.filter(x=>x.kind==='project').map(x=>x.id)),dirtyPrefs=pending.some(x=>x.kind==='preference');
-    const conflictTasks=new Set(conflicts.filter(x=>x.kind==='task').map(x=>x.id)),conflictProjects=new Set(conflicts.filter(x=>x.kind==='project').map(x=>x.id)),conflictPrefs=conflicts.some(x=>x.kind==='preference');
-    const taskRows=tasksRes.data||[],projectRows=projectsRes.data||[],serverTaskKeys=new Set(taskRows.map(planlyCloudTaskKey)),serverProjectIds=new Set(projectRows.map(r=>String(r.client_id)));
-    for(const row of taskRows){
-      const id=String(row.client_id),owned=String(row.owner_id||'')===String(ownerId),blocked=owned&&(dirtyTasks.has(id)||conflictTasks.has(id));
-      if(!blocked){
-        if(row.deleted_at)state.tasks=state.tasks.filter(x=>String(x.id)!==id);
-        else if(row.data&&String(row.data.id)===id){const cloudTask=planlyTaskFromCloudRow(row),key=planlyCloudTaskKey(row),i=state.tasks.findIndex(x=>planlyLocalTaskKey(x)===key);if(i>=0)state.tasks[i]=cloudTask;else state.tasks.push(cloudTask)}
-      }
-      if(owned)planlyCloudSyncMeta.tasks.set(id,Number(row.cloud_version||1));
-    }
-    state.tasks=state.tasks.filter(t=>{const id=String(t.id),owned=t._planlyOwnedByMe!==false;if(owned&&(dirtyTasks.has(id)||conflictTasks.has(id)))return true;return serverTaskKeys.has(planlyLocalTaskKey(t))});
-    for(const row of projectRows){
-      const id=String(row.client_id),blocked=dirtyProjects.has(id)||conflictProjects.has(id);
-      if(!blocked){
-        if(row.deleted_at)state.projects=state.projects.filter(x=>String(x.id)!==id);
-        else if(row.data&&String(row.data.id)===id){const i=state.projects.findIndex(x=>String(x.id)===id);if(i>=0)state.projects[i]=row.data;else state.projects.push(row.data)}
-      }
-      planlyCloudSyncMeta.projects.set(id,Number(row.cloud_version||1));
-    }
-    state.projects=state.projects.filter(p=>{const id=String(p.id);if(dirtyProjects.has(id)||conflictProjects.has(id))return true;if(!planlyCloudSyncMeta.projects.has(id))return true;return serverProjectIds.has(id)});
-    if(prefsRes.data){
-      if(!dirtyPrefs&&!conflictPrefs)applyPlanlyPreferenceData({defaultCategory:prefsRes.data.default_category||'Personal',defaultDuration:Number(prefsRes.data.default_duration||30),autoCompleteParentSubtasks:!!prefsRes.data.auto_complete_parent_subtasks,planningStart:prefsRes.data.planning_start||'08:00',planningEnd:prefsRes.data.planning_end||'23:00'});
-      planlyCloudSyncMeta.preferences=Number(prefsRes.data.cloud_version||planlyCloudSyncMeta.preferences||0);
-    }
-    planlyLastReconcileAt=Date.now();persistPlanlyCloudCache();await touchPlanlyLastSuccessfulSync().catch(()=>{});
-    const pendingCount=readPlanlyPendingWrites().length,conflictCount=readPlanlyConflicts().length;
-    setPlanlyCloudLocalStatus({state:conflictCount?'conflict':pendingCount?'offline-retry-needed':planlyCloudReadOnly?'cloud-loaded':'cloud-write-test',lastPullAt:new Date().toISOString(),pendingWrites:pendingCount,conflictCount});
-    if(options.render!==false)render();
-    if(options.replay!==false&&!planlyCloudReadOnly&&pendingCount)queuePlanlyPendingReplay(options.replayToast||'Planly Cloud synced');
-    return {pulled:true,pendingCount,conflictCount};
-  })().finally(()=>{planlyReconcilePromise=null});
-  return planlyReconcilePromise;
-}
+
 async function startPlanlyAuth(){
   if(!initPlanlySupabase())return;
   try{
@@ -2160,7 +2036,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-711a-100';
+const PLANLY_RELEASE='planly-v2-712a-101';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
