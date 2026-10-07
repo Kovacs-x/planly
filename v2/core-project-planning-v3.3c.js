@@ -18,19 +18,19 @@ function projectStats(projectId){
   const p=projectById(projectId);
   return planlyProjectStatsFor(p);
 }
-const __planlyPlanningProjectCardHtml=projectCardHtml;
-projectCardHtml=function(p){
+
+function projectCardHtml(p){
   const previousOwner=activeProjectOwnerId;
   activeProjectOwnerId=planlyProjectOwnerId(p);
-  try{return __planlyPlanningProjectCardHtml(p)}finally{activeProjectOwnerId=previousOwner}
-};
-const __planlyPlanningTaskHtml=taskHtml;
-taskHtml=function(t,top3Mode=false){
-  let html=__planlyPlanningTaskHtml(t,top3Mode);
+  try{return projectCardMarkup(p)}finally{activeProjectOwnerId=previousOwner}
+}
+
+function taskHtml(t,top3Mode=false){
+  let html=taskHtmlWithHousehold(t,top3Mode);
   if(!t?.projectId)return html;
   const owner=String(t._planlyOwnerId||planlySession?.user?.id||'');
   return html.replace(`data-project-id="${esc(t.projectId)}"`,`data-project-id="${esc(t.projectId)}" data-project-owner="${esc(owner)}"`);
-};
+}
 function planlyPlanningTaskFromElement(el){
   const card=el?.closest?.('[data-id][data-owner]');
   if(card){
