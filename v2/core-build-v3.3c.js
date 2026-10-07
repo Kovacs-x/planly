@@ -1,5 +1,5 @@
 /* Planly 4.3 offline/readiness probes plus stable render/diagnostics. Injected inside the primary app closure. */
-verifyPlanlyOfflineCache=async function(){
+async function verifyPlanlyOfflineCache(){
   if(!('caches'in window))return {ok:false,missing:['Cache Storage unavailable']};
   try{
     const probe=await probePlanlyServiceWorker();
@@ -11,15 +11,15 @@ verifyPlanlyOfflineCache=async function(){
     for(const asset of assets){if(!await cache.match(asset))missing.push(asset)}
     return {ok:missing.length===0,missing,cache:planlyKeys[0],serviceWorker:probe.reason};
   }catch(err){return {ok:false,missing:[String(err?.message||err)]}}
-};
-probePlanlyServiceWorker=async function(){
+}
+async function probePlanlyServiceWorker(){
   if(!navigator.serviceWorker?.controller)return {ok:false,reason:'no-controller'};
   try{
     const res=await planlyWithTimeout(fetch('./__planly_sw_probe__?t='+Date.now(),{cache:'no-store'}),3000,'Service worker probe');
     const text=(await res.text()).trim();
     return {ok:res.ok&&/^planly-v2-sw-[a-z0-9.-]+$/i.test(text),reason:text||('HTTP '+res.status)};
   }catch(err){return {ok:false,reason:String(err?.message||err)}}
-};
+}
 
 /* Collapse same-turn duplicate full renders, and do not replay the page-entry animation when async bootstrap/sync work refreshes the surface already shown. */
 const __planlyStableRender=render;

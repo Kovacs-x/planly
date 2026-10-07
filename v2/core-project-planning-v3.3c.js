@@ -14,10 +14,10 @@ function planlyProjectStatsFor(p){
   const done=tasks.filter(t=>t.completed).length,total=tasks.length;
   return {tasks,done,total,pct:total?Math.round(done/total*100):0,active:tasks.filter(t=>!t.completed),completed:tasks.filter(t=>t.completed)};
 }
-projectStats=function(projectId){
+function projectStats(projectId){
   const p=projectById(projectId);
   return planlyProjectStatsFor(p);
-};
+}
 const __planlyPlanningProjectCardHtml=projectCardHtml;
 projectCardHtml=function(p){
   const previousOwner=activeProjectOwnerId;
