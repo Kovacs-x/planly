@@ -43,8 +43,8 @@ if(p2bHardening.includes("window.addEventListener('focus'"))fail('plain focus mu
 if(!p2bApp.includes("window.addEventListener('planly:foreground-resume'"))fail('foreground resume reconcile listener missing');
 
 const assignmentWrapper=read('v2/core-assignment-v3.3c.js');
-if(!assignmentWrapper.includes('loadPlanlyHousehold=function(force=false)'))fail('household wrapper must preserve force argument');
-if(!assignmentWrapper.includes('__planlyBaseLoadHousehold(force)'))fail('household wrapper must forward force argument');
+if(!assignmentWrapper.includes('function loadPlanlyHousehold(force=false)'))fail('household loader must preserve force argument');
+if(!assignmentWrapper.includes('loadPlanlyHouseholdCore(force)'))fail('household loader must forward force argument');
 for(const fn of ['createPlanlyHousehold','createPlanlyHouseholdInvite','revokePlanlyHouseholdInvite','acceptPlanlyHouseholdInvite','transferPlanlyHouseholdOwnership','deletePlanlyHousehold','leavePlanlyHousehold']){const start=p2bApp.indexOf('function '+fn);const body=start>=0?p2bApp.slice(start,p2bApp.indexOf('\n}',start)+2):'';if(!body.includes('loadPlanlyHousehold(true)'))fail(fn+' must force household reload after mutation')}
 
 const p2cApp=read('v2/app-v3.2.0.js'),p2cHardening=read('v2/hardening-v3.3b.js'),p2cLists=read('v2/core-lists-v4.1.js');
@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=710r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-712a-101'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-713a-102'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -83,7 +83,7 @@ if(!r1Html.includes('html{touch-action:pan-x pan-y}'))fail('pinch/double-tap zoo
 {const app=read('v2/app-v3.2.0.js'),projects=read('v2/core-projects-v3.3c.js');
 // core-projects owns the live reconcilePlanlyCloud (it replaces the app's): the stale-snapshot guard must be there.
 for(const x of ["if(owned&&Number(row.cloud_version||1)<Number(planlyCloudSyncMeta.tasks.get(id)||0))continue;","if(owned&&planlyCloudSyncMeta.tasks.has(id)&&!ownedTaskIds.has(id))return true;","if(owned&&Number(row.cloud_version||1)<Number(planlyCloudSyncMeta.projects.get(id)||0))continue;","if(owned&&planlyCloudSyncMeta.projects.has(id)&&!ownedProjectIds.has(id))return true;"])if(!projects.includes(x))fail('stale refresh guard missing from live reconcile: '+x.slice(0,70));
-if(!read('v2/sw.js').includes("CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=712p01'"))fail('core-projects cache marker not bumped');
+if(!read('v2/sw.js').includes("CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=713p01'"))fail('core-projects cache marker not bumped');
 for(const x of ["async function reconcilePlanlyConflictGoogle(task,duplicateEventId)","if(cloudEvent){if(localEvent&&localEvent!==cloudEvent)googleDuplicate=localEvent;local.googleEventId=cloudEvent}local.calendarSync='pending'",
  "if(localEvent&&localEvent!==cloudEvent)googleDuplicate=localEvent;","if(kind==='task'&&(googleTask||googleDuplicate)){await reconcilePlanlyConflictGoogle(googleTask,googleDuplicate);",
  "if(googleTask||googleDuplicate){await reconcilePlanlyConflictGoogle(googleTask,googleDuplicate);","catch(err){if(err?.status===404||err?.status===410)continue;remaining.push(id);"])if(!app.includes(x))fail('calendar conflict convergence invariant missing: '+x.slice(0,70));
@@ -120,7 +120,7 @@ if(/delete\s+from/i.test(m48)||/disable row level security|grant[^;]*to anon/i.t
 for(const x of ["return !!userId;","async function runQueuedPlanlyHouseholdSubtasks()","rpc('planly_set_household_subtask_done'","function toggleHouseholdTaskSubtask(t,subtaskId)","function settleHouseholdSubtaskOp(op){const cur=readPlanlyPendingWrites().find(x=>x.kind==='householdSubtask'&&x.id===op.id);if(cur&&cur.operationId===op.operationId)clearPlanlyPendingWrite('householdSubtask',op.id)}","if(planlyHouseholdAutoCompleteIntent.has(key)&&!queued.length&&row){","if(t&&state.autoCompleteParentSubtasks&&!row.completed&&serverSubs.length&&serverSubs.every(s=>s.done))planlyCompleteHouseholdTaskDirect(t);","if(!planlyHouseholdSubtaskRun)planlyHouseholdSubtaskRun=runQueuedPlanlyHouseholdSubtasks()","customKinds=new Set(['householdCompletion','householdSubtask'])"])if(!assign.includes(x))fail('household checklist client invariant missing: '+x.slice(0,60));
 if(assign.includes("clearPlanlyPendingWrite('householdSubtask',op.id);")||/then\(\(\)=>planlyCompleteHouseholdTaskDirect/.test(assign))fail('household subtask: acknowledge only the sent operation; auto-complete only on server-confirmed state');
 if(!app2.includes("if(action==='toggle-subtask'&&!taskCanEdit(t)&&typeof planlyHouseholdCompletionEligible==='function'&&planlyHouseholdCompletionEligible(t)){toggleHouseholdTaskSubtask(t,actionEl.dataset.subtaskId);return}"))fail('household checklist tick must route before the owner-only gate');
-if(!read('v2/sw.js').includes("CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=712s01'"))fail('core-assignment marker not bumped');}
+if(!read('v2/sw.js').includes("CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=713s01'"))fail('core-assignment marker not bumped');}
 // Reviewer follow-ups: Budget entry inserts follow the update rule; auto-complete intent survives restarts; checklist rows keyboard-reachable.
 {const m49=read('supabase/migrations/049_budget_entry_insert_hardening.sql'),assign=read('v2/core-assignment-v3.3c.js'),app3=read('v2/app-v3.2.0.js'),html=read('v2/index.html');
 for(const x of ['create policy planly_budget_entries_insert_authorized','for insert to authenticated','planly_budget_entries.owner_id = (select auth.uid())','s.deleted_at is null',"(s.scope_type = 'personal' and s.owner_id = (select auth.uid()))","(s.scope_type = 'household' and s.household_id is not null and planly_private.is_household_member(s.household_id))"])if(!m49.includes(x))fail('049 budget entry insert invariant missing: '+x);
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=712a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=713a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -540,6 +540,13 @@ if(read('v2/core-budget-nav-v4.0b1.js').includes('Private finance')||!read('v2/c
  for(const f of ['core-closeout-v3.3c.js','core-cloud-readiness-v3.3d.js','core-release-gate-v3.3d.js'])if(fs.existsSync('v2/'+f))fail('folded patch module must stay deleted: '+f);
  const reassigned=['projectById','projectNameForTask','projectTasks','projectStats','projectOptionsHtml','refreshProjectSelect','projectCloudRow','renderProjectsPanel','openProjects','saveProjectEditor','handleProjectsClick','reconcilePlanlyCloud','verifyPlanlyOfflineCache','probePlanlyServiceWorker','planlySignIn','monthView','loadVerifiedCloudPreview'];
  for(const n of reassigned){const decl=(generated.match(new RegExp('(^|[;\\n}])\\s*(async\\s+)?function\\s+'+n+'\\s*\\(','g'))||[]).length,assign=new RegExp('(^|[;\\n{}])\\s*'+n+'\\s*=\\s*(async\\s+)?function').test(generated);if(decl!==1||assign)fail('folded function must be defined exactly once, as a declaration: '+n+' ('+decl+' declarations'+(assign?', reassigned':'')+')')}}
+// Tidy-up 2a-ii: wrapper chains are named declarations (…Core → public name). Nothing in the composed app may replace an
+// already-declared function at runtime; render's Budget/diagnostic layers are the only exception until stage 2b.
+{const declared=new Set([...generated.matchAll(/(?:^|[;\n}])\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]));
+ const patched=[...generated.matchAll(/(?:^|[;\n{}])\s*([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?function\b/g)].map(m=>m[1]).filter(n=>declared.has(n)&&n!=='render');
+ if(patched.length)fail('functions must not be replaced at runtime: '+[...new Set(patched)].join(', '));
+ for(const n of ['taskHtmlCore','taskHtmlWithHousehold','taskHtml','projectCardMarkup','projectCardHtml','closeProjectsCore','closeProjects','stageProjectMutationCore','stageProjectMutation','replayPlanlyPendingWritesCore','replayPlanlyPendingWrites','cloudInsertTaskCore','cloudInsertTask','loadPlanlyHouseholdCore','loadPlanlyHousehold']){const c=(generated.match(new RegExp('(^|[;\\n}])\\s*(async\\s+)?function\\s+'+n+'\\s*\\(','g'))||[]).length;if(c!==1)fail('wrapper layer must be declared exactly once: '+n+' ('+c+')')}
+ for(const d of ["const planlyHouseholdAutoCompleteIntent=new Set();","let planlyHouseholdSubtaskRun=null;","let __planlyHouseholdLoadFlight=null,__planlyHouseholdLoadOwner='';"])if(!s.app.includes(d)||s.assignment.includes(d))fail('household state must be declared in the app before the first render: '+d);}
 // Cleanup: Focus mode and the old Intelligence screens (Plan My Day, Plan my week, Day check, Suggest 3, Tidy up, Why, Monday review) are gone.
 {const html=read('v2/index.html'),sw=read('v2/sw.js'),runtime=[s.app,s.hardening,...[...new Set(sw.match(/core-[a-z0-9.-]+\.js/g))].map(f=>read('v2/'+f))].join('\n');
 for(const gone of ['openFocus','closeFocus','renderFocus','refreshFocusIfOpen','focusTicker','data-timeline-focus','data-task-menu="focus"','data-dashboard-focus','focusMs','openPlanDay','renderPlanDay','commitPlanDay','dayPlanDraft','openPlanWeek','weeklyReviewHtml','data-plan-week','todayDayCheckHtml','suggestTop3WithUndo','tidyOverdue','showIntelligenceWhy','intelligenceSnoozeDate','data-i2-','recordIntelligenceCompletion','removeIntelligenceCompletionSample'])if(runtime.includes(gone))fail('Removed feature still referenced: '+gone);

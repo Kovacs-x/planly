@@ -20,9 +20,9 @@ function planlyHouseholdNextDate(t){
   if(cfg.endMode==='date'&&cfg.endDate&&next>cfg.endDate)return null;
   return next;
 }
-const __planlyBaseTaskHtml=taskHtml;
-taskHtml=function(t,top3Mode=false){
-  let html=__planlyBaseTaskHtml(t,top3Mode);
+
+function taskHtmlWithHousehold(t,top3Mode=false){
+  let html=taskHtmlCore(t,top3Mode);
   const eligible=planlyHouseholdCompletionEligible(t);
   if(eligible){
     html=html.replace('class="check" disabled aria-label="Shared task status"','class="check" data-household-completion="true" aria-label="'+(t.completed?'Mark household task incomplete':'Complete household task')+'"');
@@ -30,7 +30,7 @@ taskHtml=function(t,top3Mode=false){
     html=html.replace('sharedReadOnlyTask','sharedReadOnlyTask assignedToMeTask');
   }
   return html;
-};
+}
 
 /* Authoritative household completion hydration. Database columns are the source
    of truth for assignment, completion actor and optimistic concurrency version. */
@@ -116,10 +116,7 @@ function clearPlanlyHouseholdAutoCompleteFlag(ownerId,clientId){const list=readP
    made while that request was in flight must stay queued and be sent next, never cleared by the older reply. */
 function settleHouseholdSubtaskOp(op){const cur=readPlanlyPendingWrites().find(x=>x.kind==='householdSubtask'&&x.id===op.id);if(cur&&cur.operationId===op.operationId)clearPlanlyPendingWrite('householdSubtask',op.id)}
 function householdSubtaskTaskKey(ownerId,clientId){return String(ownerId)+'|'+String(clientId)}
-/* Tasks whose last checklist item this device ticked: complete them only once the server confirms every item done. */
-const planlyHouseholdAutoCompleteIntent=new Set();
-/* One replay at a time; a tap during a run is picked up by that run's loop (it re-reads the queue each step). */
-let planlyHouseholdSubtaskRun=null;
+/* One replay at a time (planlyHouseholdSubtaskRun, declared in the app); a tap during a run is picked up by that run's loop (it re-reads the queue each step). */
 function replayQueuedPlanlyHouseholdSubtasks(){if(!planlyHouseholdSubtaskRun)planlyHouseholdSubtaskRun=runQueuedPlanlyHouseholdSubtasks().finally(()=>{planlyHouseholdSubtaskRun=null});return planlyHouseholdSubtaskRun}
 async function runQueuedPlanlyHouseholdSubtasks(){
   if(!planlySession?.user||!navigator.onLine||!initPlanlySupabase())return;
@@ -167,26 +164,26 @@ function toggleHouseholdTaskSubtask(t,subtaskId){
   render();
   void replayQueuedPlanlyHouseholdSubtasks().catch(()=>{});
 }
-const __planlyBaseReplayPendingWrites=replayPlanlyPendingWrites;
-replayPlanlyPendingWrites=async function(){
+
+async function replayPlanlyPendingWrites(){
   await replayQueuedPlanlyHouseholdSubtasks();
   await replayQueuedPlanlyHouseholdCompletions();
   const customKinds=new Set(['householdCompletion','householdSubtask']),custom=readPlanlyPendingWrites().filter(x=>customKinds.has(x.kind));
-  if(!custom.length)return __planlyBaseReplayPendingWrites();
+  if(!custom.length)return replayPlanlyPendingWritesCore();
   writePlanlyPendingWrites(readPlanlyPendingWrites().filter(x=>!customKinds.has(x.kind)));
-  try{return await __planlyBaseReplayPendingWrites()}
+  try{return await replayPlanlyPendingWritesCore()}
   finally{
     const basePending=readPlanlyPendingWrites();
     writePlanlyPendingWrites([...basePending,...custom.filter(op=>!basePending.some(x=>x.kind===op.kind&&x.id===op.id))]);
     persistPlanlyCloudCache();
   }
-};
+}
 
 /* A partner RPC can create the same next series occurrence before an owner's
    offline insert replays. The unique series/date key makes that duplicate benign. */
-const __planlyBaseCloudInsertTask=cloudInsertTask;
-cloudInsertTask=async function(t,replay=false){
-  try{return await __planlyBaseCloudInsertTask(t,replay)}
+
+async function cloudInsertTask(t,replay=false){
+  try{return await cloudInsertTaskCore(t,replay)}
   catch(err){
     if(String(err?.code||'')==='23505'&&String(err?.message||'').includes('planly_tasks_live_series_occurrence_key')){
       clearPlanlyPendingWrite('task',String(t?.id||''));
@@ -195,23 +192,22 @@ cloudInsertTask=async function(t,replay=false){
     }
     throw err;
   }
-};
+}
 
 /* Supabase may emit SIGNED_IN while signInWithPassword is still resolving.
    Both paths used to start household/cloud reads independently. Share each
    authenticated bootstrap read per account so both callers await the same work. */
-const __planlyBaseLoadHousehold=loadPlanlyHousehold;
-let __planlyHouseholdLoadFlight=null,__planlyHouseholdLoadOwner='';
-loadPlanlyHousehold=function(force=false){
+
+function loadPlanlyHousehold(force=false){
   const owner=String(planlySession?.user?.id||'');
-  if(!owner)return __planlyBaseLoadHousehold(force);
+  if(!owner)return loadPlanlyHouseholdCore(force);
   if(!force&&__planlyHouseholdLoadFlight&&__planlyHouseholdLoadOwner===owner)return __planlyHouseholdLoadFlight;
   const previous=force&&__planlyHouseholdLoadFlight&&__planlyHouseholdLoadOwner===owner?__planlyHouseholdLoadFlight.catch(()=>{}):Promise.resolve();
   __planlyHouseholdLoadOwner=owner;
-  const flight=previous.then(()=>__planlyBaseLoadHousehold(force));
+  const flight=previous.then(()=>loadPlanlyHouseholdCore(force));
   __planlyHouseholdLoadFlight=flight;
   return flight.finally(()=>{if(__planlyHouseholdLoadFlight===flight){__planlyHouseholdLoadFlight=null;__planlyHouseholdLoadOwner=''}});
-};
+}
 
 
 /* The original sign-in renders immediately after adoptPlanlySession(). That is
