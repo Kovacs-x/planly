@@ -13,4 +13,6 @@ window.PlanlyBudgetMonth={get,set,date};
 set(get());
 async function renderTab(target){host=target||host;bindTouch();set(get());const result=await base.renderTab(host);bindTouch();return result}
 window.PlanlyBudgetUI={...base,renderTab};
+/* The Budget UI layers are composed: ask the Budget tab to redraw if it is showing (formerly the empty core-budget-insights 4.0R3 layer). */
+window.dispatchEvent(new CustomEvent('planly:budget-invalidated',{detail:{reason:'ui-composed',version:'4.0R3'}}));
 })();

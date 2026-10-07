@@ -1,2 +1,0 @@
-// Planly R3 — legacy insights surface retired. Hero now owns the single monthly summary.
-(()=>{'use strict';const base=window.PlanlyBudgetUI;if(!base?.renderTab)return;async function renderTab(target){return base.renderTab(target)}window.PlanlyBudgetUI={...base,renderTab};window.dispatchEvent(new CustomEvent('planly:budget-invalidated',{detail:{reason:'ui-composed',version:'4.0R3'}}));})();

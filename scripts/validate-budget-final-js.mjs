@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-const files=['v2/core-budget-v4.0b.js','v2/core-budget-ui-v4.0b.js','v2/core-budget-scope-v4.0c.js','v2/core-budget-lifecycle-v4.0d.js','v2/core-budget-monthly-v4.0e.js','v2/core-budget-month-state-v4.0f.js','v2/core-budget-insights-v4.0g.js','v2/core-budget-actions-v4.0l.js','v2/core-budget-scroll-v4.0m.js'];
+const files=['v2/core-budget-v4.0b.js','v2/core-budget-ui-v4.0b.js','v2/core-budget-scope-v4.0c.js','v2/core-budget-lifecycle-v4.0d.js','v2/core-budget-monthly-v4.0e.js','v2/core-budget-month-state-v4.0f.js','v2/core-budget-actions-v4.0l.js','v2/core-budget-scroll-v4.0m.js'];
 const src=files.map(f=>fs.readFileSync(f,'utf8')).join('\n');
 for(const f of files)new Function(fs.readFileSync(f,'utf8'));
 if(src.includes('$$$'))throw Error('Generated Budget JS contains $$$');
