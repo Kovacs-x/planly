@@ -123,4 +123,12 @@ function foodProblems(m54){
  for(const [name,[from,to]] of Object.entries(mutants)){
   if(!m54.includes(from))fail(`Food mutation self-test anchor missing (${name})`);
   if(!foodProblems(m54.replace(from,to)).length)fail(`Food validator did not catch mutation: ${name}`);}}
+// Signed-in users must not hold TRUNCATE (bypasses RLS), TRIGGER, REFERENCES or MAINTAIN. Supabase's default
+// privileges add them to new tables, so migration 055 removes them and no migration may grant them (or ALL) again.
+{const extraGrant=st=>/^grant\b/.test(st)&&/\b(all|truncate|trigger|references|maintain)\b/.test(st.split(' on ')[0])&&/\b(authenticated|anon|public)\b/.test(st.split(' to ').slice(1).join(' to '));
+ const m55=sqlStatements(read('supabase/migrations/055_revoke_extra_table_rights.sql'));
+ if(!m55.includes('revoke truncate, trigger, references, maintain on public.planly_food_profile, public.planly_food_entries, public.planly_food_favourites, public.planly_lists, public.planly_list_items from authenticated'))fail('Migration 055 must revoke TRUNCATE/TRIGGER/REFERENCES/MAINTAIN on the food and list tables from authenticated');
+ for(const f of fs.readdirSync(migrationDir).filter(f=>f.endsWith('.sql')))for(const st of sqlStatements(read(`supabase/migrations/${f}`)))if(extraGrant(st))fail(`${f} grants table rights the app never uses to a client role: `+st.slice(0,160));
+ for(const st of ['grant all on public.planly_lists to authenticated','grant truncate on public.planly_food_entries to authenticated','grant select, truncate on public.x to anon','grant trigger on table public.x to public'])if(!extraGrant(sqlStatements(st)[0]))fail('Extra-rights grant self-test missed: '+st);
+ for(const st of ['grant select, insert, update, delete on public.planly_lists to authenticated','grant execute on function public.f() to authenticated'])if(extraGrant(sqlStatements(st)[0]))fail('Extra-rights grant self-test false positive: '+st);}
 console.log('Planly security regression checks passed.');
