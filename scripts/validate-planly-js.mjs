@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=710r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-715a-104'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-716a-105'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=715a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=716a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -398,7 +398,7 @@ const m=read('supabase/migrations/046_household_chore_rotation.sql');for(const n
 {const app=read('v2/app-v3.2.0.js'),hard=read('v2/hardening-v3.3b.js');
 if(!/function planlyRotationEligible\(t\)\{[^\n]*&&!!t\.assigneeId&&!!planlyRotationOther\(t\.assigneeId\)\}/.test(app))fail('Stage 5: Rotate must require an assigned partner (Anyone stays Anyone)');
 if(!app.includes("function planlyRotationNormalize(t)")||!/function stageTaskMutation\(t\)\{[^\n]*planlyRotationNormalize\(t\);/.test(app))fail('Stage 5: every staged task write must normalise rotation');
-if(!hard.includes("nextData.rotation={enabled:false}"))fail('Stage 5: assignment changes must switch rotation off when the assignee leaves the pair');}
+if(!/function planlyRotationNormalize\(t\)\{[^\n]*who===String\(r\.a\)\|\|who===String\(r\.b\)[^\n]*t\.rotation=\{enabled:false\}/.test(app))fail('Stage 5: assignment changes must switch rotation off when the assignee leaves the pair');}
 // Stage 5 (reviewer N4): the privileged rotation helper must never become client-callable.
 {const fs=await import('node:fs');const dir='supabase/migrations',all=fs.readdirSync(dir).filter(f=>f.endsWith('.sql')).sort().map(f=>fs.readFileSync(dir+'/'+f,'utf8')).join('\n'),m046=fs.readFileSync(dir+'/046_household_chore_rotation.sql','utf8');
 if(!/revoke all on function planly_private\.household_rotation_assignee\(uuid,jsonb,date,uuid\) from public, anon, authenticated;/.test(m046))fail('N4: rotation helper must revoke execute from public, anon, authenticated');
@@ -563,3 +563,8 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
  if(/<option value="system">/.test(s.app))fail('Settings must not offer a System theme');
  if(!html.includes("let theme=saved?.theme||'light';")||!html.includes("catch{document.documentElement.dataset.theme='light'}"))fail('boot theme must default to Light');
  if(/theme\|\|'system'|theme:'system'/.test(s.app+html))fail('System must not be the default theme');}
+// The assigned person is saved with the task in one write. A second, separate assignment update raced the task save
+// and left the phone stuck on a rejected copy showing "Anyone" (7 Oct 2026).
+{const save="data.assigneeId=data.visibility==='household'?(assigneeField?String(assigneeField.value||'')||null:(id?(state.tasks.find(x=>x.id===id)?.assigneeId||null):null)):null;";
+ if(!s.app.includes("const assigneeField=$('#taskAssignee');")||!s.app.includes(save))fail('task save must carry the assigned person');
+ if(/applyPendingAssignment|pendingAssignment|from\('planly_tasks'\)\.update\(\{assignee_id/.test(s.hardening))fail('assignment must not be written separately after the task save');}
