@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 const root=process.cwd(),read=p=>fs.readFileSync(path.join(root,p),'utf8'),fail=m=>{throw new Error(m)},migrationDir=path.join(root,'supabase/migrations');
 const migrations=fs.readdirSync(migrationDir).filter(f=>f.endsWith('.sql')).sort().map(f=>`\n-- ${f}\n${read(`supabase/migrations/${f}`)}`).join('\n');
 const clientFiles=['v2/supabase-config.js','v2/app-v3.2.0.js','v2/hardening-v3.3b.js','v2/core-assignment-v3.3c.js','v2/core-projects-v3.3c.js','v2/core-household-calendar-v3.3c.js','v2/core-project-planning-v3.3c.js','v2/core-budget-v4.0b.js','v2/core-budget-ui-v4.0b.js','v2/core-budget-scope-v4.0c.js','v2/core-budget-lifecycle-v4.0d.js','v2/core-budget-monthly-v4.0e.js','v2/core-budget-actions-v4.0l.js'].filter(f=>fs.existsSync(path.join(root,f))),client=clientFiles.map(read).join('\n');
@@ -56,6 +57,7 @@ function sqlStatements(sql){
  eq("select E'it\\'s; ok'; select 4",["select e'it\\'s; ok'","select 4"]);
  eq('create /* x; /* y; */ z; */ policy p on public."planly_food_entries" -- ;\n using (true); select 6',["create policy p on public.planly_food_entries using (true)","select 6"]);
  for(const bad of ["select 'x","/* open","select $q$ open",'select U&"d\\0061t"','select "x']){let ok=false;try{sqlStatements(bad)}catch{ok=true}if(!ok)fail('SQL tokenizer must refuse: '+bad)}}
+const foodGuardFn="create or replace function public.planly_protect_food_identity() returns trigger language plpgsql set search_path = pg_catalog, public as $$ begin if new.owner_id is distinct from old.owner_id then raise exception 'food row owner is immutable'; end if; if tg_table_name <> 'planly_food_profile' and (new.id is distinct from old.id or new.client_id is distinct from old.client_id) then raise exception 'food row identity is immutable'; end if; return new; end $$";
 const foodExpected=new Set(foodTables.flatMap(t=>['select','insert','update','delete'].map(op=>foodPolicy(t,op).slice(0,-1))));
 // Closed list: every policy statement touching a food table must be one of the 12 expected ones, each exactly once.
 // Anything else (no FOR clause = ALL, FOR ALL, restrictive/permissive variants, other roles, ALTER/DROP POLICY) fails.
@@ -77,14 +79,19 @@ function foodProblems(m54){
  if(stmts.some(x=>/^(grant|alter default privileges)\b/.test(x)&&/\b(anon|public)\b/.test(x.split(' to ').slice(1).join(' to ')))||!has('revoke all on public.planly_food_profile, public.planly_food_entries, public.planly_food_favourites from public, anon'))out.push('Food tables must not be granted to anon/public');
  if(/disable row level security|no force row level security|bypassrls/.test(body))out.push('Food tables must not disable RLS');
  if(/security definer/.test(body))out.push('No SECURITY DEFINER code in the food migration');
- const guard=stmts.find(x=>x.startsWith('create or replace function public.planly_protect_food_identity()'));
- if(!guard||!guard.replace(/--[^\n]*/g,'').includes("raise exception 'food row owner is immutable'"))out.push('Food row owner immutability guard missing');
+ // The identity guard function must be exactly this statement (body included, so a commented-out raise fails),
+ // defined once, and no other statement may create/alter/drop it.
+ const fnStmts=stmts.filter(x=>/^(create (or replace )?function|alter function|drop function( if exists)?) (public\.)?planly_protect_food_identity\b/.test(x));
+ if(fnStmts.length!==1||fnStmts[0]!==foodGuardFn)out.push('Food row identity guard function must be exactly the reviewed definition');
  return out;}
 {const m54=read('supabase/migrations/054_fitness_food_foundation.sql');
+ // The reviewed and applied migration is pinned byte for byte; later changes belong in a new migration.
+ const m54sha=crypto.createHash('sha256').update(fs.readFileSync(path.join(migrationDir,'054_fitness_food_foundation.sql'))).digest('hex');
+ if(m54sha!=='ea1ec563f1151974508578276971b4d7d678c337cd1055b700dbd3e81829a9bc')fail('Migration 054 differs from the reviewed file (sha256 '+m54sha+')');
  const problems=foodProblems(m54);if(problems.length)fail(problems[0]);
  const otherSql=fs.readdirSync(migrationDir).filter(f=>f.endsWith('.sql')&&!f.startsWith('054_')).map(f=>read(`supabase/migrations/${f}`)).join('\n;\n');
  const later=foodPolicyProblems(otherSql,false);if(later.length)fail('Other migration: '+later[0]);
- for(const st of sqlStatements(otherSql))if(/planly_food_/.test(st)&&(/\bgrant\b/.test(st)||/disable row level security|no force row level security|security definer/.test(st)))fail('Other migration weakens food tables: '+st.slice(0,160));
+ for(const st of sqlStatements(otherSql))if((/planly_food_/.test(st)||/planly_protect_food_identity/.test(st))&&(/^(create (or replace )?function|alter function|drop function( if exists)?) (public\.)?planly_protect_food_identity\b/.test(st)||/\bgrant\b/.test(st)||/disable row level security|no force row level security|security definer/.test(st)))fail('Other migration weakens food tables: '+st.slice(0,160));
  // Mutation self-test: each weakened copy of the migration must be caught.
  const upd='create policy planly_food_entries_update_owner on public.planly_food_entries for update to authenticated using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));';
  const mutants={
@@ -108,6 +115,10 @@ function foodProblems(m54){
   'quoted table name':['create policy planly_food_entries_delete_owner','create policy food_x on public."planly_food_entries" to authenticated using (true);\ncreate policy planly_food_entries_delete_owner'],
   'RLS enable only inside a comment':['alter table public.planly_food_entries enable row level security;','/* alter table public.planly_food_entries enable row level security; */'],
   'grant to anon hidden behind a comment semicolon':['to authenticated;\n\ncreate or replace function','to authenticated;\ngrant select on public.planly_food_entries /*;*/ to anon;\n\ncreate or replace function'],
+  'owner guard only inside a block comment':["if new.owner_id is distinct from old.owner_id then\n    raise exception 'Food row owner is immutable';\n  end if;","/* raise exception 'Food row owner is immutable'; */"],
+  'owner guard only inside a string':["raise exception 'Food row owner is immutable';","perform 'raise exception ''Food row owner is immutable''';"],
+  'guard function redefined later in the file':['create policy planly_food_profile_select_owner','create or replace function public.planly_protect_food_identity() returns trigger language plpgsql as $$ begin return new; end $$;\ncreate policy planly_food_profile_select_owner'],
+  'guard function redefined without schema':['create policy planly_food_profile_select_owner','CREATE OR REPLACE FUNCTION "planly_protect_food_identity"() returns trigger language plpgsql as $x$ begin return new; end $x$;\ncreate policy planly_food_profile_select_owner'],
   'household policy':['using (owner_id = (select auth.uid()));\n\ncreate policy planly_food_entries_select_owner','using (owner_id = (select auth.uid()) or household_id is not null);\n\ncreate policy planly_food_entries_select_owner']};
  for(const [name,[from,to]] of Object.entries(mutants)){
   if(!m54.includes(from))fail(`Food mutation self-test anchor missing (${name})`);
