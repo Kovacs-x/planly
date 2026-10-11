@@ -126,8 +126,15 @@ function foodProblems(m54){
 // Signed-in users must not hold TRUNCATE (bypasses RLS), TRIGGER, REFERENCES or MAINTAIN. Supabase's default
 // privileges add them to new tables, so migration 055 removes them and no migration may grant them (or ALL) again.
 {const extraGrant=st=>/^grant\b/.test(st)&&/\b(all|truncate|trigger|references|maintain)\b/.test(st.split(' on ')[0])&&/\b(authenticated|anon|public)\b/.test(st.split(' to ').slice(1).join(' to '));
- const m55=sqlStatements(read('supabase/migrations/055_revoke_extra_table_rights.sql'));
- if(!m55.includes('revoke truncate, trigger, references, maintain on public.planly_food_profile, public.planly_food_entries, public.planly_food_favourites, public.planly_lists, public.planly_list_items from authenticated'))fail('Migration 055 must revoke TRUNCATE/TRIGGER/REFERENCES/MAINTAIN on the food and list tables from authenticated');
+ // 055 must be exactly the one approved statement (nothing else, e.g. no DROP TABLE), and is pinned byte for byte.
+ const m55Revoke='revoke truncate, trigger, references, maintain on public.planly_food_profile, public.planly_food_entries, public.planly_food_favourites, public.planly_lists, public.planly_list_items from authenticated';
+ const m55Problem=sql=>{const st=sqlStatements(sql);return st.length!==1||st[0]!==m55Revoke};
+ const m55src=read('supabase/migrations/055_revoke_extra_table_rights.sql');
+ if(m55Problem(m55src))fail('Migration 055 must contain only the approved revoke statement');
+ const m55sha=crypto.createHash('sha256').update(fs.readFileSync(path.join(migrationDir,'055_revoke_extra_table_rights.sql'))).digest('hex');
+ if(m55sha!=='7cd7bb7bd115a5188af6d6ce572b8ed39a7b5433a6bb7bf120b4a8101a205d30')fail('Migration 055 differs from the reviewed file (sha256 '+m55sha+')');
+ for(const [name,mut] of [['unchanged control',null],['extra DROP TABLE after',m55src+'\ndrop table public.planly_tasks;\n'],['extra statement before','create table public.x(id int);\n'+m55src],['table removed',m55src.replace(', public.planly_list_items','')],['right removed',m55src.replace('references, ','')],['revoked from anon instead',m55src.replace(/from authenticated;\s*$/,'from anon;\n')],['extra statement hidden after a comment semicolon',m55src.replace(/from authenticated;\s*$/,'from authenticated /*;*/; drop table public.planly_tasks;\n')]])
+  {if(mut===null){if(m55Problem(m55src))fail('055 control failed');continue}if(mut===m55src)fail('Migration 055 self-test mutation did not change the file: '+name);if(!m55Problem(mut))fail('Migration 055 self-test did not catch: '+name);}
  for(const f of fs.readdirSync(migrationDir).filter(f=>f.endsWith('.sql')))for(const st of sqlStatements(read(`supabase/migrations/${f}`)))if(extraGrant(st))fail(`${f} grants table rights the app never uses to a client role: `+st.slice(0,160));
  for(const st of ['grant all on public.planly_lists to authenticated','grant truncate on public.planly_food_entries to authenticated','grant select, truncate on public.x to anon','grant trigger on table public.x to public'])if(!extraGrant(sqlStatements(st)[0]))fail('Extra-rights grant self-test missed: '+st);
  for(const st of ['grant select, insert, update, delete on public.planly_lists to authenticated','grant execute on function public.f() to authenticated'])if(extraGrant(sqlStatements(st)[0]))fail('Extra-rights grant self-test false positive: '+st);}
