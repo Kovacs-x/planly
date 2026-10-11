@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=710r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-717a-108'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-718a-109'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -120,7 +120,7 @@ if(/delete\s+from/i.test(m48)||/disable row level security|grant[^;]*to anon/i.t
 for(const x of ["return !!userId;","async function runQueuedPlanlyHouseholdSubtasks()","rpc('planly_set_household_subtask_done'","function toggleHouseholdTaskSubtask(t,subtaskId)","function settleHouseholdSubtaskOp(op){const cur=readPlanlyPendingWrites().find(x=>x.kind==='householdSubtask'&&x.id===op.id);if(cur&&cur.operationId===op.operationId)clearPlanlyPendingWrite('householdSubtask',op.id)}","if(planlyHouseholdAutoCompleteIntent.has(key)&&!queued.length&&row){","if(t&&state.autoCompleteParentSubtasks&&!row.completed&&serverSubs.length&&serverSubs.every(s=>s.done))planlyCompleteHouseholdTaskDirect(t);","if(!planlyHouseholdSubtaskRun)planlyHouseholdSubtaskRun=runQueuedPlanlyHouseholdSubtasks()","customKinds=new Set(['householdCompletion','householdSubtask'])"])if(!assign.includes(x))fail('household checklist client invariant missing: '+x.slice(0,60));
 if(assign.includes("clearPlanlyPendingWrite('householdSubtask',op.id);")||/then\(\(\)=>planlyCompleteHouseholdTaskDirect/.test(assign))fail('household subtask: acknowledge only the sent operation; auto-complete only on server-confirmed state');
 if(!app2.includes("if(action==='toggle-subtask'&&!taskCanEdit(t)&&typeof planlyHouseholdCompletionEligible==='function'&&planlyHouseholdCompletionEligible(t)){toggleHouseholdTaskSubtask(t,actionEl.dataset.subtaskId);return}"))fail('household checklist tick must route before the owner-only gate');
-if(!read('v2/sw.js').includes("CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=713s01'"))fail('core-assignment marker not bumped');}
+if(!read('v2/sw.js').includes("CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=718s01'"))fail('core-assignment marker not bumped');}
 // Reviewer follow-ups: Budget entry inserts follow the update rule; auto-complete intent survives restarts; checklist rows keyboard-reachable.
 {const m49=read('supabase/migrations/049_budget_entry_insert_hardening.sql'),assign=read('v2/core-assignment-v3.3c.js'),app3=read('v2/app-v3.2.0.js'),html=read('v2/index.html');
 for(const x of ['create policy planly_budget_entries_insert_authorized','for insert to authenticated','planly_budget_entries.owner_id = (select auth.uid())','s.deleted_at is null',"(s.scope_type = 'personal' and s.owner_id = (select auth.uid()))","(s.scope_type = 'household' and s.household_id is not null and planly_private.is_household_member(s.household_id))"])if(!m49.includes(x))fail('049 budget entry insert invariant missing: '+x);
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=717a03'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=718a01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -573,3 +573,9 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
 {if(!s.projects.includes("function leaveProjectsForNavigation(){")||!s.projects.includes("document.addEventListener('click',e=>{if(!e.target.closest?.('.nav button[data-section]'))return;if(!leaveProjectsForNavigation()){e.preventDefault();e.stopImmediatePropagation()}},true);"))fail('bottom tabs must leave Projects');
  if(!/function leaveProjectsForNavigation\(\)\{[^\n]*if\(typed\)\{if\(!name\)\{[^}]*return false\}saveProjectEditor\(\);if\(projectPanelMode==='editor'\)return false\}\}closeProjects\(\);return true\}/.test(s.projects))fail('leaving Projects must save typed work, and keep the editor when it has no name or saving is refused');
  if(!s.projects.includes(":!!(name||due||notes||vis==='household');"))fail('choosing Household on a new project must count as typed work');}
+// Repeating tasks with no date (weekly chores) come back: the next copy is counted from the day they are completed,
+// in the app (own tasks) and in the date sent to set_household_task_completed (migration 052) (11 Oct 2026).
+{if(!s.app.includes("function planlyRecurrenceBaseDate(t){return t?.date||localKey(new Date())}")||!s.app.includes("const nextDate=nextOccurrence(planlyRecurrenceBaseDate(t),t.recurrence,cfg);")||/function createNextRecurring\(t\)\{\n\s*if\([^\n]*!t\.date/.test(s.app))fail('undated repeats must create their next copy from the completion day');
+ if(!s.assignment.includes("const next=nextOccurrence(planlyRecurrenceBaseDate(t),t.recurrence,cfg);")||s.assignment.includes("if(!t?.date||!t.recurrence"))fail('household completion must send a next date for undated repeats');
+ const m52=read('supabase/migrations/052_undated_repeats.sql');
+ if(!m52.includes("if p_completed and v_task.recurrence <> 'none' and p_next_date is not null then")||!m52.includes("if p_next_date <= coalesce(v_task.task_date, current_date - 2) then raise exception")||!m52.includes("revoke all on function planly_private.set_household_task_completed(uuid,text,boolean,bigint,date) from public, anon, authenticated;"))fail('migration 052 must allow undated repeats and keep the grants');}

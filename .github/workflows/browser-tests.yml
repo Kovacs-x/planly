@@ -26,9 +26,12 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Projects — bottom tabs always work (candidate)
         run: node tests/browser/projects-tabs.test.mjs
+      - name: Repeating tasks with no date come back (candidate)
+        run: node tests/browser/undated-repeats.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
           git fetch --depth=1 origin "${{ github.base_ref }}"
           mkdir -p "$RUNNER_TEMP/base" && git archive FETCH_HEAD | tar -x -C "$RUNNER_TEMP/base"
           PLANLY_ROOT="$RUNNER_TEMP/base" node tests/browser/projects-tabs.test.mjs | tail -1 || true
+          PLANLY_ROOT="$RUNNER_TEMP/base" node tests/browser/undated-repeats.test.mjs | tail -1 || true

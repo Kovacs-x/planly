@@ -27,6 +27,7 @@ The tests use port 8765, so run one at a time.
 | File | What it checks |
 |---|---|
 | `projects-tabs.test.mjs` | Bottom tabs always leave Projects (#250). Typed work is saved, or the editor stays open when it has no name or saving is refused. Untouched or unchanged editors just close. A Household choice counts as typed work. |
+| `undated-repeats.test.mjs` | A repeating task with no date (a weekly chore) comes back on its next repeat day when ticked. This covers your own chores (made by the app) and the other person's (the next date sent to the server, migration 052). Dated repeats are unchanged. |
 
 CI: `.github/workflows/browser-tests.yml` runs these on every pull request that touches `v2/` or `tests/browser/`.
 On a pull request it also runs them against the base branch for comparison; that run is informational, not a gate.
