@@ -12,11 +12,11 @@ function planlyCompletionActorLabel(userId){
   return member?planlyHouseholdMemberLabel(member):'household member';
 }
 function planlyHouseholdNextDate(t){
-  if(!t?.date||!t.recurrence||t.recurrence==='none')return null;
+  if(!t?.recurrence||t.recurrence==='none')return null;
   const cfg=recurrenceConfigForTask(t);if(!cfg)return null;
   const current=Number(t.occurrenceNumber||1);
   if(cfg.endMode==='count'&&current>=Number(cfg.maxOccurrences||0))return null;
-  const next=nextOccurrence(t.date,t.recurrence,cfg);if(!next)return null;
+  const next=nextOccurrence(planlyRecurrenceBaseDate(t),t.recurrence,cfg);if(!next)return null;
   if(cfg.endMode==='date'&&cfg.endDate&&next>cfg.endDate)return null;
   return next;
 }
