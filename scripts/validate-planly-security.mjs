@@ -30,14 +30,23 @@ if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(client))fail('Bud
 const foodTables=['planly_food_profile','planly_food_entries','planly_food_favourites'];
 const ownerExpr='(owner_id = (select auth.uid()))';
 const foodPolicy=(t,op)=>`create policy ${t}_${op}_owner on public.${t} for ${op} to authenticated `+({select:`using ${ownerExpr}`,insert:`with check ${ownerExpr}`,update:`using ${ownerExpr} with check ${ownerExpr}`,delete:`using ${ownerExpr}`})[op]+';';
+// SQL statements with comments removed and whitespace/case normalised.
+const sqlStatements=sql=>sql.replace(/--.*$/gm,'').split(';').map(x=>x.replace(/\s+/g,' ').trim().toLowerCase()).filter(Boolean);
+const foodExpected=new Set(foodTables.flatMap(t=>['select','insert','update','delete'].map(op=>foodPolicy(t,op).slice(0,-1))));
+// Closed list: every policy statement touching a food table must be one of the 12 expected ones, each exactly once.
+// Anything else (no FOR clause = ALL, FOR ALL, restrictive/permissive variants, other roles, ALTER/DROP POLICY) fails.
+function foodPolicyProblems(sql,requireAll){
+ const out=[],seen=new Map();
+ for(const st of sqlStatements(sql)){
+  if(!/\bpolicy\b/.test(st)||!/planly_food_/.test(st))continue;
+  if(!foodExpected.has(st)){out.push('Unexpected policy statement on a food table: '+st.slice(0,160));continue;}
+  seen.set(st,(seen.get(st)||0)+1);}
+ for(const st of foodExpected){const n=seen.get(st)||0;if(n>1||(requireAll&&n!==1))out.push('Owner-only policy must appear exactly once: '+st);}
+ return out;}
 function foodProblems(m54){
- const out=[],body=m54.replace(/^--.*$/gm,'');
+ const out=foodPolicyProblems(m54,true),body=m54.replace(/^--.*$/gm,'');
  for(const t of foodTables){
   if(!m54.includes(`alter table public.${t} enable row level security;`))out.push(`Missing RLS enablement for ${t}`);
-  for(const op of ['select','insert','update','delete']){
-   const lines=body.split('\n').filter(l=>new RegExp(`^create policy \\S+ on public\\.${t}\\s+for\\s+${op}\\b`,'i').test(l.trim()));
-   if(lines.length!==1||lines[0].trim()!==foodPolicy(t,op))out.push(`Owner-only ${op} policy for ${t} must be exactly: ${foodPolicy(t,op)}`);}
-  if(new RegExp(`create policy[^;]*on public\\.${t}[^;]*for all`,'i').test(body))out.push(`FOR ALL policy not allowed on ${t}`);
   if(!m54.includes(`create trigger ${t}_bump_version before update on public.${t}`)||!m54.includes(`create trigger ${t}_protect_identity before update on public.${t}`))out.push(`Version/identity triggers missing for ${t}`);}
  if(/household/i.test(body))out.push('Food tables must stay private (no household access)');
  if(/grant[^;]*to[^;]*\b(anon|public)\b/i.test(body)||!m54.includes('revoke all on public.planly_food_profile, public.planly_food_entries, public.planly_food_favourites from public, anon;'))out.push('Food tables must not be granted to anon/public');
@@ -46,6 +55,9 @@ function foodProblems(m54){
  return out;}
 {const m54=read('supabase/migrations/054_fitness_food_foundation.sql');
  const problems=foodProblems(m54);if(problems.length)fail(problems[0]);
+ const otherSql=fs.readdirSync(migrationDir).filter(f=>f.endsWith('.sql')&&!f.startsWith('054_')).map(f=>read(`supabase/migrations/${f}`)).join('\n;\n');
+ const later=foodPolicyProblems(otherSql,false);if(later.length)fail('Other migration: '+later[0]);
+ for(const st of sqlStatements(otherSql))if(/planly_food_/.test(st)&&(/\bgrant\b/.test(st)||/disable row level security/.test(st)))fail('Other migration weakens food tables: '+st.slice(0,160));
  // Mutation self-test: each weakened copy of the migration must be caught.
  const upd='create policy planly_food_entries_update_owner on public.planly_food_entries for update to authenticated using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));';
  const mutants={
@@ -59,6 +71,11 @@ function foodProblems(m54){
   'extra permissive policy':['create policy planly_food_entries_delete_owner','create policy planly_food_entries_select_any on public.planly_food_entries for select to authenticated using (true);\ncreate policy planly_food_entries_delete_owner'],
   'anon grant':['to authenticated;\n\ncreate or replace function','to authenticated, anon;\n\ncreate or replace function'],
   'RLS off':['alter table public.planly_food_favourites enable row level security;',''],
+  'extra policy with no FOR clause (defaults to ALL)':['create policy planly_food_entries_delete_owner','create policy food_entries_extra on public.planly_food_entries to authenticated using (true);\ncreate policy planly_food_entries_delete_owner'],
+  'multi-line policy with no FOR clause':['create policy planly_food_entries_delete_owner','CREATE POLICY food_entries_extra\n  ON public.planly_food_entries\n  TO authenticated\n  USING (true);\ncreate policy planly_food_entries_delete_owner'],
+  'explicit FOR ALL policy':['create policy planly_food_entries_delete_owner','create policy food_entries_all on public.planly_food_entries for all to authenticated using (true) with check (true);\ncreate policy planly_food_entries_delete_owner'],
+  'alter policy to true':['create policy planly_food_entries_delete_owner','alter policy planly_food_entries_select_owner on public.planly_food_entries using (true);\ncreate policy planly_food_entries_delete_owner'],
+  'duplicate owner policy':['create policy planly_food_entries_delete_owner','create policy planly_food_entries_select_owner on public.planly_food_entries for select to authenticated using (owner_id = (select auth.uid()));\ncreate policy planly_food_entries_delete_owner'],
   'household policy':['using (owner_id = (select auth.uid()));\n\ncreate policy planly_food_entries_select_owner','using (owner_id = (select auth.uid()) or household_id is not null);\n\ncreate policy planly_food_entries_select_owner']};
  for(const [name,[from,to]] of Object.entries(mutants)){
   if(!m54.includes(from))fail(`Food mutation self-test anchor missing (${name})`);
