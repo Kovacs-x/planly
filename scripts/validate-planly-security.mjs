@@ -25,4 +25,13 @@ for(const needle of ["state.scope?.scope_type==='personal'?state.scope?.owner_id
 for(const needle of ['canChangeEntry(entry)',"scope.scope_type==='household'",'classifyZero',"code:'denied'","code:'conflict'",'persistedEntryUpdate','persistedDelete'])if(!client.includes(needle))fail('Budget authoritative collaborative mutation path missing: '+needle);
 for(const needle of ['x.owner_id===viewer','function recurringSources()','api().setTarget','window.PlanlyBudgetActiveMonth'])if(!client.includes(needle))fail('Monthly budget ownership/scope guard missing: '+needle);
 if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(client))fail('Budget monthly workflow must not monkeypatch Date runtime');
+// Fitness › Food (migration 054): private to each person. RLS on, owner-only policies, no household access, no anon grant.
+{const m54=read('supabase/migrations/054_fitness_food_foundation.sql');
+ for(const t of ['planly_food_profile','planly_food_entries','planly_food_favourites']){
+  if(!m54.includes(`alter table public.${t} enable row level security;`))fail(`Missing RLS enablement for ${t}`);
+  for(const op of ['select','insert','update','delete'])if(!new RegExp(`create policy ${t}_${op}_owner on public\\.${t} for ${op} to authenticated (using|with check) \\(owner_id = \\(select auth\\.uid\\(\\)\\)\\)`).test(m54))fail(`Owner-only ${op} policy missing for ${t}`);
+  if(!m54.includes(`create trigger ${t}_bump_version before update on public.${t}`)||!m54.includes(`create trigger ${t}_protect_identity before update on public.${t}`))fail(`Version/identity triggers missing for ${t}`);}
+ if(/household|planly_is_household_member|is_household_member/i.test(m54.replace(/^--.*$/gm,'')))fail('Food tables must stay private (no household access)');
+ if(/grant[^;]*to[^;]*\banon\b/i.test(m54)||!m54.includes('revoke all on public.planly_food_profile, public.planly_food_entries, public.planly_food_favourites from public, anon;'))fail('Food tables must not be granted to anon');
+ if(!m54.includes("raise exception 'Food row owner is immutable'"))fail('Food row owner immutability guard missing');}
 console.log('Planly security regression checks passed.');
