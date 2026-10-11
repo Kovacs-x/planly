@@ -26,12 +26,41 @@ for(const needle of ['canChangeEntry(entry)',"scope.scope_type==='household'",'c
 for(const needle of ['x.owner_id===viewer','function recurringSources()','api().setTarget','window.PlanlyBudgetActiveMonth'])if(!client.includes(needle))fail('Monthly budget ownership/scope guard missing: '+needle);
 if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(client))fail('Budget monthly workflow must not monkeypatch Date runtime');
 // Fitness › Food (migration 054): private to each person. RLS on, owner-only policies, no household access, no anon grant.
+// Each policy must match its exact expected text, so weakening USING or WITH CHECK (update has both) fails.
+const foodTables=['planly_food_profile','planly_food_entries','planly_food_favourites'];
+const ownerExpr='(owner_id = (select auth.uid()))';
+const foodPolicy=(t,op)=>`create policy ${t}_${op}_owner on public.${t} for ${op} to authenticated `+({select:`using ${ownerExpr}`,insert:`with check ${ownerExpr}`,update:`using ${ownerExpr} with check ${ownerExpr}`,delete:`using ${ownerExpr}`})[op]+';';
+function foodProblems(m54){
+ const out=[],body=m54.replace(/^--.*$/gm,'');
+ for(const t of foodTables){
+  if(!m54.includes(`alter table public.${t} enable row level security;`))out.push(`Missing RLS enablement for ${t}`);
+  for(const op of ['select','insert','update','delete']){
+   const lines=body.split('\n').filter(l=>new RegExp(`^create policy \\S+ on public\\.${t}\\s+for\\s+${op}\\b`,'i').test(l.trim()));
+   if(lines.length!==1||lines[0].trim()!==foodPolicy(t,op))out.push(`Owner-only ${op} policy for ${t} must be exactly: ${foodPolicy(t,op)}`);}
+  if(new RegExp(`create policy[^;]*on public\\.${t}[^;]*for all`,'i').test(body))out.push(`FOR ALL policy not allowed on ${t}`);
+  if(!m54.includes(`create trigger ${t}_bump_version before update on public.${t}`)||!m54.includes(`create trigger ${t}_protect_identity before update on public.${t}`))out.push(`Version/identity triggers missing for ${t}`);}
+ if(/household/i.test(body))out.push('Food tables must stay private (no household access)');
+ if(/grant[^;]*to[^;]*\b(anon|public)\b/i.test(body)||!m54.includes('revoke all on public.planly_food_profile, public.planly_food_entries, public.planly_food_favourites from public, anon;'))out.push('Food tables must not be granted to anon/public');
+ if(/disable\s+row\s+level\s+security/i.test(body))out.push('Food tables must not disable RLS');
+ if(!m54.includes("raise exception 'Food row owner is immutable'"))out.push('Food row owner immutability guard missing');
+ return out;}
 {const m54=read('supabase/migrations/054_fitness_food_foundation.sql');
- for(const t of ['planly_food_profile','planly_food_entries','planly_food_favourites']){
-  if(!m54.includes(`alter table public.${t} enable row level security;`))fail(`Missing RLS enablement for ${t}`);
-  for(const op of ['select','insert','update','delete'])if(!new RegExp(`create policy ${t}_${op}_owner on public\\.${t} for ${op} to authenticated (using|with check) \\(owner_id = \\(select auth\\.uid\\(\\)\\)\\)`).test(m54))fail(`Owner-only ${op} policy missing for ${t}`);
-  if(!m54.includes(`create trigger ${t}_bump_version before update on public.${t}`)||!m54.includes(`create trigger ${t}_protect_identity before update on public.${t}`))fail(`Version/identity triggers missing for ${t}`);}
- if(/household|planly_is_household_member|is_household_member/i.test(m54.replace(/^--.*$/gm,'')))fail('Food tables must stay private (no household access)');
- if(/grant[^;]*to[^;]*\banon\b/i.test(m54)||!m54.includes('revoke all on public.planly_food_profile, public.planly_food_entries, public.planly_food_favourites from public, anon;'))fail('Food tables must not be granted to anon');
- if(!m54.includes("raise exception 'Food row owner is immutable'"))fail('Food row owner immutability guard missing');}
+ const problems=foodProblems(m54);if(problems.length)fail(problems[0]);
+ // Mutation self-test: each weakened copy of the migration must be caught.
+ const upd='create policy planly_food_entries_update_owner on public.planly_food_entries for update to authenticated using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));';
+ const mutants={
+  'update WITH CHECK -> true':[upd,upd.replace(/with check \(owner_id = \(select auth\.uid\(\)\)\);$/,'with check (true);')],
+  'update USING -> true':[upd,upd.replace('using (owner_id = (select auth.uid()))','using (true)')],
+  'update WITH CHECK removed':[upd,upd.replace(/ with check \(owner_id = \(select auth\.uid\(\)\)\);$/,';')],
+  'select USING -> true':['planly_food_favourites for select to authenticated using (owner_id = (select auth.uid()));','planly_food_favourites for select to authenticated using (true);'],
+  'insert WITH CHECK -> true':['planly_food_profile for insert to authenticated with check (owner_id = (select auth.uid()));','planly_food_profile for insert to authenticated with check (true);'],
+  'delete USING -> true':['planly_food_profile for delete to authenticated using (owner_id = (select auth.uid()));','planly_food_profile for delete to authenticated using (true);'],
+  'policy role -> public':['planly_food_entries for select to authenticated','planly_food_entries for select to public'],
+  'extra permissive policy':['create policy planly_food_entries_delete_owner','create policy planly_food_entries_select_any on public.planly_food_entries for select to authenticated using (true);\ncreate policy planly_food_entries_delete_owner'],
+  'anon grant':['to authenticated;\n\ncreate or replace function','to authenticated, anon;\n\ncreate or replace function'],
+  'RLS off':['alter table public.planly_food_favourites enable row level security;',''],
+  'household policy':['using (owner_id = (select auth.uid()));\n\ncreate policy planly_food_entries_select_owner','using (owner_id = (select auth.uid()) or household_id is not null);\n\ncreate policy planly_food_entries_select_owner']};
+ for(const [name,[from,to]] of Object.entries(mutants)){
+  if(!m54.includes(from))fail(`Food mutation self-test anchor missing (${name})`);
+  if(!foodProblems(m54.replace(from,to)).length)fail(`Food validator did not catch mutation: ${name}`);}}
 console.log('Planly security regression checks passed.');
