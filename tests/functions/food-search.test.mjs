@@ -6,7 +6,13 @@ let handler;globalThis.Deno={env:{get:k=>env[k]},serve:h=>{handler=h}};
 const calls=[];let off={fast:'ok',classic:'ok',product:'ok',ukRefused:false};
 const j=(s,o)=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json'}});
 const hit=(code,name,extra={})=>({code:code.length<8?code+'00000':code,product_name:name,brands:['Brand '+code,'Other'],nutriments:{'energy-kcal_100g':50,proteins_100g:1,carbohydrates_100g:10,fat_100g:0.1,salt_100g:9,'secret-field':1},serving_quantity:200,serving_size:'1 glass',ingredients_text:'not wanted',...extra});
-globalThis.fetch=async(url,init={})=>{url=String(url);const h=init.headers||{};calls.push({url,h});
+const redirectTo=new Map(),evil=[];
+// Like real fetch: a redirect is followed unless redirect is 'manual' (the 3xx is returned) or 'error' (it fails).
+globalThis.fetch=async(url,init={})=>{const res=await answer(String(url),init);const to=res.headers.get('location');
+  if(res.status>=300&&res.status<400&&to){if(init.redirect==='manual')return res;if(init.redirect==='error')throw new TypeError('redirect');return globalThis.fetch(to,init)}return res};
+const answer=async(url,init={})=>{const h=init.headers||{};calls.push({url,h,redirect:init.redirect});
+  if(url.startsWith('https://evil.test/')){evil.push(url);return new Response(JSON.stringify({hits:[],products:[],id:'EVIL',status:1,product:{product_name:'Evil',nutriments:{'energy-kcal_100g':1}}}),{status:200,headers:{'content-type':'application/json'}})}
+  for(const [k,v] of redirectTo)if(url.includes(k))return new Response('',{status:302,headers:{location:v}});
   if(url==='https://sb.test/auth/v1/user')return h.Authorization==='Bearer good'&&h.apikey==='anon'?j(200,{id:'U1'}):j(401,{});
   const u=new URL(url);
   if(u.host==='search.openfoodfacts.org'&&u.pathname==='/search'){if(off.fast==='down')throw new TypeError('fetch failed');if(off.fast==='busy')return j(503,{});
@@ -36,6 +42,15 @@ for(const [label,body] of [['symbols / search syntax',{mode:'search',q:'apple OR
   r=await call(body);check('refuses '+label+' without asking Open Food Facts',r.status===400&&r.upstream.length===0,JSON.stringify(r.body))}
 r=await call(null,'Bearer good','POST','{"mode":"search","q":"'+'a '.repeat(300)+'"}');check('refuses an oversized request',r.status===413&&r.upstream.length===0);
 r=await call(null,'Bearer good','POST','not json');check('refuses a body that is not JSON',r.status===400&&r.upstream.length===0);
+// the size limit counts bytes while reading, not characters after reading
+r=await call(null,'Bearer good','POST','{"mode":"search","q":"'+'é'.repeat(260)+'"}');check('refuses a multibyte body over 500 bytes (under 500 characters)',r.status===413&&r.upstream.length===0,String(r.status));
+{let pulled=0;const big=new ReadableStream({pull(c){pulled++;if(pulled>1000)return c.close();c.enqueue(new Uint8Array(64*1024).fill(97))}});
+ const res=await handler(new Request('https://fn.test',{method:'POST',headers:{authorization:'Bearer good','content-type':'application/json'},body:big,duplex:'half'}));
+ check('stops reading a huge body as soon as it passes the limit (no Content-Length)',res.status===413&&pulled<=3,'pulled '+pulled+' chunks, status '+res.status)}
+{let pulled=0;const big=new ReadableStream({pull(c){pulled++;c.enqueue(new Uint8Array(64*1024))}});
+ const res=await handler(new Request('https://fn.test',{method:'POST',headers:{authorization:'Bearer good','content-type':'application/json','content-length':String(10*1024*1024)},body:big,duplex:'half'}));
+ check('refuses a body whose declared size is too large without reading it',res.status===413&&pulled<=1,'pulled '+pulled)}
+r=await call(null,'Bearer good','POST',new Uint8Array([123,34,109,111,100,101,34,58,34,255,34,125]));check('refuses a body that is not valid UTF-8',r.status===400&&r.upstream.length===0);
 
 // search
 r=await call({mode:'suggest',q:'apple ju'});
@@ -52,6 +67,17 @@ r=await call({mode:'search',q:'apple'});check('Search uses the classic search wh
 off.fast='down';off.classic='down';r=await call({mode:'search',q:'apple'});check('when both fail, it says why for each',r.status===502&&r.body.error==='Fast search: could not connect. Main search: refused, code 503.',JSON.stringify(r.body));
 r=await call({mode:'suggest',q:'apple'});check('a failed suggestion says why',r.status===502&&/could not connect/.test(r.body.error));
 off.fast='ok';off.classic='ok';
+
+// redirects are never followed: a redirect counts as a refusal and nothing is asked of its destination
+redirectTo.set('search.openfoodfacts.org','https://evil.test/a');redirectTo.set('cgi/search.pl','https://evil.test/b');
+r=await call({mode:'search',q:'apple'});check('a redirect from the fast or classic search is not followed',r.status===502&&evil.length===0&&/refused, code 302/.test(r.body.error),JSON.stringify(r.body)+' evil:'+evil.join());
+redirectTo.clear();redirectTo.set('/api/v2/product/','https://evil.test/c');
+r=await call({mode:'product',code:'5000436589457'});check('a redirect from the product lookup is not followed',r.status===502&&r.body.status===302&&evil.length===0,JSON.stringify(r.body));
+redirectTo.clear();redirectTo.set('sb.test/auth/v1/user','https://evil.test/d');
+r=await call({mode:'search',q:'apple'});check('a redirect from the sign-in check is not followed (and means not signed in)',r.status===401&&evil.length===0&&r.upstream.length===0);
+redirectTo.clear();
+check('every outgoing request refuses redirects',calls.length>0&&calls.every(c=>c.redirect==='manual'));
+r=await call({mode:'suggest',q:'apple'});check('every request of a normal search refuses redirects too',r.status===200&&calls.every(c=>c.redirect==='manual'),JSON.stringify(calls.map(c=>c.redirect)));
 
 // barcodes
 r=await call({mode:'product',code:'5000436589457'});check('a barcode is looked up at the product address only',r.status===200&&r.body.status==='found'&&r.body.product.product_name==='Greek Style Yogurt'&&r.upstream.length===1&&new URL(r.upstream[0].url).pathname==='/api/v2/product/5000436589457.json');

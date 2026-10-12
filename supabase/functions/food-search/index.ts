@@ -6,6 +6,8 @@
 // What it does, and nothing more:
 // - Only signed-in Planly users can call it (their session is checked with Supabase Auth). It does not read or write
 //   any table, and it never sees or sends anyone's food log or account details.
+// - Redirects are never followed, so no request can end up anywhere but the addresses below (a redirect counts as a
+//   refusal). The request body is limited to 500 bytes, counted while it is read.
 // - It accepts only a few plain search words (lowercase letters, numbers, %) or a barcode number, and only ever calls
 //   the fixed Open Food Facts addresses below. Nothing is saved or logged.
 // - UK products come first: each search also asks for products sold in the United Kingdom.
@@ -69,7 +71,7 @@ const reason = (e: unknown) => {
 }
 
 async function getJson(url: string, ms: number) {
-  const r = await fetch(url, { headers: { 'User-Agent': AGENT, Accept: 'application/json' }, signal: AbortSignal.timeout(ms) })
+  const r = await fetch(url, { headers: { 'User-Agent': AGENT, Accept: 'application/json' }, redirect: 'manual', signal: AbortSignal.timeout(ms) })
   if (!r.ok) { await r.body?.cancel(); throw Object.assign(new Error('HTTP ' + r.status), { status: r.status }) }
   return await r.json()
 }
@@ -107,12 +109,34 @@ async function classicSearch(q: string) {
 }
 
 async function product(code: string) {
-  const r = await fetch(OFF_PRODUCT + code + '.json?' + new URLSearchParams({ fields: FIELDS }), { headers: { 'User-Agent': AGENT, Accept: 'application/json' }, signal: AbortSignal.timeout(10000) })
+  const r = await fetch(OFF_PRODUCT + code + '.json?' + new URLSearchParams({ fields: FIELDS }), { headers: { 'User-Agent': AGENT, Accept: 'application/json' }, redirect: 'manual', signal: AbortSignal.timeout(10000) })
   if (r.status === 404) { await r.body?.cancel(); return json({ status: 'missing' }) }
   if (!r.ok) { await r.body?.cancel(); return json({ error: 'Open Food Facts refused, code ' + r.status, status: r.status }, 502) }
   const j = await r.json()
   if (!j?.product || j.status === 0) return json({ status: 'missing' })
   return json({ status: 'found', product: clean({ ...j.product, code }, false) })
+}
+
+// Reads the request body, counting bytes as they arrive and stopping as soon as there are too many (null). A body that
+// is not valid UTF-8 gives false.
+const MAX_BODY = 500
+async function readLimited(req: Request, max: number): Promise<string | null | false> {
+  const declared = Number(req.headers.get('content-length') ?? '')
+  if (Number.isFinite(declared) && declared > max) { await req.body?.cancel().catch(() => {}); return null }
+  if (!req.body) return ''
+  const reader = req.body.getReader(), chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > max) { await reader.cancel().catch(() => {}); return null }
+    chunks.push(value)
+  }
+  const bytes = new Uint8Array(total)
+  let at = 0
+  for (const c of chunks) { bytes.set(c, at); at += c.byteLength }
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes) } catch { return false }
 }
 
 Deno.serve(async (req) => {
@@ -122,13 +146,14 @@ Deno.serve(async (req) => {
   // signed-in Planly users only
   const auth = req.headers.get('authorization') || ''
   if (!auth.toLowerCase().startsWith('bearer ')) return json({ error: 'Authentication required.' }, 401)
-  const userRes = await fetch(SB + '/auth/v1/user', { headers: { apikey: ANON, Authorization: auth } })
+  const userRes = await fetch(SB + '/auth/v1/user', { headers: { apikey: ANON, Authorization: auth }, redirect: 'manual' })
   if (!userRes.ok) { await userRes.body?.cancel(); return json({ error: 'Authentication required.' }, 401) }
   const user = await userRes.json().catch(() => null)
   if (!user?.id) return json({ error: 'Authentication required.' }, 401)
 
-  const raw = await req.text()
-  if (raw.length > 500) return json({ error: 'Request too large.' }, 413)
+  const raw = await readLimited(req, MAX_BODY)
+  if (raw === null) return json({ error: 'Request too large.' }, 413)
+  if (raw === false) return json({ error: 'Bad request.' }, 400)
   let body: { mode?: unknown; q?: unknown; code?: unknown }
   try { body = JSON.parse(raw) } catch { return json({ error: 'Bad request.' }, 400) }
 
