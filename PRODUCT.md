@@ -25,14 +25,14 @@ Built for exactly two people sharing one home: the primary account and their par
 
 ## Capabilities and Constraints
 - **Stack:** vanilla JavaScript PWA. The service worker composes the runtime modules; there is no framework or build step, and it's hosted on GitHub Pages. Supabase handles auth, data, RLS and realtime.
-- **Tabs:** Today, Plan, Home and Budget, plus Settings/Profile.
+- **Tabs:** Today, Plan, Home, Budget and Fitness (a private calorie counter), plus Settings/Profile.
 - **Data:** offline-first with a pending-write queue. Conflicts are detected per item version, and both phones must converge.
 - **UI rules (owner's rules):** no second DOM renderer, no MutationObserver workaround, and no browser-only "clear".
 - **Privacy:** the partner's NHS ICS work calendar must stay private to her.
 
 ## Brand Commitments
 - The name is "Planly".
-- Each section has its own colour (Today, Plan, Home, Budget) in the current app. This is an existing identity to refine, not replace. (Scope confirmed: refine what's there.)
+- Each section has its own colour (Today, Plan, Home, Budget, Fitness) in the current app. This is an existing identity to refine, not replace. (Scope confirmed: refine what's there.)
 - Partners are distinguished by person colour on chips and "Done by".
 
 ## Evidence on Hand

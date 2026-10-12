@@ -28,6 +28,8 @@ jobs:
         run: node tests/browser/projects-tabs.test.mjs
       - name: Repeating tasks with no date come back (candidate)
         run: node tests/browser/undated-repeats.test.mjs
+      - name: Fitness › Food — private calorie counter (candidate)
+        run: node tests/browser/fitness-food.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
