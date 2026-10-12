@@ -128,15 +128,29 @@ function offProduct(p){
 // Open Food Facts has two name searches: the newer, faster search service, and the classic one (slower, often busy).
 // Try the fast one first, then the classic one (with one retry if it is busy). Only the search words are sent.
 const OFF_FIELDS='code,product_name,brands,nutriments,serving_size,serving_quantity';
-async function getJson(url,ms){const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms);try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok){const e=Error('HTTP '+r.status);e.status=r.status;throw e}return await r.json()}finally{clearTimeout(timer)}}
+async function getJson(url,ms,outer){const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms),stop=()=>ctl.abort();outer?.addEventListener('abort',stop);try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok){const e=Error('HTTP '+r.status);e.status=r.status;throw e}return await r.json()}finally{clearTimeout(timer);outer?.removeEventListener('abort',stop)}}
+// Matching and ranking. Every typed word must start a word of the food's name or brand ("coco p" → Kellogg's Coco Pops);
+// names that start with the first typed word, then exact word matches, come first.
+const words=t=>String(t||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9%]+/g,' ').trim().split(' ').filter(Boolean);
+function matchScore(f,qw){
+  if(!qw.length)return 0;const nw=words(f.name),all=[...nw,...words(f.brand)];let score=0;
+  for(const q of qw){const hit=all.findIndex(w=>w.startsWith(q));if(hit<0)return null;if(all[hit]===q)score+=2;if(hit<nw.length)score+=1}
+  if(nw[0]?.startsWith(qw[0]))score+=4;return score-nw.length*0.05;
+}
+// keepAll: Open Food Facts answers are re-ranked, not filtered (it also matches spellings like yoghurt/yogurt)
+function rankFoods(list,q,boost=()=>0,keepAll=false){const qw=words(q),seen=new Set();return list.map((f,i)=>({f,i,s:matchScore(f,qw)??(keepAll?-100:null)})).filter(x=>x.s!==null).map(x=>({...x,s:x.s+boost(x.f)})).sort((a,b)=>b.s-a.s||a.i-b.i).map(x=>x.f).filter(f=>{const k=(f.name+'|'+f.brand).toLowerCase();if(seen.has(k))return false;seen.add(k);return true})}
+// Answers from Open Food Facts are kept for this session, so going back or retyping is instant.
+const offCache=new Map(),cacheSet=(k,v)=>{offCache.set(k,v);if(offCache.size>60)offCache.delete(offCache.keys().next().value)};
+// Suggestions while typing: the fast search service only, a short wait, and the previous request cancelled.
+async function suggestOff(q,signal){const j=await getJson(OFF_FAST+'?'+new URLSearchParams({q,page_size:'12',fields:OFF_FIELDS}),6000,signal);if(!Array.isArray(j?.hits))throw Error('bad answer');return rankFoods(j.hits.map(offProduct).filter(Boolean),q,undefined,true)}
 async function searchOff(q,onSlow){
   if(!navigator.onLine)throw Error("You're offline. Search needs internet; your favourites and recent foods still work.");
   const slow=setTimeout(()=>onSlow?.(),5000);
   try{
-    try{const j=await getJson(OFF_FAST+'?'+new URLSearchParams({q,page_size:'20',fields:OFF_FIELDS}),8000);if(Array.isArray(j?.hits))return j.hits.map(offProduct).filter(Boolean)}catch{}
+    try{const j=await getJson(OFF_FAST+'?'+new URLSearchParams({q,page_size:'20',fields:OFF_FIELDS}),8000);if(Array.isArray(j?.hits))return rankFoods(j.hits.map(offProduct).filter(Boolean),q,undefined,true)}catch{}
     const url=OFF_SEARCH+'?'+new URLSearchParams({search_terms:q,search_simple:'1',action:'process',json:'1',page_size:'20',fields:OFF_FIELDS});
     for(let attempt=0;attempt<2;attempt++){
-      try{const j=await getJson(url,20000);return (j.products||[]).map(offProduct).filter(Boolean)}
+      try{const j=await getJson(url,20000);return rankFoods((j.products||[]).map(offProduct).filter(Boolean),q,undefined,true)}
       catch(e){if(attempt===0&&navigator.onLine){await new Promise(r=>setTimeout(r,1500));continue}
         if(!navigator.onLine)throw Error("You're offline. Search needs internet; your favourites and recent foods still work.");
         throw Error('Open Food Facts is slow or busy right now. Try again in a moment, or use Quick add.')}
@@ -248,33 +262,45 @@ function bindMealChips(body,set){body.querySelectorAll('[data-meal-pick]').forEa
 const foodLine=f=>`${fmt(f.per.kcal)} kcal ${f.basis==='serving'?'per serving':'per 100 g'}`;
 
 function openSearch(meal,initial='',keep=null){
-  // The search box, buttons and meal choice are drawn once; typing only redraws the list underneath, so the page and
-  // keyboard stay still while you type.
-  let results=keep?.results||[],status=keep?.status||'',query=initial,busy=0,shown={fav:[],recent:[],off:[]};const back=()=>openSearch(meal,query,{results,status});
+  // The search box, buttons and meal choice are drawn once; typing only redraws the list underneath (at most once a frame),
+  // so the page and keyboard stay still. Your own foods show instantly; Open Food Facts suggestions follow a moment after
+  // you pause typing, and pressing Search asks for the full list.
+  let results=keep?.results||[],status=keep?.status||'',query=initial,busy=0,shown={mine:[],off:[]},timer=0,ctl=null,frame=0,pending='';
+  const back=()=>openSearch(meal,query,{results,status});
   const body=showSheet('Add food',`<form class="fitSearchForm" data-search-form><input name="q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Food name or barcode number" value="${esc(query)}" aria-label="Search foods"><button type="submit" class="fitPrimary">Search</button></form>${mealChips(meal)}
 <div class="fitSearchList" data-list></div>
-<p class="fitFootnote">Search uses Open Food Facts, a free food database. Only the words you search for, or a barcode number, are sent to it.</p>`);
+<p class="fitFootnote">Suggestions and search use Open Food Facts, a free food database. Only the words you type, or a barcode number, are sent to it.</p>`);
   sheet.querySelector('.fitSheet').classList.add('tall');
   const input=body.querySelector('input[name="q"]'),listEl=body.querySelector('[data-list]');
   const item=(f,key,i)=>`<button type="button" class="fitResult" data-pick="${key}:${i}"><span><strong>${esc(f.name)}</strong><small>${esc([f.brand,foodLine(f)].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`;
-  const drawList=()=>{
-    const q=query.trim().toLowerCase();
-    shown.fav=[...favourites].filter(f=>!q||(f.name+' '+f.brand).toLowerCase().includes(q)).sort((a,b)=>num(b.use_count)-num(a.use_count)).slice(0,20).map(favFood);
-    shown.recent=recentFoods().filter(r=>!favourites.some(f=>f.name===r.name&&f.brand===r.brand)).filter(r=>!q||(r.name+' '+r.brand).toLowerCase().includes(q));
-    shown.off=results;
-    listEl.innerHTML=`${shown.fav.length?`<h3 class="fitGroup">Favourites</h3><div class="fitList">${shown.fav.map((f,i)=>item(f,'fav',i)).join('')}</div>`:''}
-${shown.recent.length?`<h3 class="fitGroup">Recent</h3><div class="fitList">${shown.recent.map((f,i)=>item(f,'recent',i)).join('')}</div>`:''}
+  const mine=()=>{const favs=favourites.map(favFood),recent=recentFoods().filter(r=>!favourites.some(f=>f.name===r.name&&f.brand===r.brand)),uses=new Map(favourites.map(f=>[f.id,num(f.use_count)]));
+    return rankFoods([...favs,...recent],query,f=>f.favouriteId?Math.min(3,(uses.get(f.favouriteId)||0)/3)+1:0).slice(0,query.trim()?8:20)};
+  // while a new answer is on its way, narrow the best earlier answer for a shorter query to what still matches
+  const provisional=()=>{const q=query.trim().toLowerCase();let best='';for(const k of offCache.keys())if(k.startsWith('s:')&&q.startsWith(k.slice(2))&&k.length>best.length)best=k;return best?rankFoods(offCache.get(best),query):[]}; // narrowing an earlier answer: keep only what still matches
+  const drawList=()=>{frame=0;
+    shown.mine=mine();shown.off=results.length?results:(query.trim().length>=3&&!/^\d+$/.test(query.trim())?provisional():[]);
+    const q=query.trim(),pendingNow=pending&&pending===q;
+    listEl.innerHTML=`${shown.mine.length?`<h3 class="fitGroup">${q?'Your foods':'Favourites and recent'}</h3><div class="fitList">${shown.mine.map((f,i)=>item(f,'mine',i)).join('')}</div>`:''}
 ${status?`<p class="fitStatus" role="status">${esc(status)}</p>`:''}
-${results.length?`<h3 class="fitGroup">Open Food Facts</h3><div class="fitList">${results.map((f,i)=>item(f,'off',i)).join('')}</div>`:''}
-${!shown.fav.length&&!shown.recent.length&&!results.length&&!status?'<p class="fitStatus">Search for a food, or use Quick add for just the calories.</p>':''}`};
+${shown.off.length||pendingNow?`<h3 class="fitGroup">Open Food Facts${pendingNow?' <span class="fitSpin" aria-label="Loading"></span>':''}</h3>`:''}${shown.off.length?`<div class="fitList">${shown.off.map((f,i)=>item(f,'off',i)).join('')}</div>`:''}
+${!shown.mine.length&&!shown.off.length&&!status&&!pendingNow?`<p class="fitStatus">${q?'Keep typing for suggestions, or press Search.':'Search for a food, or use Quick add for just the calories.'}</p>`:''}`};
+  const redraw=()=>{if(!frame)frame=requestAnimationFrame(drawList)};
+  const suggest=async q=>{
+    const key='s:'+q.toLowerCase();if(offCache.has(key)){if(q===query.trim()){results=offCache.get(key);redraw()}return}
+    ctl?.abort();ctl=new AbortController();const mineCtl=ctl;pending=q;redraw();
+    try{const found=await suggestOff(q,mineCtl.signal);cacheSet(key,found);if(q===query.trim()&&!busy){results=found;status=''}}
+    catch{/* suggestions are a convenience: Search still works */}
+    finally{if(pending===q)pending='';if(ctl===mineCtl)ctl=null;redraw()}};
   listEl.addEventListener('click',e=>{const b=e.target.closest('[data-pick]');if(!b)return;const [k,i]=b.dataset.pick.split(':'),f=shown[k]?.[Number(i)];if(f)openAmount(f,meal,back)});
-  input.addEventListener('input',()=>{query=input.value;if(!busy){status='';results=[]}drawList()});
+  input.addEventListener('input',()=>{query=input.value;const q=query.trim();if(!busy){status='';results=offCache.get('s:'+q.toLowerCase())||[]}redraw();
+    clearTimeout(timer);if(q.length>=3&&!/^\d+$/.test(q)&&navigator.onLine)timer=setTimeout(()=>suggest(q),300);else{ctl?.abort();pending=''}});
   bindMealChips(body,m=>meal=m);
-  body.querySelector('[data-search-form]').onsubmit=async ev=>{ev.preventDefault();query=input.value.trim();input.blur();const run=++busy;
+  body.querySelector('[data-search-form]').onsubmit=async ev=>{ev.preventDefault();clearTimeout(timer);query=input.value.trim();input.blur();const run=++busy;
     if(/^\d{8,14}$/.test(query)){if(!validBarcode(query)){status="That barcode number isn't valid. Check the digits.";results=[];drawList();busy=0;return}status='Looking up barcode…';results=[];drawList();const r=await lookupBarcode(query);if(run!==busy)return;busy=0;if(r.food){openAmount(r.food,meal,back);return}status=r.error;drawList();return}
     if(query.length<2){status='Type at least 2 letters.';drawList();busy=0;return}
-    status='Searching…';results=[];drawList();
-    try{const found=await searchOff(query,()=>{if(run===busy){status='Still searching… Open Food Facts can be slow.';drawList()}});if(run!==busy)return;results=found;status=results.length?'':'No foods found. Try other words, or use Quick add.'}
+    const key='f:'+query.toLowerCase();if(offCache.has(key)){results=offCache.get(key);status=results.length?'':'No foods found. Try other words, or use Quick add.';busy=0;drawList();return}
+    ctl?.abort();pending='';status='Searching…';results=offCache.get('s:'+query.toLowerCase())||[];drawList();
+    try{const found=await searchOff(query,()=>{if(run===busy){status='Still searching… Open Food Facts can be slow.';drawList()}});if(run!==busy)return;cacheSet(key,found);results=found;status=results.length?'':'No foods found. Try other words, or use Quick add.'}
     catch(err){if(run!==busy)return;status=err.message||'Search failed.'}
     busy=0;drawList()};
   drawList();if(!initial)setTimeout(()=>input.focus(),50);
@@ -404,6 +430,6 @@ async function init(){
   sb.auth.onAuthStateChange((_e,s)=>{const next=s?.user?.id||'';if(next===userId)return;userId=next;restore();invalidate();closeSheet();if(userId)refresh();else if(state.tab==='fitness')render()});
   if(userId&&navigator.onLine)refresh();else if(state.tab==='fitness')render();
 }
-window.PlanlyFitness={validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
+window.PlanlyFitness={rankFoods,validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
 setTimeout(()=>init().catch(e=>console.warn('Planly fitness',e)),0);
 })();

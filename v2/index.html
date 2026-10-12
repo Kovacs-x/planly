@@ -773,6 +773,8 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitSheetBody{display:grid;gap:12px}
 /* Search keeps one fixed height so the sheet doesn't move while typing or as results change */
 .fitSheet.tall{height:88vh;height:88dvh}.fitSearchList{min-height:0}
+.fitSpin{display:inline-block;width:12px;height:12px;margin-left:6px;vertical-align:-1px;border:2px solid var(--line);border-top-color:var(--sec);border-radius:50%}
+@media (prefers-reduced-motion:no-preference){.fitSpin{animation:fitSpin .8s linear infinite}@keyframes fitSpin{to{transform:rotate(360deg)}}}
 .fitSearchForm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 .fitSheet input:not([type=checkbox]),.fitSheet select{width:100%;min-height:46px;border:1px solid var(--line);border-radius:var(--rControl,12px);background:var(--bg);color:var(--text);padding:0 12px;min-width:0}
 .fitChips{display:flex;flex-wrap:wrap;gap:6px}

@@ -16,7 +16,14 @@ db.tables.planly_food_entries=[
 const {context,errors}=await newPhone(browser,db,OWNER);
 const offRequests=[];
 const fast={mode:'down',requests:[]},classic={busyOnce:false,down:false};
-await context.route('https://search.openfoodfacts.org/**',route=>{fast.requests.push(route.request().url());if(fast.mode==='down')return route.abort('failed');
+await context.route('https://search.openfoodfacts.org/**',async route=>{fast.requests.push(route.request().url());if(fast.mode==='down')return route.abort('failed');
+  const q=new URL(route.request().url()).searchParams.get('q')||'';if(fast.delay?.[q])await new Promise(r=>setTimeout(r,fast.delay[q]));
+  if(/coco/.test(q))return route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({hits:[
+    {code:'1',product_name:'Hot Chocolate',brands:['Cadbury'],nutriments:{'energy-kcal_100g':380}},
+    {code:'2',product_name:"Kellogg's Coco Pops",brands:["Kellogg's"],nutriments:{'energy-kcal_100g':387}},
+    {code:'3',product_name:'Coco Pops',brands:["Kellogg's"],serving_quantity:30,nutriments:{'energy-kcal_100g':387,proteins_100g:5,carbohydrates_100g:84,fat_100g:2.5}},
+    {code:'4',product_name:'Coco Pops',brands:["Kellogg's"],nutriments:{'energy-kcal_100g':387}},
+    {code:'5',product_name:'Coco Pops Bar',brands:["Kellogg's"],nutriments:{}}]})});
   route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({count:1,hits:[{code:'5010',product_name:'Fage Total 0%',brands:['Fage','Other'],serving_quantity:170,nutriments:{'energy-kcal_100g':54,proteins_100g:10.3,carbohydrates_100g:3,fat_100g:0}}]})})});
 await context.route('https://world.openfoodfacts.org/**',route=>{offRequests.push(route.request().url());route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({count:2,products:[
   {code:'5000436589457',product_name:'Greek Style Yogurt 0% Fat',brands:'Tesco',serving_quantity:150,serving_size:'1 pot (150 g)',nutriments:{'energy-kcal_100g':57,proteins_100g:10.2,carbohydrates_100g:4,fat_100g:0.2}},
@@ -82,13 +89,35 @@ fast.mode='up';fast.requests.length=0;offRequests.length=0;await page.click('.fi
 let names=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
 check('the fast search service is used first',names.includes('Fage Total 0%')&&offRequests.length===0&&new URL(fast.requests[0]).searchParams.get('q')==='greek'&&!fast.requests[0].includes(OWNER),JSON.stringify(names)+' '+fast.requests.join());
 check('a brand list from the fast service shows the first brand',(await page.locator('.fitResult',{hasText:'Fage Total'}).textContent())?.includes('Fage ·'));
-fast.mode='down';classic.busyOnce=true;offRequests.length=0;await page.click('.fitSearchForm button');await W(3500);
+fast.mode='down';classic.busyOnce=true;offRequests.length=0;await page.fill('.fitSearchForm input','greek y');await page.click('.fitSearchForm button');await W(3500);
 names=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
 check('if the fast service is down and the classic one is busy once, it retries and finds foods',names.filter(n=>n==='Greek Style Yogurt 0% Fat').length===2&&classic.busyOnce===false,JSON.stringify(names));
-classic.down=true;await page.click('.fitSearchForm button');await W(3500);
+classic.down=true;await page.fill('.fitSearchForm input','greek yo');await page.click('.fitSearchForm button');await W(3500);
 const msg=await page.textContent('.fitSearchList');
 check('when both are down the message says Open Food Facts is busy, not "check your connection"',/slow or busy right now/.test(msg)&&!/Check your connection/.test(msg),msg.slice(0,160));
 classic.down=false;await page.click('.fitSheetDone');await W(300);
+
+// 3c. Suggestions while typing
+await page.click('.fitActions [data-fit="search"]');await W(300);fast.mode='up';fast.requests.length=0;
+await page.focus('.fitSearchForm input');await page.keyboard.type('gre y');
+const instant=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
+check('your own foods show instantly as you type, matching word starts ("gre y")',instant.includes('Greek Style Yogurt 0% Fat')&&fast.requests.length===0,JSON.stringify(instant));
+await page.fill('.fitSearchForm input','');fast.requests.length=0;await page.keyboard.type('coco p',{delay:60});await W(900);
+let sug=await page.$$eval('.fitList:last-of-type .fitResult strong',e=>e.map(x=>x.textContent));
+check('one request after a pause, not one per letter',fast.requests.length===1&&new URL(fast.requests[0]).searchParams.get('q')==='coco p',fast.requests.map(u=>new URL(u).searchParams.get('q')).join(' | '));
+check('suggestions appear without pressing Search, best match first, no duplicates',JSON.stringify(sug.slice(0,2))==='["Coco Pops","Kellogg\'s Coco Pops"]'&&sug.filter(n=>n==='Coco Pops').length===1&&!sug.includes('Coco Pops Bar'),JSON.stringify(sug));
+check('a looser match from Open Food Facts is kept, lower down',sug.at(-1)==='Hot Chocolate',JSON.stringify(sug));
+await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;await page.keyboard.type('coco p',{delay:20});await W(700);
+check('retyping the same words is answered from memory (no new request)',fast.requests.length===0&&(await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent))).includes('Coco Pops'));
+await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;fast.delay={'coco':1500};
+await page.keyboard.type('coco',{delay:20});await W(600);await page.keyboard.type(' po',{delay:20});await W(2200);
+const lastQ=await page.inputValue('.fitSearchForm input');sug=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
+check('a slow earlier answer never replaces the newer one',lastQ==='coco po'&&fast.requests.length===2&&sug[0]==='Coco Pops',JSON.stringify(sug)+' '+fast.requests.length);
+fast.delay={};await page.locator('.fitResult strong',{hasText:/^Coco Pops$/}).first().click();await W(300);
+check('tapping a suggestion opens it straight away',(await page.textContent('#fitSheetTitle'))==='Coco Pops',await page.textContent('#fitSheetTitle'));
+await page.click('.fitSheetBack');await W(300);
+check('going back keeps the words and the suggestions',(await page.inputValue('.fitSearchForm input'))==='coco po'&&(await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent))).includes('Coco Pops'));
+fast.mode='down';await page.click('.fitSheetDone');await W(300);
 
 // 4. Quick add
 await page.click('.fitActions [data-fit="quick"]');await W(300);
