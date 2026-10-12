@@ -34,6 +34,8 @@ jobs:
         run: node tests/browser/fitness-scan.test.mjs
       - name: Fitness › Food — search through Planly's food-search function (candidate)
         run: node tests/browser/fitness-search-proxy.test.mjs
+      - name: Update banner — Update while editing warns, then updates (candidate)
+        run: node tests/browser/update-banner.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
