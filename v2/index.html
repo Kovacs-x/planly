@@ -771,6 +771,10 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitSheetHead h2{margin:0;font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fitSheetBack,.fitSheetDone{border:0;background:transparent;color:var(--sec);font-weight:600;min-height:44px}.fitSheetBack{font-size:26px;width:36px;text-align:left;padding:0}.fitSheetBack[hidden]{display:none}
 .fitSheetBody{display:grid;gap:12px}
+/* Search keeps one fixed height so the sheet doesn't move while typing or as results change */
+.fitSheet.tall{height:88vh;height:88dvh}.fitSearchList{min-height:0}
+.fitSpin{display:inline-block;width:12px;height:12px;margin-left:6px;vertical-align:-1px;border:2px solid var(--line);border-top-color:var(--sec);border-radius:50%}
+@media (prefers-reduced-motion:no-preference){.fitSpin{animation:fitSpin .8s linear infinite}@keyframes fitSpin{to{transform:rotate(360deg)}}}
 .fitSearchForm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 .fitSheet input:not([type=checkbox]),.fitSheet select{width:100%;min-height:46px;border:1px solid var(--line);border-radius:var(--rControl,12px);background:var(--bg);color:var(--text);padding:0 12px;min-width:0}
 .fitChips{display:flex;flex-wrap:wrap;gap:6px}
@@ -859,7 +863,7 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=720s01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
