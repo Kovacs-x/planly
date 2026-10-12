@@ -15,19 +15,31 @@ db.tables.planly_food_entries=[
   {id:'e0000000-0000-4000-8000-0000000000a1',owner_id:OWNER,client_id:'o1',entry_date:yest,meal:'breakfast',name:'Overnight oats',brand:'',barcode:null,source:'search',amount:1,unit:'serving',kcal:1800,protein_g:20,carbs_g:60,fat_g:10,client_created_at:1,client_updated_at:1,cloud_version:1,deleted_at:null}];
 const {context,errors}=await newPhone(browser,db,OWNER);
 const offRequests=[];
-const fast={mode:'down',requests:[]},classic={busyOnce:false,down:false};
+const fast={mode:'down',requests:[],wildcard:true},classic={busyOnce:false,down:false};
+// Like the real fast search service: every word must match a whole word (of the name, brand or other product text);
+// "word*" matches word starts only when fast.wildcard is on (off: the * is ignored, as if it were not supported).
+const H=(code,product_name,brands,nutriments,more={})=>({code,product_name,brands,nutriments,...more});
+const catalogue=[
+  {text:'coco powder drink',hit:H('1','Hot Chocolate',['Cadbury'],{'energy-kcal_100g':380})},
+  {text:'',hit:H('2',"Kellogg's Coco Pops",["Kellogg's"],{'energy-kcal_100g':387})},
+  {text:'',hit:H('3','Coco Pops',["Kellogg's"],{'energy-kcal_100g':387,proteins_100g:5,carbohydrates_100g:84,fat_100g:2.5},{serving_quantity:30})},
+  {text:'',hit:H('4','Coco Pops',["Kellogg's"],{'energy-kcal_100g':387})},
+  {text:'',hit:H('5','Coco Pops Bar',["Kellogg's"],{})},
+  {text:'greek yogurt',hit:H('5010','Fage Total 0%',['Fage','Other'],{'energy-kcal_100g':54,proteins_100g:10.3,carbohydrates_100g:3,fat_100g:0},{serving_quantity:170})},
+  {text:'',hit:H('6','Apple Pie',['Mr Kipling'],{'energy-kcal_100g':370})},
+  {text:'',hit:H('7','Apple Juice',['Tropicana'],{'energy-kcal_100g':46})},
+  {text:'',hit:H('8','Orange Juice',['Tropicana'],{'energy-kcal_100g':44})}];
+const tok=t=>String(t).toLowerCase().replace(/[^a-z0-9%*]+/g,' ').trim().split(' ').filter(Boolean);
 await context.route('https://search.openfoodfacts.org/**',async route=>{fast.requests.push(route.request().url());if(fast.mode==='down')return route.abort('failed');
-  const q=new URL(route.request().url()).searchParams.get('q')||'';if(fast.delay?.[q])await new Promise(r=>setTimeout(r,fast.delay[q]));
-  if(/coco/.test(q))return route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({hits:[
-    {code:'1',product_name:'Hot Chocolate',brands:['Cadbury'],nutriments:{'energy-kcal_100g':380}},
-    {code:'2',product_name:"Kellogg's Coco Pops",brands:["Kellogg's"],nutriments:{'energy-kcal_100g':387}},
-    {code:'3',product_name:'Coco Pops',brands:["Kellogg's"],serving_quantity:30,nutriments:{'energy-kcal_100g':387,proteins_100g:5,carbohydrates_100g:84,fat_100g:2.5}},
-    {code:'4',product_name:'Coco Pops',brands:["Kellogg's"],nutriments:{'energy-kcal_100g':387}},
-    {code:'5',product_name:'Coco Pops Bar',brands:["Kellogg's"],nutriments:{}}]})});
-  route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({count:1,hits:[{code:'5010',product_name:'Fage Total 0%',brands:['Fage','Other'],serving_quantity:170,nutriments:{'energy-kcal_100g':54,proteins_100g:10.3,carbohydrates_100g:3,fat_100g:0}}]})})});
+  if(fast.refuseStar&&(new URL(route.request().url()).searchParams.get('q')||'').includes('*'))return route.fulfill({status:400,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:'{"detail":"bad query"}'});
+  const sp=new URL(route.request().url()).searchParams,q=sp.get('q')||'',terms=tok(q);if(fast.delay?.[q])await new Promise(r=>setTimeout(r,fast.delay[q]));
+  const hits=catalogue.filter(c=>{const ws=tok(c.text+' '+c.hit.product_name+' '+c.hit.brands.join(' '));
+    return terms.length&&terms.every(t=>t.endsWith('*')?(fast.wildcard?ws.some(w=>w.startsWith(t.slice(0,-1))):ws.includes(t.slice(0,-1))):ws.includes(t))}).slice(0,+sp.get('page_size')||10).map(c=>c.hit);
+  route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({count:hits.length,hits})})});
+const qs=()=>fast.requests.map(u=>new URL(u).searchParams.get('q')).sort().join(' | ');
 await context.route('https://world.openfoodfacts.org/**',route=>{offRequests.push(route.request().url());route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({count:2,products:[
   {code:'5000436589457',product_name:'Greek Style Yogurt 0% Fat',brands:'Tesco',serving_quantity:150,serving_size:'1 pot (150 g)',nutriments:{'energy-kcal_100g':57,proteins_100g:10.2,carbohydrates_100g:4,fat_100g:0.2}},
-  {code:'1',product_name:'<img src=x onerror=alert(1)>',brands:'X',nutriments:{'energy-kcal_100g':100}},
+  {code:'1',product_name:'<img src=x onerror=alert(1)> Greek yogurt',brands:'X',nutriments:{'energy-kcal_100g':100}},
   {code:'2',product_name:'No energy',nutriments:{}}]})})});
 // registered last so it is checked first: simulates the classic search being busy or down
 await context.route('https://world.openfoodfacts.org/cgi/**',route=>{if(classic.down)return route.fulfill({status:503,body:'<html>Service unavailable</html>'});if(classic.busyOnce){classic.busyOnce=false;return route.fulfill({status:503,body:'busy'})}return route.fallback()});
@@ -66,7 +78,7 @@ check('Recent lists foods eaten before',await page.locator('.fitResult strong',{
 await page.fill('.fitSearchForm input','greek yogurt');await page.click('.fitSearchForm button');await W(800);
 const results=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
 check('Open Food Facts results are listed (no energy = skipped)',results.includes('Greek Style Yogurt 0% Fat')&&!results.includes('No energy'),results.join());
-check('product names are shown as text, not HTML',results.includes('<img src=x onerror=alert(1)>')&&dialogs.length===0);
+check('product names are shown as text, not HTML',results.includes('<img src=x onerror=alert(1)> Greek yogurt')&&dialogs.length===0);
 const offQ=new URL(offRequests[0]||'http://x');
 check('only the search words go to Open Food Facts',offQ.searchParams.get('search_terms')==='greek yogurt'&&!offRequests[0].includes(OWNER)&&!offRequests[0].includes('@'),offRequests[0]);
 await page.locator('.fitResult',{hasText:'Greek Style Yogurt'}).click();await W(300);
@@ -87,7 +99,8 @@ const typed=await page.evaluate(()=>({same:document.querySelector('.fitSearchFor
 check('typing keeps the same box, focused, with no sheet redraw',typed.same&&typed.focused&&typed.value==='greek'&&typed.redraws===0,JSON.stringify(typed));
 fast.mode='up';fast.requests.length=0;offRequests.length=0;await page.click('.fitSearchForm button');await W(800);
 let names=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
-check('the fast search service is used first',names.includes('Fage Total 0%')&&offRequests.length===0&&new URL(fast.requests[0]).searchParams.get('q')==='greek'&&!fast.requests[0].includes(OWNER),JSON.stringify(names)+' '+fast.requests.join());
+check('the fast search service is used first',names.includes('Fage Total 0%')&&offRequests.length===0&&qs()==='greek | greek*'&&!fast.requests[0].includes(OWNER),JSON.stringify(names)+' '+fast.requests.join());
+check('answers that match only through other product text are shown as labelled close matches, not as matches',/Open Food Facts · close matches/.test(await page.textContent('.fitSearchList')),await page.textContent('.fitSearchList'));
 check('a brand list from the fast service shows the first brand',(await page.locator('.fitResult',{hasText:'Fage Total'}).textContent())?.includes('Fage ·'));
 fast.mode='down';classic.busyOnce=true;offRequests.length=0;await page.fill('.fitSearchForm input','greek y');await page.click('.fitSearchForm button');await W(3500);
 names=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
@@ -95,6 +108,9 @@ check('if the fast service is down and the classic one is busy once, it retries 
 classic.down=true;await page.fill('.fitSearchForm input','greek yo');await page.click('.fitSearchForm button');await W(3500);
 const msg=await page.textContent('.fitSearchList');
 check('when both are down the message says Open Food Facts is busy, not "check your connection"',/slow or busy right now/.test(msg)&&!/Check your connection/.test(msg),msg.slice(0,160));
+check('and says in small print why each search failed',(await page.textContent('[data-why]'))==='Fast search: could not connect. Main search: refused, code 503.',await page.textContent('.fitSearchList'));
+await page.fill('.fitSearchForm input','');await page.keyboard.type('melon',{delay:20});await W(900);
+check('a failed suggestion says so (with the reason) instead of showing nothing',/Suggestions aren't available right now \(could not connect\)/.test(await page.textContent('.fitSearchList')),await page.textContent('.fitSearchList'));
 classic.down=false;await page.click('.fitSheetDone');await W(300);
 
 // 3c. Suggestions while typing
@@ -105,19 +121,32 @@ check('the search sheet says words are sent as you type, after a pause, from thr
 check('your own foods show instantly as you type, matching word starts ("gre y")',instant.includes('Greek Style Yogurt 0% Fat')&&fast.requests.length===0,JSON.stringify(instant));
 await page.fill('.fitSearchForm input','');fast.requests.length=0;await page.keyboard.type('coco p',{delay:60});await W(900);
 let sug=await page.$$eval('.fitList:last-of-type .fitResult strong',e=>e.map(x=>x.textContent));
-check('one request after a pause, not one per letter',fast.requests.length===1&&new URL(fast.requests[0]).searchParams.get('q')==='coco p',fast.requests.map(u=>new URL(u).searchParams.get('q')).join(' | '));
+check('one round of requests after a pause, not one per letter: the last word as a word start, and the finished words',qs()==='coco | coco p*',qs());
 check('suggestions appear without pressing Search, best match first, no duplicates',JSON.stringify(sug.slice(0,2))==='["Coco Pops","Kellogg\'s Coco Pops"]'&&sug.filter(n=>n==='Coco Pops').length===1&&!sug.includes('Coco Pops Bar'),JSON.stringify(sug));
-check('a looser match from Open Food Facts is kept, lower down',sug.at(-1)==='Hot Chocolate',JSON.stringify(sug));
+check('a result that does not match every typed word (Hot Chocolate, found only through other product text) is not shown',!sug.includes('Hot Chocolate')&&!/close matches/.test(await page.textContent('.fitSearchList')),JSON.stringify(sug));
 await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;await page.keyboard.type('coco p',{delay:20});await W(700);
 check('retyping the same words is answered from memory (no new request)',fast.requests.length===0&&(await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent))).includes('Coco Pops'));
-await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;fast.delay={'coco':1500};
+await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;fast.delay={'coco*':1500};
 await page.keyboard.type('coco',{delay:20});await W(600);await page.keyboard.type(' po',{delay:20});await W(2200);
 const lastQ=await page.inputValue('.fitSearchForm input');sug=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
-check('a slow earlier answer never replaces the newer one',lastQ==='coco po'&&fast.requests.length===2&&sug[0]==='Coco Pops',JSON.stringify(sug)+' '+fast.requests.length);
+check('a slow earlier answer never replaces the newer one',lastQ==='coco po'&&qs()==='coco | coco | coco po* | coco*'&&sug[0]==='Coco Pops',JSON.stringify(sug)+' '+fast.requests.length);
 fast.delay={};await page.locator('.fitResult strong',{hasText:/^Coco Pops$/}).first().click();await W(300);
 check('tapping a suggestion opens it straight away',(await page.textContent('#fitSheetTitle'))==='Coco Pops',await page.textContent('#fitSheetTitle'));
 await page.click('.fitSheetBack');await W(300);
 check('going back keeps the words and the suggestions',(await page.inputValue('.fitSearchForm input'))==='coco po'&&(await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent))).includes('Coco Pops'));
+// a half-typed last word: Open Food Facts matches whole words only, so "apple jui" is asked as "apple jui*" and as "apple"
+await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;fast.wildcard=false;await page.keyboard.type('apple jui',{delay:20});await W(900);
+sug=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
+check('"apple jui" suggests Apple Juice even if word starts are not understood (from the finished words)',sug[0]==='Apple Juice'&&!sug.includes('Apple Pie')&&qs()==='apple | apple jui*',JSON.stringify(sug)+' '+qs());
+await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;fast.wildcard=true;await page.keyboard.type('juic',{delay:20});await W(900);
+sug=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
+check('one half-typed word ("juic") is asked as a word start, and as typed',qs()==='juic | juic*'&&sug.includes('Apple Juice')&&sug.includes('Orange Juice'),JSON.stringify(sug)+' '+qs());
+await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;fast.refuseStar=true;await page.keyboard.type('juice',{delay:20});await W(900);
+sug=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
+check('if word starts were refused, a whole word ("juice") still gets suggestions',sug.includes('Apple Juice')&&sug.includes('Orange Juice'),JSON.stringify(sug)+' '+qs());
+fast.refuseStar=false;
+await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;await page.keyboard.type('pops: (coco',{delay:20});await W(900);
+check('typed symbols are not sent as search commands',qs()==='pops | pops coco*',qs());
 fast.mode='down';await page.click('.fitSheetDone');await W(300);
 
 // 4. Quick add
