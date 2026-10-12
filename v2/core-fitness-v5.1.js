@@ -126,7 +126,7 @@ function offProduct(p){
   return {name:name.slice(0,160),brand:String(Array.isArray(p.brands)?p.brands[0]||'':p.brands||'').split(',')[0].trim().slice(0,120),barcode:/^[0-9]{6,14}$/.test(String(p.code||''))?String(p.code):null,basis:'100g',per:{kcal:clamp(k,0,2000),protein:clamp(num(n.proteins_100g),0,100),carbs:clamp(num(n.carbohydrates_100g),0,100),fat:clamp(num(n.fat_100g),0,100)},servingG:sq>0&&sq<=5000?sq:null,servingLabel:String(p.serving_size||'').slice(0,60),source:'search'};
 }
 // Open Food Facts has two name searches: the newer, faster search service, and the classic one (slower, often busy).
-// Try the fast one first, then the classic one (with one retry if it is busy). Only the search words are sent.
+// Try the fast one first, then the classic one if it fails or finds nothing (with one retry if it is busy). Only the search words are sent.
 const OFF_FIELDS='code,product_name,brands,nutriments,serving_size,serving_quantity';
 async function getJson(url,ms,outer){const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms),stop=()=>ctl.abort();outer?.addEventListener('abort',stop);try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok){const e=Error('HTTP '+r.status);e.status=r.status;throw e}return await r.json()}finally{clearTimeout(timer);outer?.removeEventListener('abort',stop)}}
 // Matching and ranking. Every typed word must start a word of the food's name or brand ("coco p" → Kellogg's Coco Pops);
@@ -141,13 +141,26 @@ function matchScore(f,qw){
 function rankFoods(list,q,boost=()=>0,keepAll=false){const qw=words(q),seen=new Set();return list.map((f,i)=>({f,i,s:matchScore(f,qw)??(keepAll?-100:null)})).filter(x=>x.s!==null).map(x=>({...x,s:x.s+boost(x.f)})).sort((a,b)=>b.s-a.s||a.i-b.i).map(x=>x.f).filter(f=>{const k=(f.name+'|'+f.brand).toLowerCase();if(seen.has(k))return false;seen.add(k);return true})}
 // Answers from Open Food Facts are kept for this session, so going back or retyping is instant.
 const offCache=new Map(),cacheSet=(k,v)=>{offCache.set(k,v);if(offCache.size>60)offCache.delete(offCache.keys().next().value)};
+// The fast search service only matches whole words, and every word must match, so a half-typed last word
+// ("apple jui", "coco p") would find nothing. Two questions go at once: all the words with the last one as a word start
+// ("apple jui*"), and just the finished words ("apple", more answers), keeping those with a word starting "jui".
+// If word starts are ever refused, the finished words (or a single word as typed) still give answers.
+// Only plain letters and numbers are sent, so typed symbols can't be read as search commands.
+async function fastSearch(q,size,ms,signal){
+  const qw=words(q).slice(0,8);if(!qw.length)return [];
+  const ask=(text,n)=>getJson(OFF_FAST+'?'+new URLSearchParams({q:text,page_size:String(n),fields:OFF_FIELDS}),ms,signal).then(j=>{if(!Array.isArray(j?.hits))throw Error('bad answer');return j.hits.map(offProduct).filter(Boolean)});
+  const asks=[ask([...qw.slice(0,-1),qw[qw.length-1]+'*'].join(' '),size)];
+  asks.push(ask((qw.length>1?qw.slice(0,-1):qw).join(' '),30).then(list=>rankFoods(list,q))); // one word: the word as typed
+  const got=await Promise.allSettled(asks);if(got.every(x=>x.status==='rejected'))throw got[0].reason;
+  return rankFoods(got.flatMap(x=>x.status==='fulfilled'?x.value:[]),q,undefined,true).slice(0,size);
+}
 // Suggestions while typing: the fast search service only, a short wait, and the previous request cancelled.
-async function suggestOff(q,signal){const j=await getJson(OFF_FAST+'?'+new URLSearchParams({q,page_size:'12',fields:OFF_FIELDS}),6000,signal);if(!Array.isArray(j?.hits))throw Error('bad answer');return rankFoods(j.hits.map(offProduct).filter(Boolean),q,undefined,true)}
+const suggestOff=(q,signal)=>fastSearch(q,12,6000,signal);
 async function searchOff(q,onSlow){
   if(!navigator.onLine)throw Error("You're offline. Search needs internet; your favourites and recent foods still work.");
   const slow=setTimeout(()=>onSlow?.(),5000);
   try{
-    try{const j=await getJson(OFF_FAST+'?'+new URLSearchParams({q,page_size:'20',fields:OFF_FIELDS}),8000);if(Array.isArray(j?.hits))return rankFoods(j.hits.map(offProduct).filter(Boolean),q,undefined,true)}catch{}
+    try{const found=await fastSearch(q,20,8000);if(found.length)return found}catch{}
     const url=OFF_SEARCH+'?'+new URLSearchParams({search_terms:q,search_simple:'1',action:'process',json:'1',page_size:'20',fields:OFF_FIELDS});
     for(let attempt=0;attempt<2;attempt++){
       try{const j=await getJson(url,20000);return rankFoods((j.products||[]).map(offProduct).filter(Boolean),q,undefined,true)}
