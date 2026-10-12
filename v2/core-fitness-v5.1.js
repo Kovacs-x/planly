@@ -2,8 +2,9 @@
 // app closure as the Fitness tab. Every row belongs to the signed-in person only (RLS: owner_id = auth.uid()); the
 // browser never chooses whose data it reads, it only sends its own rows. Works offline: changes are kept on the phone
 // and sent in order when online, each guarded by cloud_version so a change made on another device is never overwritten.
-// Food search uses Open Food Facts (free, no key); only the words typed into Search, or a scanned barcode number, are
-// sent to it. The barcode scanner reads the camera on the phone only: no picture is saved or sent anywhere.
+// Food search uses Open Food Facts (free, no key), asked through Planly's own food-search function (Supabase): only the
+// words typed into Search, or a scanned barcode number, are sent. The barcode scanner reads the camera on the phone
+// only: no picture is saved or sent anywhere.
 (()=>{'use strict';
 const nav=$('.nav button[data-tab="fitness"]');
 if(!nav)return;
@@ -130,8 +131,25 @@ function offProduct(p){
 const OFF_FIELDS='code,product_name,brands,nutriments,serving_size,serving_quantity';
 async function getJson(url,ms,outer){const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms),stop=()=>ctl.abort();outer?.addEventListener('abort',stop);try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok){const e=Error('HTTP '+r.status);e.status=r.status;throw e}return await r.json()}finally{clearTimeout(timer);outer?.removeEventListener('abort',stop)}}
 // A short, plain reason a request failed, shown in small print so a problem can be told apart (blocked, refused, slow).
-const whyOne=e=>e?.name==='AbortError'?'took too long':e?.status?'refused, code '+e.status:/bad answer/.test(e?.message||'')?'unexpected answer':'could not connect';
-const whyFailed=e=>{const a=whyOne(e),b=e?.also?whyOne(e.also):a;return a===b?a:a+' / '+b};
+const whyOne=e=>e?.upstream?e.upstream:e?.name==='AbortError'?'took too long':e?.status?'refused, code '+e.status:/bad answer/.test(e?.message||'')?'unexpected answer':'could not connect';
+const whyDirect=e=>{const a=whyOne(e),b=e?.also?whyOne(e.also):a;return a===b?a:a+' / '+b};
+const whyFailed=e=>(e?.planly?'via Planly: '+whyOne(e.planly)+'; direct: ':'')+whyDirect(e);
+// Searches and barcode lookups go through Planly's own food-search function (Supabase), which asks Open Food Facts:
+// on iPhone the browser won't let the app read Open Food Facts' answers directly. Only signed-in people can use it, and
+// only the search words or a barcode number are sent. If it can't be reached, the app asks Open Food Facts directly.
+async function viaPlanly(body,ms,outer){
+  const c=window.PLANLY_SUPABASE_CONFIG,tok=sb?(await sb.auth.getSession())?.data?.session?.access_token:'';
+  if(!c?.url||!tok){const e=Error('not signed in');e.status=401;throw e}
+  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms),stop=()=>ctl.abort();if(outer?.aborted)ctl.abort();outer?.addEventListener('abort',stop);
+  try{const r=await fetch(c.url+'/functions/v1/food-search',{method:'POST',headers:{Authorization:'Bearer '+tok,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctl.signal});
+    const j=await r.json().catch(()=>null);if(!r.ok){const e=Error('HTTP '+r.status);e.status=r.status;if(r.status===502&&typeof j?.error==='string')e.upstream=j.error.slice(0,160);e.offStatus=j?.status;throw e}return j}
+  finally{clearTimeout(timer);outer?.removeEventListener('abort',stop)}
+}
+// UK products (the function marks them) rank a little higher
+const ukFirst=f=>f.uk?1.5:0;
+const planlyFoods=j=>(Array.isArray(j?.products)?j.products:[]).map(p=>{const f=offProduct(p);return f&&{...f,uk:p.uk===true}}).filter(Boolean);
+const topOf=(out,n)=>{const t=out.slice(0,n);t.close=out.close;return t};
+const sendWords=q=>words(q).slice(0,8).map(w=>w.slice(0,30)).join(' ');
 // Matching and ranking. Every typed word must start a word of the food's name or brand ("coco p" → Kellogg's Coco Pops);
 // names that start with the first typed word, then exact word matches, come first.
 const words=t=>String(t||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9%]+/g,' ').trim().split(' ').filter(Boolean);
@@ -150,30 +168,38 @@ const offCache=new Map(),cacheSet=(k,v)=>{offCache.set(k,v);if(offCache.size>60)
 // If word starts are ever refused, the finished words (or a single word as typed) still give answers.
 // Only plain letters and numbers are sent, so typed symbols can't be read as search commands.
 async function fastSearch(q,size,ms,signal){
+  const text=sendWords(q);if(!text)return [];let planly;
+  try{return topOf(strictOrClose(planlyFoods(await viaPlanly({mode:'suggest',q:text},ms,signal)),q,ukFirst),size)}catch(e){if(signal?.aborted)throw e;planly=e}
+  try{return await directFast(q,size,ms,signal)}catch(e){if(e&&typeof e==='object')e.planly=planly;throw e}
+}
+// Asking Open Food Facts' fast search directly (works on most computers; on iPhone the browser blocks the answers).
+async function directFast(q,size,ms,signal){
   const qw=words(q).slice(0,8);if(!qw.length)return [];
   const ask=(text,n)=>getJson(OFF_FAST+'?'+new URLSearchParams({q:text,page_size:String(n),fields:OFF_FIELDS}),ms,signal).then(j=>{if(!Array.isArray(j?.hits))throw Error('bad answer');return j.hits.map(offProduct).filter(Boolean)});
   const asks=[ask([...qw.slice(0,-1),qw[qw.length-1]+'*'].join(' '),size)];
   asks.push(ask((qw.length>1?qw.slice(0,-1):qw).join(' '),30).then(list=>rankFoods(list,q))); // one word: the word as typed
   const got=await Promise.allSettled(asks);if(got.every(x=>x.status==='rejected')){const e=got[0].reason;if(e&&typeof e==='object')e.also=got[1]?.reason;throw e}
-  const out=strictOrClose(got.flatMap(x=>x.status==='fulfilled'?x.value:[]),q),top=out.slice(0,size);top.close=out.close;return top;
+  return topOf(strictOrClose(got.flatMap(x=>x.status==='fulfilled'?x.value:[]),q),size);
 }
 // Open Food Facts answers: only foods where every typed word starts a word of the name or brand. If none match that
 // way (other spellings like yoghurt/yogurt, or names in another language), the answers are shown as close matches,
 // clearly labelled, instead of nothing.
-function strictOrClose(list,q){const strict=rankFoods(list,q);if(strict.length||!list.length)return strict;const close=rankFoods(list,q,undefined,true);close.close=true;return close}
+function strictOrClose(list,q,boost){const strict=rankFoods(list,q,boost);if(strict.length||!list.length)return strict;const close=rankFoods(list,q,boost,true);close.close=true;return close}
 // Suggestions while typing: the fast search service only, a short wait, and the previous request cancelled.
 const suggestOff=(q,signal)=>fastSearch(q,12,6000,signal);
 async function searchOff(q,onSlow){
   if(!navigator.onLine)throw Error("You're offline. Search needs internet; your favourites and recent foods still work.");
   const slow=setTimeout(()=>onSlow?.(),5000);
   try{
-    let fastWhy='found nothing';try{const found=await fastSearch(q,20,8000);if(found.length)return found}catch(e){fastWhy=whyFailed(e)}
+    const text=sendWords(q);let planly=null;
+    if(text)try{return strictOrClose(planlyFoods(await viaPlanly({mode:'search',q:text},25000)),q,ukFirst)}catch(e){planly=e}
+    let fastWhy='found nothing';try{const found=await directFast(q,20,8000);if(found.length)return found}catch(e){fastWhy=whyDirect(e)}
     const url=OFF_SEARCH+'?'+new URLSearchParams({search_terms:q,search_simple:'1',action:'process',json:'1',page_size:'20',fields:OFF_FIELDS});
     for(let attempt=0;attempt<2;attempt++){
       try{const j=await getJson(url,20000);return strictOrClose((j.products||[]).map(offProduct).filter(Boolean),q)}
       catch(e){if(attempt===0&&navigator.onLine){await new Promise(r=>setTimeout(r,1500));continue}
         if(!navigator.onLine)throw Error("You're offline. Search needs internet; your favourites and recent foods still work.");
-        const err=Error('Open Food Facts is slow or busy right now. Try again in a moment, or use Quick add.');err.detail='Fast search: '+fastWhy+'. Main search: '+whyFailed(e)+'.';throw err}
+        const err=Error('Open Food Facts is slow or busy right now. Try again in a moment, or use Quick add.');err.detail=(planly?'Via Planly: '+whyOne(planly)+'. Direct: ':'')+'Fast search: '+fastWhy+'. Main search: '+whyDirect(e)+'.';throw err}
     }
     return [];
   }finally{clearTimeout(slow)}
@@ -202,6 +228,11 @@ async function lookupBarcode(code,format=''){
   const fav=favourites.find(f=>cands.includes(f.barcode));if(fav)return {food:favFood(fav)};
   if(!navigator.onLine)return {error:"You're offline. Looking up a new barcode needs internet; use Quick add for now."};
   for(const c of cands){
+    let j=null;try{j=await viaPlanly({mode:'product',code:c},12000)}catch(e){if(e.offStatus===429)return {error:'Open Food Facts is busy. Try again in a minute.'}}
+    if(j){if(j.status!=='found')continue;const food=j.product&&offProduct({...j.product,code:c});
+      if(!food)return {missing:String(j.product?.product_name||'').trim().slice(0,160),code:c,error:'This product has no calorie information in Open Food Facts yet.'};
+      return {food:{...food,barcode:c,source:'barcode'}}}
+    // Planly's function couldn't be reached: ask Open Food Facts directly
     const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
     try{const r=await fetch(OFF_PRODUCT+c+'.json?'+new URLSearchParams({fields:'code,product_name,brands,nutriments,serving_size,serving_quantity'}),{signal:ctl.signal});
       if(r.status===404)continue;if(r.status===429)return {error:'Open Food Facts is busy. Try again in a minute.'};if(!r.ok)return {error:'Open Food Facts did not answer. Try again.'};
@@ -289,7 +320,7 @@ function openSearch(meal,initial='',keep=null){
   const back=()=>openSearch(meal,query,{results,status,detail});
   const body=showSheet('Add food',`<form class="fitSearchForm" data-search-form><input name="q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Food name or barcode number" value="${esc(query)}" aria-label="Search foods"><button type="submit" class="fitPrimary">Search</button></form>${mealChips(meal)}
 <div class="fitSearchList" data-list></div>
-<p class="fitFootnote">Suggestions and search use Open Food Facts, a free food database. As you type, the words in the search box are sent to it after a short pause, from three letters, to show suggestions. Only those words, or a barcode number, are sent: never your account or food log.</p>`);
+<p class="fitFootnote">Suggestions and search use Open Food Facts, a free food database, asked through Planly's own server. As you type, the words in the search box are sent to it after a short pause, from three letters, to show suggestions. Only those words, or a barcode number, are sent: never your account or food log.</p>`);
   sheet.querySelector('.fitSheet').classList.add('tall');
   const input=body.querySelector('input[name="q"]'),listEl=body.querySelector('[data-list]');
   const item=(f,key,i)=>`<button type="button" class="fitResult" data-pick="${key}:${i}"><span><strong>${esc(f.name)}</strong><small>${esc([f.brand,foodLine(f)].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`;

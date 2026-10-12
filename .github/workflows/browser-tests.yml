@@ -32,6 +32,8 @@ jobs:
         run: node tests/browser/fitness-food.test.mjs
       - name: Fitness › Food — barcode scanner with a fake camera (candidate)
         run: node tests/browser/fitness-scan.test.mjs
+      - name: Fitness › Food — search through Planly's food-search function (candidate)
+        run: node tests/browser/fitness-search-proxy.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

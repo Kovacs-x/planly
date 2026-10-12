@@ -138,4 +138,15 @@ function foodProblems(m54){
  for(const f of fs.readdirSync(migrationDir).filter(f=>f.endsWith('.sql')))for(const st of sqlStatements(read(`supabase/migrations/${f}`)))if(extraGrant(st))fail(`${f} grants table rights the app never uses to a client role: `+st.slice(0,160));
  for(const st of ['grant all on public.planly_lists to authenticated','grant truncate on public.planly_food_entries to authenticated','grant select, truncate on public.x to anon','grant trigger on table public.x to public'])if(!extraGrant(sqlStatements(st)[0]))fail('Extra-rights grant self-test missed: '+st);
  for(const st of ['grant select, insert, update, delete on public.planly_lists to authenticated','grant execute on function public.f() to authenticated'])if(extraGrant(sqlStatements(st)[0]))fail('Extra-rights grant self-test false positive: '+st);}
+// food-search Edge Function: signed-in callers only, fixed Open Food Facts addresses, plain words or a barcode only,
+// no database access, no service-role key, no logging, answers to the Planly site only.
+{const fn=read('supabase/functions/food-search/index.ts');
+ const urls=[...new Set(fn.match(/https:\/\/[^'"`\s)]+/g))].sort();
+ if(JSON.stringify(urls)!==JSON.stringify(['https://kovacs-x.github.io','https://kovacs-x.github.io/planly/','https://search.openfoodfacts.org/search','https://world.openfoodfacts.org/api/v2/product/','https://world.openfoodfacts.org/cgi/search.pl']))fail('food-search may only contact fixed Open Food Facts addresses: '+urls.join(' '));
+ const envs=[...fn.matchAll(/Deno\.env\.get\('([A-Z_]+)'\)/g)].map(m=>m[1]).sort().join();if(envs!=='SUPABASE_ANON_KEY,SUPABASE_URL')fail('food-search must use only the URL and anon key: '+envs);
+ if(/SERVICE_ROLE|\/rest\/v1|\/rpc\/|console\.|localStorage|\.from\(/.test(fn))fail('food-search must not touch the database, use the service key or log anything');
+ for(const x of ["'Access-Control-Allow-Origin': ORIGIN","const ORIGIN = 'https://kovacs-x.github.io'","const WORDS = /^[a-z0-9%]{1,30}( [a-z0-9%]{1,30}){0,7}$/","const CODE = /^[0-9]{8,14}$/","if (!WORDS.test(q)) return json({ error: 'Bad search words.' }, 400)","if (!CODE.test(code)) return json({ error: 'Bad barcode.' }, 400)","if (raw.length > 500) return json({ error: 'Request too large.' }, 413)","if (!user?.id) return json({ error: 'Authentication required.' }, 401)"])if(!fn.includes(x))fail('food-search invariant missing: '+x);
+ const iAuth=fn.indexOf("fetch(SB + '/auth/v1/user'"),iBody=fn.indexOf('await req.text()'),iOff=fn.indexOf('Deno.serve(');
+ if(iAuth<iOff||iBody<iAuth)fail('food-search must check the session before reading the request');
+ if((fn.match(/\bfetch\(/g)||[]).length!==3||!fn.includes("const r = await fetch(url, { headers: { 'User-Agent': AGENT, Accept: 'application/json' }")||!fn.includes("const r = await fetch(OFF_PRODUCT + code + '.json?'"))fail('food-search fetch calls changed: review the addresses');}
 console.log('Planly security regression checks passed.');

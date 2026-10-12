@@ -108,9 +108,9 @@ check('if the fast service is down and the classic one is busy once, it retries 
 classic.down=true;await page.fill('.fitSearchForm input','greek yo');await page.click('.fitSearchForm button');await W(3500);
 const msg=await page.textContent('.fitSearchList');
 check('when both are down the message says Open Food Facts is busy, not "check your connection"',/slow or busy right now/.test(msg)&&!/Check your connection/.test(msg),msg.slice(0,160));
-check('and says in small print why each search failed',(await page.textContent('[data-why]'))==='Fast search: could not connect. Main search: refused, code 503.',await page.textContent('.fitSearchList'));
+check('and says in small print why each search failed',(await page.textContent('[data-why]'))==='Via Planly: refused, code 404. Direct: Fast search: could not connect. Main search: refused, code 503.',await page.textContent('.fitSearchList'));
 await page.fill('.fitSearchForm input','');await page.keyboard.type('melon',{delay:20});await W(900);
-check('a failed suggestion says so (with the reason) instead of showing nothing',/Suggestions aren't available right now \(could not connect\)/.test(await page.textContent('.fitSearchList')),await page.textContent('.fitSearchList'));
+check('a failed suggestion says so (with the reason) instead of showing nothing',/Suggestions aren't available right now \(via Planly: refused, code 404; direct: could not connect\)/.test(await page.textContent('.fitSearchList')),await page.textContent('.fitSearchList'));
 classic.down=false;await page.click('.fitSheetDone');await W(300);
 
 // 3c. Suggestions while typing
