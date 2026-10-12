@@ -264,7 +264,7 @@ function ring(left,target){const R=52,C=2*Math.PI*R,used=clamp(1-left/Math.max(t
 function macroRow(label,cls,val,target){return `<div class="fitMacro ${cls}"><div class="fitMacroTop"><strong>${label}</strong><span>${fmt(val)} / ${fmt(target)} g</span></div><div class="fitBar"><span style="width:${(clamp(val/Math.max(target,1),0,1)*100).toFixed(1)}%"></span></div></div>`}
 function viewHtml(){
   const t=targets(),list=dayEntries(dayKey),tot=totals(list),left=t.kcal-tot.kcal,avg=weekAverage(),isToday=dayKey===todayKey();
-  const setup=!profile?`<section class="fitCard fitSetup"><div><strong>Set your daily targets</strong><span>Planly works out calories and macros from your height, weight and goal.</span></div><button type="button" class="fitPrimary" data-fit="targets">Set targets</button></section>`:'';
+  const setup=!profile?`<section class="fitCard fitSetup"><div><strong>Set your daily targets</strong></div><button type="button" class="fitPrimary" data-fit="targets">Set targets</button></section>`:'';
   const fails=failures.length?`<div class="fitNotice" role="status"><span>${failures.length===1?'1 change':failures.length+' changes'} couldn't be saved and ${failures.length===1?'was':'were'} replaced by the latest saved version.</span><button type="button" data-fit="dismiss">OK</button></div>`:'';
   const meals=MEALS.map(([id,label])=>{const rows=list.filter(x=>x.meal===id);const kc=totals(rows).kcal;return `<section class="fitMeal" data-meal="${id}"><div class="fitMealHead"><h3>${label}</h3><span>${rows.length?fmt(kc)+' kcal':''}</span></div>${rows.map(x=>`<button type="button" class="fitEntry" data-entry="${esc(x.id)}"><span class="fitEntryText"><strong>${esc(x.name)}</strong><small>${esc([x.brand,amountText(x)].filter(Boolean).join(' · '))}</small></span><span class="fitEntryKcal">${fmt(x.kcal)}</span></button>`).join('')}<button type="button" class="fitQuiet" data-fit="search" data-meal="${id}">+ Add food</button></section>`}).join('');
   return `<div class="fitView">
@@ -275,7 +275,6 @@ ${fails}${setup}
 <div class="fitSummaryFoot"><span>Eaten <strong>${fmt(tot.kcal)}</strong></span><button type="button" class="fitTargetBtn" data-fit="targets">Target <strong>${fmt(t.kcal)}</strong></button><span>7-day avg <strong>${avg==null?'–':fmt(avg)}</strong></span></div></section>
 <div class="fitActions"><button type="button" class="fitPrimary" data-fit="scan"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M8 8v8M11 8v8M13.5 8v8M16 8v8"/></svg>Scan</button><button type="button" class="fitSecondary" data-fit="search"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>Search</button><button type="button" class="fitSecondary" data-fit="quick">+ Quick</button></div>
 <div class="fitCard fitMeals">${meals}</div>
-<p class="fitFootnote">Only you can see your food log. Targets are estimates, not medical advice.</p>
 </div>`;
 }
 function amountText(x){const a=num(x.amount);if(x.source==='quick')return '';if(x.unit==='serving')return a===1?'1 serving':`${r1(a)} servings`;return `${r1(a)} ${x.unit}`}
@@ -319,8 +318,7 @@ function openSearch(meal,initial='',keep=null){
   let results=keep?.results||[],status=keep?.status||'',detail=keep?.detail||'',sugNote='',query=initial,busy=0,shown={mine:[],off:[]},timer=0,ctl=null,frame=0,pending='';
   const back=()=>openSearch(meal,query,{results,status,detail});
   const body=showSheet('Add food',`<form class="fitSearchForm" data-search-form><input name="q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Food name or barcode number" value="${esc(query)}" aria-label="Search foods"><button type="submit" class="fitPrimary">Search</button></form>${mealChips(meal)}
-<div class="fitSearchList" data-list></div>
-<p class="fitFootnote">Suggestions and search use Open Food Facts, a free food database, asked through Planly's own server. As you type, the words in the search box are sent to it after a short pause, from three letters, to show suggestions. Only those words, or a barcode number, are sent: never your account or food log.</p>`);
+<div class="fitSearchList" data-list></div>`);
   sheet.querySelector('.fitSheet').classList.add('tall');
   const input=body.querySelector('input[name="q"]'),listEl=body.querySelector('[data-list]');
   const item=(f,key,i)=>`<button type="button" class="fitResult" data-pick="${key}:${i}"><span><strong>${esc(f.name)}</strong><small>${esc([f.brand,foodLine(f)].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`;
@@ -361,8 +359,7 @@ function openScan(meal){
   const body=showSheet('Scan barcode',`<div class="fitScanView"><video playsinline muted autoplay aria-label="Camera"></video><div class="fitScanFrame" aria-hidden="true"><span></span></div><p class="fitScanStatus" role="status">Starting camera…</p></div>
 ${mealChips(meal)}
 <form class="fitSearchForm" data-code-form><input name="code" inputmode="numeric" pattern="[0-9]*" maxlength="14" autocomplete="off" placeholder="Or type the barcode number" aria-label="Barcode number"><button type="submit" class="fitSecondary">Look up</button></form>
-<div class="fitScanMiss" data-miss hidden></div>
-<p class="fitFootnote">The camera is only used on your phone; no picture is saved or sent. The barcode number is looked up in your favourites, then in Open Food Facts.</p>`);
+<div class="fitScanMiss" data-miss hidden></div>`);
   const run=++scanRun; // after showSheet, which stops any earlier camera
   const video=body.querySelector('video'),statusEl=body.querySelector('.fitScanStatus'),miss=body.querySelector('[data-miss]');
   const say=t=>{statusEl.textContent=t};
@@ -436,8 +433,7 @@ function openTargets(){
   if(!num(p.pace_kg_week))p.pace_kg_week=0.5;
   const t=targets();let custom=!!p.targets_custom;
   const seg=(name,opts,val)=>`<div class="fitSeg" role="radiogroup" data-seg="${name}">${opts.map(([v,l])=>`<button type="button" role="radio" aria-checked="${String(v)===String(val)}" class="${String(v)===String(val)?'on':''}" data-v="${v}">${l}</button>`).join('')}</div>`;
-  const body=showSheet('Daily targets',`<p class="fitHint">Planly estimates your daily calories from your details (Mifflin–St Jeor), then sets protein, fat and carbs. Only you can see these.</p>
-<div class="fitField"><span>Sex</span>${seg('sex',[['female','Female'],['male','Male']],p.sex)}</div>
+  const body=showSheet('Daily targets',`<div class="fitField"><span>Sex</span>${seg('sex',[['female','Female'],['male','Male']],p.sex)}</div>
 <div class="fitTriple"><label class="fitField"><span>Birth year</span><input name="birth_year" type="number" inputmode="numeric" min="1900" max="2100" value="${esc(p.birth_year??'')}"></label><label class="fitField"><span>Height cm</span><input name="height_cm" type="number" inputmode="decimal" min="80" max="250" value="${esc(p.height_cm??'')}"></label><label class="fitField"><span>Weight kg</span><input name="weight_kg" type="number" inputmode="decimal" min="25" max="400" value="${esc(p.weight_kg??'')}"></label></div>
 <label class="fitField"><span>Activity</span><select name="activity">${ACTIVITY.map(([v,l])=>`<option value="${v}" ${v===p.activity?'selected':''}>${l}</option>`).join('')}</select></label>
 <div class="fitField"><span>Goal</span>${seg('goal',[['lose','Lose'],['maintain','Maintain'],['gain','Gain']],p.goal)}</div>
@@ -446,11 +442,10 @@ function openTargets(){
 <label class="fitCheck"><input type="checkbox" name="custom" ${custom?'checked':''}><span>Set my own numbers</span></label>
 <div class="fitCustom" data-custom><div class="fitTriple fitQuad"><label class="fitField"><span>kcal</span><input name="kcal_target" type="number" inputmode="numeric" min="800" max="6000" value="${t.kcal}"></label><label class="fitField"><span>Protein g</span><input name="protein_g" type="number" inputmode="numeric" min="0" max="500" value="${t.protein}"></label><label class="fitField"><span>Carbs g</span><input name="carbs_g" type="number" inputmode="numeric" min="0" max="1000" value="${t.carbs}"></label><label class="fitField"><span>Fat g</span><input name="fat_g" type="number" inputmode="numeric" min="0" max="400" value="${t.fat}"></label></div></div>
 <p class="fitStatus" data-err role="alert"></p>
-<button type="button" class="fitPrimary fitWide" data-save>Save targets</button>
-<p class="fitFootnote">Estimates only, not medical advice.</p>`);
+<button type="button" class="fitPrimary fitWide" data-save>Save targets</button>`);
   const val=n=>body.querySelector(`[name="${n}"]`)?.value;
   const read=()=>({sex:p.sex||null,birth_year:val('birth_year')?Math.round(num(val('birth_year'))):null,height_cm:val('height_cm')?r1(val('height_cm')):null,weight_kg:val('weight_kg')?r1(val('weight_kg')):null,activity:val('activity'),goal:p.goal,pace_kg_week:p.goal==='maintain'?0:num(p.pace_kg_week)});
-  const update=()=>{const v=read(),s=suggestTargets(v);body.querySelector('[data-pace-wrap]').hidden=p.goal==='maintain';body.querySelector('[data-custom]').hidden=!custom;body.querySelector('[data-suggest]').innerHTML=s?`<strong>${fmt(s.kcal_target)} kcal a day</strong><span>Protein ${s.protein_g} g · Carbs ${s.carbs_g} g · Fat ${s.fat_g} g</span>`:'<span>Add your sex, height and weight to get a suggestion.</span>'};
+  const update=()=>{const v=read(),s=suggestTargets(v);body.querySelector('[data-pace-wrap]').hidden=p.goal==='maintain';body.querySelector('[data-custom]').hidden=!custom;body.querySelector('[data-suggest]').innerHTML=s?`<strong>${fmt(s.kcal_target)} kcal a day</strong><span>Protein ${s.protein_g} g · Carbs ${s.carbs_g} g · Fat ${s.fat_g} g</span>`:''};
   body.querySelectorAll('[data-seg]').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{p[g.dataset.seg]=b.dataset.v;g.querySelectorAll('button').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-checked',String(x===b))});update()}));
   body.querySelectorAll('input,select').forEach(i=>i.addEventListener('input',()=>{if(i.name==='custom')custom=i.checked;update()}));
   body.querySelector('[data-save]').onclick=()=>{
