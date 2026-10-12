@@ -3,25 +3,12 @@
 // Run: node tests/browser/fitness-scan.test.mjs (see tests/browser/README.md).
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 import {startServer,chromium,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
+import {ean13Modules,writeY4m} from './barcodes.mjs';
 let pass=0,fail=0;const check=(n,c,d='')=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' — '+d));c?pass++:fail++};
 const W=ms=>new Promise(r=>setTimeout(r,ms));
 
-// ---- an EAN-13 barcode as a Y4M video (what Chromium's fake camera plays) ----
-function ean13Modules(code){
-  const L=['0001101','0011001','0010011','0111101','0100011','0110001','0101111','0111011','0110111','0001011'];
-  const R=L.map(x=>[...x].map(b=>b==='1'?'0':'1').join('')),G=R.map(x=>[...x].reverse().join(''));
-  const parity=['LLLLLL','LLGLGG','LLGGLG','LLGGGL','LGLLGG','LGGLLG','LGGGLL','LGLGLG','LGLGGL','LGGLGL'][+code[0]];
-  let m='101';for(let i=1;i<=6;i++)m+=(parity[i-1]==='L'?L:G)[+code[i]];m+='01010';for(let i=7;i<=12;i++)m+=R[+code[i]];return m+'101';
-}
-function barcodeY4m(code,file){
-  const w=640,h=480,mod=4,mods=ean13Modules(code),x0=Math.floor((w-mods.length*mod)/2),y0=140,y1=340;
-  const Y=Buffer.alloc(w*h,235),UV=Buffer.alloc(w*h/4,128);
-  for(let y=y0;y<y1;y++)for(let i=0;i<mods.length;i++)if(mods[i]==='1')for(let k=0;k<mod;k++)Y[y*w+x0+i*mod+k]=20;
-  const frame=Buffer.concat([Buffer.from('FRAME\n'),Y,UV,UV]);
-  fs.writeFileSync(file,Buffer.concat([Buffer.from(`YUV4MPEG2 W${w} H${h} F10:1 Ip A1:1 C420jpeg\n`),frame,frame,frame,frame,frame]));
-}
-const CODE='5000436589457',UNKNOWN='4006381333931',FAVCODE='5449000000996';
-const y4m=path.join(os.tmpdir(),'planly-ean13.y4m');barcodeY4m(CODE,y4m);
+const CODE='5000436589457',UNKNOWN='4006381333931',FAVCODE='5449000000996',UPCE='04252614',UPCE_AS_A='042100005264';
+const y4m=path.join(os.tmpdir(),'planly-ean13.y4m');writeY4m(ean13Modules(CODE),y4m);
 
 const server=await startServer();
 const browser=await chromium.launch({...(process.env.PLANLY_CHROMIUM?{executablePath:process.env.PLANLY_CHROMIUM}:{}),args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-video-capture='+y4m]});
@@ -32,6 +19,7 @@ const {context,errors}=await newPhone(browser,db,OWNER);
 await context.grantPermissions(['camera'],{origin:'http://localhost:8765'});
 const off=[];
 await context.route('https://world.openfoodfacts.org/**',route=>{const u=route.request().url();off.push(u);
+  if(u.includes('/api/v2/product/'+UPCE_AS_A+'.json'))return route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({status:1,code:UPCE_AS_A,product:{code:UPCE_AS_A,product_name:'Small Gum',brands:'Test',serving_quantity:3,nutriments:{'energy-kcal_100g':200,proteins_100g:0,carbohydrates_100g:60,fat_100g:0}}})});
   if(u.includes('/api/v2/product/'+CODE+'.json'))return route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({status:1,code:CODE,product:{code:CODE,product_name:'Greek Style Yogurt 0% Fat',brands:'Tesco',serving_quantity:150,serving_size:'1 pot (150 g)',nutriments:{'energy-kcal_100g':57,proteins_100g:10.2,carbohydrates_100g:4,fat_100g:0.2}}})});
   return route.fulfill({status:404,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({status:0,status_verbose:'product not found'})})});
 // record every camera stream so the test can check it was switched off
@@ -76,9 +64,28 @@ await page.click('.fitActions [data-fit="scan"]');await W(500);await page.fill('
 check('a barcode saved in favourites opens offline, with no lookup',(await sheetTitle())==='Cola Zero'&&off.length===0,await sheetTitle());
 await page.click('.fitSheetDone');db.offline=false;await context.setOffline(false);await W(300);
 
+// 4b. A short UPC-E code is checked as UPC-E and looked up under its full UPC-A number
+await page.click('.fitActions [data-fit="scan"]');await W(500);off.length=0;await page.fill('input[name="code"]','04252615');await page.click('[data-code-form] button');await W(300);
+check('a UPC-E with a wrong check digit is caught',/isn't valid/.test(await page.textContent('.fitScanStatus'))&&off.length===0);
+await page.fill('input[name="code"]',UPCE);await page.click('[data-code-form] button');await W(1200);
+check('a valid UPC-E is looked up as its UPC-A number',(await sheetTitle())==='Small Gum'&&new URL(off[0]||'http://x').pathname==='/api/v2/product/'+UPCE_AS_A+'.json',off.join(' | '));
+await page.click('[data-add]');await W(1200);
+check('and saved with the full number',db.tables.planly_food_entries.some(r=>r.name==='Small Gum'&&r.barcode===UPCE_AS_A));
 // 5. Typing a barcode into Search looks it up
 await page.click('.fitActions [data-fit="search"]');await W(300);await page.fill('.fitSearchForm input',CODE);await page.click('.fitSearchForm button');await W(1200);
 check('a barcode typed into Search opens the product',/Greek Style Yogurt/.test(await sheetTitle()));
 await page.click('.fitSheetDone');
 check('no page errors',errors.length===0,errors.join(' | '));
+// 6. Android path: the built-in BarcodeDetector reports a UPC-E; it is validated as UPC-E and looked up as UPC-A.
+// (A stand-in detector: headless Chromium on Linux has no built-in reader, and ZXing's UPC-E reader is off.)
+{const db2=makeDb();db2.tables.planly_food_entries=[];db2.tables.planly_food_favourites=[];const p2=await newPhone(browser,db2,OWNER);
+ await p2.context.grantPermissions(['camera'],{origin:'http://localhost:8765'});
+ const off2=[];await p2.context.route('https://world.openfoodfacts.org/**',route=>{off2.push(route.request().url());const ok=route.request().url().includes('/api/v2/product/'+UPCE_AS_A+'.json');
+  route.fulfill({status:ok?200:404,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(ok?{status:1,product:{code:UPCE_AS_A,product_name:'Small Gum',brands:'Test',nutriments:{'energy-kcal_100g':200}}}:{status:0})})});
+ await p2.context.addInitScript(()=>{window.BarcodeDetector=class{static async getSupportedFormats(){return ['ean_13','ean_8','upc_a','upc_e']}constructor(o){this.formats=o.formats}async detect(){return this.formats.includes('upc_e')?[{rawValue:'04252614',format:'upc_e'}]:[]}}});
+ const pg=await openApp(p2.context,p2.errors);await pg.click('.nav button[data-tab="fitness"]');await W(1000);await pg.click('.fitActions [data-fit="scan"]');
+ let t2='';for(let i=0;i<20&&t2!=='Small Gum';i++){await W(400);t2=await pg.evaluate(()=>document.querySelector('#fitSheetTitle')?.textContent||'')}
+ check('Android: a UPC-E from the built-in reader opens the product',t2==='Small Gum'&&off2.length===1&&off2[0].includes('/'+UPCE_AS_A+'.json'),t2+' | '+off2.join(' | '));
+ check('Android: ZXing is not loaded when the built-in reader works',await pg.evaluate(()=>!window.ZXing));
+ check('Android path: no page errors',p2.errors.length===0,p2.errors.join(' | '));await p2.context.close()}
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();fs.rmSync(y4m,{force:true});process.exit(fail?1:0);

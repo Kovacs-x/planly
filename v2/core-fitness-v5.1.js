@@ -132,12 +132,30 @@ async function searchOff(q){
   catch(e){if(e?.name==='AbortError'||isNetwork(e))throw Error("Couldn't reach Open Food Facts. Check your connection.");throw e}
   finally{clearTimeout(timer)}
 }
-// EAN-8, UPC-A (12) and EAN-13 carry a check digit; a code that fails it is a misread and is never looked up.
-function validBarcode(code){const c=String(code||'');if(!/^(\d{8}|\d{12}|\d{13})$/.test(c))return false;const d=[...c].map(Number),check=d.pop();const sum=d.reverse().reduce((t,x,i)=>t+x*(i%2?1:3),0);return (10-sum%10)%10===check}
-async function lookupBarcode(code){
-  const fav=favourites.find(f=>f.barcode===code||(code.length===12&&f.barcode==='0'+code));if(fav)return {food:favFood(fav)};
+// Barcodes carry a check digit; a code that fails it is a misread and is never looked up.
+// EAN-8, UPC-A (12) and EAN-13 use the usual alternating 3/1 weights over the whole code. UPC-E (8 digits, number system
+// 0 or 1) is a compressed UPC-A: it is expanded first and the check digit is verified on the 12-digit UPC-A.
+function checksumOk(c){const d=[...c].map(Number),check=d.pop();const sum=d.reverse().reduce((t,x,i)=>t+x*(i%2?1:3),0);return (10-sum%10)%10===check}
+function upcEtoA(c){if(!/^[01]\d{7}$/.test(c))return null;const n=c[0],d=c.slice(1,7),l=d[5],chk=c[7];
+  const body=l<='2'?n+d[0]+d[1]+l+'0000'+d[2]+d[3]+d[4]:l==='3'?n+d[0]+d[1]+d[2]+'00000'+d[3]+d[4]:l==='4'?n+d[0]+d[1]+d[2]+d[3]+'00000'+d[4]:n+d.slice(0,5)+'0000'+l;
+  return body+chk}
+// The codes to look up for a scanned or typed barcode, or [] if it is not valid. format: 'ean_13'|'ean_8'|'upc_a'|'upc_e'
+// from the scanner, '' when typed (an 8-digit typed code may be EAN-8 or UPC-E; whichever is valid is tried).
+function barcodeCandidates(code,format=''){
+  const c=String(code||''),out=[];
+  if(/^\d{13}$/.test(c)&&(!format||format==='ean_13')&&checksumOk(c))out.push(c);
+  if(/^\d{12}$/.test(c)&&(!format||format==='upc_a')&&checksumOk(c))out.push(c,'0'+c);
+  if(/^\d{8}$/.test(c)){
+    if((!format||format==='ean_8')&&checksumOk(c))out.push(c);
+    if(!format||format==='upc_e'){const a=upcEtoA(c);if(a&&checksumOk(a))out.push(a,'0'+a,c)}}
+  return [...new Set(out)];
+}
+const validBarcode=(code,format='')=>barcodeCandidates(code,format).length>0;
+async function lookupBarcode(code,format=''){
+  const cands=barcodeCandidates(code,format);if(!cands.length)return {error:"That barcode number isn't valid. Check the digits."};
+  const fav=favourites.find(f=>cands.includes(f.barcode));if(fav)return {food:favFood(fav)};
   if(!navigator.onLine)return {error:"You're offline. Looking up a new barcode needs internet; use Quick add for now."};
-  for(const c of code.length===12?[code,'0'+code]:[code]){
+  for(const c of cands){
     const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
     try{const r=await fetch(OFF_PRODUCT+c+'.json?'+new URLSearchParams({fields:'code,product_name,brands,nutriments,serving_size,serving_quantity'}),{signal:ctl.signal});
       if(r.status===404)continue;if(r.status===429)return {error:'Open Food Facts is busy. Try again in a minute.'};if(!r.ok)return {error:'Open Food Facts did not answer. Try again.'};
@@ -151,11 +169,14 @@ async function lookupBarcode(code){
 function loadZxing(){if(window.ZXing?.MultiFormatReader)return Promise.resolve(window.ZXing);return zxingLoad||(zxingLoad=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src=ZXING_URL;sc.async=true;sc.onload=()=>window.ZXing?.MultiFormatReader?res(window.ZXing):rej(Error('Scanner failed to load'));sc.onerror=()=>{zxingLoad=null;rej(Error('Scanner failed to load'))};document.head.appendChild(sc)}))}
 async function makeDetector(){
   // Android Chrome has a built-in barcode reader; everywhere else (iPhone) use ZXing on a centre crop of the frame
-  try{if('BarcodeDetector' in window){const f=await window.BarcodeDetector.getSupportedFormats();if(f.includes('ean_13')){const d=new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e'].filter(x=>f.includes(x))});return async video=>{const r=await d.detect(video);return r[0]?.rawValue||''}}}}catch{}
-  const Z=await loadZxing(),reader=new Z.MultiFormatReader(),hints=new Map([[Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E]],[Z.DecodeHintType.TRY_HARDER,true]]);reader.setHints(hints);
+  try{if('BarcodeDetector' in window){const f=await window.BarcodeDetector.getSupportedFormats();if(f.includes('ean_13')){const d=new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e'].filter(x=>f.includes(x))});return async video=>{const r=await d.detect(video);return r[0]?{code:String(r[0].rawValue||''),format:String(r[0].format||'')}:null}}}}catch{}
+  // No UPC-E here: ZXing 0.23.0's JavaScript UPC-E reader is broken (it expands with character codes and pads the result),
+  // so it never returns a correct UPC-E. Those short codes can still be typed, and Android's built-in reader handles them.
+  const Z=await loadZxing(),reader=new Z.MultiFormatReader(),hints=new Map([[Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.UPC_A]],[Z.DecodeHintType.TRY_HARDER,true]]);reader.setHints(hints);
   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
-  return async video=>{const w=video.videoWidth,h=video.videoHeight;if(!w||!h)return '';const cw=Math.round(w*0.9),ch=Math.round(Math.min(h,w*0.5));canvas.width=Math.min(cw,1280);canvas.height=Math.round(ch*canvas.width/cw);ctx.drawImage(video,(w-cw)/2,(h-ch)/2,cw,ch,0,0,canvas.width,canvas.height);
-    try{const bmp=new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(canvas)));return reader.decodeWithState(bmp).getText()}catch{return ''}finally{reader.reset()}};
+  const formats=new Map([[Z.BarcodeFormat.EAN_13,'ean_13'],[Z.BarcodeFormat.EAN_8,'ean_8'],[Z.BarcodeFormat.UPC_A,'upc_a']]);
+  return async video=>{const w=video.videoWidth,h=video.videoHeight;if(!w||!h)return null;const cw=Math.round(w*0.9),ch=Math.round(Math.min(h,w*0.5));canvas.width=Math.min(cw,1280);canvas.height=Math.round(ch*canvas.width/cw);ctx.drawImage(video,(w-cw)/2,(h-ch)/2,cw,ch,0,0,canvas.width,canvas.height);
+    try{const bmp=new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(canvas)));const res=reader.decodeWithState(bmp);return {code:res.getText(),format:formats.get(res.getBarcodeFormat())||''}}catch{return null}finally{reader.reset()}};
 }
 function stopCamera(){scanRun++;if(camera){for(const t of camera.getTracks())t.stop();camera=null}const v=sheet?.querySelector('video');if(v)v.srcObject=null}
 
@@ -247,7 +268,7 @@ ${mealChips(meal)}
   const video=body.querySelector('video'),statusEl=body.querySelector('.fitScanStatus'),miss=body.querySelector('[data-miss]');
   const say=t=>{statusEl.textContent=t};
   bindMealChips(body,m=>meal=m);
-  const found=async code=>{stopCamera();statusEl.textContent='Found '+code;body.querySelector('.fitScanView').classList.add('found');const r=await lookupBarcode(code);if(!sheet?.classList.contains('open'))return;
+  const found=async(code,format='')=>{stopCamera();statusEl.textContent='Found '+code;body.querySelector('.fitScanView').classList.add('found');const r=await lookupBarcode(code,format);if(!sheet?.classList.contains('open'))return;
     if(r.food){openAmount(r.food,meal,()=>openScan(meal));return}
     statusEl.textContent=r.error;miss.hidden=false;
     miss.innerHTML=`<button type="button" class="fitPrimary" data-again>Scan again</button><button type="button" class="fitSecondary" data-quick>+ Quick add</button><button type="button" class="fitSecondary" data-name>Search</button>`;
@@ -259,9 +280,9 @@ ${mealChips(meal)}
       if(run!==scanRun){for(const t of stream.getTracks())t.stop();return}
       camera=stream;video.srcObject=stream;await video.play().catch(()=>{});if(run!==scanRun)return;say('Point the camera at the barcode');
       const detect=await makeDetector();if(run!==scanRun)return;let last='';
-      while(run===scanRun&&camera){const code=await detect(video).catch(()=>'');if(run!==scanRun||!camera)return;
-        // read the same valid code twice in a row before trusting it
-        if(validBarcode(code)){if(code===last){found(code);return}last=code}else last='';
+      while(run===scanRun&&camera){const hit=await detect(video).catch(()=>null);if(run!==scanRun||!camera)return;
+        // read the same valid code (and type) twice in a row before trusting it
+        const key=hit?hit.format+':'+hit.code:'';if(hit&&validBarcode(hit.code,hit.format)){if(key===last){found(hit.code,hit.format);return}last=key}else last='';
         await new Promise(r=>setTimeout(r,120))}
     }catch(e){if(run!==scanRun)return;stopCamera();say(e?.name==='NotAllowedError'?'Camera access is off for Planly. Allow it in Settings, or type the barcode number.':/load/.test(String(e?.message))?'The scanner could not load. Check your connection, or type the barcode number.':'The camera could not start. Type the barcode number instead.')}
   })();
@@ -362,6 +383,6 @@ async function init(){
   sb.auth.onAuthStateChange((_e,s)=>{const next=s?.user?.id||'';if(next===userId)return;userId=next;restore();invalidate();closeSheet();if(userId)refresh();else if(state.tab==='fitness')render()});
   if(userId&&navigator.onLine)refresh();else if(state.tab==='fitness')render();
 }
-window.PlanlyFitness={validBarcode,refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
+window.PlanlyFitness={validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
 setTimeout(()=>init().catch(e=>console.warn('Planly fitness',e)),0);
 })();
