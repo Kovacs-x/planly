@@ -39,7 +39,7 @@ await context.route('https://search.openfoodfacts.org/**',async route=>{fast.req
 const qs=()=>fast.requests.map(u=>new URL(u).searchParams.get('q')).sort().join(' | ');
 await context.route('https://world.openfoodfacts.org/**',route=>{offRequests.push(route.request().url());route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({count:2,products:[
   {code:'5000436589457',product_name:'Greek Style Yogurt 0% Fat',brands:'Tesco',serving_quantity:150,serving_size:'1 pot (150 g)',nutriments:{'energy-kcal_100g':57,proteins_100g:10.2,carbohydrates_100g:4,fat_100g:0.2}},
-  {code:'1',product_name:'<img src=x onerror=alert(1)>',brands:'X',nutriments:{'energy-kcal_100g':100}},
+  {code:'1',product_name:'<img src=x onerror=alert(1)> Greek yogurt',brands:'X',nutriments:{'energy-kcal_100g':100}},
   {code:'2',product_name:'No energy',nutriments:{}}]})})});
 // registered last so it is checked first: simulates the classic search being busy or down
 await context.route('https://world.openfoodfacts.org/cgi/**',route=>{if(classic.down)return route.fulfill({status:503,body:'<html>Service unavailable</html>'});if(classic.busyOnce){classic.busyOnce=false;return route.fulfill({status:503,body:'busy'})}return route.fallback()});
@@ -78,7 +78,7 @@ check('Recent lists foods eaten before',await page.locator('.fitResult strong',{
 await page.fill('.fitSearchForm input','greek yogurt');await page.click('.fitSearchForm button');await W(800);
 const results=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
 check('Open Food Facts results are listed (no energy = skipped)',results.includes('Greek Style Yogurt 0% Fat')&&!results.includes('No energy'),results.join());
-check('product names are shown as text, not HTML',results.includes('<img src=x onerror=alert(1)>')&&dialogs.length===0);
+check('product names are shown as text, not HTML',results.includes('<img src=x onerror=alert(1)> Greek yogurt')&&dialogs.length===0);
 const offQ=new URL(offRequests[0]||'http://x');
 check('only the search words go to Open Food Facts',offQ.searchParams.get('search_terms')==='greek yogurt'&&!offRequests[0].includes(OWNER)&&!offRequests[0].includes('@'),offRequests[0]);
 await page.locator('.fitResult',{hasText:'Greek Style Yogurt'}).click();await W(300);
@@ -100,6 +100,7 @@ check('typing keeps the same box, focused, with no sheet redraw',typed.same&&typ
 fast.mode='up';fast.requests.length=0;offRequests.length=0;await page.click('.fitSearchForm button');await W(800);
 let names=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
 check('the fast search service is used first',names.includes('Fage Total 0%')&&offRequests.length===0&&qs()==='greek | greek*'&&!fast.requests[0].includes(OWNER),JSON.stringify(names)+' '+fast.requests.join());
+check('answers that match only through other product text are shown as labelled close matches, not as matches',/Open Food Facts · close matches/.test(await page.textContent('.fitSearchList')),await page.textContent('.fitSearchList'));
 check('a brand list from the fast service shows the first brand',(await page.locator('.fitResult',{hasText:'Fage Total'}).textContent())?.includes('Fage ·'));
 fast.mode='down';classic.busyOnce=true;offRequests.length=0;await page.fill('.fitSearchForm input','greek y');await page.click('.fitSearchForm button');await W(3500);
 names=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
@@ -122,7 +123,7 @@ await page.fill('.fitSearchForm input','');fast.requests.length=0;await page.key
 let sug=await page.$$eval('.fitList:last-of-type .fitResult strong',e=>e.map(x=>x.textContent));
 check('one round of requests after a pause, not one per letter: the last word as a word start, and the finished words',qs()==='coco | coco p*',qs());
 check('suggestions appear without pressing Search, best match first, no duplicates',JSON.stringify(sug.slice(0,2))==='["Coco Pops","Kellogg\'s Coco Pops"]'&&sug.filter(n=>n==='Coco Pops').length===1&&!sug.includes('Coco Pops Bar'),JSON.stringify(sug));
-check('a looser match from Open Food Facts is kept, lower down',sug.at(-1)==='Hot Chocolate',JSON.stringify(sug));
+check('a result that does not match every typed word (Hot Chocolate, found only through other product text) is not shown',!sug.includes('Hot Chocolate')&&!/close matches/.test(await page.textContent('.fitSearchList')),JSON.stringify(sug));
 await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;await page.keyboard.type('coco p',{delay:20});await W(700);
 check('retyping the same words is answered from memory (no new request)',fast.requests.length===0&&(await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent))).includes('Coco Pops'));
 await page.fill('.fitSearchForm input','');await W(100);fast.requests.length=0;fast.delay={'coco*':1500};

@@ -654,6 +654,13 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
  const foods=[{name:"Coconut Milk",brand:'Alpro'},{name:"Kellogg's Coco Pops",brand:"Kellogg's"},{name:'Coco Pops',brand:"Kellogg's"},{name:'Coco Pops',brand:"Kellogg's"},{name:'Hot Chocolate',brand:'Cadbury'},{name:'Crème brûlée',brand:'Gü'}];
  const r1=R(foods,'coco p');if(JSON.stringify(r1)!==JSON.stringify(["Coco Pops / Kellogg's","Kellogg's Coco Pops / Kellogg's"]))fail('ranking for "coco p" wrong: '+JSON.stringify(r1));
  const K=JSON.parse(JSON.stringify(ctx.window.PlanlyFitness.rankFoods([{name:'Greek yoghurt',brand:'X'},{name:'Greek Yogurt',brand:'Y'}],'greek yogurt',undefined,true))).map(f=>f.name);if(JSON.stringify(K)!=='["Greek Yogurt","Greek yoghurt"]')fail('Open Food Facts answers must be re-ranked, not dropped: '+JSON.stringify(K));
+ // Open Food Facts answers: strict matches only; non-matching answers appear only as labelled close matches when nothing matches
+ {const SC=(list,q)=>{const r=ctx.window.PlanlyFitness.strictOrClose(list,q);return {names:JSON.parse(JSON.stringify(r)).map(f=>f.name),close:!!r.close}};
+  const a=SC([{name:'Hot Chocolate',brand:'Cadbury'},{name:'Coco Pops',brand:"Kellogg's"}],'coco p');if(JSON.stringify(a)!=='{"names":["Coco Pops"],"close":false}')fail('an answer not matching every typed word must be dropped when real matches exist: '+JSON.stringify(a));
+  const b=SC([{name:'Chausson aux pommes',brand:'U'}],'apple');if(JSON.stringify(b)!=='{"names":["Chausson aux pommes"],"close":true}')fail('when nothing matches, answers must be marked as close matches: '+JSON.stringify(b));
+  const c=SC([],'apple');if(JSON.stringify(c)!=='{"names":[],"close":false}')fail('no answers: nothing, not close matches: '+JSON.stringify(c));}
+ for(const x of ["const out=strictOrClose(got.flatMap(x=>x.status==='fulfilled'?x.value:[]),q),top=out.slice(0,size);top.close=out.close;return top;","return strictOrClose((j.products||[]).map(offProduct).filter(Boolean),q)}","${shown.off.close&&shown.off.length?' · close matches':''}"])if(!fit.includes(x))fail('Fitness strict-match invariant missing: '+x);
+ if((fit.match(/,undefined,true\)/g)||[]).length!==1||!fit.includes('const close=rankFoods(list,q,undefined,true);close.close=true;'))fail('Open Food Facts answers must go through strictOrClose, not keepAll ranking');
  if(R(foods,'kell').length!==2||R(foods,'cadbury')[0]!=='Hot Chocolate / Cadbury'||R(foods,'creme')[0]!=='Crème brûlée / Gü'||R(foods,'pops coco').length!==2||R(foods,'xyz').length!==0||R(foods,'').length!==5)fail('search matching rules wrong');}
 // The search sheet itself must say that words are sent as you type (privacy.html says the same).
 {const fit=read('v2/core-fitness-v5.1.js'),priv=read('privacy.html');

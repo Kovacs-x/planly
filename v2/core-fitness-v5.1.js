@@ -140,7 +140,7 @@ function matchScore(f,qw){
   for(const q of qw){const hit=all.findIndex(w=>w.startsWith(q));if(hit<0)return null;if(all[hit]===q)score+=2;if(hit<nw.length)score+=1}
   if(nw[0]?.startsWith(qw[0]))score+=4;return score-nw.length*0.05;
 }
-// keepAll: Open Food Facts answers are re-ranked, not filtered (it also matches spellings like yoghurt/yogurt)
+// keepAll: re-rank without dropping anything (used only for close matches, below)
 function rankFoods(list,q,boost=()=>0,keepAll=false){const qw=words(q),seen=new Set();return list.map((f,i)=>({f,i,s:matchScore(f,qw)??(keepAll?-100:null)})).filter(x=>x.s!==null).map(x=>({...x,s:x.s+boost(x.f)})).sort((a,b)=>b.s-a.s||a.i-b.i).map(x=>x.f).filter(f=>{const k=(f.name+'|'+f.brand).toLowerCase();if(seen.has(k))return false;seen.add(k);return true})}
 // Answers from Open Food Facts are kept for this session, so going back or retyping is instant.
 const offCache=new Map(),cacheSet=(k,v)=>{offCache.set(k,v);if(offCache.size>60)offCache.delete(offCache.keys().next().value)};
@@ -155,8 +155,12 @@ async function fastSearch(q,size,ms,signal){
   const asks=[ask([...qw.slice(0,-1),qw[qw.length-1]+'*'].join(' '),size)];
   asks.push(ask((qw.length>1?qw.slice(0,-1):qw).join(' '),30).then(list=>rankFoods(list,q))); // one word: the word as typed
   const got=await Promise.allSettled(asks);if(got.every(x=>x.status==='rejected')){const e=got[0].reason;if(e&&typeof e==='object')e.also=got[1]?.reason;throw e}
-  return rankFoods(got.flatMap(x=>x.status==='fulfilled'?x.value:[]),q,undefined,true).slice(0,size);
+  const out=strictOrClose(got.flatMap(x=>x.status==='fulfilled'?x.value:[]),q),top=out.slice(0,size);top.close=out.close;return top;
 }
+// Open Food Facts answers: only foods where every typed word starts a word of the name or brand. If none match that
+// way (other spellings like yoghurt/yogurt, or names in another language), the answers are shown as close matches,
+// clearly labelled, instead of nothing.
+function strictOrClose(list,q){const strict=rankFoods(list,q);if(strict.length||!list.length)return strict;const close=rankFoods(list,q,undefined,true);close.close=true;return close}
 // Suggestions while typing: the fast search service only, a short wait, and the previous request cancelled.
 const suggestOff=(q,signal)=>fastSearch(q,12,6000,signal);
 async function searchOff(q,onSlow){
@@ -166,7 +170,7 @@ async function searchOff(q,onSlow){
     let fastWhy='found nothing';try{const found=await fastSearch(q,20,8000);if(found.length)return found}catch(e){fastWhy=whyFailed(e)}
     const url=OFF_SEARCH+'?'+new URLSearchParams({search_terms:q,search_simple:'1',action:'process',json:'1',page_size:'20',fields:OFF_FIELDS});
     for(let attempt=0;attempt<2;attempt++){
-      try{const j=await getJson(url,20000);return rankFoods((j.products||[]).map(offProduct).filter(Boolean),q,undefined,true)}
+      try{const j=await getJson(url,20000);return strictOrClose((j.products||[]).map(offProduct).filter(Boolean),q)}
       catch(e){if(attempt===0&&navigator.onLine){await new Promise(r=>setTimeout(r,1500));continue}
         if(!navigator.onLine)throw Error("You're offline. Search needs internet; your favourites and recent foods still work.");
         const err=Error('Open Food Facts is slow or busy right now. Try again in a moment, or use Quick add.');err.detail='Fast search: '+fastWhy+'. Main search: '+whyFailed(e)+'.';throw err}
@@ -299,7 +303,7 @@ function openSearch(meal,initial='',keep=null){
     listEl.innerHTML=`${shown.mine.length?`<h3 class="fitGroup">${q?'Your foods':'Favourites and recent'}</h3><div class="fitList">${shown.mine.map((f,i)=>item(f,'mine',i)).join('')}</div>`:''}
 ${status?`<p class="fitStatus" role="status">${esc(status)}</p>${detail?`<p class="fitFootnote" data-why>${esc(detail)}</p>`:''}`:''}
 ${!status&&sugNote&&!shown.off.length&&!pendingNow?`<p class="fitFootnote" data-why>${esc(sugNote)}</p>`:''}
-${shown.off.length||pendingNow?`<h3 class="fitGroup">Open Food Facts${pendingNow?' <span class="fitSpin" aria-label="Loading"></span>':''}</h3>`:''}${shown.off.length?`<div class="fitList">${shown.off.map((f,i)=>item(f,'off',i)).join('')}</div>`:''}
+${shown.off.length||pendingNow?`<h3 class="fitGroup">Open Food Facts${shown.off.close&&shown.off.length?' · close matches':''}${pendingNow?' <span class="fitSpin" aria-label="Loading"></span>':''}</h3>`:''}${shown.off.length?`<div class="fitList">${shown.off.map((f,i)=>item(f,'off',i)).join('')}</div>`:''}
 ${!shown.mine.length&&!shown.off.length&&!status&&!pendingNow&&!sugNote?`<p class="fitStatus">${q?'Keep typing for suggestions, or press Search.':'Search for a food, or use Quick add for just the calories.'}</p>`:''}`};
   const redraw=()=>{if(!frame)frame=requestAnimationFrame(drawList)};
   const suggest=async q=>{
@@ -447,6 +451,6 @@ async function init(){
   sb.auth.onAuthStateChange((_e,s)=>{const next=s?.user?.id||'';if(next===userId)return;userId=next;restore();invalidate();closeSheet();if(userId)refresh();else if(state.tab==='fitness')render()});
   if(userId&&navigator.onLine)refresh();else if(state.tab==='fitness')render();
 }
-window.PlanlyFitness={rankFoods,validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
+window.PlanlyFitness={rankFoods,strictOrClose,validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
 setTimeout(()=>init().catch(e=>console.warn('Planly fitness',e)),0);
 })();
