@@ -269,7 +269,7 @@ function openSearch(meal,initial='',keep=null){
   const back=()=>openSearch(meal,query,{results,status});
   const body=showSheet('Add food',`<form class="fitSearchForm" data-search-form><input name="q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Food name or barcode number" value="${esc(query)}" aria-label="Search foods"><button type="submit" class="fitPrimary">Search</button></form>${mealChips(meal)}
 <div class="fitSearchList" data-list></div>
-<p class="fitFootnote">Suggestions and search use Open Food Facts, a free food database. Only the words you type, or a barcode number, are sent to it.</p>`);
+<p class="fitFootnote">Suggestions and search use Open Food Facts, a free food database. As you type, the words in the search box are sent to it after a short pause, from three letters, to show suggestions. Only those words, or a barcode number, are sent: never your account or food log.</p>`);
   sheet.querySelector('.fitSheet').classList.add('tall');
   const input=body.querySelector('input[name="q"]'),listEl=body.querySelector('[data-list]');
   const item=(f,key,i)=>`<button type="button" class="fitResult" data-pick="${key}:${i}"><span><strong>${esc(f.name)}</strong><small>${esc([f.brand,foodLine(f)].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`;

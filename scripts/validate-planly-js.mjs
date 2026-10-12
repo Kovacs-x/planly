@@ -655,4 +655,9 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
  const r1=R(foods,'coco p');if(JSON.stringify(r1)!==JSON.stringify(["Coco Pops / Kellogg's","Kellogg's Coco Pops / Kellogg's"]))fail('ranking for "coco p" wrong: '+JSON.stringify(r1));
  const K=JSON.parse(JSON.stringify(ctx.window.PlanlyFitness.rankFoods([{name:'Greek yoghurt',brand:'X'},{name:'Greek Yogurt',brand:'Y'}],'greek yogurt',undefined,true))).map(f=>f.name);if(JSON.stringify(K)!=='["Greek Yogurt","Greek yoghurt"]')fail('Open Food Facts answers must be re-ranked, not dropped: '+JSON.stringify(K));
  if(R(foods,'kell').length!==2||R(foods,'cadbury')[0]!=='Hot Chocolate / Cadbury'||R(foods,'creme')[0]!=='Crème brûlée / Gü'||R(foods,'pops coco').length!==2||R(foods,'xyz').length!==0||R(foods,'').length!==5)fail('search matching rules wrong');}
+// The search sheet itself must say that words are sent as you type (privacy.html says the same).
+{const fit=read('v2/core-fitness-v5.1.js'),priv=read('privacy.html');
+ for(const x of ['As you type, the words in the search box are sent to it after a short pause, from three letters, to show suggestions.','Only those words, or a barcode number, are sent: never your account or food log.'])if(!fit.includes(x))fail('Search sheet privacy note missing: '+x);
+ if(!priv.includes('Suggestions appear as you type, so the words you type in the food search are sent to it as you type (after a short pause, from three letters)'))fail('Privacy page must describe suggestions sent as you type');
+ if(!/const redraw=[\s\S]{0,4000}timer=setTimeout\(\(\)=>suggest\(q\),300\)/.test(fit)||!fit.includes("if(q.length>=3&&!/^\\d+$/.test(q)&&navigator.onLine)"))fail('Suggestions must wait 300 ms and start at three letters, as the notes say');}
 console.log('Fitness checks passed.');
