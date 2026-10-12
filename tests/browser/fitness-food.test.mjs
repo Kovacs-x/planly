@@ -117,7 +117,7 @@ classic.down=false;await page.click('.fitSheetDone');await W(300);
 await page.click('.fitActions [data-fit="search"]');await W(300);fast.mode='up';fast.requests.length=0;
 await page.focus('.fitSearchForm input');await page.keyboard.type('gre y');
 const instant=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
-check('the search sheet says words are sent as you type, after a pause, from three letters',/As you type, the words in the search box are sent to it after a short pause, from three letters/.test(await page.textContent('.fitSheet .fitFootnote'))&&/never your account or food log/.test(await page.textContent('.fitSheet .fitFootnote')));
+check('the search sheet shows no explainer note',await page.locator('.fitSheet .fitFootnote:not([data-why])').count()===0);
 check('your own foods show instantly as you type, matching word starts ("gre y")',instant.includes('Greek Style Yogurt 0% Fat')&&fast.requests.length===0,JSON.stringify(instant));
 await page.fill('.fitSearchForm input','');fast.requests.length=0;await page.keyboard.type('coco p',{delay:60});await W(900);
 let sug=await page.$$eval('.fitList:last-of-type .fitResult strong',e=>e.map(x=>x.textContent));

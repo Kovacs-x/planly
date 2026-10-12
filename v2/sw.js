@@ -1,6 +1,6 @@
-const CACHE='planly-v2-721t-114';
-const VERSION='planly-v2-sw-721t-114';
-const APP_URL='./app-v3.2.0.js?v=721t03';
+const CACHE='planly-v2-721t-115';
+const VERSION='planly-v2-sw-721t-115';
+const APP_URL='./app-v3.2.0.js?v=721t04';
 const HARDENING_URL='./hardening-v3.3b.js?v=716h01';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p03';
@@ -9,7 +9,7 @@ const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=718s01';
 const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=713n01';
 const CORE_HOUSEHOLD_CALENDAR_URL='./core-household-calendar-v3.3c.js?v=712c01';
 const CORE_BUDGET_NAV_URL='./core-budget-nav-v4.0b1.js?v=709n01';
-const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=721t03';
+const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=721t04';
 const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=719r01';
 const BUDGET_RUNTIME_URL='./core-budget-v4.0b.js?v=714k01';
 const BUDGET_UI_URL='./core-budget-ui-v4.0b.js?v=695b01';
