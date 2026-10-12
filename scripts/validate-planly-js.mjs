@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=719r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-720s-111'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-112'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=720s01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -585,10 +585,10 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
  if(/grant execute on function public\.planly_push_worklist\(timestamptz\) to (anon|authenticated)/.test(m53))fail('push worklist must stay service_role only');}
 // Fitness › Food (5.1): fifth tab, private to the signed-in person (tables from migrations 054/055).
 {const fit=read('v2/core-fitness-v5.1.js'),sw=s.sw,html=read('v2/index.html'),r1=read('v2/core-redesign-r1.js');
- if(!sw.includes("const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=720s01';")||!sw.includes('CORE_BUDGET_NAV_URL,CORE_FITNESS_URL,CORE_REDESIGN_R1_URL];'))fail('Fitness core module must load after Budget nav and before R1');
+ if(!sw.includes("const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=721t01';")||!sw.includes('CORE_BUDGET_NAV_URL,CORE_FITNESS_URL,CORE_REDESIGN_R1_URL];'))fail('Fitness core module must load after Budget nav and before R1');
  if(!html.includes('<button data-tab="fitness" data-section="fitness" aria-label="Fitness">')||!html.includes('<style id="planlyFitness">')||!html.includes('body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:var(--fitnessTint)}'))fail('Fitness tab, styles or section colour missing');
  if(!r1.includes("if(tab==='fitness')return'fitness';")||!r1.includes("['settings','home','budget','fitness'].includes(state.tab)?'none':'block'"))fail('R1 must treat Fitness as its own section without the add button');
- for(const x of ["owner_id:userId","sb.from('planly_food_profile').select('*').eq('owner_id',userId)","sb.from('planly_food_entries').select('*').eq('owner_id',userId)","sb.from('planly_food_favourites').select('*').eq('owner_id',userId)",".eq(idCol,op.key).eq('cloud_version',op.base)","e.code='PLANLY_CONFLICT'","STORE+userId","const OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl',OFF_PRODUCT='https://world.openfoodfacts.org/api/v2/product/';","new URLSearchParams({search_terms:q,"])if(!fit.includes(x))fail('Fitness invariant missing: '+x);
+ for(const x of ["owner_id:userId","sb.from('planly_food_profile').select('*').eq('owner_id',userId)","sb.from('planly_food_entries').select('*').eq('owner_id',userId)","sb.from('planly_food_favourites').select('*').eq('owner_id',userId)",".eq(idCol,op.key).eq('cloud_version',op.base)","e.code='PLANLY_CONFLICT'","STORE+userId","const OFF_FAST='https://search.openfoodfacts.org/search',OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl',OFF_PRODUCT='https://world.openfoodfacts.org/api/v2/product/';","getJson(OFF_FAST+'?'+new URLSearchParams({q,page_size:'20',fields:OFF_FIELDS}),8000)","input.addEventListener('input',()=>{query=input.value;if(!busy){status='';results=[]}drawList()});","new URLSearchParams({search_terms:q,"])if(!fit.includes(x))fail('Fitness invariant missing: '+x);
  if(/service_role|household_id|\bvisibility\b|\bhousehold\b/.test(fit.replace(/\/\/.*$/gm,'')))fail('Fitness must stay private (no household or service-role access)');
  // Text that comes from people or Open Food Facts (names, brands, serving labels, search words, messages) is always escaped.
  // A bare value of that kind may only go into plain-text toasts, attribute selectors or fixed segment names, never into HTML.
@@ -645,4 +645,7 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
   if(decode(upceModules('04252614')))fail('ZXing now reads UPC-E: re-check its UPC-E output before enabling it');
   if(/POSSIBLE_FORMATS,\[[^\]]*UPC_E/.test(fit))fail('UPC-E must stay off for ZXing (its 0.23.0 UPC-E reader is broken)');
   if(!fit.includes("formats:['ean_13','ean_8','upc_a','upc_e'].filter(x=>f.includes(x))"))fail('Built-in BarcodeDetector should still read UPC-E');}}
+// Typing in Search must not redraw the sheet (it made the page jump on iPhone): only the list under the box changes.
+{const fit=read('v2/core-fitness-v5.1.js'),i=fit.indexOf('function openSearch('),j=fit.indexOf('function openScan(');const body=fit.slice(i,j);
+ if((body.match(/showSheet\(/g)||[]).length!==1||!/const drawList=\(\)=>\{/.test(body)||/drawList[^;]*showSheet/.test(body))fail('Search must draw its sheet once and only redraw the list');}
 console.log('Fitness checks passed.');

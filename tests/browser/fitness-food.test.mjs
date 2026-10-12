@@ -15,10 +15,15 @@ db.tables.planly_food_entries=[
   {id:'e0000000-0000-4000-8000-0000000000a1',owner_id:OWNER,client_id:'o1',entry_date:yest,meal:'breakfast',name:'Overnight oats',brand:'',barcode:null,source:'search',amount:1,unit:'serving',kcal:1800,protein_g:20,carbs_g:60,fat_g:10,client_created_at:1,client_updated_at:1,cloud_version:1,deleted_at:null}];
 const {context,errors}=await newPhone(browser,db,OWNER);
 const offRequests=[];
+const fast={mode:'down',requests:[]},classic={busyOnce:false,down:false};
+await context.route('https://search.openfoodfacts.org/**',route=>{fast.requests.push(route.request().url());if(fast.mode==='down')return route.abort('failed');
+  route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({count:1,hits:[{code:'5010',product_name:'Fage Total 0%',brands:['Fage','Other'],serving_quantity:170,nutriments:{'energy-kcal_100g':54,proteins_100g:10.3,carbohydrates_100g:3,fat_100g:0}}]})})});
 await context.route('https://world.openfoodfacts.org/**',route=>{offRequests.push(route.request().url());route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({count:2,products:[
   {code:'5000436589457',product_name:'Greek Style Yogurt 0% Fat',brands:'Tesco',serving_quantity:150,serving_size:'1 pot (150 g)',nutriments:{'energy-kcal_100g':57,proteins_100g:10.2,carbohydrates_100g:4,fat_100g:0.2}},
   {code:'1',product_name:'<img src=x onerror=alert(1)>',brands:'X',nutriments:{'energy-kcal_100g':100}},
   {code:'2',product_name:'No energy',nutriments:{}}]})})});
+// registered last so it is checked first: simulates the classic search being busy or down
+await context.route('https://world.openfoodfacts.org/cgi/**',route=>{if(classic.down)return route.fulfill({status:503,body:'<html>Service unavailable</html>'});if(classic.busyOnce){classic.busyOnce=false;return route.fulfill({status:503,body:'busy'})}return route.fallback()});
 const page=await openApp(context,errors);
 const dialogs=[];page.on('dialog',d=>{dialogs.push(d.message());d.dismiss()});
 const ui=()=>page.evaluate(()=>({tab:document.querySelector('.nav button.active')?.dataset.tab,title:document.querySelector('#pageTitle')?.textContent,add:getComputedStyle(document.querySelector('#addBtn')).display,fit:!!document.querySelector('.fitView'),left:document.querySelector('.fitRingText strong')?.textContent,eaten:document.querySelector('.fitSummaryFoot span strong')?.textContent,avg:[...document.querySelectorAll('.fitSummaryFoot span')].pop()?.textContent,entries:[...document.querySelectorAll('.fitEntry strong')].map(x=>x.textContent),setup:!!document.querySelector('.fitSetup'),notice:document.querySelector('.fitNotice')?.textContent||'',navRows:new Set([...document.querySelectorAll('.nav button')].map(b=>Math.round(b.getBoundingClientRect().top))).size}));
@@ -66,6 +71,24 @@ let yog=mine().find(r=>r.name==='Greek Style Yogurt 0% Fat');
 check('the food is saved with its nutrients',yog&&yog.kcal===114&&yog.protein_g===20.4&&yog.meal==='lunch'&&yog.unit==='g'&&yog.amount===200&&yog.barcode==='5000436589457'&&yog.entry_date===today,JSON.stringify(yog));
 const fav=db.tables.planly_food_favourites[0];
 check('and saved to favourites per 100 g',fav&&fav.owner_id===OWNER&&fav.kcal_100===57&&fav.serving_g===150,JSON.stringify(fav));
+
+// 3b. Typing never redraws the search box (it made the page jump on iPhone), and search survives a slow or busy service
+await page.click('.fitActions [data-fit="search"]');await W(400);
+await page.evaluate(()=>{const i=document.querySelector('.fitSearchForm input');i.dataset.mark='same';window.__sheetDraws=0;new MutationObserver(m=>{for(const r of m)for(const n of r.addedNodes)if(n.nodeType===1&&n.querySelector?.('.fitSearchForm'))window.__sheetDraws++}).observe(document.querySelector('.fitSheetBody'),{childList:true})});
+await page.focus('.fitSearchForm input');await page.keyboard.type('greek',{delay:40});
+const typed=await page.evaluate(()=>({same:document.querySelector('.fitSearchForm input')?.dataset.mark==='same',focused:document.activeElement?.dataset?.mark==='same',value:document.activeElement?.value,redraws:window.__sheetDraws}));
+check('typing keeps the same box, focused, with no sheet redraw',typed.same&&typed.focused&&typed.value==='greek'&&typed.redraws===0,JSON.stringify(typed));
+fast.mode='up';fast.requests.length=0;offRequests.length=0;await page.click('.fitSearchForm button');await W(800);
+let names=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
+check('the fast search service is used first',names.includes('Fage Total 0%')&&offRequests.length===0&&new URL(fast.requests[0]).searchParams.get('q')==='greek'&&!fast.requests[0].includes(OWNER),JSON.stringify(names)+' '+fast.requests.join());
+check('a brand list from the fast service shows the first brand',(await page.locator('.fitResult',{hasText:'Fage Total'}).textContent())?.includes('Fage ·'));
+fast.mode='down';classic.busyOnce=true;offRequests.length=0;await page.click('.fitSearchForm button');await W(3500);
+names=await page.$$eval('.fitResult strong',e=>e.map(x=>x.textContent));
+check('if the fast service is down and the classic one is busy once, it retries and finds foods',names.filter(n=>n==='Greek Style Yogurt 0% Fat').length===2&&classic.busyOnce===false,JSON.stringify(names));
+classic.down=true;await page.click('.fitSearchForm button');await W(3500);
+const msg=await page.textContent('.fitSearchList');
+check('when both are down the message says Open Food Facts is busy, not "check your connection"',/slow or busy right now/.test(msg)&&!/Check your connection/.test(msg),msg.slice(0,160));
+classic.down=false;await page.click('.fitSheetDone');await W(300);
 
 // 4. Quick add
 await page.click('.fitActions [data-fit="quick"]');await W(300);

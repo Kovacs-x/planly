@@ -9,7 +9,7 @@ const nav=$('.nav button[data-tab="fitness"]');
 if(!nav)return;
 const STORE='planly-fitness-v1:',MEALS=[['breakfast','Breakfast'],['lunch','Lunch'],['dinner','Dinner'],['snack','Snacks']];
 const ACTIVITY=[['sedentary','Mostly sitting',1.2],['light','Lightly active',1.375],['moderate','Active 3–5 days a week',1.55],['active','Very active',1.725],['very_active','Hard training or physical job',1.9]];
-const OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl',OFF_PRODUCT='https://world.openfoodfacts.org/api/v2/product/';
+const OFF_FAST='https://search.openfoodfacts.org/search',OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl',OFF_PRODUCT='https://world.openfoodfacts.org/api/v2/product/';
 // ZXing 0.23.0 (Apache-2.0), vendored byte for byte from npm and loaded only when the scanner opens (iPhone has no built-in reader)
 const ZXING_URL='./vendor/zxing-library-0.23.0.min.js';
 let camera=null,scanRun=0,zxingLoad=null,inflight='',sb=null,userId='',profile=null,entries=[],favourites=[],pending=[],failures=[],loadedFrom='',dayKey=todayKey(),syncing=false,sheet=null,fitInvalid=true;
@@ -123,14 +123,26 @@ function offProduct(p){
   const n=p?.nutriments||{},kcal=num(n['energy-kcal_100g'],NaN),kj=num(n['energy-kj_100g']??n.energy_100g,NaN),k=Number.isFinite(kcal)?kcal:Number.isFinite(kj)?kj/4.184:NaN;
   const name=String(p?.product_name||'').trim();if(!name||!Number.isFinite(k))return null;
   const sq=num(p.serving_quantity,0);
-  return {name:name.slice(0,160),brand:String(p.brands||'').split(',')[0].trim().slice(0,120),barcode:/^[0-9]{6,14}$/.test(String(p.code||''))?String(p.code):null,basis:'100g',per:{kcal:clamp(k,0,2000),protein:clamp(num(n.proteins_100g),0,100),carbs:clamp(num(n.carbohydrates_100g),0,100),fat:clamp(num(n.fat_100g),0,100)},servingG:sq>0&&sq<=5000?sq:null,servingLabel:String(p.serving_size||'').slice(0,60),source:'search'};
+  return {name:name.slice(0,160),brand:String(Array.isArray(p.brands)?p.brands[0]||'':p.brands||'').split(',')[0].trim().slice(0,120),barcode:/^[0-9]{6,14}$/.test(String(p.code||''))?String(p.code):null,basis:'100g',per:{kcal:clamp(k,0,2000),protein:clamp(num(n.proteins_100g),0,100),carbs:clamp(num(n.carbohydrates_100g),0,100),fat:clamp(num(n.fat_100g),0,100)},servingG:sq>0&&sq<=5000?sq:null,servingLabel:String(p.serving_size||'').slice(0,60),source:'search'};
 }
-async function searchOff(q){
-  const url=OFF_SEARCH+'?'+new URLSearchParams({search_terms:q,search_simple:'1',action:'process',json:'1',page_size:'20',fields:'code,product_name,brands,nutriments,serving_size,serving_quantity'});
-  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
-  try{const r=await fetch(url,{signal:ctl.signal});if(r.status===429)throw Error('Open Food Facts is busy. Try again in a minute.');if(!r.ok)throw Error('Open Food Facts did not answer. Try again.');const j=await r.json();return (j.products||[]).map(offProduct).filter(Boolean)}
-  catch(e){if(e?.name==='AbortError'||isNetwork(e))throw Error("Couldn't reach Open Food Facts. Check your connection.");throw e}
-  finally{clearTimeout(timer)}
+// Open Food Facts has two name searches: the newer, faster search service, and the classic one (slower, often busy).
+// Try the fast one first, then the classic one (with one retry if it is busy). Only the search words are sent.
+const OFF_FIELDS='code,product_name,brands,nutriments,serving_size,serving_quantity';
+async function getJson(url,ms){const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms);try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok){const e=Error('HTTP '+r.status);e.status=r.status;throw e}return await r.json()}finally{clearTimeout(timer)}}
+async function searchOff(q,onSlow){
+  if(!navigator.onLine)throw Error("You're offline. Search needs internet; your favourites and recent foods still work.");
+  const slow=setTimeout(()=>onSlow?.(),5000);
+  try{
+    try{const j=await getJson(OFF_FAST+'?'+new URLSearchParams({q,page_size:'20',fields:OFF_FIELDS}),8000);if(Array.isArray(j?.hits))return j.hits.map(offProduct).filter(Boolean)}catch{}
+    const url=OFF_SEARCH+'?'+new URLSearchParams({search_terms:q,search_simple:'1',action:'process',json:'1',page_size:'20',fields:OFF_FIELDS});
+    for(let attempt=0;attempt<2;attempt++){
+      try{const j=await getJson(url,20000);return (j.products||[]).map(offProduct).filter(Boolean)}
+      catch(e){if(attempt===0&&navigator.onLine){await new Promise(r=>setTimeout(r,1500));continue}
+        if(!navigator.onLine)throw Error("You're offline. Search needs internet; your favourites and recent foods still work.");
+        throw Error('Open Food Facts is slow or busy right now. Try again in a moment, or use Quick add.')}
+    }
+    return [];
+  }finally{clearTimeout(slow)}
 }
 // Barcodes carry a check digit; a code that fails it is a misread and is never looked up.
 // EAN-8, UPC-A (12) and EAN-13 use the usual alternating 3/1 weights over the whole code. UPC-E (8 digits, number system
@@ -229,34 +241,43 @@ function ensureSheet(){
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sheet.classList.contains('open'))closeSheet()});
   return sheet;
 }
-function showSheet(title,html,onBack){stopCamera();const w=ensureSheet();w.querySelector('#fitSheetTitle').textContent=title;const back=w.querySelector('[data-fit-back]');back.hidden=!onBack;back.onclick=onBack||null;w.querySelector('.fitSheetBody').innerHTML=html;w.classList.add('open');w.setAttribute('aria-hidden','false');document.documentElement.classList.add('sheetOpen');return w.querySelector('.fitSheetBody')}
+function showSheet(title,html,onBack){stopCamera();const w=ensureSheet();w.querySelector('.fitSheet').classList.remove('tall');w.querySelector('#fitSheetTitle').textContent=title;const back=w.querySelector('[data-fit-back]');back.hidden=!onBack;back.onclick=onBack||null;w.querySelector('.fitSheetBody').innerHTML=html;w.classList.add('open');w.setAttribute('aria-hidden','false');document.documentElement.classList.add('sheetOpen');return w.querySelector('.fitSheetBody')}
 function closeSheet(){stopCamera();if(!sheet)return;sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');document.documentElement.classList.remove('sheetOpen');if(state.tab==='fitness'){invalidate();render()}}
 const mealChips=sel=>`<div class="fitChips" role="radiogroup" aria-label="Meal">${MEALS.map(([id,l])=>`<button type="button" role="radio" aria-checked="${id===sel}" class="${id===sel?'on':''}" data-meal-pick="${id}">${l}</button>`).join('')}</div>`;
 function bindMealChips(body,set){body.querySelectorAll('[data-meal-pick]').forEach(c=>c.onclick=()=>{body.querySelectorAll('[data-meal-pick]').forEach(x=>{x.classList.toggle('on',x===c);x.setAttribute('aria-checked',String(x===c))});set(c.dataset.mealPick)})}
 const foodLine=f=>`${fmt(f.per.kcal)} kcal ${f.basis==='serving'?'per serving':'per 100 g'}`;
 
-function openSearch(meal,initial=''){
-  let results=[],status='',query=initial;
-  const draw=()=>{
-    const q=query.trim().toLowerCase(),favs=[...favourites].filter(f=>!q||(f.name+' '+f.brand).toLowerCase().includes(q)).sort((a,b)=>num(b.use_count)-num(a.use_count)).slice(0,20);
-    const recent=q?[]:recentFoods().filter(r=>!favourites.some(f=>f.name===r.name&&f.brand===r.brand));
-    const item=(f,key,i)=>`<button type="button" class="fitResult" data-pick="${key}:${i}"><span><strong>${esc(f.name)}</strong><small>${esc([f.brand,foodLine(f)].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`;
-    const body=showSheet('Add food',`<form class="fitSearchForm" data-search-form><input name="q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Food name or barcode number" value="${esc(query)}" aria-label="Search foods"><button type="submit" class="fitPrimary">Search</button></form>${mealChips(meal)}
-${favs.length?`<h3 class="fitGroup">Favourites</h3><div class="fitList">${favs.map((f,i)=>item(favFood(f),'fav',i)).join('')}</div>`:''}
-${recent.length?`<h3 class="fitGroup">Recent</h3><div class="fitList">${recent.map((f,i)=>item(f,'recent',i)).join('')}</div>`:''}
+function openSearch(meal,initial='',keep=null){
+  // The search box, buttons and meal choice are drawn once; typing only redraws the list underneath, so the page and
+  // keyboard stay still while you type.
+  let results=keep?.results||[],status=keep?.status||'',query=initial,busy=0,shown={fav:[],recent:[],off:[]};const back=()=>openSearch(meal,query,{results,status});
+  const body=showSheet('Add food',`<form class="fitSearchForm" data-search-form><input name="q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Food name or barcode number" value="${esc(query)}" aria-label="Search foods"><button type="submit" class="fitPrimary">Search</button></form>${mealChips(meal)}
+<div class="fitSearchList" data-list></div>
+<p class="fitFootnote">Search uses Open Food Facts, a free food database. Only the words you search for, or a barcode number, are sent to it.</p>`);
+  sheet.querySelector('.fitSheet').classList.add('tall');
+  const input=body.querySelector('input[name="q"]'),listEl=body.querySelector('[data-list]');
+  const item=(f,key,i)=>`<button type="button" class="fitResult" data-pick="${key}:${i}"><span><strong>${esc(f.name)}</strong><small>${esc([f.brand,foodLine(f)].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`;
+  const drawList=()=>{
+    const q=query.trim().toLowerCase();
+    shown.fav=[...favourites].filter(f=>!q||(f.name+' '+f.brand).toLowerCase().includes(q)).sort((a,b)=>num(b.use_count)-num(a.use_count)).slice(0,20).map(favFood);
+    shown.recent=recentFoods().filter(r=>!favourites.some(f=>f.name===r.name&&f.brand===r.brand)).filter(r=>!q||(r.name+' '+r.brand).toLowerCase().includes(q));
+    shown.off=results;
+    listEl.innerHTML=`${shown.fav.length?`<h3 class="fitGroup">Favourites</h3><div class="fitList">${shown.fav.map((f,i)=>item(f,'fav',i)).join('')}</div>`:''}
+${shown.recent.length?`<h3 class="fitGroup">Recent</h3><div class="fitList">${shown.recent.map((f,i)=>item(f,'recent',i)).join('')}</div>`:''}
 ${status?`<p class="fitStatus" role="status">${esc(status)}</p>`:''}
 ${results.length?`<h3 class="fitGroup">Open Food Facts</h3><div class="fitList">${results.map((f,i)=>item(f,'off',i)).join('')}</div>`:''}
-${!favs.length&&!recent.length&&!results.length&&!status?'<p class="fitStatus">Search for a food, or use Quick add for just the calories.</p>':''}
-<p class="fitFootnote">Search uses Open Food Facts, a free food database. Only the words you search for are sent to it.</p>`);
-    const input=body.querySelector('input[name="q"]');
-    input.oninput=()=>{query=input.value;const pos=input.selectionStart;if(!results.length&&!status){draw();const i2=sheet.querySelector('input[name="q"]');i2.focus();try{i2.setSelectionRange(pos,pos)}catch{}}};
-    bindMealChips(body,m=>meal=m);
-    body.querySelector('[data-search-form]').onsubmit=async ev=>{ev.preventDefault();query=input.value.trim();
-      if(/^\d{8,14}$/.test(query)){if(!validBarcode(query)){status="That barcode number isn't valid. Check the digits.";results=[];draw();return}status='Looking up barcode…';results=[];draw();const r=await lookupBarcode(query);if(r.food){openAmount(r.food,meal,()=>draw());return}status=r.error;draw();return}
-      if(query.length<2){status='Type at least 2 letters.';draw();return}status='Searching…';results=[];draw();try{results=await searchOff(query);status=results.length?'':'No foods found. Try other words, or use Quick add.'}catch(err){status=err.message||'Search failed.'}draw()};
-    body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{const [k,i]=b.dataset.pick.split(':'),list=k==='fav'?favs.map(favFood):k==='recent'?recent:results,f=list[Number(i)];if(f)openAmount(f,meal,()=>draw())});
-  };
-  draw();setTimeout(()=>sheet?.querySelector('input[name="q"]')?.focus(),50);
+${!shown.fav.length&&!shown.recent.length&&!results.length&&!status?'<p class="fitStatus">Search for a food, or use Quick add for just the calories.</p>':''}`};
+  listEl.addEventListener('click',e=>{const b=e.target.closest('[data-pick]');if(!b)return;const [k,i]=b.dataset.pick.split(':'),f=shown[k]?.[Number(i)];if(f)openAmount(f,meal,back)});
+  input.addEventListener('input',()=>{query=input.value;if(!busy){status='';results=[]}drawList()});
+  bindMealChips(body,m=>meal=m);
+  body.querySelector('[data-search-form]').onsubmit=async ev=>{ev.preventDefault();query=input.value.trim();input.blur();const run=++busy;
+    if(/^\d{8,14}$/.test(query)){if(!validBarcode(query)){status="That barcode number isn't valid. Check the digits.";results=[];drawList();busy=0;return}status='Looking up barcode…';results=[];drawList();const r=await lookupBarcode(query);if(run!==busy)return;busy=0;if(r.food){openAmount(r.food,meal,back);return}status=r.error;drawList();return}
+    if(query.length<2){status='Type at least 2 letters.';drawList();busy=0;return}
+    status='Searching…';results=[];drawList();
+    try{const found=await searchOff(query,()=>{if(run===busy){status='Still searching… Open Food Facts can be slow.';drawList()}});if(run!==busy)return;results=found;status=results.length?'':'No foods found. Try other words, or use Quick add.'}
+    catch(err){if(run!==busy)return;status=err.message||'Search failed.'}
+    busy=0;drawList()};
+  drawList();if(!initial)setTimeout(()=>input.focus(),50);
 }
 function openScan(meal){
   const body=showSheet('Scan barcode',`<div class="fitScanView"><video playsinline muted autoplay aria-label="Camera"></video><div class="fitScanFrame" aria-hidden="true"><span></span></div><p class="fitScanStatus" role="status">Starting camera…</p></div>
