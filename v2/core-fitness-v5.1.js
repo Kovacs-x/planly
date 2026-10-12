@@ -2,14 +2,17 @@
 // app closure as the Fitness tab. Every row belongs to the signed-in person only (RLS: owner_id = auth.uid()); the
 // browser never chooses whose data it reads, it only sends its own rows. Works offline: changes are kept on the phone
 // and sent in order when online, each guarded by cloud_version so a change made on another device is never overwritten.
-// Food search uses Open Food Facts (free, no key); only the words typed into Search are sent to it.
+// Food search uses Open Food Facts (free, no key); only the words typed into Search, or a scanned barcode number, are
+// sent to it. The barcode scanner reads the camera on the phone only: no picture is saved or sent anywhere.
 (()=>{'use strict';
 const nav=$('.nav button[data-tab="fitness"]');
 if(!nav)return;
 const STORE='planly-fitness-v1:',MEALS=[['breakfast','Breakfast'],['lunch','Lunch'],['dinner','Dinner'],['snack','Snacks']];
 const ACTIVITY=[['sedentary','Mostly sitting',1.2],['light','Lightly active',1.375],['moderate','Active 3–5 days a week',1.55],['active','Very active',1.725],['very_active','Hard training or physical job',1.9]];
-const OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl';
-let inflight='',sb=null,userId='',profile=null,entries=[],favourites=[],pending=[],failures=[],loadedFrom='',dayKey=todayKey(),syncing=false,sheet=null,fitInvalid=true;
+const OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl',OFF_PRODUCT='https://world.openfoodfacts.org/api/v2/product/';
+// ZXing 0.23.0 (Apache-2.0), vendored byte for byte from npm and loaded only when the scanner opens (iPhone has no built-in reader)
+const ZXING_URL='./vendor/zxing-library-0.23.0.min.js';
+let camera=null,scanRun=0,zxingLoad=null,inflight='',sb=null,userId='',profile=null,entries=[],favourites=[],pending=[],failures=[],loadedFrom='',dayKey=todayKey(),syncing=false,sheet=null,fitInvalid=true;
 const uuid=()=>crypto.randomUUID(),now=()=>Date.now();
 function todayKey(){return localKey(new Date())}
 function shiftDay(key,n){const d=new Date(key+'T12:00:00');d.setDate(d.getDate()+n);return localKey(d)}
@@ -129,6 +132,32 @@ async function searchOff(q){
   catch(e){if(e?.name==='AbortError'||isNetwork(e))throw Error("Couldn't reach Open Food Facts. Check your connection.");throw e}
   finally{clearTimeout(timer)}
 }
+// EAN-8, UPC-A (12) and EAN-13 carry a check digit; a code that fails it is a misread and is never looked up.
+function validBarcode(code){const c=String(code||'');if(!/^(\d{8}|\d{12}|\d{13})$/.test(c))return false;const d=[...c].map(Number),check=d.pop();const sum=d.reverse().reduce((t,x,i)=>t+x*(i%2?1:3),0);return (10-sum%10)%10===check}
+async function lookupBarcode(code){
+  const fav=favourites.find(f=>f.barcode===code||(code.length===12&&f.barcode==='0'+code));if(fav)return {food:favFood(fav)};
+  if(!navigator.onLine)return {error:"You're offline. Looking up a new barcode needs internet; use Quick add for now."};
+  for(const c of code.length===12?[code,'0'+code]:[code]){
+    const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
+    try{const r=await fetch(OFF_PRODUCT+c+'.json?'+new URLSearchParams({fields:'code,product_name,brands,nutriments,serving_size,serving_quantity'}),{signal:ctl.signal});
+      if(r.status===404)continue;if(r.status===429)return {error:'Open Food Facts is busy. Try again in a minute.'};if(!r.ok)return {error:'Open Food Facts did not answer. Try again.'};
+      const j=await r.json();if(!j?.product||j.status===0)continue;const food=offProduct({...j.product,code:c});
+      if(!food)return {missing:String(j.product.product_name||'').trim().slice(0,160),code:c,error:'This product has no calorie information in Open Food Facts yet.'};
+      return {food:{...food,barcode:c,source:'barcode'}};
+    }catch(e){return {error:"Couldn't reach Open Food Facts. Check your connection."}}finally{clearTimeout(timer)}
+  }
+  return {code,error:'This barcode is not in Open Food Facts yet.'};
+}
+function loadZxing(){if(window.ZXing?.MultiFormatReader)return Promise.resolve(window.ZXing);return zxingLoad||(zxingLoad=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src=ZXING_URL;sc.async=true;sc.onload=()=>window.ZXing?.MultiFormatReader?res(window.ZXing):rej(Error('Scanner failed to load'));sc.onerror=()=>{zxingLoad=null;rej(Error('Scanner failed to load'))};document.head.appendChild(sc)}))}
+async function makeDetector(){
+  // Android Chrome has a built-in barcode reader; everywhere else (iPhone) use ZXing on a centre crop of the frame
+  try{if('BarcodeDetector' in window){const f=await window.BarcodeDetector.getSupportedFormats();if(f.includes('ean_13')){const d=new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e'].filter(x=>f.includes(x))});return async video=>{const r=await d.detect(video);return r[0]?.rawValue||''}}}}catch{}
+  const Z=await loadZxing(),reader=new Z.MultiFormatReader(),hints=new Map([[Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E]],[Z.DecodeHintType.TRY_HARDER,true]]);reader.setHints(hints);
+  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+  return async video=>{const w=video.videoWidth,h=video.videoHeight;if(!w||!h)return '';const cw=Math.round(w*0.9),ch=Math.round(Math.min(h,w*0.5));canvas.width=Math.min(cw,1280);canvas.height=Math.round(ch*canvas.width/cw);ctx.drawImage(video,(w-cw)/2,(h-ch)/2,cw,ch,0,0,canvas.width,canvas.height);
+    try{const bmp=new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(canvas)));return reader.decodeWithState(bmp).getText()}catch{return ''}finally{reader.reset()}};
+}
+function stopCamera(){scanRun++;if(camera){for(const t of camera.getTracks())t.stop();camera=null}const v=sheet?.querySelector('video');if(v)v.srcObject=null}
 
 // ---------- rendering ----------
 function invalidate(){fitInvalid=true}
@@ -146,7 +175,7 @@ function viewHtml(){
 ${fails}${setup}
 <section class="fitCard fitSummary"><div class="fitSummaryTop"><div class="fitRingWrap">${ring(left,t.kcal)}<div class="fitRingText"><strong class="${left<0?'over':''}">${fmt(Math.abs(left))}</strong><span>${left<0?'kcal over':'kcal left'}</span></div></div><div class="fitMacros">${macroRow('Protein','protein',tot.protein,t.protein)}${macroRow('Carbs','carbs',tot.carbs,t.carbs)}${macroRow('Fat','fat',tot.fat,t.fat)}</div></div>
 <div class="fitSummaryFoot"><span>Eaten <strong>${fmt(tot.kcal)}</strong></span><button type="button" class="fitTargetBtn" data-fit="targets">Target <strong>${fmt(t.kcal)}</strong></button><span>7-day avg <strong>${avg==null?'–':fmt(avg)}</strong></span></div></section>
-<div class="fitActions"><button type="button" class="fitPrimary" data-fit="search"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>Search food</button><button type="button" class="fitSecondary" data-fit="quick">+ Quick add</button></div>
+<div class="fitActions"><button type="button" class="fitPrimary" data-fit="scan"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M8 8v8M11 8v8M13.5 8v8M16 8v8"/></svg>Scan</button><button type="button" class="fitSecondary" data-fit="search"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>Search</button><button type="button" class="fitSecondary" data-fit="quick">+ Quick</button></div>
 <div class="fitCard fitMeals">${meals}</div>
 <p class="fitFootnote">Only you can see your food log. Targets are estimates, not medical advice.</p>
 </div>`;
@@ -164,6 +193,7 @@ function handleClick(e){
   if(a==='next'){if(dayKey<todayKey()){dayKey=shiftDay(dayKey,1);invalidate();render()}return}
   if(a==='search')return openSearch(b.dataset.meal||defaultMeal());
   if(a==='quick')return openQuick();
+  if(a==='scan')return openScan(defaultMeal());
   if(a==='targets')return openTargets();
   if(a==='dismiss'){failures=[];persist();invalidate();render()}
 }
@@ -178,19 +208,19 @@ function ensureSheet(){
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sheet.classList.contains('open'))closeSheet()});
   return sheet;
 }
-function showSheet(title,html,onBack){const w=ensureSheet();w.querySelector('#fitSheetTitle').textContent=title;const back=w.querySelector('[data-fit-back]');back.hidden=!onBack;back.onclick=onBack||null;w.querySelector('.fitSheetBody').innerHTML=html;w.classList.add('open');w.setAttribute('aria-hidden','false');document.documentElement.classList.add('sheetOpen');return w.querySelector('.fitSheetBody')}
-function closeSheet(){if(!sheet)return;sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');document.documentElement.classList.remove('sheetOpen');if(state.tab==='fitness'){invalidate();render()}}
+function showSheet(title,html,onBack){stopCamera();const w=ensureSheet();w.querySelector('#fitSheetTitle').textContent=title;const back=w.querySelector('[data-fit-back]');back.hidden=!onBack;back.onclick=onBack||null;w.querySelector('.fitSheetBody').innerHTML=html;w.classList.add('open');w.setAttribute('aria-hidden','false');document.documentElement.classList.add('sheetOpen');return w.querySelector('.fitSheetBody')}
+function closeSheet(){stopCamera();if(!sheet)return;sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');document.documentElement.classList.remove('sheetOpen');if(state.tab==='fitness'){invalidate();render()}}
 const mealChips=sel=>`<div class="fitChips" role="radiogroup" aria-label="Meal">${MEALS.map(([id,l])=>`<button type="button" role="radio" aria-checked="${id===sel}" class="${id===sel?'on':''}" data-meal-pick="${id}">${l}</button>`).join('')}</div>`;
 function bindMealChips(body,set){body.querySelectorAll('[data-meal-pick]').forEach(c=>c.onclick=()=>{body.querySelectorAll('[data-meal-pick]').forEach(x=>{x.classList.toggle('on',x===c);x.setAttribute('aria-checked',String(x===c))});set(c.dataset.mealPick)})}
 const foodLine=f=>`${fmt(f.per.kcal)} kcal ${f.basis==='serving'?'per serving':'per 100 g'}`;
 
-function openSearch(meal){
-  let results=[],status='',query='';
+function openSearch(meal,initial=''){
+  let results=[],status='',query=initial;
   const draw=()=>{
     const q=query.trim().toLowerCase(),favs=[...favourites].filter(f=>!q||(f.name+' '+f.brand).toLowerCase().includes(q)).sort((a,b)=>num(b.use_count)-num(a.use_count)).slice(0,20);
     const recent=q?[]:recentFoods().filter(r=>!favourites.some(f=>f.name===r.name&&f.brand===r.brand));
     const item=(f,key,i)=>`<button type="button" class="fitResult" data-pick="${key}:${i}"><span><strong>${esc(f.name)}</strong><small>${esc([f.brand,foodLine(f)].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`;
-    const body=showSheet('Add food',`<form class="fitSearchForm" data-search-form><input name="q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Search foods, e.g. greek yogurt" value="${esc(query)}" aria-label="Search foods"><button type="submit" class="fitPrimary">Search</button></form>${mealChips(meal)}
+    const body=showSheet('Add food',`<form class="fitSearchForm" data-search-form><input name="q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Food name or barcode number" value="${esc(query)}" aria-label="Search foods"><button type="submit" class="fitPrimary">Search</button></form>${mealChips(meal)}
 ${favs.length?`<h3 class="fitGroup">Favourites</h3><div class="fitList">${favs.map((f,i)=>item(favFood(f),'fav',i)).join('')}</div>`:''}
 ${recent.length?`<h3 class="fitGroup">Recent</h3><div class="fitList">${recent.map((f,i)=>item(f,'recent',i)).join('')}</div>`:''}
 ${status?`<p class="fitStatus" role="status">${esc(status)}</p>`:''}
@@ -200,10 +230,41 @@ ${!favs.length&&!recent.length&&!results.length&&!status?'<p class="fitStatus">S
     const input=body.querySelector('input[name="q"]');
     input.oninput=()=>{query=input.value;const pos=input.selectionStart;if(!results.length&&!status){draw();const i2=sheet.querySelector('input[name="q"]');i2.focus();try{i2.setSelectionRange(pos,pos)}catch{}}};
     bindMealChips(body,m=>meal=m);
-    body.querySelector('[data-search-form]').onsubmit=async ev=>{ev.preventDefault();query=input.value.trim();if(query.length<2){status='Type at least 2 letters.';draw();return}status='Searching…';results=[];draw();try{results=await searchOff(query);status=results.length?'':'No foods found. Try other words, or use Quick add.'}catch(err){status=err.message||'Search failed.'}draw()};
+    body.querySelector('[data-search-form]').onsubmit=async ev=>{ev.preventDefault();query=input.value.trim();
+      if(/^\d{8,14}$/.test(query)){if(!validBarcode(query)){status="That barcode number isn't valid. Check the digits.";results=[];draw();return}status='Looking up barcode…';results=[];draw();const r=await lookupBarcode(query);if(r.food){openAmount(r.food,meal,()=>draw());return}status=r.error;draw();return}
+      if(query.length<2){status='Type at least 2 letters.';draw();return}status='Searching…';results=[];draw();try{results=await searchOff(query);status=results.length?'':'No foods found. Try other words, or use Quick add.'}catch(err){status=err.message||'Search failed.'}draw()};
     body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{const [k,i]=b.dataset.pick.split(':'),list=k==='fav'?favs.map(favFood):k==='recent'?recent:results,f=list[Number(i)];if(f)openAmount(f,meal,()=>draw())});
   };
   draw();setTimeout(()=>sheet?.querySelector('input[name="q"]')?.focus(),50);
+}
+function openScan(meal){
+  const body=showSheet('Scan barcode',`<div class="fitScanView"><video playsinline muted autoplay aria-label="Camera"></video><div class="fitScanFrame" aria-hidden="true"><span></span></div><p class="fitScanStatus" role="status">Starting camera…</p></div>
+${mealChips(meal)}
+<form class="fitSearchForm" data-code-form><input name="code" inputmode="numeric" pattern="[0-9]*" maxlength="14" autocomplete="off" placeholder="Or type the barcode number" aria-label="Barcode number"><button type="submit" class="fitSecondary">Look up</button></form>
+<div class="fitScanMiss" data-miss hidden></div>
+<p class="fitFootnote">The camera is only used on your phone; no picture is saved or sent. The barcode number is looked up in your favourites, then in Open Food Facts.</p>`);
+  const run=++scanRun; // after showSheet, which stops any earlier camera
+  const video=body.querySelector('video'),statusEl=body.querySelector('.fitScanStatus'),miss=body.querySelector('[data-miss]');
+  const say=t=>{statusEl.textContent=t};
+  bindMealChips(body,m=>meal=m);
+  const found=async code=>{stopCamera();statusEl.textContent='Found '+code;body.querySelector('.fitScanView').classList.add('found');const r=await lookupBarcode(code);if(!sheet?.classList.contains('open'))return;
+    if(r.food){openAmount(r.food,meal,()=>openScan(meal));return}
+    statusEl.textContent=r.error;miss.hidden=false;
+    miss.innerHTML=`<button type="button" class="fitPrimary" data-again>Scan again</button><button type="button" class="fitSecondary" data-quick>+ Quick add</button><button type="button" class="fitSecondary" data-name>Search</button>`;
+    miss.querySelector('[data-again]').onclick=()=>openScan(meal);miss.querySelector('[data-quick]').onclick=()=>openQuick(r.missing||'',meal);miss.querySelector('[data-name]').onclick=()=>openSearch(meal,r.missing||'')};
+  body.querySelector('[data-code-form]').onsubmit=ev=>{ev.preventDefault();const c=String(ev.currentTarget.code.value||'').replace(/\s/g,'');if(!validBarcode(c)){statusEl.textContent="That barcode number isn't valid. Check the digits.";return}found(c)};
+  (async()=>{
+    if(!navigator.mediaDevices?.getUserMedia){say('This phone can’t use the camera here. Type the barcode number instead.');return}
+    try{const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+      if(run!==scanRun){for(const t of stream.getTracks())t.stop();return}
+      camera=stream;video.srcObject=stream;await video.play().catch(()=>{});if(run!==scanRun)return;say('Point the camera at the barcode');
+      const detect=await makeDetector();if(run!==scanRun)return;let last='';
+      while(run===scanRun&&camera){const code=await detect(video).catch(()=>'');if(run!==scanRun||!camera)return;
+        // read the same valid code twice in a row before trusting it
+        if(validBarcode(code)){if(code===last){found(code);return}last=code}else last='';
+        await new Promise(r=>setTimeout(r,120))}
+    }catch(e){if(run!==scanRun)return;stopCamera();say(e?.name==='NotAllowedError'?'Camera access is off for Planly. Allow it in Settings, or type the barcode number.':/load/.test(String(e?.message))?'The scanner could not load. Check your connection, or type the barcode number.':'The camera could not start. Type the barcode number instead.')}
+  })();
 }
 function openAmount(food,meal,back){
   // grams are possible for per-100 g foods, or per-serving foods with a known serving weight; servings need one or the other
@@ -225,9 +286,9 @@ ${food.favouriteId?'<button type="button" class="fitQuiet fitDanger" data-unfav>
   addBtn.onclick=()=>{if(!withinLimits(amount,nutrientsFor(food,amount,unit)))return;if(body.querySelector('input[name="star"]')?.checked)saveFavourite(food);addEntry(food,amount,unit,meal,food.source||'search');closeSheet();if(typeof showToast==='function')showToast(`Added ${food.name}`)};
   preview();
 }
-function openQuick(){
-  let meal=defaultMeal();
-  const body=showSheet('Quick add',`<label class="fitField"><span>Name <small>(optional)</small></span><input name="name" maxlength="160" placeholder="Quick add"></label>
+function openQuick(prefill='',m=''){
+  let meal=m||defaultMeal();
+  const body=showSheet('Quick add',`<label class="fitField"><span>Name <small>(optional)</small></span><input name="name" maxlength="160" placeholder="Quick add" value="${esc(prefill)}"></label>
 <label class="fitField"><span>Calories</span><input name="kcal" type="number" inputmode="decimal" min="0" max="10000" placeholder="kcal"></label>
 <div class="fitTriple"><label class="fitField"><span>Protein g</span><input name="p" type="number" inputmode="decimal" min="0"></label><label class="fitField"><span>Carbs g</span><input name="c" type="number" inputmode="decimal" min="0"></label><label class="fitField"><span>Fat g</span><input name="f" type="number" inputmode="decimal" min="0"></label></div>
 ${mealChips(meal)}<button type="button" class="fitPrimary fitWide" data-add disabled>Add</button>`);
@@ -294,13 +355,13 @@ render=function(){
 $('#view')?.addEventListener('click',handleClick);
 nav.addEventListener('click',()=>{if(dayKey!==todayKey()&&state.tab!=='fitness')dayKey=todayKey();invalidate();if(userId)refresh()},true);
 window.addEventListener('online',()=>{if(userId)refresh()});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&userId&&state.tab==='fitness'){if(dayKey<todayKey()&&dayKey===shiftDay(todayKey(),-1)&&!sheet?.classList.contains('open'))dayKey=todayKey();refresh()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&camera){stopCamera();if(sheet?.classList.contains('open')){const st=sheet.querySelector('.fitScanStatus');if(st)st.textContent='Camera paused. Close and tap Scan to start again.'}}if(document.visibilityState==='visible'&&userId&&state.tab==='fitness'){if(dayKey<todayKey()&&dayKey===shiftDay(todayKey(),-1)&&!sheet?.classList.contains('open'))dayKey=todayKey();refresh()}});
 async function init(){
   sb=window.PlanlySupabase?.get?.()||null;if(!sb)return;
   const {data}=await sb.auth.getSession();userId=data?.session?.user?.id||'';restore();invalidate();
   sb.auth.onAuthStateChange((_e,s)=>{const next=s?.user?.id||'';if(next===userId)return;userId=next;restore();invalidate();closeSheet();if(userId)refresh();else if(state.tab==='fitness')render()});
   if(userId&&navigator.onLine)refresh();else if(state.tab==='fitness')render();
 }
-window.PlanlyFitness={refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
+window.PlanlyFitness={validBarcode,refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
 setTimeout(()=>init().catch(e=>console.warn('Planly fitness',e)),0);
 })();

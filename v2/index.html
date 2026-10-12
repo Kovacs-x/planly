@@ -749,7 +749,7 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitSummaryFoot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding:11px 16px;font-size:13px;color:var(--muted)}
 .fitSummaryFoot strong{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
 .fitTargetBtn{border:0;background:transparent;color:var(--muted);font-size:13px;padding:6px 4px;min-height:36px}.fitTargetBtn strong{color:var(--sec)}
-.fitActions{display:grid;grid-template-columns:1.4fr 1fr;gap:10px}
+.fitActions{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px}.fitActions .fitPrimary,.fitActions .fitSecondary{padding:0 8px;gap:6px;white-space:nowrap}
 .fitPrimary,.fitSecondary{min-height:48px;border-radius:var(--rControl,12px);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px}
 .fitPrimary{border:0;background:var(--sec);color:var(--bg)}.fitPrimary:disabled{opacity:.45;cursor:default}
 .fitPrimary .pIcon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
@@ -788,6 +788,15 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitCheck{display:flex;align-items:center;gap:10px;min-height:44px}.fitCheck input{width:22px;height:22px;accent-color:var(--sec);flex:none}
 .fitFoodHead small{color:var(--muted);font-size:14px}.fitHint{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
 .fitCustom[hidden],[data-pace-wrap][hidden]{display:none}
+.fitSecondary .pIcon{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2}
+.fitScanView{position:relative;height:min(52vh,300px);border-radius:var(--rSurface,16px);overflow:hidden;background:#15181d}
+.fitScanView video{width:100%;height:100%;object-fit:cover;display:block}
+.fitScanFrame{position:absolute;left:8%;right:8%;top:24%;bottom:30%;border:2px solid rgba(255,255,255,.9);border-radius:14px;pointer-events:none}
+.fitScanFrame span{position:absolute;left:4%;right:4%;top:50%;height:2px;background:#64c2da;box-shadow:0 0 0 .5px rgba(0,0,0,.2)}
+.fitScanView.found .fitScanFrame{border-color:#64c2da}
+.fitScanStatus{position:absolute;left:12px;right:12px;bottom:12px;margin:0;text-align:center;color:#fff;font-weight:600;font-size:15px;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.fitScanMiss{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.fitScanMiss[hidden]{display:none}.fitScanMiss button{padding:0 6px;font-size:14px}
+@media (prefers-reduced-motion:no-preference){.fitScanFrame span{animation:fitScanLine 1.8s ease-in-out infinite alternate}@keyframes fitScanLine{from{top:18%}to{top:82%}}}
 </style>
 </head>
 <body>
@@ -850,7 +859,7 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=719f01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=720s01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
