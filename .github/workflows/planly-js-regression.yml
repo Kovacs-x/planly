@@ -26,6 +26,8 @@ jobs:
         run: node scripts/validate-safari-diagnostics.mjs
       - name: Validate Planly security invariants
         run: node scripts/validate-planly-security.mjs
+      - name: Unit-test the food-search Edge Function
+        run: node tests/functions/food-search.test.mjs
       - name: Validate Budget 4.0 release invariants
         run: node scripts/validate-budget-release.mjs
       - name: Validate Budget 4.0 functional acceptance
