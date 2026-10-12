@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=719r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-719f-110'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-720s-111'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=719f01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=720s01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -585,10 +585,10 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
  if(/grant execute on function public\.planly_push_worklist\(timestamptz\) to (anon|authenticated)/.test(m53))fail('push worklist must stay service_role only');}
 // Fitness › Food (5.1): fifth tab, private to the signed-in person (tables from migrations 054/055).
 {const fit=read('v2/core-fitness-v5.1.js'),sw=s.sw,html=read('v2/index.html'),r1=read('v2/core-redesign-r1.js');
- if(!sw.includes("const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=719f01';")||!sw.includes('CORE_BUDGET_NAV_URL,CORE_FITNESS_URL,CORE_REDESIGN_R1_URL];'))fail('Fitness core module must load after Budget nav and before R1');
+ if(!sw.includes("const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=720s01';")||!sw.includes('CORE_BUDGET_NAV_URL,CORE_FITNESS_URL,CORE_REDESIGN_R1_URL];'))fail('Fitness core module must load after Budget nav and before R1');
  if(!html.includes('<button data-tab="fitness" data-section="fitness" aria-label="Fitness">')||!html.includes('<style id="planlyFitness">')||!html.includes('body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:var(--fitnessTint)}'))fail('Fitness tab, styles or section colour missing');
  if(!r1.includes("if(tab==='fitness')return'fitness';")||!r1.includes("['settings','home','budget','fitness'].includes(state.tab)?'none':'block'"))fail('R1 must treat Fitness as its own section without the add button');
- for(const x of ["owner_id:userId","sb.from('planly_food_profile').select('*').eq('owner_id',userId)","sb.from('planly_food_entries').select('*').eq('owner_id',userId)","sb.from('planly_food_favourites').select('*').eq('owner_id',userId)",".eq(idCol,op.key).eq('cloud_version',op.base)","e.code='PLANLY_CONFLICT'","STORE+userId","const OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl';","new URLSearchParams({search_terms:q,"])if(!fit.includes(x))fail('Fitness invariant missing: '+x);
+ for(const x of ["owner_id:userId","sb.from('planly_food_profile').select('*').eq('owner_id',userId)","sb.from('planly_food_entries').select('*').eq('owner_id',userId)","sb.from('planly_food_favourites').select('*').eq('owner_id',userId)",".eq(idCol,op.key).eq('cloud_version',op.base)","e.code='PLANLY_CONFLICT'","STORE+userId","const OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl',OFF_PRODUCT='https://world.openfoodfacts.org/api/v2/product/';","new URLSearchParams({search_terms:q,"])if(!fit.includes(x))fail('Fitness invariant missing: '+x);
  if(/service_role|household_id|\bvisibility\b|\bhousehold\b/.test(fit.replace(/\/\/.*$/gm,'')))fail('Fitness must stay private (no household or service-role access)');
  // Text that comes from people or Open Food Facts (names, brands, serving labels, search words, messages) is always escaped.
  // A bare value of that kind may only go into plain-text toasts, attribute selectors or fixed segment names, never into HTML.
@@ -610,4 +610,39 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
  if(!p||p.brand!=='Tesco'||p.barcode!=='5000436589457'||p.servingG!==150||p.per.kcal!==57)fail('Open Food Facts product parsing wrong');
  const kj=F.offProduct({product_name:'Oats',nutriments:{'energy-kj_100g':1569}});if(!kj||Math.round(kj.per.kcal)!==375||kj.barcode!==null)fail('kJ-only products must convert to kcal');
  if(F.offProduct({product_name:'',nutriments:{'energy-kcal_100g':5}})||F.offProduct({product_name:'X',nutriments:{}}))fail('Products without a name or energy must be skipped');}
+// Fitness stage 3: barcode scanner. ZXing is vendored (byte-identical to npm @zxing/library 0.23.0, integrity
+// sha512-6fkkoFwP8CHxl6ugnPsj74PLJgX2iRv5zczGAyt5OBzQgxFhuhF0NCEc4t4OvSr8xAv2MRLlI0Iu9ZGDZQ2urA==), loaded only from this site.
+{const fit=read('v2/core-fitness-v5.1.js'),sw=s.sw,crypto=await import('node:crypto'),priv=read('privacy.html');
+ const z=crypto.createHash('sha256').update(fs.readFileSync('v2/vendor/zxing-library-0.23.0.min.js')).digest('hex');
+ if(z!=='3ede94153fb0c5b67a12d7adff6decd827c2b22714fdc6faecf27a8f20937ea6')fail('Vendored ZXing differs from the reviewed npm file: '+z);
+ if(!fs.existsSync('v2/vendor/zxing-library-0.23.0.LICENSE.txt'))fail('ZXing Apache-2.0 licence file missing');
+ if(!sw.includes("const OPTIONAL=['./','./vendor/zxing-library-0.23.0.min.js',"))fail('Scanner library must be saved for offline use');
+ for(const x of ["const ZXING_URL='./vendor/zxing-library-0.23.0.min.js';","sc.src=ZXING_URL;","getUserMedia({audio:false,video:{facingMode:{ideal:'environment'}","function closeSheet(){stopCamera();","function showSheet(title,html,onBack){stopCamera();","document.visibilityState==='hidden'&&camera){stopCamera();","fetch(OFF_PRODUCT+c+'.json?'+new URLSearchParams({fields:'code,product_name,brands,nutriments,serving_size,serving_quantity'})","if(hit&&validBarcode(hit.code,hit.format)){if(key===last){found(hit.code,hit.format);return}last=key}","res.getBarcodeFormat()","formats.get(res.getBarcodeFormat())","format:String(r[0].format||'')"])if(!fit.includes(x))fail('Scanner invariant missing: '+x);
+ if(/src=['"`]https?:/.test(fit)||/toDataURL|toBlob|captureStream|MediaRecorder/.test(fit))fail('Scanner must not load remote scripts or keep camera images');
+ for(const x of ['Barcode scanning','no picture is saved or sent','Only the barcode number'])if(!priv.includes(x))fail('Privacy page scanner note missing: '+x);
+ const vm=await import('node:vm');const ctx={window:{addEventListener(){}},state:{tab:'today'},render(){},localKey:d=>String(d),setHeader(){},esc:v=>String(v),$:sel=>sel.includes('fitness')?{addEventListener(){}}:null,setTimeout(){},document:{addEventListener(){}},navigator:{onLine:false},localStorage:{getItem:()=>null,setItem(){}},crypto:{randomUUID:()=>'u'},structuredClone,URLSearchParams,AbortController,console,addEventListener(){}};
+ vm.runInNewContext(fit,ctx);const V=ctx.window.PlanlyFitness.validBarcode;
+ for(const ok of ['5000436589457','96385074','036000291452','4006381333931','5449000000996'])if(!V(ok))fail('valid barcode rejected: '+ok);
+ for(const bad of ['5000436589458','96385075','036000291453','123','50004365894577','abcdefghijklm',''])if(V(bad))fail('invalid barcode accepted: '+bad);
+ // UPC-E: expanded to UPC-A before its check digit is verified (04252614 → 042100005264, 01234565 → 012345000065)
+ const C=ctx.window.PlanlyFitness.barcodeCandidates;
+ for(const [code,fmt] of [['04252614','upc_e'],['01234565','upc_e'],['04252614',''],['96385074','ean_8'],['96385074',''],['036000291452','upc_a'],['5000436589457','ean_13']])if(!V(code,fmt))fail('valid barcode rejected: '+code+' '+fmt);
+ for(const [code,fmt] of [['04252615','upc_e'],['01234566','upc_e'],['04252614','ean_8'],['96385074','upc_e'],['24252614','upc_e'],['5000436589457','upc_a'],['036000291452','ean_13']])if(V(code,fmt))fail('invalid barcode accepted: '+code+' '+fmt);
+ if(JSON.stringify(C('04252614','upc_e'))!=='["042100005264","0042100005264","04252614"]'||JSON.stringify(C('01234565','upc_e'))!=='["012345000065","0012345000065","01234565"]'||JSON.stringify(C('96385074','ean_8'))!=='["96385074"]'||JSON.stringify(C('036000291452'))!=='["036000291452","0036000291452"]')fail('barcode lookup candidates wrong');
+ // UPC-E vectors cross-checked with bwip-js 4.11.4 (an independent encoder that computes the check digit): each is valid
+ // as UPC-E and every other last digit is not.
+ for(const v of ["13816130","13194125","06813217","17037297","06137496","13446383","10929797","16361386","09484126","09089952","15763949","05825310"]){
+  if(!V(v,'upc_e'))fail('UPC-E vector rejected: '+v);for(const d of '0123456789')if(d!==v[7]&&V(v.slice(0,7)+d,'upc_e'))fail('UPC-E with wrong check digit accepted: '+v.slice(0,7)+d)}
+ // ZXing in Planly's settings: reads EAN-13, EAN-8 and UPC-A drawn by tests/browser/barcodes.mjs, reporting the format Planly
+ // validates with. UPC-E stays off for ZXing: its 0.23.0 JavaScript UPC-E reader never returns a correct code (see core-fitness).
+ {const {ean13Modules,ean8Modules,upcaModules,upceModules,barcodePixels}=await import('../tests/browser/barcodes.mjs');const zc={};zc.globalThis=zc;vm.runInNewContext(fs.readFileSync('v2/vendor/zxing-library-0.23.0.min.js','utf8'),zc);const Z=zc.ZXing;
+  const U8=vm.runInContext('Uint8ClampedArray',zc),ZM=vm.runInContext('Map',zc),ZA=vm.runInContext('Array',zc);
+  const fmts={[Z.BarcodeFormat.EAN_13]:'ean_13',[Z.BarcodeFormat.EAN_8]:'ean_8',[Z.BarcodeFormat.UPC_A]:'upc_a'};
+  const reader=new Z.MultiFormatReader(),hints=new ZM();hints.set(Z.DecodeHintType.POSSIBLE_FORMATS,ZA.of(Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.UPC_A));hints.set(Z.DecodeHintType.TRY_HARDER,true);reader.setHints(hints);
+  const decode=m=>{const {w,h,Y}=barcodePixels(m);try{const r=reader.decodeWithState(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.RGBLuminanceSource(new U8(Y),w,h))));return [r.getText(),fmts[r.getBarcodeFormat()]]}catch{return null}finally{reader.reset()}};
+  for(const [mods,code,fmt,first] of [[ean13Modules('5000436589457'),'5000436589457','ean_13','5000436589457'],[ean8Modules('96385074'),'96385074','ean_8','96385074'],[upcaModules('036000291452'),'036000291452','upc_a','036000291452']]){
+   const r=decode(mods);if(!r||r[0]!==code||r[1]!==fmt)fail('ZXing did not read '+fmt+' '+code+': '+JSON.stringify(r));if(C(r[0],r[1])[0]!==first)fail('lookup candidates wrong for '+fmt)}
+  if(decode(upceModules('04252614')))fail('ZXing now reads UPC-E: re-check its UPC-E output before enabling it');
+  if(/POSSIBLE_FORMATS,\[[^\]]*UPC_E/.test(fit))fail('UPC-E must stay off for ZXing (its 0.23.0 UPC-E reader is broken)');
+  if(!fit.includes("formats:['ean_13','ean_8','upc_a','upc_e'].filter(x=>f.includes(x))"))fail('Built-in BarcodeDetector should still read UPC-E');}}
 console.log('Fitness checks passed.');

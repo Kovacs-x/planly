@@ -30,6 +30,8 @@ jobs:
         run: node tests/browser/undated-repeats.test.mjs
       - name: Fitness › Food — private calorie counter (candidate)
         run: node tests/browser/fitness-food.test.mjs
+      - name: Fitness › Food — barcode scanner with a fake camera (candidate)
+        run: node tests/browser/fitness-scan.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

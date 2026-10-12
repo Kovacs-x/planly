@@ -25,7 +25,7 @@ Built for exactly two people sharing one home: the primary account and their par
 
 ## Capabilities and Constraints
 - **Stack:** vanilla JavaScript PWA. The service worker composes the runtime modules; there is no framework or build step, and it's hosted on GitHub Pages. Supabase handles auth, data, RLS and realtime.
-- **Tabs:** Today, Plan, Home, Budget and Fitness (a private calorie counter), plus Settings/Profile.
+- **Tabs:** Today, Plan, Home, Budget and Fitness (a private calorie counter with food search and a barcode scanner), plus Settings/Profile.
 - **Data:** offline-first with a pending-write queue. Conflicts are detected per item version, and both phones must converge.
 - **UI rules (owner's rules):** no second DOM renderer, no MutationObserver workaround, and no browser-only "clear".
 - **Privacy:** the partner's NHS ICS work calendar must stay private to her.
