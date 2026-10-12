@@ -72,8 +72,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=710r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-718a-109'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=719r01'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-719f-110'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -234,7 +234,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=718a01'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=719f01'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -293,7 +293,7 @@ for(const needle of ['finiteDuration','fixedDuration','t.time?fixedDuration(t,de
 if(!s.assignment.includes("if(!!fresh.completed===!!payload.completed){clearPlanlyPendingWrite('householdCompletion',op.id);await reconcilePlanlyCloud({render:false,replay:false})"))fail('Stage4 household completion same-state conflict must reconcile authoritatively');
 
 // Stage 4 four-tab/Profile/person-colour invariants.
-const indexHtml=read('v2/index.html'),navMarkup=(indexHtml.match(/<nav class="nav"[\s\S]*?<\/nav>/)||[''])[0];if((navMarkup.match(/<button data-tab=/g)||[]).length!==4)fail('Stage4 primary nav must contain exactly four buttons');
+const indexHtml=read('v2/index.html'),navMarkup=(indexHtml.match(/<nav class="nav"[\s\S]*?<\/nav>/)||[''])[0];if((navMarkup.match(/<button data-tab=/g)||[]).length!==5)fail('Primary nav must contain exactly five buttons (Today, Plan, Home, Budget, Fitness)');for(const t of ['today','upcoming','home','budget','fitness'])if(!navMarkup.includes(`<button data-tab="${t}"`))fail('Primary nav tab missing: '+t);
 for(const needle of ['id="profileToggle"','id="profileWrap"','planlyStage4Profile'])if(!indexHtml.includes(needle))fail('Stage4 Profile surface missing: '+needle);for(const needle of ['function settingsHubHtml()','data-settings-page=','function openSettingsPage(page,focusName=false)',"function openProfile(){closeProfile();openSettingsPage('')}",'planlyRenderProfileButton();'])if(!s.app.includes(needle))fail('Stage4 Profile / Settings hub missing: '+needle);
 for(const needle of ['function openProfile()','function openSettingsFromProfile(focusHousehold=false)',"$('#profileToggle').onclick=openProfile"])if(!s.app.includes(needle))fail('Stage4 Profile runtime missing: '+needle);
 if(navMarkup.includes('<button data-tab="settings"'))fail('Stage4 Settings must not remain a primary nav tab');
@@ -318,7 +318,7 @@ if((s.app.match(/isWorkDay\|\|[a-zA-Z?.]*overnightRest/g)||[]).length!==1)fail('
 
 // Stage 4 Part 2 iPhone follow-up: meta line wraps whole items; a hidden day check can be shown again.
 {const html=read('v2/index.html');for(const needle of ['<style id="planlyStage4Part2Fixes">','.compactTaskMeta{flex-wrap:wrap;','.compactTaskMeta>span[aria-hidden]{display:none}'])if(!html.includes(needle))fail('Stage 4 Part 2 follow-up layout invariant missing: '+needle);}
-{const html=read('v2/index.html');for(const needle of ['.nav{grid-template-columns:repeat(4,minmax(0,1fr))!important}'])if(!html.includes(needle))fail('Stage 4 Part 2 follow-up layout invariant missing: '+needle);
+{const html=read('v2/index.html');for(const needle of ['.nav{grid-template-columns:repeat(5,minmax(0,1fr))!important}'])if(!html.includes(needle))fail('Stage 4 Part 2 follow-up layout invariant missing: '+needle);
 for(const needle of ["const PLANLY_TODAY_CARDS=[['summary'","function todayCardOn(key)","todayHidden:planlyTodayHiddenList()","data-today-card=","todayCardOn('summary')","todayCardOn('deadlines')","todayCardOn('top3')","todayCardOn('bills')","todayCardOn('household')",'class="todayQuickActions dashboardActions"><button id="timelineBtn"'])if(!s.app.includes(needle))fail('Show on Today invariant missing: '+needle);}
 
 // Stage 4 Part 3a: grouped Profile & Settings hub, clear tab icons, version shown in About matches the cache.
@@ -583,3 +583,31 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
 {const m53=read('supabase/migrations/053_morning_summary_shared.sql');
  for(const x of ["(t.visibility = 'household' and (t.assignee_id is null or t.assignee_id = s.user_id)","t.household_id in (select m.household_id from public.planly_household_members m where m.user_id = s.user_id)","if v_count > 0 or v_overdue > 0 then","insert into planly_private.push_sent(subscription_id, kind, ref) values (s.id, 'summary', v_date::text)","revoke all on function public.planly_push_worklist(timestamptz) from public, anon, authenticated;","grant execute on function public.planly_push_worklist(timestamptz) to service_role;"])if(!m53.includes(x))fail('migration 053 morning summary invariant missing: '+x);
  if(/grant execute on function public\.planly_push_worklist\(timestamptz\) to (anon|authenticated)/.test(m53))fail('push worklist must stay service_role only');}
+// Fitness › Food (5.1): fifth tab, private to the signed-in person (tables from migrations 054/055).
+{const fit=read('v2/core-fitness-v5.1.js'),sw=s.sw,html=read('v2/index.html'),r1=read('v2/core-redesign-r1.js');
+ if(!sw.includes("const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=719f01';")||!sw.includes('CORE_BUDGET_NAV_URL,CORE_FITNESS_URL,CORE_REDESIGN_R1_URL];'))fail('Fitness core module must load after Budget nav and before R1');
+ if(!html.includes('<button data-tab="fitness" data-section="fitness" aria-label="Fitness">')||!html.includes('<style id="planlyFitness">')||!html.includes('body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:var(--fitnessTint)}'))fail('Fitness tab, styles or section colour missing');
+ if(!r1.includes("if(tab==='fitness')return'fitness';")||!r1.includes("['settings','home','budget','fitness'].includes(state.tab)?'none':'block'"))fail('R1 must treat Fitness as its own section without the add button');
+ for(const x of ["owner_id:userId","sb.from('planly_food_profile').select('*').eq('owner_id',userId)","sb.from('planly_food_entries').select('*').eq('owner_id',userId)","sb.from('planly_food_favourites').select('*').eq('owner_id',userId)",".eq(idCol,op.key).eq('cloud_version',op.base)","e.code='PLANLY_CONFLICT'","STORE+userId","const OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl';","new URLSearchParams({search_terms:q,"])if(!fit.includes(x))fail('Fitness invariant missing: '+x);
+ if(/service_role|household_id|\bvisibility\b|\bhousehold\b/.test(fit.replace(/\/\/.*$/gm,'')))fail('Fitness must stay private (no household or service-role access)');
+ // Text that comes from people or Open Food Facts (names, brands, serving labels, search words, messages) is always escaped.
+ // A bare value of that kind may only go into plain-text toasts, attribute selectors or fixed segment names, never into HTML.
+ for(const m of fit.matchAll(/\$\{([^{}]*)\}/g)){const e=m[1].trim(),before=fit.slice(Math.max(0,m.index-40),m.index);if(/^[\w.]*\b(name|brand|servingLabel|query|status|message)$/.test(e)&&!/showToast\(`[^`]*$|querySelector\(`[^`]*$|data-seg="$/.test(before))fail('Fitness renders unescaped text: ${'+e+'}');
+  if(/\?\s*[\w.]*\b(name|brand|servingLabel|query|status|message)\s*:|:\s*[\w.]*\b(name|brand|servingLabel|query|status|message)\s*$/.test(e))fail('Fitness renders unescaped text in a condition: ${'+e+'}');}
+ if(/fetch\([^)]*openfoodfacts[^)]*\b(userId|owner_id|email)/.test(fit))fail('Only search words may be sent to Open Food Facts');
+ // Behaviour: load the module in a sandbox with the app helpers it uses, then check the maths.
+ const vm=await import('node:vm');const nav={addEventListener(){}},ctx={window:{},state:{tab:'today'},render(){},localKey:d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')},setHeader(){},esc:v=>String(v),$:sel=>sel.includes('fitness')?nav:null,setTimeout(){},document:{addEventListener(){}},navigator:{onLine:false},localStorage:{getItem:()=>null,setItem(){}},crypto:{randomUUID:()=>'u'},structuredClone,URLSearchParams,AbortController,console};ctx.addEventListener=()=>{};ctx.window.addEventListener=()=>{};
+ vm.runInNewContext(fit.replace("window.addEventListener('online'","(window.addEventListener||(()=>{}))('online'"),ctx);const F=ctx.window.PlanlyFitness;if(!F)fail('Fitness module did not start');
+ const y=new Date().getFullYear(),m=F.suggestTargets({sex:'male',birth_year:y-30,height_cm:180,weight_kg:85,activity:'moderate',goal:'lose',pace_kg_week:0.5});
+ // BMR 10*85+6.25*180-5*30+5=1830; x1.55=2836.5; -0.5*7700/7=-550 -> 2286.5 -> 2290
+ if(!m||m.kcal_target!==2290||m.protein_g!==170||m.fat_g!==64||m.carbs_g!==259)fail('Fitness target maths wrong: '+JSON.stringify(m));
+ const f=F.suggestTargets({sex:'female',birth_year:y-40,height_cm:150,weight_kg:45,activity:'sedentary',goal:'lose',pace_kg_week:1});if(!f||f.kcal_target!==1200)fail('Fitness target must not go below the 1,200 kcal floor: '+JSON.stringify(f));
+ if(F.suggestTargets({sex:'',height_cm:180,weight_kg:80}))fail('No suggestion without sex');
+ const yog={basis:'100g',per:{kcal:57,protein:10.2,carbs:4,fat:0.2},servingG:150};
+ const a=F.nutrientsFor(yog,150,'g'),b=F.nutrientsFor(yog,1,'serving'),c=F.nutrientsFor({basis:'serving',per:{kcal:320,protein:12,carbs:50,fat:8}},2,'serving');
+ if(a.kcal!==85.5||a.protein_g!==15.3||JSON.stringify(a)!==JSON.stringify(b)||c.kcal!==640||c.carbs_g!==100)fail('Fitness nutrient scaling wrong');
+ const p=F.offProduct({code:'5000436589457',product_name:'Greek Style Yogurt',brands:'Tesco, Other',nutriments:{'energy-kcal_100g':57,proteins_100g:10.2,carbohydrates_100g:4,fat_100g:0.2},serving_quantity:'150',serving_size:'1 pot (150 g)'});
+ if(!p||p.brand!=='Tesco'||p.barcode!=='5000436589457'||p.servingG!==150||p.per.kcal!==57)fail('Open Food Facts product parsing wrong');
+ const kj=F.offProduct({product_name:'Oats',nutriments:{'energy-kj_100g':1569}});if(!kj||Math.round(kj.per.kcal)!==375||kj.barcode!==null)fail('kJ-only products must convert to kcal');
+ if(F.offProduct({product_name:'',nutriments:{'energy-kcal_100g':5}})||F.offProduct({product_name:'X',nutriments:{}}))fail('Products without a name or energy must be skipped');}
+console.log('Fitness checks passed.');

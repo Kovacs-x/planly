@@ -54,7 +54,7 @@ function applyFilters(rows, params) {
   let out = rows;
   for (const [k, v] of params) {
     if (['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k)) continue;
-    const m = /^(eq|neq|is|in)\.(.*)$/.exec(v); if (!m) continue;
+    const m = /^(eq|neq|is|in|gte|lte|gt|lt)\.(.*)$/.exec(v); if (!m) continue;
     const [, op, val] = m;
     out = out.filter(r => {
       const cell = r[k];
@@ -62,6 +62,10 @@ function applyFilters(rows, params) {
       if (op === 'neq') return String(cell) !== val;
       if (op === 'is') return val === 'null' ? cell == null : String(cell) === val;
       if (op === 'in') return val.replace(/[()]/g, '').split(',').includes(String(cell));
+      if (op === 'gte') return String(cell) >= val;
+      if (op === 'lte') return String(cell) <= val;
+      if (op === 'gt') return String(cell) > val;
+      if (op === 'lt') return String(cell) < val;
       return true;
     });
   }
@@ -105,7 +109,7 @@ export async function installMock(context, db, userId) {
     if (!tm) return json(404, {});
     const table = tm[1], rows = db.tables[table] || (db.tables[table] = []);
     const wantsObject = (req.headers()['accept'] || '').includes('vnd.pgrst.object');
-    const reply = list => wantsObject ? (list.length === 1 ? json(200, list[0]) : json(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' })) : json(200, list);
+    const reply = list => wantsObject ? (list.length === 1 ? json(200, list[0]) : json(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: `The result contains ${list.length} rows` })) : json(200, list);
     db.log.push({ table, method, query: url.search, userId });
     if (db.delays[table] && method !== 'GET') await sleep(db.delays[table]);
     if (method === 'GET' || method === 'HEAD') return reply(applyFilters(rows, url.searchParams));

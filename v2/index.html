@@ -243,8 +243,8 @@ body{font-size:15px;line-height:1.45}.title{letter-spacing:-.035em}.sectionHead 
 .compactTaskMeta{flex-wrap:wrap;row-gap:1px;column-gap:10px;white-space:normal;overflow:visible}
 .compactTaskMeta>span,.compactTaskMeta>button,.compactTaskMeta>.compactRepeat,.compactTaskMeta>.compactCategory,.compactTaskMeta>.compactProjectLink{flex:0 1 auto;min-width:0;max-width:100%}
 .compactTaskMeta>span[aria-hidden]{display:none}
-/* four tabs fill the bar evenly (an older rule still said 5 columns) */
-.nav{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+/* five tabs (Today, Plan, Home, Budget, Fitness) fill the bar evenly */
+.nav{grid-template-columns:repeat(5,minmax(0,1fr))!important}
 /* "Why?" and "Hide today" sit on one baseline (the old first-child column rule no longer applies) */
 /* Show on Today */
 .todayCardToggle{padding:6px 0;border-top:1px solid var(--line)}.todayCardToggle:first-of-type{border-top:0}
@@ -541,7 +541,7 @@ body.welcomeOpen{overflow:hidden}
 /* Bottom tab bar: docked to the screen edge like a native app (no floating pill), safe-area aware, content never shows beneath it. */
 :root{--planly-nav-h:58px;--planly-nav-clearance:calc(var(--planly-nav-h) + 24px + env(safe-area-inset-bottom))}
 .nav{position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;transform:none!important;width:100%!important;max-width:none!important;margin:0!important;
- display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;
+ display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:0!important;
  padding:6px max(8px,calc((100% - 560px)/2)) calc(6px + env(safe-area-inset-bottom))!important;
  border:0!important;border-radius:0!important;box-shadow:0 -1px 0 color-mix(in srgb,var(--line) 55%,transparent)!important;
  background:var(--bg)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;z-index:40}
@@ -554,6 +554,7 @@ body.welcomeOpen{overflow:hidden}
 .nav button[data-section="plan"].active{color:var(--plan)!important}.nav button[data-section="plan"].active .pIcon{background:var(--planTint)}
 .nav button[data-section="home"].active{color:var(--home)!important}.nav button[data-section="home"].active .pIcon{background:var(--homeTint)}
 .nav button[data-section="budget"].active{color:var(--budget)!important}.nav button[data-section="budget"].active .pIcon{background:var(--budgetTint)}
+.nav button[data-section="fitness"].active{color:var(--fitness)!important}.nav button[data-section="fitness"].active .pIcon{background:var(--fitnessTint)}
 .nav button:focus-visible{outline:2px solid var(--today);outline-offset:-4px;border-radius:12px!important}
 html{scroll-padding-bottom:calc(var(--planly-nav-h) + 16px + env(safe-area-inset-bottom))}
 #addBtn{bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom))!important}
@@ -720,6 +721,74 @@ body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--to
 .budgetToggle{display:flex!important;align-items:center!important;gap:10px!important;min-height:44px}
 .budgetToggle input[type=checkbox]{width:22px!important;height:22px!important;min-height:0!important;max-height:22px!important;padding:0!important;margin:0!important;accent-color:var(--sec);flex:none}
 </style>
+<style id="planlyFitness">
+/* Fitness (5.1): teal section colour. Light #17738c on white 5.43:1, on tint #e3f4f9 4.80:1, page text on it 4.98:1;
+   dark #64c2da on card 8.35:1, on tint #163039 6.78:1. Macro colours carry meaning: protein blue, carbs amber, fat rose. */
+:root{--fitness:#17738c;--fitnessTint:#e3f4f9;--protein:#2f4fd0;--carbs:#b45309;--fat:#c2415f}
+:root[data-theme="dark"]{--fitness:#64c2da;--fitnessTint:#163039;--protein:#9eb0ff;--carbs:#fbbf24;--fat:#f0839b}
+body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:var(--fitnessTint)}
+.fitView{display:grid;gap:12px;padding-bottom:12px}
+.fitCard{background:var(--card);border-radius:var(--rSurface,16px);padding:16px}
+.fitSegments{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:var(--rSurface,16px);background:var(--card)}
+.fitSegments button{min-height:40px;border:0;border-radius:var(--rControl,12px);background:transparent;color:var(--muted);font-weight:600}
+.fitSegments button.active{background:var(--secTint);color:var(--sec)}
+.fitSegments button:disabled{cursor:default;opacity:.75}.fitSegments small{font-size:11px;font-weight:500}
+.fitDayBar{display:flex;align-items:center;justify-content:space-between}
+.fitDayBar button{width:44px;height:40px;border:0;background:transparent;color:var(--sec);font-size:24px;font-weight:600;border-radius:var(--rControl,12px)}
+.fitDayBar button:disabled{color:var(--line);cursor:default}.fitDayBar strong{font-size:15px;font-weight:600}
+.fitSetup{display:grid;gap:12px}.fitSetup div{display:grid;gap:3px}.fitSetup strong{font-size:16px}.fitSetup span{color:var(--muted);font-size:14px;line-height:1.35}
+.fitSummary{padding:0}.fitSummaryTop{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;padding:18px 16px}
+.fitRingWrap{position:relative;width:118px;height:118px}.fitRing{width:118px;height:118px}
+.fitRing circle{fill:none;stroke-width:11}.fitRingTrack{stroke:var(--line)}.fitRingFill{stroke:var(--sec);stroke-linecap:round;transition:stroke-dasharray .25s ease}.fitRingFill.over{stroke:var(--danger)}
+.fitRingText{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.fitRingText strong{font-size:25px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}.fitRingText strong.over{color:var(--danger)}.fitRingText span{font-size:12px;color:var(--muted)}
+.fitMacros{display:grid;gap:11px;min-width:0}
+.fitMacroTop{display:flex;justify-content:space-between;gap:8px;font-size:13px}.fitMacroTop strong{font-weight:600}.fitMacroTop span{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.fitBar{height:7px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:5px}.fitBar span{display:block;height:100%;border-radius:999px;transition:width .25s ease}
+.fitMacro.protein .fitBar span{background:var(--protein)}.fitMacro.carbs .fitBar span{background:var(--carbs)}.fitMacro.fat .fitBar span{background:var(--fat)}
+.fitSummaryFoot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding:11px 16px;font-size:13px;color:var(--muted)}
+.fitSummaryFoot strong{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.fitTargetBtn{border:0;background:transparent;color:var(--muted);font-size:13px;padding:6px 4px;min-height:36px}.fitTargetBtn strong{color:var(--sec)}
+.fitActions{display:grid;grid-template-columns:1.4fr 1fr;gap:10px}
+.fitPrimary,.fitSecondary{min-height:48px;border-radius:var(--rControl,12px);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px}
+.fitPrimary{border:0;background:var(--sec);color:var(--bg)}.fitPrimary:disabled{opacity:.45;cursor:default}
+.fitPrimary .pIcon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
+.fitSecondary{border:1px solid var(--line);background:transparent;color:var(--text)}
+.fitQuiet{border:0;background:transparent;color:var(--sec);font-weight:600;min-height:44px;padding:0;text-align:left}
+.fitDanger{color:var(--danger)}.fitWide{width:100%;margin-top:6px}
+.fitMeals{padding:4px 16px}.fitMeal{padding:10px 0 4px;border-top:1px solid var(--line)}.fitMeal:first-child{border-top:0}
+.fitMealHead{display:flex;justify-content:space-between;align-items:baseline}.fitMealHead h3{margin:0;font-size:16px;font-weight:700}.fitMealHead span{color:var(--muted);font-size:13px}
+.fitEntry{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;border:0;background:transparent;color:var(--text);text-align:left;padding:9px 0;min-height:52px}
+.fitEntryText{display:grid;gap:2px;min-width:0}.fitEntryText strong{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fitEntryText small{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fitEntryKcal{font-weight:600;font-variant-numeric:tabular-nums}
+.fitNotice{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:var(--rControl,12px);background:var(--card);color:var(--danger);font-size:13px}
+.fitNotice button{border:0;background:transparent;color:var(--sec);font-weight:600;min-height:36px}
+.fitFootnote{margin:2px 2px 0;color:var(--muted);font-size:12px;line-height:1.4}
+.fitSheetWrap{position:fixed;inset:0;z-index:86;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.58)}
+.fitSheetWrap.open{display:flex}.fitSheetBackdrop{position:absolute;inset:0}
+.fitSheet{position:relative;z-index:1;width:min(100%,720px);max-height:88vh;overflow-y:auto;overscroll-behavior:contain;background:var(--card);border-radius:24px 24px 0 0;padding:8px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -18px 50px rgba(0,0,0,.14);--sec:var(--fitness);--secTint:var(--fitnessTint)}
+.fitSheetHead{display:flex;align-items:center;gap:6px;margin-bottom:10px}.fitSheetHead h2{flex:1;min-width:0}
+.fitSheetHead h2{margin:0;font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fitSheetBack,.fitSheetDone{border:0;background:transparent;color:var(--sec);font-weight:600;min-height:44px}.fitSheetBack{font-size:26px;width:36px;text-align:left;padding:0}.fitSheetBack[hidden]{display:none}
+.fitSheetBody{display:grid;gap:12px}
+.fitSearchForm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.fitSheet input:not([type=checkbox]),.fitSheet select{width:100%;min-height:46px;border:1px solid var(--line);border-radius:var(--rControl,12px);background:var(--bg);color:var(--text);padding:0 12px;min-width:0}
+.fitChips{display:flex;flex-wrap:wrap;gap:6px}
+.fitChips button,.fitSeg button,.fitUnit button{min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font-weight:600;font-size:14px}
+.fitChips button.on,.fitSeg button.on,.fitUnit button.on{background:var(--secTint);color:var(--sec);border-color:transparent}
+.fitSeg,.fitUnit{display:flex;flex-wrap:wrap;gap:6px}
+.fitGroup{margin:4px 0 -4px;font-size:13px;color:var(--muted);font-weight:600}
+.fitList{display:grid}.fitResult{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:left;padding:10px 0;min-height:54px}
+.fitResult:last-child{border-bottom:0}.fitResult span:first-child{display:grid;gap:2px;min-width:0}.fitResult strong{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fitResult small{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fitResult>span:last-child{color:var(--muted);font-size:20px}
+.fitStatus{margin:0;color:var(--muted);font-size:14px}.fitStatus:empty{display:none}
+.fitField{display:grid;gap:6px}.fitField>span{font-size:13px;font-weight:600;color:var(--muted)}
+.fitAmount{display:grid;gap:8px}.fitUnitFixed{color:var(--muted);font-size:14px}
+.fitTriple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.fitQuad{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fitPreview{display:grid;gap:3px;padding:12px;border-radius:var(--rControl,12px);background:var(--secTint)}.fitPreview strong{color:var(--sec);font-size:18px}.fitPreview span{font-size:13px;color:var(--text)}
+.fitCheck{display:flex;align-items:center;gap:10px;min-height:44px}.fitCheck input{width:22px;height:22px;accent-color:var(--sec);flex:none}
+.fitFoodHead small{color:var(--muted);font-size:14px}.fitHint{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+.fitCustom[hidden],[data-pace-wrap][hidden]{display:none}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -736,6 +805,7 @@ body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--to
   <button data-tab="upcoming" data-section="plan"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01" stroke-width="2.4" stroke-linecap="round"/></svg><span class="navLabel">Plan</span></button>
   <button data-tab="home" data-section="home"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4z"/></svg><span class="navLabel">Home</span></button>
   <button data-tab="budget" data-section="budget" aria-label="Budget"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16v11H4z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H17"/><path d="M15 12h5v4h-5a2 2 0 0 1 0-4Z"/></svg><span class="navLabel">Budget</span></button>
+  <button data-tab="fitness" data-section="fitness" aria-label="Fitness"><svg class="pIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 8v8M17.5 8v8M3.5 10v4M20.5 10v4M6.5 12h11"/></svg><span class="navLabel">Fitness</span></button>
 </nav>
 <div id="profileWrap" class="profileWrap" aria-hidden="true"><div class="profileBackdrop"></div><section class="profileSheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle"><div class="taskActionGrab"></div><div class="profileHead"><div><span class="calendarGroupLabel">Planly</span><h2 id="profileTitle">Profile</h2></div><button type="button" id="profileClose">Done</button></div><div id="profileContent"></div></section></div>
 
@@ -780,7 +850,7 @@ body:not(:has(.nav [data-section].active)){--sec:var(--today);--secTint:var(--to
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=718a01';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=719f01';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

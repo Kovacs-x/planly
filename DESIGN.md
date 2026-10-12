@@ -14,6 +14,7 @@ This file records how Planly's UI looks, as refined with Impeccable. It covers t
   | Plan | `--plan` (violet) | `--planTint` |
   | Home | `--home` (green) | `--homeTint` |
   | Budget | `--budget` (amber) | `--budgetTint` |
+  | Fitness | `--fitness` (teal) | `--fitnessTint` |
 
 - **Current section:** `--sec` and `--secTint` hold the colours of the active tab, set from the bottom bar's active button. Use them rather than hard-coding a section colour.
 - **Where section colour goes:**
@@ -25,6 +26,7 @@ This file records how Planly's UI looks, as refined with Impeccable. It covers t
 
   Don't use section colour as decoration anywhere else.
 - **Meaning colours are separate and always allowed where they carry meaning:**
+  - protein, carbs and fat in Fitness (`--protein` blue, `--carbs` amber, `--fat` rose);
   - danger and overdue (red);
   - paid, to pay and unplanned in Budget;
   - person colours on chips, avatars and "Done by" (you, partner, anyone);

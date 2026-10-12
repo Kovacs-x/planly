@@ -23,6 +23,7 @@ jobs:
           node --check v2/app-v3.2.0.js
           node --check v2/core-build-v3.3c.js
           node --check v2/core-budget-nav-v4.0b1.js
+          node --check v2/core-fitness-v5.1.js
           node --check v2/core-budget-v4.0b.js
           node --check v2/core-lists-v4.1.js
           node --check v2/sw.js

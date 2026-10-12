@@ -28,6 +28,7 @@ The tests use port 8765, so run one at a time.
 |---|---|
 | `projects-tabs.test.mjs` | Bottom tabs always leave Projects (#250). Typed work is saved, or the editor stays open when it has no name or saving is refused. Untouched or unchanged editors just close. A Household choice counts as typed work. |
 | `undated-repeats.test.mjs` | A repeating task with no date (a weekly chore) comes back on its next repeat day when ticked. This covers your own chores (made by the app) and the other person's (the next date sent to the server, migration 052). Dated repeats are unchanged. |
+| `fitness-food.test.mjs` | The Fitness tab (5.1): five tabs on one row; targets worked out and saved; Open Food Facts search (answered locally), adding, favourites, quick add, edit, delete; offline changes sent when back online; a change made on another device is not overwritten; only this person's food is read or written, and only the search words go to Open Food Facts. The base branch has no Fitness tab, so this test is not compared against it. |
 
 CI: `.github/workflows/browser-tests.yml` runs these on every pull request that touches `v2/` or `tests/browser/`.
 On a pull request it also runs them against the base branch for comparison; that run is informational, not a gate.
