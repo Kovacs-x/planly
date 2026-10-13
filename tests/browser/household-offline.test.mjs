@@ -24,7 +24,7 @@ function ownerTaskWrite(method,url,body){
   const inUrl=filters.includes(OWNER)||OWNER_ROWS.some(id=>new RegExp('client_id=(eq|in)\\.[^&]*\\b'+id+'\\b').test(filters));
   let records=[];try{const b=JSON.parse(body||'null');records=Array.isArray(b)?b:b&&typeof b==='object'?[b]:[]}catch{}
   const inBody=records.some(x=>String(x?.owner_id||'')===OWNER||OWNER_ROWS.includes(String(x?.client_id||''))||OWNER_ROWS.includes(String(x?.data?.id||'')));
-  return inUrl||inBody?method+' '+path+'?'+filters+(inBody?' body:'+String(body).slice(0,80):''):'';
+  return inUrl||inBody?method+' '+path+'?'+filters+(inBody?' body:'+String(body).slice(0,200):''):'';
 }
 context.on('request',r=>{const u=r.url();if(u.includes('/rpc/planly_set_household_'))rpc.push({fn:u.split('/rpc/')[1],body:JSON.parse(r.postData()||'{}')});
   const hit=ownerTaskWrite(r.method(),u,r.postData());if(hit)direct.push(hit)});
@@ -66,17 +66,20 @@ check('done by the partner',h1.completed_by===PARTNER&&h2.completed_by===PARTNER
 check('only through the household RPCs',rpc.some(c=>c.fn==='planly_set_household_subtask_done')&&rpc.some(c=>c.fn==='planly_set_household_task_completed'&&c.body.p_client_id==='h2'),JSON.stringify(rpc.map(c=>c.fn+':'+c.body.p_client_id)));
 check('the partner\'s phone never wrote the owner\'s task rows directly',direct.length===0,direct.join(' | '));
 check('nothing is left waiting',(await pending()).length===0&&(await chip())==='Synced',JSON.stringify({q:(await pending()).length,chip:await chip()}));
-// The detector itself: deliberate direct writes from this phone, named only in the body (POST) and only in the URL
-// filters (PATCH), must both be caught; a write to an unrelated row must not be.
+// The detector itself: deliberate direct writes from this phone, each carrying exactly one ownership signal, must each be
+// caught; writes to unrelated rows must not be.
 const before=direct.length;
-await page.evaluate(async([sb,owner])=>{const h={'content-type':'application/json',prefer:'return=minimal'};
-  await fetch(sb+'/rest/v1/planly_tasks',{method:'POST',headers:h,body:JSON.stringify({owner_id:owner,client_id:'h1',data:{id:'h1',title:'Dishes'}})}).catch(()=>{});
-  await fetch(sb+'/rest/v1/planly_tasks?client_id=eq.h2&cloud_version=eq.1',{method:'PATCH',headers:h,body:JSON.stringify({title:'Hoover'})}).catch(()=>{});
-  await fetch(sb+'/rest/v1/planly_tasks?client_id=eq.zz9',{method:'PATCH',headers:h,body:JSON.stringify({title:'x'})}).catch(()=>{})},['https://dtniwcwjucepsjzoojuc.supabase.co',OWNER]);
+await page.evaluate(async([sb,owner,partner])=>{const h={'content-type':'application/json',prefer:'return=minimal'},post=b=>fetch(sb+'/rest/v1/planly_tasks',{method:'POST',headers:h,body:JSON.stringify(b)}).catch(()=>{}),patch=(q,b)=>fetch(sb+'/rest/v1/planly_tasks?'+q,{method:'PATCH',headers:h,body:JSON.stringify(b)}).catch(()=>{});
+  await post({owner_id:owner,client_id:'zz8',data:{id:'zz8',title:'New'}});          // 1. only owner_id names the owner
+  await post({owner_id:partner,client_id:'h1',data:{id:'h1',title:'Dishes'}});       // 2. only the row id names the owner's chore
+  await patch('client_id=eq.h2&cloud_version=eq.1',{title:'Hoover'});                 // 3. only the URL filter names it
+  await post({owner_id:partner,client_id:'zz7',data:{id:'zz7',title:'Mine'}});       // unrelated
+  await patch('client_id=eq.zz9',{title:'x'})},['https://dtniwcwjucepsjzoojuc.supabase.co',OWNER,PARTNER]);   // unrelated
 await W(800);
 const caught=direct.slice(before);
-check('the direct-write detector catches a POST naming the owner only in its body',caught.some(x=>x.startsWith('POST')&&x.includes('body:')),caught.join(' | '));
-check('…and a PATCH naming the owner\'s row only in its URL filter',caught.some(x=>x.startsWith('PATCH')&&x.includes('client_id=eq.h2')),caught.join(' | '));
-check('…and ignores a write to an unrelated row',caught.length===2,caught.join(' | '));
+check('the direct-write detector catches a POST whose only ownership signal is owner_id in the body',caught.some(x=>x.startsWith('POST')&&x.includes('"zz8"')),caught.join(' | '));
+check('…a POST whose only signal is the owner\'s row id in the body',caught.some(x=>x.startsWith('POST')&&x.includes('"h1"')),caught.join(' | '));
+check('…and a PATCH whose only signal is the row in its URL filter',caught.some(x=>x.startsWith('PATCH')&&x.includes('client_id=eq.h2')),caught.join(' | '));
+check('…and ignores writes to unrelated rows',caught.length===3&&!caught.some(x=>x.includes('zz7')||x.includes('zz9')),caught.join(' | '));
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
