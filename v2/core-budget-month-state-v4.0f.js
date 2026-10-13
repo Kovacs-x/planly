@@ -1,6 +1,6 @@
 // Planly 4.0F.3 — authoritative active-month state with native iOS scrolling/taps.
 (()=>{'use strict';
-const base=window.PlanlyBudgetUI;
+const ui=window.PlanlyBudgetUI;
 let host=null;
 const valid=m=>/^\d{4}-(0[1-9]|1[0-2])$/.test(String(m||''));
 const current=()=>new Date().toISOString().slice(0,7);
@@ -11,8 +11,8 @@ function installTouchStyle(){if(document.getElementById('planlyBudgetTouchStyle'
 function bindTouch(){if(!host)return;installTouchStyle();host.dataset.budgetTouch='1'}
 window.PlanlyBudgetMonth={get,set,date};
 set(get());
-async function renderTab(target){host=target||host;bindTouch();set(get());const result=await base.renderTab(host);bindTouch();return result}
-window.PlanlyBudgetUI={...base,renderTab};
+async function renderTab(target,next){host=target||host;bindTouch();set(get());const result=await next(host);bindTouch();return result}
+ui?.stage?.('month-state',renderTab);
 /* The Budget UI layers are composed: ask the Budget tab to redraw if it is showing (formerly the empty core-budget-insights 4.0R3 layer). */
 window.dispatchEvent(new CustomEvent('planly:budget-invalidated',{detail:{reason:'ui-composed',version:'4.0R3'}}));
 })();

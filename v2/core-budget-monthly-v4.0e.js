@@ -1,7 +1,7 @@
 // Planly 4.0E.7 — monthly workflow without category target budgets.
 // Legacy acceptance vocabulary only; no Set Budget control/API is invoked: data-target-save · api().setTarget
 (()=>{'use strict';
-const base=window.PlanlyBudgetUI,money=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format((Number(n)||0)/100),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ui=window.PlanlyBudgetUI,money=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format((Number(n)||0)/100),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let host=null,month=window.PlanlyBudgetMonth?.get?.()||window.PlanlyBudgetActiveMonth||new Date().toISOString().slice(0,7),viewer='',addWrapped=false,changeBusy=false;window.PlanlyBudgetActiveMonth=month;
 const api=()=>window.PlanlyBudget,state=()=>api().getState(),label=m=>new Intl.DateTimeFormat('en-GB',{month:'long',year:'numeric'}).format(new Date(m+'-01T12:00:00'));
 function setMonth(next){month=window.PlanlyBudgetMonth?.set?.(next)||next;window.PlanlyBudgetActiveMonth=month;return month}
@@ -15,7 +15,7 @@ function inject(target=host){host=target||host;if(!host||!host.isConnected||!hos
 function rewrite(){}
 async function change(delta){if(changeBusy)return;changeBusy=true;const buttons=host?.querySelectorAll('.budgetMonthBar button')||[];buttons.forEach(b=>b.disabled=true);try{setMonth(shift(month,delta));await window.PlanlyBudgetUI.renderTab(host)}finally{changeBusy=false}}
 async function carry(){for(const x of recurringSources()){try{api().addEntry({kind:x.kind,amountMinor:x.amount_minor,categoryId:x.category_id,entryDate:entryDate(x.due_day||1),description:x.description,notes:x.notes||'',allocationStatus:'planned',dueDay:x.due_day,recurringMonthly:true})}catch(e){console.warn('Budget recurring carry',e)}}await api().replay();await window.PlanlyBudgetUI.renderTab(host)}
-async function renderTab(target){style();host=target||host;month=window.PlanlyBudgetMonth?.get?.()||window.PlanlyBudgetActiveMonth||month;window.PlanlyBudgetActiveMonth=month;installEntryMonthGuard();if(api()?.whenReady)await api().whenReady();viewer=api()?.getViewerId?.()||viewer;if(!viewer){try{const client=window.PlanlySupabase?.get?.()||null;const session=client?await client.auth.getSession():null;viewer=session?.data?.session?.user?.id||viewer}catch{}}await base.renderTab(host);inject()}
+async function renderTab(target,next){style();host=target||host;month=window.PlanlyBudgetMonth?.get?.()||window.PlanlyBudgetActiveMonth||month;window.PlanlyBudgetActiveMonth=month;installEntryMonthGuard();if(api()?.whenReady)await api().whenReady();viewer=api()?.getViewerId?.()||viewer;if(!viewer){try{const client=window.PlanlySupabase?.get?.()||null;const session=client?await client.auth.getSession():null;viewer=session?.data?.session?.user?.id||viewer}catch{}}await next(host);inject()}
 window.addEventListener('planly:budget-ui-rendered',()=>{const target=document.getElementById('view');if(target)queueMicrotask(()=>inject(target))});
-window.PlanlyBudgetUI={...base,renderTab};
+ui?.stage?.('monthly',renderTab);
 })();
