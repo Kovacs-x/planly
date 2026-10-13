@@ -1313,7 +1313,7 @@ function planlyMergeSubtasks(b,l,s){
   const all=[b,l,s].every(a=>!Array.isArray(a)||a.every(x=>x&&x.id!=null));if(!all)return {clash:true};
   const B=byId(b),L=byId(l),S=byId(s),order=[...(Array.isArray(s)?s:[]).map(x=>String(x.id)),...(Array.isArray(l)?l:[]).map(x=>String(x.id)).filter(id=>!S.has(id))],out=[];
   for(const id of new Set(order)){const bi=B.get(id),li=L.get(id),si=S.get(id);
-    if(!bi){out.push(si||li);continue}
+    if(!bi){if(li&&si&&!planlySyncSame(li,si))return {clash:true};out.push(si||li);continue} // the same new item, different on each side: ask
     if(!li||!si){const kept=li||si;if(planlySyncSame(kept,bi))continue;return {clash:true}}
     const m=planlyMergeFields(bi,li,si);if(m.clash)return {clash:true};out.push(m.merged)}
   return {merged:out};
@@ -1341,13 +1341,25 @@ function planlyAdoptCloudLocally(kind,id,server){
   else if(kind==='preference'&&server?.data){applyPlanlyPreferenceData(server.data);planlyCloudSyncMeta.preferences=server.version;rememberPlanlySnap('preference','preferences',server.version,server.data)}
 }
 const PLANLY_GOOGLE_FIELDS=['title','date','time','durationMinutes','addToCalendar','recurrence','recurrenceConfig','reminder','notes','completed'];
+/* After a combined copy is written: a change made on this phone meanwhile is rebased onto it so the next sync keeps both,
+   or, if it touched a field the cloud also changed, waits for a choice. Returns the copy to show here (null: deleted here). */
+function planlyRebaseAfterMerge(kind,id,mark,prior,merged,serverVersion){
+  const cur=pendingPlanlyWrite(kind,id);
+  if(!cur||planlyPendingEditMark(kind,id)===mark)return merged;
+  if(cur.action==='delete')return null;
+  const r=planlyMergeFields(prior,cur.data,merged);
+  if(r.clash){updatePlanlyPendingWrite(kind,id,{baseVersion:Number(serverVersion),baseData:null});return cur.data} // the older version makes the next write a conflict, never a merge
+  updatePlanlyPendingWrite(kind,id,{data:r.merged});return r.merged;
+}
 async function tryAutoResolvePlanlyConflict(kind,id){
   try{
     if(!planlySession?.user||!navigator.onLine)return false;
-    const op=pendingPlanlyWrite(kind,id),server=await fetchPlanlyMergeServer(kind,id);
-    if(!op)return false;
+    const op=pendingPlanlyWrite(kind,id);if(!op)return false;
+    const mark=planlyPendingEditMark(kind,id),server=await fetchPlanlyMergeServer(kind,id);
+    if(!server)return false; // no row found is not a confirmed delete: ask
+    if(planlyPendingEditMark(kind,id)!==mark)return false; // changed here while the cloud copy was read: ask now, retried with it next sync
     const base=op.baseData||null,local=op.data||null,done=()=>{clearPlanlyPendingWrite(kind,id);clearPlanlyConflict(kind,id);persistPlanlyCloudCache();return true};
-    if(!server||server.deleted){
+    if(server.deleted){
       if(op.action==='delete'){planlyAdoptCloudLocally(kind,id,null);return done()} // deleted on both sides
       if(base&&local&&planlySyncSame(planlySyncComparable(base),planlySyncComparable(local))){planlyAdoptCloudLocally(kind,id,null);return done()} // nothing real changed here: follow the delete
       return false;
@@ -1361,19 +1373,19 @@ async function tryAutoResolvePlanlyConflict(kind,id){
     if(planlySyncSame(planlySyncComparable(local),planlySyncComparable(server.data))){planlyAdoptCloudLocally(kind,id,server);return done()} // the same change on both sides
     if(!base)return false;
     const m=planlyMergeFields(base,local,server.data);if(m.clash)return false;
-    const merged=m.merged;
+    const merged=m.merged,show=(list,copy)=>{if(!copy){state[list]=state[list].filter(x=>String(x.id)!==String(id));return}const i=state[list].findIndex(x=>String(x.id)===String(id));if(i>=0)state[list][i]=copy;else state[list].push(copy)};
     if(kind==='task'){
       const localEvent=String(local?.googleEventId||''),cloudEvent=String(server.data?.googleEventId||''),baseEvent=String(base?.googleEventId||'');
       if(localEvent!==baseEvent&&cloudEvent!==baseEvent&&localEvent!==cloudEvent)return false; // both made their own Google event: ask
       const googleChange=merged.addToCalendar&&merged.date&&PLANLY_GOOGLE_FIELDS.some(k=>!planlySyncSame(merged[k],server.data[k]));
       if(googleChange)merged.calendarSync='pending';
       await cloudUpdateTask(merged,true,server.version);
-      const i=state.tasks.findIndex(x=>String(x.id)===String(id));if(i>=0)state.tasks[i]=merged;else state.tasks.push(merged);
+      const shown=planlyRebaseAfterMerge(kind,id,mark,local,merged,server.version);show('tasks',shown);
       clearPlanlyConflict(kind,id);persistPlanlyCloudCache();
-      if(googleChange){try{await syncTaskToGoogle(merged)}catch{}save()}
+      if(googleChange&&shown){try{await syncTaskToGoogle(shown)}catch{}save()}
       return true;
     }
-    if(kind==='project'){await cloudUpdateProject(merged,true,server.version);const i=state.projects.findIndex(x=>String(x.id)===String(id));if(i>=0)state.projects[i]=merged;else state.projects.push(merged);clearPlanlyConflict(kind,id);persistPlanlyCloudCache();return true}
+    if(kind==='project'){await cloudUpdateProject(merged,true,server.version);show('projects',planlyRebaseAfterMerge(kind,id,mark,local,merged,server.version));clearPlanlyConflict(kind,id);persistPlanlyCloudCache();return true}
     if(kind==='preference'){await cloudUpdatePreferences(merged,true,server.version);applyPlanlyPreferenceData(merged);clearPlanlyConflict(kind,id);persistPlanlyCloudCache();return true}
     return false;
   }catch(err){return false} // anything unexpected: leave it for the person, as before
@@ -2129,7 +2141,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-721t-116';
+const PLANLY_RELEASE='planly-v2-721t-117';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
