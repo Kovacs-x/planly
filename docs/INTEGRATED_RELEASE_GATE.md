@@ -47,3 +47,30 @@ On the installed iPhone/PWA and normal Safari, verify first-open and navigation/
 ## Production acceptance
 
 A release may be called **deployed** after the exact `main` commit's GitHub Pages build/deployment succeeds. User-facing lifecycle behavior is only **production accepted** after the applicable real-device checks above pass. Keep manual checks minimal and targeted to behavior that CI cannot genuinely reproduce.
+
+## Gate record — 13 Oct 2026 (main `8e6dc34`, migrations through 055)
+
+**Live database audit** (read-only queries; the identity matrix ran inside a block that raised at the end, so nothing was saved):
+- All 24 tables in `public` and `planly_private` have RLS enabled. `anon` can read none of them.
+- Policies: personal data (tasks, projects, preferences, sync state, food, calendar sources and events, profiles) is owner-only. Household data (shared tasks and projects, Lists, Budget scopes) is visible to members only. The five private tables with no policies (Google tokens, push outbox/sent/subscriptions, calendar credentials) are reachable only through owner- or service-role functions.
+- List and list-item identity (owner, household, visibility) is immutable via `planly_protect_list_identity`, so a member can't take over a shared list.
+- Every SECURITY DEFINER function has a pinned `search_path`, and none is executable by `anon` or `PUBLIC`. The 13 that `authenticated` can call (the advisor's WARN list) were each read: every one authenticates `auth.uid()` and re-authorizes the object (owner, member, or current assignee).
+- Advisor items left as they are: "RLS enabled, no policy" on the five private tables (intended), and leaked-password protection disabled (an Auth dashboard setting).
+
+**Identity matrix** (as `authenticated` with each user's JWT claims):
+
+| Check | Owner | Member | Unrelated |
+|---|---|---|---|
+| Owner's private tasks visible | 32 | 0 | 0 |
+| Owner's household tasks visible | 7 | 7 | 0 |
+| Others' food, preferences, external calendar events | 0 | 0 | 0 |
+| Household members / household Budget scope visible | 2 / 1 | 2 / 1 | 0 / 0 |
+| Direct update of the owner's private or household task | — | 0 rows | 0 rows |
+| Complete the owner's shared chore via RPC | — | allowed | refused (Not authorized) |
+| Complete the owner's private task via RPC | — | refused | refused |
+
+**Offline:** `tests/browser/household-offline.test.mjs` (14 checks, in CI). The partner's offline ticks and completions survive a restart and replay through the household RPCs, the last tick keeps its auto-complete, and there are no direct writes to the owner's rows. With the auto-complete flag removed from the queue, 3 of its checks fail.
+
+**Regression:** 12 validators; food-search 38/38; browser fitness-food 55, fitness-scan 21, fitness-search-proxy 10, household-offline 14, projects-tabs 20, sync-conflicts 27, undated-repeats 9, update-banner 11; smoke check 27 screens, 0 page errors.
+
+**Still manual (real devices):** the PWA/lifecycle matrix above.
