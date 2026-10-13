@@ -9,13 +9,14 @@ const key=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Stri
 const today=key(new Date());
 const row=(id,title,time,extra={})=>({owner_id:OWNER,client_id:id,data:{id,title,date:today,time,category:'Personal',durationMinutes:30,priority:'normal',completed:false,recurrence:'none',reminder:'none',notes:'',subtasks:[{id:'a',title:'Bag',done:false},{id:'b',title:'Water',done:false}],createdAt:1,updatedAt:1,visibility:'private',...extra},visibility:'private',household_id:null,assignee_id:null,completed_by:null,completed_at:null,cloud_version:1,deleted_at:null,task_date:today,task_time:time});
 const db=makeDb();
-db.tables.planly_tasks.push(row('t1','Gym','18:00'),row('t2','Run','07:00'),row('t3','Swim','12:00'),row('t4','Yoga','20:00'),row('t5','Walk','08:00'),row('t6','Read','21:00'));
+db.tables.planly_tasks.push(row('t1','Gym','18:00'),row('t2','Run','07:00'),row('t3','Swim','12:00'),row('t4','Yoga','20:00'),row('t5','Walk','08:00'),row('t6','Read','21:00'),row('t7','Cook','19:30'));
+db.tables.planly_projects.push({owner_id:OWNER,client_id:'p1',data:{id:'p1',name:'House move',dueDate:'',notes:'',visibility:'private',householdId:null,archived:false,createdAt:1,updatedAt:1},visibility:'private',household_id:null,cloud_version:1,deleted_at:null});
 const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp(context,errors);
 page.on('dialog',d=>d.accept());
 const cloud=id=>db.tables.planly_tasks.find(r=>r.client_id===id);
 const chip=()=>page.evaluate(()=>document.querySelector('#planlySyncChip .syncChipText')?.textContent||'');
 await page.evaluate(()=>document.querySelector('.nav button[data-section="today"]').click());await W(1500);
-check('the four tasks are loaded and synced',(await page.evaluate(()=>['t1','t2','t3','t4'].every(id=>document.querySelector(`[data-id="${id}"]`))))&&(await chip())==='Synced',await chip());
+check('the tasks are loaded and synced',(await page.evaluate(()=>['t1','t2','t3','t4','t5','t6','t7'].every(id=>document.querySelector(`[data-id="${id}"]`))))&&(await chip())==='Synced',await chip());
 
 // edit a task through the app's own edit sheet
 async function edit(id,patch){
@@ -91,6 +92,38 @@ db.offline=false;await context.setOffline(false);
 label='';for(let i=0;i<30;i++){await W(500);label=await chip();if(label==='1 to review')break}
 check('a missing cloud row is not followed as a delete',await page.evaluate(()=>!!document.querySelector('[data-id="t6"]')));
 check('it waits for a choice instead',label==='1 to review',label);
+
+// A change made here while the combined copy is being written, to a field the cloud also changed: it is not merged
+// automatically and does not overwrite the cloud's change; it waits for a choice, and this phone keeps showing it.
+await page.evaluate(()=>document.querySelector('.nav button[data-section="today"]').click());await W(800);
+db.offline=true;await context.setOffline(true);await W(300);
+await edit('t7',{taskTime:'20:00'});                                                          // the time here …
+bump('t7',r=>{r.data={...r.data,title:'Cook dinner',updatedAt:5}});                          // … the title there
+const v7=cloud('t7').cloud_version;let writing=null;const inWrite=new Promise(r=>writing=r);
+db.hold=async q=>{if(q.table==='planly_tasks'&&q.method==='PATCH'&&q.query.includes('client_id=eq.t7')&&q.query.includes('cloud_version=eq.'+v7)){db.hold=null;writing();await W(4000)}};
+db.offline=false;await context.setOffline(false);
+const caught7=await Promise.race([inWrite.then(()=>true),W(15000).then(()=>false)]);
+if(caught7)await edit('t7',{taskTitle:'Cook pasta'});                                         // … and the title here, mid-write
+label='';for(let i=0;i<30;i++){await W(500);label=await chip();if(label==='2 to review')break}
+const c7=cloud('t7'),t7text=await page.evaluate(()=>document.querySelector('[data-id="t7"]')?.innerText||'');
+check('the combined copy was being written when this phone changed the same field',caught7);
+check('the combined write kept both earlier changes',c7.data.time==='20:00'&&c7.data.title==='Cook dinner',JSON.stringify({time:c7.data.time,title:c7.data.title}));
+check('the clashing change made mid-write does not overwrite the cloud',c7.data.title==='Cook dinner',c7.data.title);
+check('it waits for a choice instead (2 to review)',label==='2 to review',label);
+check('this phone keeps showing its own title',/Cook pasta/.test(t7text),t7text.slice(0,60));
+
+// Projects: a name changed here and notes changed there are combined.
+const nav=s=>page.evaluate(s=>document.querySelector(`.nav button[data-section="${s}"]`).click(),s);
+db.offline=true;await context.setOffline(true);await W(300);
+await nav('plan');await W(800);await page.evaluate(()=>document.querySelector('[data-plan-segment="projects"]').click());await W(800);
+await page.evaluate(()=>document.querySelector('[data-r1-project="p1"]').click());await W(600);
+await page.evaluate(()=>document.querySelector('[data-project-action="edit"]').click());await W(500);
+await page.evaluate(()=>{document.getElementById('projectName').value='House move 2'});await nav('today');await W(1500); // saved on leaving
+{const r=db.tables.planly_projects.find(x=>x.client_id==='p1');r.data={...r.data,notes:'Boxes in the loft',updatedAt:5};r.cloud_version++}
+db.offline=false;await context.setOffline(false);
+let p1=null;for(let i=0;i<30;i++){await W(500);p1=db.tables.planly_projects.find(x=>x.client_id==='p1');if(p1.data.name==='House move 2')break}
+check('a project changed in different fields on both sides is combined',p1.data.name==='House move 2'&&p1.data.notes==='Boxes in the loft',JSON.stringify({name:p1.data.name,notes:p1.data.notes}));
+check('still only the two tasks wait for a choice',(await chip())==='2 to review',await chip());
 
 // Preferences: a change made while a preference write is in flight is kept (a normal sync, then an automatic merge).
 const prefs=()=>db.tables.planly_preferences.find(r=>r.owner_id===OWNER);
