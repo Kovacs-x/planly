@@ -38,6 +38,8 @@ jobs:
         run: node tests/browser/update-banner.test.mjs
       - name: Sync conflicts — combined automatically when safe; a real clash waits for a choice (candidate)
         run: node tests/browser/sync-conflicts.test.mjs
+      - name: Household chores offline — partner's ticks and completions survive a restart and replay through the household RPCs (candidate)
+        run: node tests/browser/household-offline.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
