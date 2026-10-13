@@ -111,6 +111,7 @@ export async function installMock(context, db, userId) {
     const wantsObject = (req.headers()['accept'] || '').includes('vnd.pgrst.object');
     const reply = list => wantsObject ? (list.length === 1 ? json(200, list[0]) : json(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: `The result contains ${list.length} rows` })) : json(200, list);
     db.log.push({ table, method, query: url.search, userId });
+    if (db.hold) await db.hold({ table, method, query: decodeURIComponent(url.search) }); // a test can pause one request
     if (db.delays[table] && method !== 'GET') await sleep(db.delays[table]);
     if (method === 'GET' || method === 'HEAD') return reply(applyFilters(rows, url.searchParams));
     const body = JSON.parse(req.postData() || 'null');
