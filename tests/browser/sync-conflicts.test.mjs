@@ -91,5 +91,32 @@ db.offline=false;await context.setOffline(false);
 label='';for(let i=0;i<30;i++){await W(500);label=await chip();if(label==='1 to review')break}
 check('a missing cloud row is not followed as a delete',await page.evaluate(()=>!!document.querySelector('[data-id="t6"]')));
 check('it waits for a choice instead',label==='1 to review',label);
+
+// Preferences: a change made while a preference write is in flight is kept (a normal sync, then an automatic merge).
+const prefs=()=>db.tables.planly_preferences.find(r=>r.owner_id===OWNER);
+const setPref=(id,v)=>page.evaluate(([id,v])=>{const e=document.getElementById(id);if(!e)return false;if(e.type==='checkbox')e.checked=v;else e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));return true},[id,v]);
+const holdWrite=match=>{let hit;const p=new Promise(r=>hit=r);db.hold=async q=>{if(q.table==='planly_preferences'&&q.method==='PATCH'&&match(q)){db.hold=null;hit();await W(1500)}};return p};
+const prefOpsLeft=()=>page.evaluate(o=>JSON.parse(localStorage.getItem('planly-cloud-pending-v1:'+o)||'[]').filter(x=>x.kind==='preference').length,OWNER);
+const settle=async()=>{for(let i=0;i<30;i++){await W(500);if(!(await prefOpsLeft()))break}};
+await page.evaluate(()=>document.getElementById('profileToggle').click());await W(600);
+await page.evaluate(()=>document.querySelector('[data-settings-page="planning"]').click());await W(600);
+let held=holdWrite(()=>true);
+await setPref('defaultDuration','45');                                                         // a write that is held …
+let during=await Promise.race([held.then(()=>true),W(10000).then(()=>false)]);
+const changed1=during&&await setPref('planningEnd','22:00');                                  // … and a change made meanwhile
+await settle();
+check('a preference changed while another is being written: both reach the cloud',during&&changed1&&prefs().default_duration===45&&prefs().planning_end==='22:00',JSON.stringify({during,changed1,d:prefs().default_duration,e:prefs().planning_end}));
+db.offline=true;await context.setOffline(true);await W(300);
+await setPref('defaultDuration','60');                                                         // here, offline …
+{const r=prefs();r.planning_start='07:00';r.cloud_version++}                                   // … a different preference there
+const v=prefs().cloud_version;held=holdWrite(q=>q.query.includes('cloud_version=eq.'+v));        // hold the combined write
+db.offline=false;await context.setOffline(false);
+during=await Promise.race([held.then(()=>true),W(15000).then(()=>false)]);
+const changed2=during&&await setPref('autoCompleteParentSubtasks',false);                      // … and another change mid-write
+await settle();
+const pf=prefs();
+check('a preference change made during an automatic merge is kept with both merged changes',during&&changed2&&pf.default_duration===60&&pf.planning_start==='07:00'&&pf.auto_complete_parent_subtasks===false,JSON.stringify({during,changed2,d:pf.default_duration,s:pf.planning_start,a:pf.auto_complete_parent_subtasks}));
+check('this phone shows all three preference changes',await page.evaluate(()=>document.getElementById('defaultDuration')?.value==='60'&&document.getElementById('planningStart')?.value==='07:00'&&document.getElementById('autoCompleteParentSubtasks')?.checked===false));
+check('no preference change is left waiting or in conflict',(await prefOpsLeft())===0,String(await prefOpsLeft()));
 check('no page errors',errors.length===0,errors.join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
