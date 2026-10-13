@@ -69,8 +69,8 @@ A release may be called **deployed** after the exact `main` commit's GitHub Page
 | Complete the owner's shared chore via RPC | — | allowed | refused (Not authorized) |
 | Complete the owner's private task via RPC | — | refused | refused |
 
-**Offline:** `tests/browser/household-offline.test.mjs` (14 checks, in CI). The partner's offline ticks and completions survive a restart and replay through the household RPCs, the last tick keeps its auto-complete, and there are no direct writes to the owner's rows. With the auto-complete flag removed from the queue, 3 of its checks fail.
+**Offline:** `tests/browser/household-offline.test.mjs` (17 checks, in CI). The partner's offline ticks and completions survive a restart and replay through the household RPCs, and the last tick keeps its auto-complete. There are no direct writes to the owner's rows: the detector inspects both the URL filters and the submitted records, and a built-in self-check sends deliberate direct writes (owner named only in a POST body, row named only in a PATCH filter) to prove they are caught. With the auto-complete flag removed from the queue, 3 checks fail; with a URL-only detector, the 3 self-checks fail.
 
-**Regression:** 12 validators; food-search 38/38; browser fitness-food 55, fitness-scan 21, fitness-search-proxy 10, household-offline 14, projects-tabs 20, sync-conflicts 27, undated-repeats 9, update-banner 11; smoke check 27 screens, 0 page errors.
+**Regression:** 12 validators; food-search 38/38; browser fitness-food 55, fitness-scan 21, fitness-search-proxy 10, household-offline 17, projects-tabs 20, sync-conflicts 27, undated-repeats 9, update-banner 11; smoke check 27 screens, 0 page errors.
 
 **Still manual (real devices):** the PWA/lifecycle matrix above.

@@ -13,8 +13,21 @@ const db=makeDb();
 db.tables.planly_tasks.push(chore('h1','Dishes',[{id:'a',title:'Wash',done:false},{id:'b',title:'Dry',done:false}]),chore('h2','Hoover',[]));
 const {context,errors}=await newPhone(browser,db,PARTNER);const page=await openApp(context,errors);
 const rpc=[],direct=[];
+// A direct write to the owner's task rows, whether the owner/row is named in the URL filters (PATCH/DELETE) or only in
+// the submitted records (POST/upsert): any non-GET planly_tasks request naming the owner or one of the owner's chores.
+const OWNER_ROWS=['h1','h2'];
+function ownerTaskWrite(method,url,body){
+  if(!['POST','PATCH','PUT','DELETE'].includes(method))return '';
+  let path='',params=null;try{const x=new URL(url);path=x.pathname;params=x.searchParams}catch{return ''}
+  if(path!=='/rest/v1/planly_tasks')return '';
+  const filters=[...params.entries()].map(([k,v])=>k+'='+v).join('&');
+  const inUrl=filters.includes(OWNER)||OWNER_ROWS.some(id=>new RegExp('client_id=(eq|in)\\.[^&]*\\b'+id+'\\b').test(filters));
+  let records=[];try{const b=JSON.parse(body||'null');records=Array.isArray(b)?b:b&&typeof b==='object'?[b]:[]}catch{}
+  const inBody=records.some(x=>String(x?.owner_id||'')===OWNER||OWNER_ROWS.includes(String(x?.client_id||''))||OWNER_ROWS.includes(String(x?.data?.id||'')));
+  return inUrl||inBody?method+' '+path+'?'+filters+(inBody?' body:'+String(body).slice(0,80):''):'';
+}
 context.on('request',r=>{const u=r.url();if(u.includes('/rpc/planly_set_household_'))rpc.push({fn:u.split('/rpc/')[1],body:JSON.parse(r.postData()||'{}')});
-  if(u.includes('/rest/v1/planly_tasks')&&['PATCH','POST','DELETE'].includes(r.method())&&u.includes(OWNER))direct.push(r.method()+' '+u)});
+  const hit=ownerTaskWrite(r.method(),u,r.postData());if(hit)direct.push(hit)});
 const cloud=id=>db.tables.planly_tasks.find(r=>r.client_id===id);
 const chip=()=>page.evaluate(()=>document.querySelector('#planlySyncChip .syncChipText')?.textContent||'');
 const pending=()=>page.evaluate(p=>JSON.parse(localStorage.getItem('planly-cloud-pending-v1:'+p)||'[]'),PARTNER);
@@ -53,5 +66,17 @@ check('done by the partner',h1.completed_by===PARTNER&&h2.completed_by===PARTNER
 check('only through the household RPCs',rpc.some(c=>c.fn==='planly_set_household_subtask_done')&&rpc.some(c=>c.fn==='planly_set_household_task_completed'&&c.body.p_client_id==='h2'),JSON.stringify(rpc.map(c=>c.fn+':'+c.body.p_client_id)));
 check('the partner\'s phone never wrote the owner\'s task rows directly',direct.length===0,direct.join(' | '));
 check('nothing is left waiting',(await pending()).length===0&&(await chip())==='Synced',JSON.stringify({q:(await pending()).length,chip:await chip()}));
+// The detector itself: deliberate direct writes from this phone, named only in the body (POST) and only in the URL
+// filters (PATCH), must both be caught; a write to an unrelated row must not be.
+const before=direct.length;
+await page.evaluate(async([sb,owner])=>{const h={'content-type':'application/json',prefer:'return=minimal'};
+  await fetch(sb+'/rest/v1/planly_tasks',{method:'POST',headers:h,body:JSON.stringify({owner_id:owner,client_id:'h1',data:{id:'h1',title:'Dishes'}})}).catch(()=>{});
+  await fetch(sb+'/rest/v1/planly_tasks?client_id=eq.h2&cloud_version=eq.1',{method:'PATCH',headers:h,body:JSON.stringify({title:'Hoover'})}).catch(()=>{});
+  await fetch(sb+'/rest/v1/planly_tasks?client_id=eq.zz9',{method:'PATCH',headers:h,body:JSON.stringify({title:'x'})}).catch(()=>{})},['https://dtniwcwjucepsjzoojuc.supabase.co',OWNER]);
+await W(800);
+const caught=direct.slice(before);
+check('the direct-write detector catches a POST naming the owner only in its body',caught.some(x=>x.startsWith('POST')&&x.includes('body:')),caught.join(' | '));
+check('…and a PATCH naming the owner\'s row only in its URL filter',caught.some(x=>x.startsWith('PATCH')&&x.includes('client_id=eq.h2')),caught.join(' | '));
+check('…and ignores a write to an unrelated row',caught.length===2,caught.join(' | '));
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
