@@ -36,12 +36,15 @@ check('Budget opens on Me with the month bar, the plan and the categories',await
 check('the header says Personal',await eyebrow()==='Personal',await eyebrow());
 check('left to plan is income minus bills',v.includes('£1,449.55'),v.slice(0,200));
 
-// Scroll position is kept when the Budget redraws in place (scroll layer).
+// Scroll position is kept when the Budget redraws in place (scroll step). To prove the step is needed, the redraw is made
+// to move the page: a watcher jumps to the top the moment the Budget view is replaced, inside the redraw.
 await page.evaluate(()=>window.scrollTo(0,400));await W(300);
 const y0=await page.evaluate(()=>Math.round(window.scrollY));
-await page.evaluate(()=>window.dispatchEvent(new CustomEvent('planly:budget-invalidated',{detail:{reason:'test'}})));await W(1500);
-const y1=await page.evaluate(()=>Math.round(window.scrollY));
-check('a redraw keeps the scroll position',y0>200&&Math.abs(y1-y0)<=2,JSON.stringify({y0,y1}));
+await page.evaluate(()=>{window.__budgetJump=0;const v=document.getElementById('view');const mo=new MutationObserver(()=>{if(window.__budgetJump)return;window.__budgetJump=Math.round(window.scrollY)||-1;window.scrollTo(0,0);mo.disconnect()});mo.observe(v,{childList:true});
+  window.dispatchEvent(new CustomEvent('planly:budget-invalidated',{detail:{reason:'test'}}))});await W(1500);
+const jumped=await page.evaluate(()=>window.__budgetJump),y1=await page.evaluate(()=>Math.round(window.scrollY)),same=(await view()).includes('Left to plan');
+check('the redraw really moved the page (the test condition holds)',jumped>200,JSON.stringify({jumped}));
+check('a redraw of the same Budget screen puts the scroll position back',y0>200&&same&&Math.abs(y1-y0)<=2,JSON.stringify({y0,y1,same}));
 await page.evaluate(()=>window.scrollTo(0,0));await W(200);
 
 // Category detail.
