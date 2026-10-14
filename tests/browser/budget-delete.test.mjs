@@ -66,7 +66,7 @@ check('deleting a category says how many payments go with it',dialogs.some(m=>m.
 check('the category is deleted in the cloud',db.tables.planly_budget_categories.find(x=>x.id===CAR).archived===true);
 check('its payments are deleted in the cloud, earlier months too',[3,5].every(n=>!!row(id('b1',n)).deleted_at),JSON.stringify([3,5].map(n=>row(id('b1',n)).deleted_at)));
 check('a payment edited on another device meanwhile is not overwritten',!row(id('b1',4)).deleted_at&&row(id('b1',4)).amount_minor===5500,JSON.stringify(row(id('b1',4))));
-check('…and the phone says it was not removed',dialogs.some(m=>m.includes('1 of its payments was not removed because it changed on another device')),JSON.stringify(dialogs));
+check('…and the phone says it was not removed because it changed',dialogs.some(m=>m.includes('1 of its payments was not removed: 1 changed on another device.')),JSON.stringify(dialogs));
 v=await view();
 check('the total no longer counts them',await left()==='£1,600.00'&&!v.includes('Car loan'),await left());
 await click('[data-month-next]');await W(1500);v=await view();
@@ -96,5 +96,18 @@ const two=await newPhone(browser,db2,OWNER);const page2=await openApp(two.contex
 await page2.evaluate(()=>document.querySelector('.nav button[data-section="budget"]').click());await W(2500);
 const carry2=await page2.evaluate(()=>({button:!!document.querySelector('[data-month-carry]'),text:(document.getElementById('view')?.innerText||'').replace(/\s+/g,' ').slice(0,160)}));
 check('no Carry forward button when everything to carry is £0',!carry2.button&&!/recurring items? ready/.test(carry2.text),JSON.stringify(carry2));
-check('no page errors',errors.length===0&&two.errors.length===0,[...errors,...two.errors].slice(0,3).join(' | '));
+// Each payment left behind is reported with its own reason: one changed on another device (newer version), one whose
+// request failed, and one already deleted on another device (counted as removed, not reported).
+const db3=makeDb(),PETS=id('a3',1),pet=n=>id('b4',n);db3.tables.planly_budget_scopes=[scope(P,'personal',null)];db3.tables.planly_budget_categories=[cat(PETS,P,'Pets')];db3.tables.planly_budget_targets=[];
+db3.tables.planly_budget_entries=[ent(pet(1),P,PETS,'Food',1000),ent(pet(2),P,PETS,'Vet',2000),ent(pet(3),P,PETS,'Insurance',3000),ent(pet(4),P,PETS,'Toys',400)];
+const three=await newPhone(browser,db3,OWNER);const page3=await openApp(three.context,three.errors);const dialogs3=[];page3.on('dialog',x=>{dialogs3.push(x.message());x.accept()});
+await page3.evaluate(()=>document.querySelector('.nav button[data-section="budget"]').click());await W(2500);
+await page3.evaluate(c=>document.querySelector(`[data-cat="${c}"]`).click(),PETS);await W(1200);
+const pr=n=>db3.tables.planly_budget_entries.find(x=>x.id===pet(n));
+db3.hold=async({table,method})=>{if(table==='planly_budget_categories'&&method==='PATCH'){pr(2).amount_minor=2500;pr(2).cloud_version++;pr(4).deleted_at=new Date().toISOString();pr(4).cloud_version++;db3.hold=null}};
+db3.fail=({table,method,query})=>table==='planly_budget_entries'&&method==='PATCH'&&query.includes(pet(3))?[500,{message:'server error'}]:null;
+await page3.evaluate(()=>document.querySelector('[data-budget-remove-category]').click());await W(3500);db3.fail=null;
+check('each payment is deleted or kept for its own reason',!!pr(1).deleted_at&&!pr(2).deleted_at&&pr(2).amount_minor===2500&&!pr(3).deleted_at,JSON.stringify([1,2,3,4].map(n=>[pr(n).deleted_at?'deleted':'kept',pr(n).cloud_version])));
+check('the message gives each reason its own count, and an already-deleted payment is not reported',dialogs3.some(m=>m.includes('Pets was deleted. 2 of its payments were not removed: 1 changed on another device, 1 could not be removed. They no longer count in a total.')),JSON.stringify(dialogs3));
+check('no page errors',errors.length===0&&two.errors.length===0&&three.errors.length===0,[...errors,...two.errors,...three.errors].slice(0,3).join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);

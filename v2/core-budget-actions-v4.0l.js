@@ -28,12 +28,15 @@ async function deleteCategoryFlow(category){if(!category)return false;const star
 if(!confirm(count?'Delete '+category.name+' and its '+count+' payment'+(count===1?'':'s')+'?':'Delete '+category.name+'?'))return false;
 await mutate('category',category.id,{archived:true});
 if(!count||!scope)return true;
-const removed=[],changed=[],failed=[];
-for(const x of seen){if(!x.version){changed.push(x.id);continue}try{const res=await db().from('planly_budget_entries').update(mutablePatch('entry',{deleted_at:new Date().toISOString()})).eq('id',x.id).eq('scope_id',scope.id).eq('category_id',category.id).eq('cloud_version',x.version).is('deleted_at',null).select('id,cloud_version').maybeSingle();if(res.error)failed.push(x.id);else if(res.data)removed.push(res.data);else changed.push(x.id)}catch{failed.push(x.id)}}
+/* Every payment ends in exactly one outcome. A delete that matched no row is read back before it is explained: only a
+   newer version counts as "changed on another device"; one already deleted counts as removed; anything else (a request
+   error, a row this phone cannot see or change) is "could not be removed". */
+const removed=[],gone=[],changed=[],unsynced=[],failed=[];
+for(const x of seen){if(!x.version){unsynced.push(x.id);continue}try{const res=await db().from('planly_budget_entries').update(mutablePatch('entry',{deleted_at:new Date().toISOString()})).eq('id',x.id).eq('scope_id',scope.id).eq('category_id',category.id).eq('cloud_version',x.version).is('deleted_at',null).select('id,cloud_version').maybeSingle();if(res.error){failed.push(x.id);continue}if(res.data){removed.push(res.data);continue}const now=await db().from('planly_budget_entries').select('id,cloud_version,deleted_at').eq('id',x.id).maybeSingle();if(now.error||!now.data)failed.push(x.id);else if(now.data.deleted_at)gone.push(x.id);else if(Number(now.data.cloud_version)!==x.version)changed.push(x.id);else failed.push(x.id)}catch{failed.push(x.id)}}
 await api().bootstrap();await Promise.resolve(api().refreshTodayBills?.({force:true})).catch(()=>{});
-window.dispatchEvent(new CustomEvent('planly:budget-mutation-confirmed',{detail:{kind:'entry',id:category.id,action:'delete-category-payments',rows:removed,changed,failed}}));
-const kept=changed.length+failed.length;
-if(kept)alert(category.name+' was deleted. '+kept+' of its payments '+(kept===1?'was':'were')+' not removed'+(changed.length?' because '+(kept===1?'it':'they')+' changed on another device':'')+'. They no longer count in a total.');
+window.dispatchEvent(new CustomEvent('planly:budget-mutation-confirmed',{detail:{kind:'entry',id:category.id,action:'delete-category-payments',rows:removed,gone,changed,unsynced,failed}}));
+const kept=changed.length+unsynced.length+failed.length,reasons=[[changed,'changed on another device'],[unsynced,'not synced yet'],[failed,'could not be removed']].filter(([xs])=>xs.length).map(([xs,why])=>xs.length+' '+why);
+if(kept)alert(category.name+' was deleted. '+kept+' of its payments '+(kept===1?'was':'were')+' not removed: '+reasons.join(', ')+'. They no longer count in a total.');
 return true}
 function selectedCategory(){const el=host?.querySelector('[data-act="allocation"][data-category]');return el?.dataset.category||''}
 function rerender(){return window.PlanlyBudgetUI?.renderTab?.(host)}
