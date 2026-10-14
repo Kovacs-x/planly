@@ -79,5 +79,10 @@ window.addEventListener('planly:budget-mutation-confirmed',()=>queueMicrotask(re
 window.addEventListener('planly:budget-sync-state-changed',()=>queueMicrotask(refreshVisible));
 window.addEventListener('planly-budget-sync-failed',()=>queueMicrotask(refreshVisible));
 window.addEventListener('planly-budget-sync-state-changed',()=>queueMicrotask(refreshVisible));
-window.PlanlyBudgetUI={renderTab};
+/* Budget draws through one ordered list of steps. Each later Budget module adds its step with PlanlyBudgetUI.stage(name,run);
+   run(target,next) does its own work around next(target). A step added later wraps the earlier ones, as the wrappers did. */
+const budgetStages=[];
+function composedRenderTab(target){let run=renderTab;for(const s of budgetStages){const inner=run;run=t=>s.run(t,inner)}return run(target)}
+function stage(name,run){if(typeof run!=='function'||budgetStages.some(s=>s.name===name))return;budgetStages.push({name,run})}
+window.PlanlyBudgetUI={renderTab:composedRenderTab,stage,stages:()=>budgetStages.map(s=>s.name)};
 })();

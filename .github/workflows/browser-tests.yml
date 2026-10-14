@@ -40,6 +40,8 @@ jobs:
         run: node tests/browser/sync-conflicts.test.mjs
       - name: Household chores offline — partner's ticks and completions survive a restart and replay through the household RPCs (candidate)
         run: node tests/browser/household-offline.test.mjs
+      - name: Budget tab — Me/Household, month bar, category, add/pay/delete, scroll kept, set-up card (candidate)
+        run: node tests/browser/budget-tab.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
