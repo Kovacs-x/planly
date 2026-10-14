@@ -96,18 +96,29 @@ const two=await newPhone(browser,db2,OWNER);const page2=await openApp(two.contex
 await page2.evaluate(()=>document.querySelector('.nav button[data-section="budget"]').click());await W(2500);
 const carry2=await page2.evaluate(()=>({button:!!document.querySelector('[data-month-carry]'),text:(document.getElementById('view')?.innerText||'').replace(/\s+/g,' ').slice(0,160)}));
 check('no Carry forward button when everything to carry is £0',!carry2.button&&!/recurring items? ready/.test(carry2.text),JSON.stringify(carry2));
-// Each payment left behind is reported with its own reason: one changed on another device (newer version), one whose
-// request failed, and one already deleted on another device (counted as removed, not reported).
+// Each payment left behind is reported with its own reason. Six payments in Pets end differently: Food is removed; Vet is
+// edited on another device meanwhile (newer version: "changed on another device"); Insurance's delete request fails;
+// Lead's delete matches no row although its version is unchanged (as when the server will not let this phone change it);
+// Toys is deleted on another device meanwhile (already gone: counted as removed, not reported); Bed was added on this phone
+// and has not reached the cloud yet (its upload fails until the delete is over: "not synced yet", not touched).
 const db3=makeDb(),PETS=id('a3',1),pet=n=>id('b4',n);db3.tables.planly_budget_scopes=[scope(P,'personal',null)];db3.tables.planly_budget_categories=[cat(PETS,P,'Pets')];db3.tables.planly_budget_targets=[];
-db3.tables.planly_budget_entries=[ent(pet(1),P,PETS,'Food',1000),ent(pet(2),P,PETS,'Vet',2000),ent(pet(3),P,PETS,'Insurance',3000),ent(pet(4),P,PETS,'Toys',400)];
+db3.tables.planly_budget_entries=[ent(pet(1),P,PETS,'Food',1000),ent(pet(2),P,PETS,'Vet',2000),ent(pet(3),P,PETS,'Insurance',3000),ent(pet(4),P,PETS,'Toys',400),ent(pet(5),P,PETS,'Lead',600)];
 const three=await newPhone(browser,db3,OWNER);const page3=await openApp(three.context,three.errors);const dialogs3=[];page3.on('dialog',x=>{dialogs3.push(x.message());x.accept()});
 await page3.evaluate(()=>document.querySelector('.nav button[data-section="budget"]').click());await W(2500);
-await page3.evaluate(c=>document.querySelector(`[data-cat="${c}"]`).click(),PETS);await W(1200);
 const pr=n=>db3.tables.planly_budget_entries.find(x=>x.id===pet(n));
-db3.hold=async({table,method})=>{if(table==='planly_budget_categories'&&method==='PATCH'){pr(2).amount_minor=2500;pr(2).cloud_version++;pr(4).deleted_at=new Date().toISOString();pr(4).cloud_version++;db3.hold=null}};
-db3.fail=({table,method,query})=>table==='planly_budget_entries'&&method==='PATCH'&&query.includes(pet(3))?[500,{message:'server error'}]:null;
+db3.hold=async({table,method})=>{
+  if(table==='planly_budget_categories'&&method==='PATCH'){pr(2).amount_minor=2500;pr(2).cloud_version++;pr(4).deleted_at=new Date().toISOString();pr(4).cloud_version++}};
+const unsyncedBed=({table,method})=>table==='planly_budget_entries'&&method==='POST'?[503,{message:'unavailable'}]:null;db3.fail=unsyncedBed;
+await page3.evaluate(c=>window.PlanlyBudget.addEntry({kind:'expense',amountMinor:1500,categoryId:c,entryDate:new Date().toISOString().slice(0,10),description:'Bed',dueDay:5,recurringMonthly:false}),PETS);await W(800);
+const bed=await page3.evaluate(()=>{const s=window.PlanlyBudget.getState(),r=s.entries.find(x=>x.description==='Bed');return r?{id:r.id,version:Number(s.versions?.entries?.[r.id]||0)}:null});
+check('the test condition holds: Bed is on the phone but not yet in the cloud',bed&&bed.version===0&&!db3.tables.planly_budget_entries.some(x=>x.description==='Bed'),JSON.stringify(bed));
+db3.fail=({table,method,query})=>unsyncedBed({table,method})||(table==='planly_budget_entries'&&method==='PATCH'&&query.includes(pet(3))?[500,{message:'server error'}]:
+  table==='planly_budget_entries'&&method==='PATCH'&&query.includes(pet(5))?[200,null]:null);
+await page3.evaluate(c=>document.querySelector(`[data-cat="${c}"]`).click(),PETS);await W(1200);
 await page3.evaluate(()=>document.querySelector('[data-budget-remove-category]').click());await W(3500);db3.fail=null;
-check('each payment is deleted or kept for its own reason',!!pr(1).deleted_at&&!pr(2).deleted_at&&pr(2).amount_minor===2500&&!pr(3).deleted_at,JSON.stringify([1,2,3,4].map(n=>[pr(n).deleted_at?'deleted':'kept',pr(n).cloud_version])));
-check('the message gives each reason its own count, and an already-deleted payment is not reported',dialogs3.some(m=>m.includes('Pets was deleted. 2 of its payments were not removed: 1 changed on another device, 1 could not be removed. They no longer count in a total.')),JSON.stringify(dialogs3));
+check('the delete counts the unsynced payment too',dialogs3.some(m=>m.includes('Delete Pets and its 6 payments?')),JSON.stringify(dialogs3));
+check('each payment is deleted or kept for its own reason',!!pr(1).deleted_at&&!pr(2).deleted_at&&pr(2).amount_minor===2500&&!pr(3).deleted_at&&!pr(5).deleted_at,JSON.stringify([1,2,3,4,5].map(n=>[pr(n).description,pr(n).deleted_at?'deleted':'kept',pr(n).cloud_version])));
+check('the message gives each reason its own count; the one already deleted elsewhere is not reported',dialogs3.some(m=>m.includes('Pets was deleted. 4 of its payments were not removed: 1 changed on another device, 1 not synced yet, 2 could not be removed. They no longer count in a total.')),JSON.stringify(dialogs3));
+db3.hold=null;
 check('no page errors',errors.length===0&&two.errors.length===0&&three.errors.length===0,[...errors,...two.errors,...three.errors].slice(0,3).join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
