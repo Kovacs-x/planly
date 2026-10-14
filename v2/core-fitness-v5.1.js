@@ -459,14 +459,13 @@ function openTargets(){
 }
 
 // ---------- tab integration ----------
-const baseRender=render;
-render=function(){
+renderStage('fitness',baseRender=>function(){
   if(state.tab!=='fitness'){return baseRender.apply(this,arguments)}
   const view=$('#view');if(!view)return;
   $('#addBtn').style.display='none';
   if(fitInvalid||!view.querySelector('.fitView'))renderFitness(view);
   else setHeader('Fitness',new Date(dayKey+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'}));
-};
+});
 $('#view')?.addEventListener('click',handleClick);
 nav.addEventListener('click',()=>{if(dayKey!==todayKey()&&state.tab!=='fitness')dayKey=todayKey();invalidate();if(userId)refresh()},true);
 window.addEventListener('online',()=>{if(userId)refresh()});
