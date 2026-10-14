@@ -22,9 +22,8 @@ async function probePlanlyServiceWorker(){
 }
 
 /* Collapse same-turn duplicate full renders, and do not replay the page-entry animation when async bootstrap/sync work refreshes the surface already shown. */
-const __planlyStableRender=render;
 let __planlyRenderTurn=false,__planlyRenderedTab='';
-render=function(){if(__planlyRenderTurn)return;__planlyRenderTurn=true;const view=$('#view'),tab=String(state?.tab||''),sameSurface=!!view?.childElementCount&&__planlyRenderedTab===tab;try{const result=__planlyStableRender.apply(this,arguments);__planlyRenderedTab=tab;if(sameSurface&&tab!=='budget')view?.classList.remove('viewEntering');return result}finally{queueMicrotask(()=>{__planlyRenderTurn=false})}};
+renderStage('stable',__planlyStableRender=>function(){if(__planlyRenderTurn)return;__planlyRenderTurn=true;const view=$('#view'),tab=String(state?.tab||''),sameSurface=!!view?.childElementCount&&__planlyRenderedTab===tab;try{const result=__planlyStableRender.apply(this,arguments);__planlyRenderedTab=tab;if(sameSurface&&tab!=='budget')view?.classList.remove('viewEntering');return result}finally{queueMicrotask(()=>{__planlyRenderTurn=false})}});
 
 /* Opt-in diagnostics only: ?planlydiag=1. No behaviour changes when disabled. */
 if(new URLSearchParams(location.search).get('planlydiag')==='1'){
@@ -33,7 +32,7 @@ if(new URLSearchParams(location.search).get('planlydiag')==='1'){
   const anchor=()=>{const x=Math.max(1,Math.min(innerWidth-1,Math.round(innerWidth/2))),ys=[1,80,160,Math.round((visualViewport?.height||innerHeight)/2)];return ys.map(y=>describe(document.elementFromPoint(x,Math.min((visualViewport?.height||innerHeight)-1,y)))).filter(Boolean)};
   const snap=()=>({tab:state?.tab||'',scrollY:Math.round(window.scrollY||0),scrollTop:Math.round(document.scrollingElement?.scrollTop||0),docH:document.documentElement?.scrollHeight||0,vvH:Math.round(window.visualViewport?.height||0),vvTop:Math.round(window.visualViewport?.offsetTop||0),focus:document.activeElement?.id||document.activeElement?.tagName||'',bodyOverflow:getComputedStyle(document.body).overflow,htmlOverflow:getComputedStyle(document.documentElement).overflow,anchors:state?.tab==='budget'?anchor():undefined});
   const log=(type,data={})=>{diag.events.push({t:Math.round(performance.now()),type,...snap(),...data});if(diag.events.length>diag.max)diag.events.shift();updatePanel()};
-  const originalRender=render;render=function(){const before=snap(),stack=(new Error()).stack?.split('\n').slice(1,7).join(' | ')||'';log('render:start',{before,stack});const result=originalRender.apply(this,arguments);requestAnimationFrame(()=>log('render:raf',{before,after:snap()}));return result};
+  renderStage('diagnostics',originalRender=>function(){const before=snap(),stack=(new Error()).stack?.split('\n').slice(1,7).join(' | ')||'';log('render:start',{before,stack});const result=originalRender.apply(this,arguments);requestAnimationFrame(()=>log('render:raf',{before,after:snap()}));return result});
   for(const name of ['scrollTo','scrollBy']){const original=window[name];if(typeof original==='function')window[name]=function(){log('programmatic:'+name,{args:[...arguments],stack:(new Error()).stack?.split('\n').slice(1,6).join(' | ')||''});return original.apply(this,arguments)}}
   const originalFocus=HTMLElement.prototype.focus;HTMLElement.prototype.focus=function(){log('programmatic:focus',{target:describe(this),stack:(new Error()).stack?.split('\n').slice(1,6).join(' | ')||''});return originalFocus.apply(this,arguments)};
   const originalSIV=Element.prototype.scrollIntoView;if(originalSIV)Element.prototype.scrollIntoView=function(){log('programmatic:scrollIntoView',{target:describe(this),args:[...arguments],stack:(new Error()).stack?.split('\n').slice(1,6).join(' | ')||''});return originalSIV.apply(this,arguments)};
