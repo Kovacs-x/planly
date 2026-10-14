@@ -21,11 +21,19 @@ if(!confirm(repeats?'“'+label+'” repeats every month.\n\nDelete it and stop 
 await mutate('entry',row.id,{}, {remove:true});
 for(const src of repeatingSources(row)){const fresh=api().getState().entries.find(x=>x.id===src.id);if(fresh?.recurring_monthly)await mutate('entry',src.id,{recurring_monthly:false})}
 return true}
-/* Deleting a category also deletes all of its payments (any month, paid or not), so none of them count in a total. */
-async function deleteCategoryFlow(category){if(!category)return false;const scope=api().getState().scope,count=(api().getState().entries||[]).filter(x=>x.category_id===category.id&&!x.deleted_at).length;
+/* Deleting a category also deletes all of its payments (any month, paid or not), so none of them count in a total.
+   Each payment is deleted only at the version this phone saw when the delete began, so an edit made meanwhile on another
+   device is never overwritten: that payment is left as it is (it no longer counts, as its category is deleted). */
+async function deleteCategoryFlow(category){if(!category)return false;const start=api().getState(),scope=start.scope,seen=(start.entries||[]).filter(x=>x.category_id===category.id&&!x.deleted_at).map(x=>({id:x.id,version:Number(start.versions?.entries?.[x.id]||x.cloud_version||0)})),count=seen.length;
 if(!confirm(count?'Delete '+category.name+' and its '+count+' payment'+(count===1?'':'s')+'?':'Delete '+category.name+'?'))return false;
 await mutate('category',category.id,{archived:true});
-if(count&&scope){const res=await db().from('planly_budget_entries').update(mutablePatch('entry',{deleted_at:new Date().toISOString()})).eq('scope_id',scope.id).eq('category_id',category.id).is('deleted_at',null).select('id');if(res.error)throw Object.assign(Error('The category was deleted, but its payments could not be removed. They no longer count in a total.'),{code:res.error.code||'database'});await api().bootstrap();await Promise.resolve(api().refreshTodayBills?.({force:true})).catch(()=>{});window.dispatchEvent(new CustomEvent('planly:budget-mutation-confirmed',{detail:{kind:'entry',id:category.id,action:'delete-category-payments',rows:res.data||[]}}))}
+if(!count||!scope)return true;
+const removed=[],changed=[],failed=[];
+for(const x of seen){if(!x.version){changed.push(x.id);continue}try{const res=await db().from('planly_budget_entries').update(mutablePatch('entry',{deleted_at:new Date().toISOString()})).eq('id',x.id).eq('scope_id',scope.id).eq('category_id',category.id).eq('cloud_version',x.version).is('deleted_at',null).select('id,cloud_version').maybeSingle();if(res.error)failed.push(x.id);else if(res.data)removed.push(res.data);else changed.push(x.id)}catch{failed.push(x.id)}}
+await api().bootstrap();await Promise.resolve(api().refreshTodayBills?.({force:true})).catch(()=>{});
+window.dispatchEvent(new CustomEvent('planly:budget-mutation-confirmed',{detail:{kind:'entry',id:category.id,action:'delete-category-payments',rows:removed,changed,failed}}));
+const kept=changed.length+failed.length;
+if(kept)alert(category.name+' was deleted. '+kept+' of its payments '+(kept===1?'was':'were')+' not removed'+(changed.length?' because '+(kept===1?'it':'they')+' changed on another device':'')+'. They no longer count in a total.');
 return true}
 function selectedCategory(){const el=host?.querySelector('[data-act="allocation"][data-category]');return el?.dataset.category||''}
 function rerender(){return window.PlanlyBudgetUI?.renderTab?.(host)}

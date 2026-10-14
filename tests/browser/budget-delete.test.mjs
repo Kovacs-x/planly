@@ -1,5 +1,5 @@
 // Budget totals after deleting: deleting a category deletes all of its payments (any month, paid or not) so none of them
-// count in a total, in Me and in Household; deleting or changing a payment changes the total; a category that was already
+// count in a total (each at the version first seen, so an edit made meanwhile on another device is not overwritten), in Me and in Household; deleting or changing a payment changes the total; a category that was already
 // deleted before this fix no longer counts in a total, on Today or in carry forward; carry forward skips £0 payments.
 // Run: node tests/browser/budget-delete.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER,PARTNER,HOUSEHOLD} from './harness.mjs';
@@ -57,12 +57,16 @@ await page.evaluate(()=>document.getElementById('budgetEditPaymentForm').request
 await click('[data-edit-payment-back]');await W(800);await back();
 check('changing a payment changes the total',await left()==='£1,350.00'&&row(id('b1',1)).amount_minor===90000,await left());
 
-// Delete the Car category: all its payments go — this month's planned and paid ones, and last month's.
+// Delete the Car category: its payments go — this month's and last month's. While the delete runs, another device edits
+// the paid Car insurance (its cloud version moves on): that edit must not be overwritten, so that payment is left alone.
 await click(`[data-cat="${CAR}"]`);await W(1200);dialogs.length=0;
-await click('[data-budget-remove-category]');await W(3000);
+db.hold=async({table,method})=>{if(table==='planly_budget_categories'&&method==='PATCH'){const r=row(id('b1',4));r.amount_minor=5500;r.cloud_version++;db.hold=null}};
+await click('[data-budget-remove-category]');await W(3000);db.hold=null;
 check('deleting a category says how many payments go with it',dialogs.some(m=>m.includes('Delete Car and its 3 payments?')),JSON.stringify(dialogs));
 check('the category is deleted in the cloud',db.tables.planly_budget_categories.find(x=>x.id===CAR).archived===true);
-check('all of its payments are deleted in the cloud, paid and earlier months too',[3,4,5].every(n=>!!row(id('b1',n)).deleted_at),JSON.stringify([3,4,5].map(n=>row(id('b1',n)).deleted_at)));
+check('its payments are deleted in the cloud, earlier months too',[3,5].every(n=>!!row(id('b1',n)).deleted_at),JSON.stringify([3,5].map(n=>row(id('b1',n)).deleted_at)));
+check('a payment edited on another device meanwhile is not overwritten',!row(id('b1',4)).deleted_at&&row(id('b1',4)).amount_minor===5500,JSON.stringify(row(id('b1',4))));
+check('…and the phone says it was not removed',dialogs.some(m=>m.includes('1 of its payments was not removed because it changed on another device')),JSON.stringify(dialogs));
 v=await view();
 check('the total no longer counts them',await left()==='£1,600.00'&&!v.includes('Car loan'),await left());
 await click('[data-month-next]');await W(1500);v=await view();
