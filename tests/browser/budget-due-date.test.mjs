@@ -22,19 +22,19 @@ const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp
 const click=sel=>page.evaluate(sel=>{const e=document.querySelector(sel);e?.click();return !!e},sel);
 const picker=()=>page.evaluate(()=>{const row=document.querySelector('.budgetDueRow'),chips=[...(row?.querySelectorAll('.budgetChip')||[])],custom=row?.querySelector('[data-due-custom]'),grid=document.querySelector('[data-due-grid]');
   return {chips:chips.map(c=>c.textContent.trim()||'icon'),oneRow:new Set(chips.map(c=>Math.round(c.getBoundingClientRect().top))).size===1,fits:chips.every(c=>c.getBoundingClientRect().right<=row.getBoundingClientRect().right+1),
-    active:chips.filter(c=>c.classList.contains('active')).map(c=>c.textContent.trim()),customIcon:!!custom?.querySelector('.budgetDueIcon'),customPen:!!custom?.querySelector('.budgetDuePen'),customText:custom?.textContent.trim()||'',
+    active:chips.filter(c=>c.classList.contains('active')).map(c=>c.textContent.trim()),customIcon:!!custom?.querySelector('.budgetDueIcon'),customPen:!!custom?.querySelector('.budgetDuePen'),customText:custom?.textContent.trim()||'',customPressed:custom?.getAttribute('aria-pressed')||'',
     gridOpen:!!grid&&!grid.hidden,days:grid?grid.querySelectorAll('[data-due-day]').length:0,gridActive:grid?.querySelector('.active')?.textContent||''}});
 
 await click('.nav button[data-section="budget"]');await W(2500);
 await click('[data-act="allocation"]');await W(1000);
 let s=await picker();
-check('Add payment shows the five days and a calendar chip on one row',JSON.stringify(s.chips)==='["1st","7th","15th","21st","28th","icon"]'&&s.oneRow&&s.fits&&s.customIcon&&!s.gridOpen,JSON.stringify(s));
+check('Add payment shows the five days and a calendar chip on one row',JSON.stringify(s.chips)==='["1st","7th","15th","21st","28th","icon"]'&&s.oneRow&&s.fits&&s.customIcon&&s.customPressed==='false'&&!s.gridOpen,JSON.stringify(s));
 await click('[data-due-custom]');await W(300);s=await picker();
 check('the calendar chip opens a grid of every day',s.gridOpen&&s.days===31,JSON.stringify(s));
 await click('[data-due-day="9"]');await W(300);s=await picker();
-check('picking the 9th closes the grid and shows "9th" with a pencil on the calendar chip',!s.gridOpen&&s.customText==='9th'&&s.customPen&&JSON.stringify(s.active)==='["9th"]'&&s.oneRow&&s.fits,JSON.stringify(s));
+check('picking the 9th closes the grid and shows "9th" with a pencil on the calendar chip, announced as pressed',!s.gridOpen&&s.customText==='9th'&&s.customPen&&s.customPressed==='true'&&JSON.stringify(s.active)==='["9th"]'&&s.oneRow&&s.fits,JSON.stringify(s));
 await click('[data-due="15"]');await W(300);s=await picker();
-check('a quick day puts the calendar chip back',JSON.stringify(s.active)==='["15th"]'&&s.customIcon&&!s.customPen,JSON.stringify(s));
+check('a quick day puts the calendar chip back, no longer pressed',JSON.stringify(s.active)==='["15th"]'&&s.customIcon&&!s.customPen&&s.customPressed==='false',JSON.stringify(s));
 await click('[data-due-custom]');await W(300);await click('[data-due-day="9"]');await W(300);
 await page.evaluate(()=>{const v=(i,x)=>{const e=document.getElementById(i);e.value=x;e.dispatchEvent(new Event('input',{bubbles:true}))};v('allocAmount','40');v('allocName','Phone')});
 await page.evaluate(id=>document.querySelector(`[data-category-chip="${id}"]`)?.click(),RENT);
@@ -48,7 +48,7 @@ for(let i=0;i<ahead;i++){await click('[data-month-next]');await W(1200)}
 await click(`[data-cat="${RENT}"]`);await W(1200);
 await click(`[data-budget-edit-entry="${GYM}"]`);await W(1000);
 s=await picker();
-check('Edit payment shows the due date with the payment\'s day chosen',JSON.stringify(s.chips)==='["1st","7th","15th","21st","28th","5th"]'&&JSON.stringify(s.active)==='["5th"]'&&s.customPen,JSON.stringify(s));
+check('Edit payment shows the due date with the payment\'s day chosen',JSON.stringify(s.chips)==='["1st","7th","15th","21st","28th","5th"]'&&JSON.stringify(s.active)==='["5th"]'&&s.customPen&&s.customPressed==='true',JSON.stringify(s));
 await click('[data-due-custom]');await W(300);
 check('…and the grid marks that day',(await picker()).gridActive==='5');
 await click('[data-due-day="31"]');await W(300);

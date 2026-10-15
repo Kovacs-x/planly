@@ -34,7 +34,7 @@ for(const forbidden of ['data-month-targets','targetsView','setTarget('])if(mont
 if([monthState,ui].some(s=>s.includes("+' category targets'")))fail('Budget insights still expose removed category targets');
 for(const source of [core,ui,scope,actions,lifecycle,monthly,monthState]){new Function(source);if(source.includes('$$$'))fail('Generated Budget JS contains $$$');if(source.includes('$().forEach'))fail('Generated Budget JS contains accidental $().forEach')}
 // Due date picker: quick days plus a calendar chip for any day, on Add and Edit payment.
-for(const marker of ['const DUE_QUICK=[1,7,15,21,28];','function bindDuePicker(root,initial,onChange){','data-due-custom','data-due-grid','bindDuePicker(host,due,v=>{due=v});','bindDuePicker(form,editDue,v=>{editDue=v});',"due_day:Number(editDue),entry_date:dueEntryDate(row.entry_date,editDue)",'last=new Date(y,mo,0).getDate()'])if(!ui.includes(marker))fail('Budget due date picker invariant missing: '+marker);
+for(const marker of ['const DUE_QUICK=[1,7,15,21,28];','function bindDuePicker(root,initial,onChange){','data-due-custom aria-pressed="false" aria-expanded="false"',"custom.setAttribute('aria-pressed',own?'true':'false')",'data-due-grid','bindDuePicker(host,due,v=>{due=v});','bindDuePicker(form,editDue,v=>{editDue=v});',"due_day:Number(editDue),entry_date:dueEntryDate(row.entry_date,editDue)",'last=new Date(y,mo,0).getDate()'])if(!ui.includes(marker))fail('Budget due date picker invariant missing: '+marker);
 console.log('Authoritative collaborative Budget mutation validation passed');
 
 for(const marker of ["acceptTodayBillMutation(server)","planly-budget-mutation-confirmed"])if(!core.includes(marker))fail('C1 authoritative create refresh invariant missing: '+marker);
