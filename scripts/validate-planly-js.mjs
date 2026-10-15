@@ -76,7 +76,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-125'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-127'"))fail('R1 cache marker mismatch');
 // The ?planlydiag=1 panel attaches even though the composed app starts after DOMContentLoaded.
 if(!s.build.includes("if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachPanel,{once:true});else attachPanel();"))fail('diagnostics panel must attach when the page is already parsed');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
