@@ -2,7 +2,7 @@
 
 ## Runtime
 
-`v2/index.html` is the production application shell. The current application core is `v2/app-v3.2.0.js`, extended by the 3.3 household/project/planning modules and hardening modules. `v2/sw.js` owns offline caching and must preserve the fixed-bottom-nav/iPhone-safe-area PWA architecture.
+`v2/index.html` is the production application shell. The current application core is `v2/app-v3.2.0.js`, extended by the 3.3 household/project/planning modules (the former hardening script is folded into the app). `v2/sw.js` owns offline caching and must preserve the fixed-bottom-nav/iPhone-safe-area PWA architecture.
 
 The final runtime JavaScript is treated as a generated composition. `scripts/validate-planly-js.mjs` reconstructs that composition and parses it, checks for known `$`/`$$` regressions, verifies navigation/Quick Dates/calendar-source handlers, critical functions, offline cache markers and privacy/concurrency guards.
 
