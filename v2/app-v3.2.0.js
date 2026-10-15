@@ -2143,7 +2143,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-721t-122';
+const PLANLY_RELEASE='planly-v2-721t-123';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -2787,8 +2787,41 @@ function prepareDuplicateTask(){
   $('#formActions').classList.remove('editing');
   editingSubtasks=editingSubtasks.map(s=>({...s,id:uid(),done:false}));
   renderSubtaskEditor();
+  renderTaskSharing('');
   showToast('Duplicate ready — edit if needed, then save');
 }
+
+/* Task sheet sharing: Share (Just me / Household) and Assign (Anyone / a household member). A task can be shared only
+   once Planly Cloud Sync can write, so it never looks shared before it can be synced. People come from the household
+   the app has loaded (window.PlanlyHouseholdContext); the assigned person comes from the task itself. */
+const PLANLY_SHARE_WRITABLE_STATES=new Set(['cloud-write-test','offline-retry-needed','conflict']);
+let taskSheetReadOnly=false;
+function planlyHouseholdWritesReady(){return PLANLY_SHARE_WRITABLE_STATES.has(String(planlyCloudLocalStatus().state||''))}
+function planlyTaskSharingPeople(){const shared=window.PlanlyHouseholdContext,userId=String(shared?.userId||'');if(!userId||!shared.householdId||userId!==String(planlySession?.user?.id||localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||''))return {householdId:'',members:[],labels:new Map()};
+  const members=Array.isArray(shared.members)?shared.members:[],labels=new Map([[userId,'You']]);for(const invite of Array.isArray(shared.acceptedInvites)?shared.acceptedInvites:[])if(invite.accepted_by&&invite.invited_email)labels.set(String(invite.accepted_by),String(invite.invited_email));
+  for(const member of members){const id=String(member.user_id||''),name=String(member.display_name||'').trim();if(!id)continue;if(name){labels.set(id,name);continue}if(labels.has(id))continue;labels.set(id,id===userId?'You':member.role==='owner'?'Household owner':'Household member')}
+  return {householdId:String(shared.householdId),members,labels}}
+function syncTaskChoiceButtons(){const visibility=$('#taskVisibility'),assignee=$('#taskAssignee');
+  $$('[data-task-visibility]').forEach(b=>{b.classList.toggle('active',b.dataset.taskVisibility===visibility?.value);b.setAttribute('aria-pressed',b.classList.contains('active')?'true':'false');b.disabled=taskSheetReadOnly});
+  $$('[data-task-assignee]').forEach(b=>{b.classList.toggle('active',b.dataset.taskAssignee===(assignee?.value||''));b.setAttribute('aria-pressed',b.classList.contains('active')?'true':'false');b.disabled=taskSheetReadOnly})}
+/* Draws Share and Assign for the sheet as it is now. assigneeId: the person to select (undefined keeps the current one). */
+function renderTaskSharing(assigneeId){const visibility=$('#taskVisibility'),host=$('#taskHouseholdControls'),field=$('#taskAssigneeField'),select=$('#taskAssignee');if(!visibility||!field||!select)return;
+  const ready=planlyHouseholdWritesReady(),option=visibility.querySelector('option[value="household"]');if(option)option.disabled=!ready;
+  if(!ready&&visibility.value==='household'&&!$('#taskId').value)visibility.value='private';
+  const help=$('#taskVisibilityHelp');if(help&&!ready)help.textContent='Household sharing becomes available once Planly Cloud Sync is active. This prevents a task looking shared before it can be safely synced.';
+  const ctx=planlyTaskSharingPeople(),shared=visibility.value==='household';if(host)host.hidden=!ctx.householdId;field.hidden=!shared||!ctx.householdId;
+  if(!shared){select.value='';syncTaskChoiceButtons();return}
+  const keep=assigneeId===undefined?select.value:String(assigneeId||''),known=id=>ctx.members.some(m=>String(m.user_id)===id);
+  select.innerHTML='<option value="">Anyone</option>'+ctx.members.map(m=>'<option value="'+esc(String(m.user_id))+'">'+esc(ctx.labels.get(String(m.user_id))||'Household member')+'</option>').join('');
+  select.value=keep&&known(keep)?keep:'';
+  const segments=$('#taskAssigneeSegments');if(segments)segments.innerHTML=[['','Anyone'],...ctx.members.map(m=>[String(m.user_id),ctx.labels.get(String(m.user_id))||'Household member'])].map(([id,label])=>'<button type="button" data-task-assignee="'+esc(id)+'"><span class="personDot tone-'+planlyPersonTone(id)+'" aria-hidden="true"></span>'+esc(label)+'</button>').join('');
+  syncTaskChoiceButtons()}
+function refreshTaskSharingIfOpen(){if($('#sheetWrap')?.classList.contains('open'))renderTaskSharing()}
+function handleTaskSharingClick(e){const share=e.target.closest('[data-task-visibility]');if(share){const select=$('#taskVisibility');if(!select)return;
+    if(share.dataset.taskVisibility==='household'&&!planlyHouseholdWritesReady()){alert('Enable Planly Cloud Sync in Settings before sharing a task with your household.');return}
+    select.value=share.dataset.taskVisibility;select.dispatchEvent(new Event('change',{bubbles:true}));return}
+  const person=e.target.closest('[data-task-assignee]');if(person){const select=$('#taskAssignee');if(select){select.value=person.dataset.taskAssignee||'';syncTaskChoiceButtons()}}}
+function handleTaskVisibilityChange(e){if(e.target.value==='household'&&!planlyHouseholdWritesReady()){e.target.value='private';alert('Enable Planly Cloud Sync in Settings before sharing a task with your household.')}renderTaskSharing()}
 
 function openSheet(task,projectId=''){
   const readOnly=!!(task&&task._planlyOwnedByMe===false);
@@ -2819,7 +2852,7 @@ function openSheet(task,projectId=''){
   setTaskMoreOptions(taskHasMoreOptions(task));
   planlyQuickAddReset();
   refreshQuickDateSelection();
-  window.dispatchEvent(new CustomEvent('planly:task-sheet-open',{detail:{taskId:task?.id||'',readOnly,assigneeId:String(task?.assigneeId||task?.assignee_id||''),visibility:task?.visibility||'private'}}));
+  taskSheetReadOnly=readOnly;renderTaskSharing(task?String(task.assigneeId||task.assignee_id||''):'');
 }
 function closeSheet(){
   const active=document.activeElement;
@@ -3043,6 +3076,7 @@ $('#importFile').addEventListener('change',async e=>{
 })
 $('#taskForm').addEventListener('submit',async e=>{
   e.preventDefault();
+  if($('#taskVisibility')?.value==='household'&&!planlyHouseholdWritesReady()){e.stopImmediatePropagation();alert('Household sharing is not ready yet. Enable Planly Cloud Sync in Settings, then save the task again.');renderTaskSharing();return}
   if(e.target.classList.contains('taskReadOnlySheet'))return;
   planlyQuickFinal();
   const id=$('#taskId').value,now=Date.now(),wasExisting=!!id;
@@ -3130,6 +3164,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-planly-con
 document.addEventListener('click',e=>{const b=e.target.closest('[data-planly-conflict-local]');if(!b)return;const [kind,...rest]=String(b.dataset.planlyConflictLocal||'').split('|'),id=rest.join('|');resolvePlanlyConflictKeepLocal(kind,id).catch(err=>{showToast('Conflict resolution failed');alert(err?.message||'Conflict resolution failed.')})});
 document.addEventListener('change',e=>{if(e.target.id!=='planlyMigrationFile')return;const file=e.target.files?.[0],btn=$('#planlyCloudMigrateBtn');if(file)runPlanlyCloudMigrationFile(file,btn);e.target.value=''});
 $('#duplicateTask').onclick=prepareDuplicateTask;
+$('#taskHouseholdControls')?.addEventListener('click',handleTaskSharingClick);$('#taskVisibility')?.addEventListener('change',handleTaskVisibilityChange);
+for(const ev of ['planly:household-ready','planly:household-remote-change','planly:foreground-resume','online'])window.addEventListener(ev,()=>setTimeout(refreshTaskSharingIfOpen,0));
 $('#deleteTask').onclick=()=>{const id=$('#taskId').value;const t=state.tasks.find(x=>x.id===id);if(id&&t&&confirm('Delete this task?')){closeSheet();deleteTaskWithUndo(t)}}
 
 
