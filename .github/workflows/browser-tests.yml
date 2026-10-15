@@ -46,6 +46,8 @@ jobs:
         run: node tests/browser/render-steps.test.mjs
       - name: Budget totals after deleting — a deleted category's payments, a deleted or changed payment, Me and Household (candidate)
         run: node tests/browser/budget-delete.test.mjs
+      - name: Task sheet sharing — Share and Assign, the sync-ready gate, read-only shared task, duplicate, foreground resume (candidate)
+        run: node tests/browser/task-sharing.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
