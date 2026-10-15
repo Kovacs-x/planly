@@ -1,6 +1,6 @@
 // The view's render steps (tidy-up 2b-ii part B): renderCore with the stable, diagnostics (opt-in), budget, fitness and
 // r1 steps around it. Every tab draws through its step, two renders in the same turn draw once (stable step), and the
-// opt-in diagnostics step still logs renders.
+// opt-in diagnostics step still logs renders and shows its panel.
 // Run: node tests/browser/render-steps.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -44,6 +44,15 @@ await p2.evaluate(()=>document.querySelector('.nav button[data-section="plan"]')
 await p2.evaluate(()=>document.querySelector('.nav button[data-section="today"]').click());await W(800);
 const diag=await p2.evaluate(()=>{const e=window.PlanlyDiagnostics?.events||[];return {on:!!window.PlanlyDiagnostics,renders:e.filter(x=>x.type==='render:start').length,tabs:[...new Set(e.filter(x=>x.type==='render:start').map(x=>x.tab))]}});
 check('?planlydiag=1 logs every render (diagnostics step)',diag.on&&diag.renders>=2&&diag.tabs.includes('today'),JSON.stringify(diag));
+// The diagnostics panel is on screen and its buttons work: Mark logs a jump, Copy copies the log (or offers it to copy).
+const panel=await p2.evaluate(()=>{const p=document.getElementById('planlyDiagPanel');return {shown:!!p&&p.isConnected&&p.getBoundingClientRect().height>0,text:(document.getElementById('planlyDiagText')?.textContent||'').length}});
+check('?planlydiag=1 shows the diagnostics panel with recent events',panel.shown&&panel.text>0,JSON.stringify(panel));
+await p2.evaluate(()=>document.getElementById('planlyDiagMark')?.click());await W(300);
+check('…its Mark button logs a jump',await p2.evaluate(()=>(window.PlanlyDiagnostics?.events||[]).some(e=>e.type==='USER:JUMP')));
+const copied=[];p2.on('dialog',d=>{copied.push(d.type()+':'+d.defaultValue().length);d.dismiss()});
+await p2.evaluate(()=>{try{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async t=>{window.__copied=t}}})}catch{}document.getElementById('planlyDiagCopy')?.click()});await W(500);
+const copyText=await p2.evaluate(()=>window.__copied||'');
+check('…and its Copy button copies the whole log',copyText.includes('"events"')&&copyText.includes('USER:JUMP')||copied.length>0,JSON.stringify({len:copyText.length,copied}));
 const off=await page.evaluate(()=>!!window.PlanlyDiagnostics);
 check('without ?planlydiag=1 there is no diagnostics step',!off);
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
