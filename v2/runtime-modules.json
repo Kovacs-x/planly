@@ -2,7 +2,7 @@
   "version": 58,
   "modules": [
     "./core-budget-v4.0b.js?v=722k01",
-    "./core-budget-ui-v4.0b.js?v=722b01",
+    "./core-budget-ui-v4.0b.js?v=725b01",
     "./core-budget-scope-v4.0c.js?v=721c01",
     "./core-budget-lifecycle-v4.0d.js?v=722d01",
     "./core-budget-monthly-v4.0e.js?v=722e01",

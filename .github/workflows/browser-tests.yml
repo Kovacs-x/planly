@@ -50,6 +50,8 @@ jobs:
         run: node tests/browser/task-sharing.test.mjs
       - name: Household live updates — private channel join, broadcast brings the other phone's change in, leave on pagehide, rejoin on return (candidate)
         run: node tests/browser/household-live.test.mjs
+      - name: Budget due date picker — quick days plus a calendar chip for any day, on Add and Edit payment (candidate)
+        run: node tests/browser/budget-due-date.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

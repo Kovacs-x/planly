@@ -1,5 +1,5 @@
-const CACHE='planly-v2-721t-125';
-const VERSION='planly-v2-sw-721t-125';
+const CACHE='planly-v2-721t-126';
+const VERSION='planly-v2-sw-721t-126';
 const APP_URL='./app-v3.2.0.js?v=721t13';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p03';
@@ -11,7 +11,7 @@ const CORE_BUDGET_NAV_URL='./core-budget-nav-v4.0b1.js?v=721n01';
 const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=721t10';
 const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r01';
 const BUDGET_RUNTIME_URL='./core-budget-v4.0b.js?v=722k01';
-const BUDGET_UI_URL='./core-budget-ui-v4.0b.js?v=722b01';
+const BUDGET_UI_URL='./core-budget-ui-v4.0b.js?v=725b01';
 const BUDGET_SCOPE_URL='./core-budget-scope-v4.0c.js?v=721c01';
 const BUDGET_LIFECYCLE_URL='./core-budget-lifecycle-v4.0d.js?v=722d01';
 const BUDGET_MONTHLY_URL='./core-budget-monthly-v4.0e.js?v=722e01';
