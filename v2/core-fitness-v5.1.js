@@ -108,27 +108,38 @@ function addEntry(food,amount,unit,meal,source){
 }
 function updateEntry(row,patch){const next={...row,...patch,client_updated_at:now()};storeRow('planly_food_entries',next);queue('planly_food_entries','update',next)}
 function deleteEntry(row){const next={...row,deleted_at:new Date().toISOString(),client_updated_at:now()};entries=entries.filter(x=>x.id!==row.id);queue('planly_food_entries',pending.some(p=>p.key===row.id&&p.kind==='insert')?'delete':'update',next)}
+// a favourite keeps one serving: the product's own, else the size of one can or pack
+const servingOf=f=>num(f.servingG)||num(f.packG)||0;
 function saveFavourite(food){
   const per100=food.basis==='100g'?food.per:food.servingG?{kcal:food.per.kcal*100/food.servingG,protein:food.per.protein*100/food.servingG,carbs:food.per.carbs*100/food.servingG,fat:food.per.fat*100/food.servingG}:null;
   if(!per100)return false;const t=now();
-  const row={id:uuid(),owner_id:userId,client_id:'fav-'+uuid(),name:String(food.name||'Food').slice(0,160),brand:String(food.brand||'').slice(0,120),barcode:/^[0-9]{6,14}$/.test(food.barcode||'')?food.barcode:null,kcal_100:r1(clamp(per100.kcal,0,2000)),protein_100:r1(clamp(per100.protein,0,100)),carbs_100:r1(clamp(per100.carbs,0,100)),fat_100:r1(clamp(per100.fat,0,100)),serving_g:food.servingG?r1(food.servingG):null,serving_label:String(food.servingLabel||'').slice(0,60),use_count:1,last_used_at:new Date().toISOString(),client_created_at:t,client_updated_at:t,deleted_at:null};
+  const row={id:uuid(),owner_id:userId,client_id:'fav-'+uuid(),name:String(food.name||'Food').slice(0,160),brand:String(food.brand||'').slice(0,120),barcode:/^[0-9]{6,14}$/.test(food.barcode||'')?food.barcode:null,kcal_100:r1(clamp(per100.kcal,0,2000)),protein_100:r1(clamp(per100.protein,0,100)),carbs_100:r1(clamp(per100.carbs,0,100)),fat_100:r1(clamp(per100.fat,0,100)),serving_g:servingOf(food)?r1(servingOf(food)):null,serving_label:food.liquid?(servingOf(food)?`${r1(servingOf(food))} ml`:'ml'):String(food.servingLabel||'').slice(0,60),use_count:1,last_used_at:new Date().toISOString(),client_created_at:t,client_updated_at:t,deleted_at:null};
   favourites.push(row);queue('planly_food_favourites','insert',row);return row;
 }
+function setFavouriteServing(fav,g,liquid){const next={...fav,serving_g:r1(g),serving_label:liquid?`${r1(g)} ml`:'',client_updated_at:now()};storeRow('planly_food_favourites',next);queue('planly_food_favourites','update',next);return next}
 function removeFavourite(fav){const next={...fav,deleted_at:new Date().toISOString(),client_updated_at:now()};favourites=favourites.filter(x=>x.id!==fav.id);queue('planly_food_favourites',pending.some(p=>p.key===fav.id&&p.kind==='insert')?'delete':'update',next)}
 function saveProfile(values){const t=now(),base=profile||{owner_id:userId,cloud_version:0};const next={...base,...values,owner_id:userId,client_updated_at:t};const kind=profile?.cloud_version||pending.some(p=>p.table==='planly_food_profile'&&p.kind==='insert')?'update':'insert';profile=next;queue('planly_food_profile',kind,next)}
 
 // ---------- food sources ----------
-const favFood=f=>({name:f.name,brand:f.brand,barcode:f.barcode,basis:'100g',per:{kcal:num(f.kcal_100),protein:num(f.protein_100),carbs:num(f.carbs_100),fat:num(f.fat_100)},servingG:num(f.serving_g)||null,servingLabel:f.serving_label||'',favouriteId:f.id,source:'favourite'});
-function recentFoods(){const seen=new Set(),out=[];for(const e of [...entries].sort((a,b)=>num(b.client_created_at)-num(a.client_created_at))){const k=(e.name+'|'+e.brand).toLowerCase();if(seen.has(k)||e.source==='quick')continue;seen.add(k);const amt=num(e.amount,1)||1;out.push({name:e.name,brand:e.brand,barcode:e.barcode,basis:e.unit==='serving'?'serving':'100g',per:{kcal:num(e.kcal)/amt*(e.unit==='serving'?1:100),protein:num(e.protein_g)/amt*(e.unit==='serving'?1:100),carbs:num(e.carbs_g)/amt*(e.unit==='serving'?1:100),fat:num(e.fat_g)/amt*(e.unit==='serving'?1:100)},servingG:null,lastAmount:amt,lastUnit:e.unit,source:'search'});if(out.length>=8)break}return out}
+const favFood=f=>({name:f.name,brand:f.brand,barcode:f.barcode,basis:'100g',per:{kcal:num(f.kcal_100),protein:num(f.protein_100),carbs:num(f.carbs_100),fat:num(f.fat_100)},servingG:num(f.serving_g)||null,servingLabel:f.serving_label||'',liquid:/\bml\b/i.test(f.serving_label||''),favouriteId:f.id,source:'favourite'});
+function recentFoods(){const seen=new Set(),out=[];for(const e of [...entries].sort((a,b)=>num(b.client_created_at)-num(a.client_created_at))){const k=(e.name+'|'+e.brand).toLowerCase();if(seen.has(k)||e.source==='quick')continue;seen.add(k);const amt=num(e.amount,1)||1;out.push({name:e.name,brand:e.brand,barcode:e.barcode,basis:e.unit==='serving'?'serving':'100g',per:{kcal:num(e.kcal)/amt*(e.unit==='serving'?1:100),protein:num(e.protein_g)/amt*(e.unit==='serving'?1:100),carbs:num(e.carbs_g)/amt*(e.unit==='serving'?1:100),fat:num(e.fat_g)/amt*(e.unit==='serving'?1:100)},servingG:null,liquid:e.unit==='ml',lastAmount:amt,lastUnit:e.unit==='ml'?'g':e.unit,source:'search'});if(out.length>=8)break}return out}
+// "330 ml", "1 can (330ml)", "0,5 l" → {q:330,u:'ml'}; kg and l become g and ml
+function sizeIn(t){const m=String(t||'').toLowerCase().replace(/(\d),(\d)/g,'$1.$2').match(/(\d+(?:\.\d+)?)\s*(ml|cl|l|kg|g)\b/);if(!m)return null;const q=Number(m[1])*{ml:1,cl:10,l:1000,kg:1000,g:1}[m[2]];return q>0?{q,u:/l$/.test(m[2])?'ml':'g'}:null}
+const unitOf=u=>/^(ml|cl|l)$/i.test(String(u||'').trim())?'ml':/^(g|kg)$/i.test(String(u||'').trim())?'g':'';
 function offProduct(p){
   const n=p?.nutriments||{},kcal=num(n['energy-kcal_100g'],NaN),kj=num(n['energy-kj_100g']??n.energy_100g,NaN),k=Number.isFinite(kcal)?kcal:Number.isFinite(kj)?kj/4.184:NaN;
   const name=String(p?.product_name||'').trim();if(!name||!Number.isFinite(k))return null;
-  const sq=num(p.serving_quantity,0);
-  return {name:name.slice(0,160),brand:String(Array.isArray(p.brands)?p.brands[0]||'':p.brands||'').split(',')[0].trim().slice(0,120),barcode:/^[0-9]{6,14}$/.test(String(p.code||''))?String(p.code):null,basis:'100g',per:{kcal:clamp(k,0,2000),protein:clamp(num(n.proteins_100g),0,100),carbs:clamp(num(n.carbohydrates_100g),0,100),fat:clamp(num(n.fat_100g),0,100)},servingG:sq>0&&sq<=5000?sq:null,servingLabel:String(p.serving_size||'').slice(0,60),source:'search'};
+  // a serving of exactly 100 is just the per-100 g/ml figure again, so it is not offered as a serving
+  const sq=num(p.serving_quantity,0),qt=String(p.quantity||''),pq=num(p.product_quantity,0);
+  // one can or pack: for a multipack ("6 x 330 ml") the size of one item
+  const pack=/\d\s*[x×]\s*\d/i.test(qt)?sizeIn(qt.replace(/^.*?\d\s*[x×]\s*/i,'')):pq>0?{q:pq,u:unitOf(p.product_quantity_unit)||sizeIn(qt)?.u||''}:sizeIn(qt);
+  const liquid=(unitOf(p.serving_quantity_unit)||sizeIn(p.serving_size)?.u||pack?.u||'')==='ml',text=(name+' '+qt+' '+(p.serving_size||'')).toLowerCase();
+  return {name:name.slice(0,160),brand:String(Array.isArray(p.brands)?p.brands[0]||'':p.brands||'').split(',')[0].trim().slice(0,120),barcode:/^[0-9]{6,14}$/.test(String(p.code||''))?String(p.code):null,basis:'100g',per:{kcal:clamp(k,0,2000),protein:clamp(num(n.proteins_100g),0,100),carbs:clamp(num(n.carbohydrates_100g),0,100),fat:clamp(num(n.fat_100g),0,100)},servingG:sq>0&&sq<=5000&&sq!==100?sq:null,servingLabel:String(p.serving_size||'').slice(0,60),
+    liquid,packG:pack&&pack.q<=2000?r1(pack.q):null,packLabel:/\bcans?\b/.test(text)?'can':/\bbottles?\b/.test(text)?'bottle':'pack',source:'search'};
 }
 // Open Food Facts has two name searches: the newer, faster search service, and the classic one (slower, often busy).
 // Try the fast one first, then the classic one if it fails or finds nothing (with one retry if it is busy). Only the search words are sent.
-const OFF_FIELDS='code,product_name,brands,nutriments,serving_size,serving_quantity';
+const OFF_FIELDS='code,product_name,brands,nutriments,serving_size,serving_quantity,serving_quantity_unit,quantity,product_quantity,product_quantity_unit';
 async function getJson(url,ms,outer){const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms),stop=()=>ctl.abort();outer?.addEventListener('abort',stop);try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok){const e=Error('HTTP '+r.status);e.status=r.status;throw e}return await r.json()}finally{clearTimeout(timer);outer?.removeEventListener('abort',stop)}}
 // A short, plain reason a request failed, shown in small print so a problem can be told apart (blocked, refused, slow).
 const whyOne=e=>e?.upstream?e.upstream:e?.name==='AbortError'?'took too long':e?.status?'refused, code '+e.status:/bad answer/.test(e?.message||'')?'unexpected answer':'could not connect';
@@ -234,7 +245,7 @@ async function lookupBarcode(code,format=''){
       return {food:{...food,barcode:c,source:'barcode'}}}
     // Planly's function couldn't be reached: ask Open Food Facts directly
     const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
-    try{const r=await fetch(OFF_PRODUCT+c+'.json?'+new URLSearchParams({fields:'code,product_name,brands,nutriments,serving_size,serving_quantity'}),{signal:ctl.signal});
+    try{const r=await fetch(OFF_PRODUCT+c+'.json?'+new URLSearchParams({fields:OFF_FIELDS}),{signal:ctl.signal});
       if(r.status===404)continue;if(r.status===429)return {error:'Open Food Facts is busy. Try again in a minute.'};if(!r.ok)return {error:'Open Food Facts did not answer. Try again.'};
       const j=await r.json();if(!j?.product||j.status===0)continue;const food=offProduct({...j.product,code:c});
       if(!food)return {missing:String(j.product.product_name||'').trim().slice(0,160),code:c,error:'This product has no calorie information in Open Food Facts yet.'};
@@ -309,7 +320,8 @@ function showSheet(title,html,onBack){stopCamera();const w=ensureSheet();w.query
 function closeSheet(){stopCamera();if(!sheet)return;sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');document.documentElement.classList.remove('sheetOpen');if(state.tab==='fitness'){invalidate();render()}}
 const mealChips=sel=>`<div class="fitChips" role="radiogroup" aria-label="Meal">${MEALS.map(([id,l])=>`<button type="button" role="radio" aria-checked="${id===sel}" class="${id===sel?'on':''}" data-meal-pick="${id}">${l}</button>`).join('')}</div>`;
 function bindMealChips(body,set){body.querySelectorAll('[data-meal-pick]').forEach(c=>c.onclick=()=>{body.querySelectorAll('[data-meal-pick]').forEach(x=>{x.classList.toggle('on',x===c);x.setAttribute('aria-checked',String(x===c))});set(c.dataset.mealPick)})}
-const foodLine=f=>`${fmt(f.per.kcal)} kcal ${f.basis==='serving'?'per serving':'per 100 g'}`;
+const foodLine=f=>`${fmt(f.per.kcal)} kcal ${f.basis==='serving'?'per serving':f.liquid?'per 100 ml':'per 100 g'}`;
+const PEN='<svg class="fitPen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
 
 function openSearch(meal,initial='',keep=null){
   // The search box, buttons and meal choice are drawn once; typing only redraws the list underneath (at most once a frame),
@@ -384,24 +396,39 @@ ${mealChips(meal)}
   })();
 }
 function openAmount(food,meal,back){
-  // grams are possible for per-100 g foods, or per-serving foods with a known serving weight; servings need one or the other
-  const units=[...(food.basis==='100g'||food.servingG?['g']:[]),...(food.basis==='serving'||food.servingG?['serving']:[])];
-  let unit=units.includes(food.lastUnit)?food.lastUnit:units.includes('serving')?'serving':units[0],amount=food.lastAmount||(unit==='serving'?1:100);
+  // grams (ml for drinks) are possible for per-100 g foods, or per-serving foods with a known serving weight; servings need one or the other
+  const wu=food.liquid?'ml':'g',wName=food.liquid?'ml':'grams';
+  const unitsOf=()=>[...(food.basis==='100g'||food.servingG?['g']:[]),...(food.basis==='serving'||food.servingG?['serving']:[])];
+  const pack=()=>food.basis==='100g'&&num(food.packG)>0&&Math.round(food.packG)!==Math.round(num(food.servingG))?num(food.packG):0;
+  let units=unitsOf(),unit=units.includes(food.lastUnit)?food.lastUnit:units.includes('serving')?'serving':units[0],amount=food.lastAmount||(unit==='serving'?1:pack()||100);
+  const chips=()=>{const g=units.includes('g')&&(units.length>1||pack());return `${g?`<button type="button" data-unit="g">${wName}</button>`:''}${units.length>1?`<button type="button" data-unit="serving">${food.servingG?`servings of ${fmt(food.servingG)} ${wu}`:'servings'}</button>`:g?'':`<span class="fitUnitFixed">${unit==='g'?wName:'servings'}</span>`}${pack()?`<button type="button" data-pack>1 ${food.packLabel||'pack'} · ${fmt(pack())} ${wu}</button>`:''}${food.basis==='100g'?`<button type="button" data-serving-edit aria-label="Set serving size" aria-expanded="false">${PEN}${food.servingG?'':'<span>Serving</span>'}</button>`:''}`};
   const body=showSheet(food.name,`<div class="fitFoodHead"><small>${esc([food.brand,foodLine(food)].filter(Boolean).join(' · '))}</small></div>
-<label class="fitField"><span>Amount</span><div class="fitAmount"><input name="amount" type="number" inputmode="decimal" min="0" step="any" value="${amount}" aria-label="Amount">${units.length>1?`<div class="fitUnit" role="group" aria-label="Unit"><button type="button" data-unit="g">grams</button><button type="button" data-unit="serving">${food.servingG?`servings of ${fmt(food.servingG)} g`:'servings'}</button></div>`:`<span class="fitUnitFixed">${unit==='g'?'grams':'servings'}</span>`}</div></label>
+<label class="fitField"><span>Amount</span><div class="fitAmount"><input name="amount" type="number" inputmode="decimal" min="0" step="any" value="${amount}" aria-label="Amount"><div class="fitUnit" role="group" aria-label="Unit" data-units>${chips()}</div></div></label>
+<div class="fitServingEdit" data-serving-box hidden><input name="serving" type="number" inputmode="decimal" min="0" max="5000" step="any" aria-label="Serving size in ${wu}" value="${food.servingG?r1(food.servingG):''}"><span>${wu}</span><button type="button" class="fitSecondary" data-serving-save>Save</button></div>
 ${mealChips(meal)}
 <div class="fitPreview" data-preview></div>
 ${food.favouriteId?'':`<label class="fitCheck"><input type="checkbox" name="star"><span>Save to favourites</span></label>`}
 <button type="button" class="fitPrimary fitWide" data-add>Add to ${esc(MEALS.find(m=>m[0]===meal)[1])}</button>
 ${food.favouriteId?'<button type="button" class="fitQuiet fitDanger" data-unfav>Remove from favourites</button>':''}`,back);
   const input=body.querySelector('input[name="amount"]'),addBtn=body.querySelector('[data-add]');
-  const preview=()=>{amount=num(input.value);const n=nutrientsFor(food,amount||0,unit);body.querySelector('[data-preview]').innerHTML=`<strong>${fmt(n.kcal)} kcal</strong><span>Protein ${r1(n.protein_g)} g · Carbs ${r1(n.carbs_g)} g · Fat ${r1(n.fat_g)} g</span>`;body.querySelectorAll('[data-unit]').forEach(b=>{b.classList.toggle('on',b.dataset.unit===unit);b.setAttribute('aria-pressed',String(b.dataset.unit===unit))});addBtn.disabled=!withinLimits(amount,n)};
+  const box=body.querySelector('[data-serving-box]'),sizeInput=box.querySelector('input'),sizeSave=box.querySelector('[data-serving-save]');
+  const preview=()=>{amount=num(input.value);const n=nutrientsFor(food,amount||0,unit);body.querySelector('[data-preview]').innerHTML=`<strong>${fmt(n.kcal)} kcal</strong><span>Protein ${r1(n.protein_g)} g · Carbs ${r1(n.carbs_g)} g · Fat ${r1(n.fat_g)} g</span>`;
+    body.querySelectorAll('[data-unit]').forEach(b=>{const on=b.dataset.unit===unit&&!(unit==='g'&&pack()&&amount===pack());b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on))});
+    body.querySelectorAll('[data-pack]').forEach(b=>{const on=unit==='g'&&amount===pack();b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on))});addBtn.disabled=!withinLimits(amount,n)};
+  const drawUnits=()=>{const g=body.querySelector('[data-units]');g.innerHTML=chips();
+    g.querySelectorAll('[data-unit]').forEach(b=>b.onclick=()=>{if(b.dataset.unit===unit&&!b.classList.contains('on')&&unit==='g'){input.value=100;preview();return}if(b.dataset.unit===unit)return;unit=b.dataset.unit;input.value=unit==='serving'?1:(food.servingG?Math.round(food.servingG):100);preview()});
+    g.querySelector('[data-pack]')?.addEventListener('click',()=>{unit='g';input.value=pack();preview()});
+    g.querySelector('[data-serving-edit]')?.addEventListener('click',e=>{box.hidden=!box.hidden;e.currentTarget.setAttribute('aria-expanded',String(!box.hidden));e.currentTarget.classList.toggle('on',!box.hidden);if(!box.hidden){sizeSave.disabled=!(num(sizeInput.value)>0&&num(sizeInput.value)<=5000);sizeInput.focus()}});
+    preview()};
   input.oninput=preview;
-  body.querySelectorAll('[data-unit]').forEach(b=>b.onclick=()=>{if(b.dataset.unit===unit)return;unit=b.dataset.unit;input.value=unit==='serving'?1:(food.servingG?Math.round(food.servingG):100);preview()});
+  sizeInput.oninput=()=>{const v=num(sizeInput.value);sizeSave.disabled=!(v>0&&v<=5000)};
+  sizeSave.onclick=()=>{const v=num(sizeInput.value);if(!(v>0&&v<=5000))return;food.servingG=r1(v);food.servingLabel='';
+    const fav=favourites.find(f=>f.id===food.favouriteId);if(fav)setFavouriteServing(fav,v,food.liquid);
+    units=unitsOf();unit='serving';input.value=1;box.hidden=true;drawUnits()};
   bindMealChips(body,m=>{meal=m;addBtn.textContent='Add to '+MEALS.find(x=>x[0]===m)[1]});
   body.querySelector('[data-unfav]')?.addEventListener('click',()=>{const f=favourites.find(x=>x.id===food.favouriteId);if(f)removeFavourite(f);back?back():closeSheet()});
-  addBtn.onclick=()=>{if(!withinLimits(amount,nutrientsFor(food,amount,unit)))return;if(body.querySelector('input[name="star"]')?.checked)saveFavourite(food);addEntry(food,amount,unit,meal,food.source||'search');closeSheet();if(typeof showToast==='function')showToast(`Added ${food.name}`)};
-  preview();
+  addBtn.onclick=()=>{if(!withinLimits(amount,nutrientsFor(food,amount,unit)))return;if(body.querySelector('input[name="star"]')?.checked)saveFavourite(food);addEntry(food,amount,unit==='g'&&food.liquid?'ml':unit,meal,food.source||'search');closeSheet();if(typeof showToast==='function')showToast(`Added ${food.name}`)};
+  drawUnits();
 }
 function openQuick(prefill='',m=''){
   let meal=m||defaultMeal();
