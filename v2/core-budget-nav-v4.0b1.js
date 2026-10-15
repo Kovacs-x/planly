@@ -20,11 +20,12 @@ async function renderBudgetStable(view){
 renderStage('budget',baseRender=>function(){
   if(state.tab!=='budget'){budgetRenderGeneration++;budgetInvalidated=true;return baseRender()}
   $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab==='budget'));
-  $('#addBtn').style.display='none';setHeader('Budget',window.PlanlyBudget?.getScopeType?.()==='household'?'Household':'Personal');
+  $('#addBtn').style.display='none';const budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal';document.documentElement.dataset.budgetScope=budgetScope;setHeader('Budget',budgetScope==='household'?'Household':'Personal');
   const view=$('#view');
   if(view&&budgetInvalidated&&!budgetRenderPromise&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){view.classList.remove('viewEntering');void view.offsetWidth;view.classList.add('viewEntering')}
   renderBudgetStable(view);
   refreshProjectsIfOpen();refreshTimelineIfOpen();refreshTaskActionsIfOpen();
 });
+window.addEventListener('planly-budget-scope-changed',()=>{document.documentElement.dataset.budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal'});
 window.addEventListener('planly:budget-invalidated',()=>{budgetInvalidated=true;if(state.tab==='budget')render()});
 })();
