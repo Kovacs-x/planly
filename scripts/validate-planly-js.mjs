@@ -73,7 +73,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-122'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-123'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -216,14 +216,19 @@ for(const needle of ["function planlyHouseholdSentencePersonLabel","return label
 for(const needle of [':root:not([data-theme="dark"]) .day.isToday:not(.selected)>span{background:#238AA6!important;color:#041419!important}','.calendarColourControl input[type="color"][data-planly-calendar-colour]{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}'])if(!r1Html.includes(needle))fail('F4 Month/calendar accessibility invariant missing: '+needle);
 
 for(const needle of ['id="taskHouseholdControls"','id="taskVisibilitySegments"','data-task-visibility="household"'])if(!r1Html.includes(needle))fail('H2A task sharing invariant missing: '+needle);
-for(const needle of ["data-task-assignee","syncTaskChoiceButtons","refreshAssignmentField"])if(!s.hardening.includes(needle))fail('H2A assignment invariant missing: '+needle);
+// Tidy-up 2c (part A): Share and Assign in the task sheet are drawn by the app itself, from the household it has loaded
+// and the task's own assignee, with no injected field, no timers and no capture-phase event interception.
+for(const needle of ["data-task-assignee","function syncTaskChoiceButtons(){","function renderTaskSharing(assigneeId){","function planlyHouseholdWritesReady(){return PLANLY_SHARE_WRITABLE_STATES.has(String(planlyCloudLocalStatus().state||''))}","taskSheetReadOnly=readOnly;renderTaskSharing(task?String(task.assigneeId||task.assignee_id||''):'');","renderSubtaskEditor();\n  renderTaskSharing('');","$('#taskHouseholdControls')?.addEventListener('click',handleTaskSharingClick);$('#taskVisibility')?.addEventListener('change',handleTaskVisibilityChange);","if($('#taskVisibility')?.value==='household'&&!planlyHouseholdWritesReady()){e.stopImmediatePropagation();alert('Household sharing is not ready yet."])if(!s.app.includes(needle))fail('H2A assignment invariant missing: '+needle);
+if(!r1Html.includes('<div id="taskAssigneeField" class="field taskAssigneeField" hidden><label>Assign</label><div id="taskAssigneeSegments"'))fail('H2A Assign field must be part of the sheet markup');
+for(const gone of ['data-task-assignee','data-task-visibility','taskAssigneeField','planly:task-sheet-open',"addEventListener('submit'","addEventListener('change'","addEventListener('click'",'createElement('])if(s.hardening.includes(gone))fail('task sheet sharing must not be driven from hardening: '+gone);
+if(s.app.includes("planly:task-sheet-open"))fail('the task sheet no longer announces itself for an outside script to redraw it');
 for(const needle of ["taskRowDensity:'compact'","state.taskRowDensity!=='comfortable'","class=\"task taskSwipe compactTask","id=\"taskRowDensity\""])if(!s.app.includes(needle))fail('H2B compact-row invariant missing: '+needle);
 for(const needle of ["This week’s chores","No chores this week.","data-add-chore","homeChoresHtml"])if(!r1.includes(needle))fail('H2C chores invariant missing: '+needle);
 if(!r1Html.includes('.day.isToday.selected>span{background:#17687D!important;color:#fff!important}'))fail('H2 F4b selected-today contrast invariant missing');
 
 if(s.hardening.includes('state.tasks'))fail('H2 hardening must not read app-closure state');
 for(const needle of ["top3Mode&&!t.completed?'<button type=\"button\" class=\"top3DragHandle\"","class=\"compactProjectLink\"","href=\"#pi-checklist\""])if(!s.app.includes(needle))fail('H2 compact review invariant missing: '+needle);
-if(!s.app.includes("detail:{taskId:task?.id||'',readOnly,assigneeId:"))fail('H2 task-sheet bridge invariant missing');
+// (The H2 task-sheet bridge event is gone: the app draws Share and Assign itself — see the tidy-up 2c pins.)
 
 {const compactStart=s.app.indexOf("if(state.taskRowDensity!=='comfortable'){"),compactEnd=s.app.indexOf("\n  const surface=",compactStart),compactBranch=s.app.slice(compactStart,compactEnd);if(!compactBranch.includes("top3Mode&&!t.completed?'<button type=\"button\" class=\"top3DragHandle\""))fail('H2 compact renderer must include Top-3 drag handle in its own branch');}
 
@@ -234,7 +239,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t11'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t12'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -339,7 +344,7 @@ for(const needle of ["function planlyPersonTone(userId){const id=String(userId||
 if(!s.redesignR1.includes("personChip tone-'+planlyPersonTone(actor)"))fail('Home chore Done by colour missing');
 if(!s.redesignR1.includes('personAvatarTone tone-')||!s.redesignR1.includes('personGroupHead tone-'))fail('Home person colours missing');
 if(!s.calendar.includes("calendarDot personDot tone-"))fail('Month person dots missing');
-if(!s.hardening.includes('personDot tone-'))fail('Assign buttons person dot missing');}
+if(!s.app.includes("'<button type=\"button\" data-task-assignee=\"'+esc(id)+'\"><span class=\"personDot tone-'+planlyPersonTone(id)+'\""))fail('Assign buttons person dot missing');}
 
 // Part 4: "Completed (n)" folds everywhere, open/closed remembered per section on the device; signed-out welcome screen.
 {const html=read('v2/index.html');for(const needle of ['<style id="planlyStage4Part4">','.doneFold>summary{','.planlyWelcome{position:fixed;inset:0;z-index:300'])if(!html.includes(needle))fail('Part 4 CSS missing: '+needle);
@@ -541,7 +546,7 @@ if(read('v2/core-budget-nav-v4.0b1.js').includes('Private finance')||!read('v2/c
  const reassigned=['projectById','projectNameForTask','projectTasks','projectStats','projectOptionsHtml','refreshProjectSelect','projectCloudRow','renderProjectsPanel','openProjects','saveProjectEditor','handleProjectsClick','reconcilePlanlyCloud','verifyPlanlyOfflineCache','probePlanlyServiceWorker','planlySignIn','monthView','loadVerifiedCloudPreview'];
  for(const n of reassigned){const decl=(generated.match(new RegExp('(^|[;\\n}])\\s*(async\\s+)?function\\s+'+n+'\\s*\\(','g'))||[]).length,assign=new RegExp('(^|[;\\n{}])\\s*'+n+'\\s*=\\s*(async\\s+)?function').test(generated);if(decl!==1||assign)fail('folded function must be defined exactly once, as a declaration: '+n+' ('+decl+' declarations'+(assign?', reassigned':'')+')')}}
 // Tidy-up 2a-ii: wrapper chains are named declarations (…Core → public name). Nothing in the composed app may replace an
-// already-declared function at runtime; render's Budget/diagnostic layers are the only exception until stage 2b.
+// already-declared function at runtime (render included since tidy-up 2b-ii: its layers are renderStage steps).
 {const declared=new Set([...generated.matchAll(/(?:^|[;\n}])\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]));
  const patched=[...generated.matchAll(/(?:^|[;\n{}])\s*([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?function\b/g)].map(m=>m[1]).filter(n=>declared.has(n));
  if(patched.length)fail('functions must not be replaced at runtime: '+[...new Set(patched)].join(', '));
