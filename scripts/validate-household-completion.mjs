@@ -79,26 +79,16 @@ for(const file of ['v2/app-v3.2.0.js','v2/core-projects-v3.3c.js','v2/core-assig
 }
 if(!read('v2/core-projects-v3.3c.js').includes("from('planly_projects').select(PLANLY_PROJECT_SELECT)"))fail('core-projects must use PLANLY_PROJECT_SELECT');
 
-const hardening=read('v2/hardening-v3.3b.js');
-if(/new MutationObserver\([\s\S]*hydrateIncomingAssignments/.test(hardening))fail('assignment hydration must not be driven by MutationObserver');
-if(!hardening.includes('ASSIGNMENT_CONTEXT_TTL_MS=60000'))fail('assignment context TTL cache missing');
-if(!hardening.includes("window.addEventListener('planly:household-ready'"))fail('household-ready assignment context invalidation missing');
-if(hardening.includes("if(!assigneeId){if(existing)existing.remove()}"))fail('hardening must not remove B2 unassigned task pill');
-
-const hardeningPhase3=read('v2/hardening-v3.3b.js');
-if(hardeningPhase3.includes("dispatchEvent(new Event('online'))"))fail('assignment sync must not dispatch synthetic online events');
-if(!hardeningPhase3.includes("if(userId===authUserId)return"))fail('assignment auth sync must ignore repeated same-user auth events');
-if(hardeningPhase3.includes("loadAssignmentContext(true).then(()=>{kickHouseholdSync()"))fail('same-user auth path must not force assignment context reload');
-if(!read('v2/app-v3.2.0.js').includes("new CustomEvent('planly:household-ready'"))fail('household-ready must be dispatched after household load');
-
-const hardeningRealtime=read('v2/hardening-v3.3b.js');
-if(!hardeningRealtime.includes("new CustomEvent('planly:household-remote-change')"))fail('hardening must bridge household broadcasts with a specific event');
-const appRealtime=read('v2/app-v3.2.0.js');
-if(!appRealtime.includes("window.addEventListener('planly:household-remote-change'"))fail('app closure must handle household remote-change event');
-if(!appRealtime.includes("reconcilePlanlyCloud({render:true})"))fail('household remote-change handler must reconcile cloud tasks');
-if(hardeningRealtime.includes("typeof reconcilePlanlyCloud")||hardeningRealtime.includes("typeof state")||hardeningRealtime.includes("typeof render"))fail('hardening must not reference app-closure-only runtime symbols');
-if(!hardeningRealtime.includes("householdId===assignmentContext.householdId&&userId===assignmentContext.userId&&assignmentContextLoadedAt"))fail('unchanged household-ready events must not force assignment reload');
-
-const hardeningNoUndef=read('v2/hardening-v3.3b.js');
-if(hardeningNoUndef.includes('hydrateIncomingAssignments'))fail('deleted hydrateIncomingAssignments must have no remaining references');
-if(!hardeningNoUndef.includes('if(realtimeChannel&&realtimeHouseholdId)return'))fail('armed realtime channel must not re-read membership on each broadcast');
+// Tidy-up 2c (part B): the household live updates that lived in hardening-v3.3b.js are part of the app.
+const liveApp=read('v2/app-v3.2.0.js');
+if(fs.existsSync('v2/hardening-v3.3b.js'))fail('hardening-v3.3b.js must stay deleted');
+if(/new MutationObserver\([\s\S]*hydrateIncomingAssignments/.test(liveApp)||liveApp.includes('hydrateIncomingAssignments'))fail('deleted hydrateIncomingAssignments must have no remaining references');
+if(liveApp.includes("dispatchEvent(new Event('online'))"))fail('household sync must not dispatch synthetic online events');
+if(!liveApp.includes("if(userId===authUserId)return;authUserId=userId;householdLiveContext="))fail('household live sign-in sync must ignore repeated same-user auth events');
+if(!liveApp.includes("new CustomEvent('planly:household-ready'"))fail('household-ready must be dispatched after household load');
+if(!liveApp.includes("function householdLiveChanged(){if(!navigator.onLine)return;window.dispatchEvent(new CustomEvent('planly:household-remote-change'))"))fail('household broadcasts must be bridged with a specific event');
+if(!liveApp.includes("window.addEventListener('planly:household-remote-change'"))fail('app must handle household remote-change event');
+if(!liveApp.includes("reconcilePlanlyCloud({render:true})"))fail('household remote-change handler must reconcile cloud tasks');
+if(!liveApp.includes("if(householdId===householdLiveContext.householdId&&userId===householdLiveContext.userId&&householdLiveContextLoadedAt&&key(detail.members)===key(householdLiveContext.members))return"))fail('unchanged household-ready events must not force a context reload');
+if(!liveApp.includes('if(householdLiveChannel&&householdLiveId)return'))fail('armed realtime channel must not re-read membership on each broadcast');
+if(!liveApp.includes("client.channel(`household:${householdId}`,{config:{private:true}})"))fail('household live channel must be private');

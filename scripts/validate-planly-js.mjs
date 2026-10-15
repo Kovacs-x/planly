@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8'),fail=m=>{throw new Error(m)};
-const paths={app:'v2/app-v3.2.0.js',hardening:'v2/hardening-v3.3b.js',projects:'v2/core-projects-v3.3c.js',build:'v2/core-build-v3.3c.js',assignment:'v2/core-assignment-v3.3c.js',planning:'v2/core-project-planning-v3.3c.js',calendar:'v2/core-household-calendar-v3.3c.js',budgetNav:'v2/core-budget-nav-v4.0b1.js',redesignR1:'v2/core-redesign-r1.js',budget:'v2/core-budget-v4.0b.js',budgetUi:'v2/core-budget-ui-v4.0b.js',budgetScope:'v2/core-budget-scope-v4.0c.js',budgetLifecycle:'v2/core-budget-lifecycle-v4.0d.js',budgetMonthly:'v2/core-budget-monthly-v4.0e.js',budgetMonthState:'v2/core-budget-month-state-v4.0f.js',budgetActions:'v2/core-budget-actions-v4.0l.js',budgetScroll:'v2/core-budget-scroll-v4.0m.js',lists:'v2/core-lists-v4.1.js',dashboard:'v2/core-household-dashboard-v4.2.js',intelligence:'v2/core-intelligence-v5.js',update:'v2/core-update-v4.3.js',sw:'v2/sw.js',config:'v2/supabase-config.js'};
+const paths={app:'v2/app-v3.2.0.js',projects:'v2/core-projects-v3.3c.js',build:'v2/core-build-v3.3c.js',assignment:'v2/core-assignment-v3.3c.js',planning:'v2/core-project-planning-v3.3c.js',calendar:'v2/core-household-calendar-v3.3c.js',budgetNav:'v2/core-budget-nav-v4.0b1.js',redesignR1:'v2/core-redesign-r1.js',budget:'v2/core-budget-v4.0b.js',budgetUi:'v2/core-budget-ui-v4.0b.js',budgetScope:'v2/core-budget-scope-v4.0c.js',budgetLifecycle:'v2/core-budget-lifecycle-v4.0d.js',budgetMonthly:'v2/core-budget-monthly-v4.0e.js',budgetMonthState:'v2/core-budget-month-state-v4.0f.js',budgetActions:'v2/core-budget-actions-v4.0l.js',budgetScroll:'v2/core-budget-scroll-v4.0m.js',lists:'v2/core-lists-v4.1.js',dashboard:'v2/core-household-dashboard-v4.2.js',intelligence:'v2/core-intelligence-v5.js',update:'v2/core-update-v4.3.js',sw:'v2/sw.js',config:'v2/supabase-config.js'};
 const s=Object.fromEntries(Object.entries(paths).map(([k,p])=>[k,read(p)])),manifest=JSON.parse(read('v2/runtime-modules.json'));
 const closeIndex=s.app.lastIndexOf('})();');if(closeIndex<0)fail('Planly core injection point missing');
 const core=[s.projects,s.build,s.assignment,s.planning,s.calendar,s.budgetNav],appended=[s.budget,s.budgetUi,s.budgetScope,s.budgetLifecycle,s.budgetMonthly,s.budgetMonthState,s.budgetActions,s.budgetScroll,s.lists,s.dashboard,s.update,s.intelligence];
-const generated=s.app.slice(0,closeIndex)+'\n'+core.join('\n')+'\n'+s.app.slice(closeIndex)+'\n;'+s.hardening+'\n;'+appended.join('\n;');
+const generated=s.app.slice(0,closeIndex)+'\n'+core.join('\n')+'\n'+s.app.slice(closeIndex)+'\n;'+appended.join('\n;');
 for(const [name,source] of [...Object.entries(s),['generated',generated]])try{new Function(source)}catch(err){fail(name+' does not parse: '+err.message)}
 for(const source of [generated,s.sw,s.config]){if(source.includes('$$$'))fail('Found $$$ regression');const bad=(source.match(/(^|[^$])\$\([^)]*\)\.forEach/g)||[]).filter(x=>!x.includes('$$('));if(bad.length)fail('Found accidental $().forEach')}
 for(const needle of ["$$('.nav button').forEach","$$('#quickDates .chip').forEach","$$('[data-planly-calendar-refresh]').forEach","$$('[data-planly-calendar-remove]').forEach","$$('[data-planly-calendar-toggle]').forEach","$$('[data-planly-calendar-colour]').forEach"])if(!generated.includes(needle))fail('Missing collection handler: '+needle);
@@ -23,23 +23,26 @@ if(/Date\.prototype\.(?:toISOString|valueOf|getTime)\s*=/.test(generated))fail('
 if(/service_role|sb_secret_/i.test(appended.join('\n')+s.config))fail('Privileged credential marker in browser runtime');
 console.log(`Planly FINAL generated runtime regression checks passed (${cache} / ${version}).`);
 
-const runtimeClientFiles=['v2/app-v3.2.0.js','v2/core-budget-v4.0b.js','v2/core-budget-actions-v4.0l.js','v2/core-budget-monthly-v4.0e.js','v2/core-lists-v4.1.js','v2/core-household-dashboard-v4.2.js','v2/core-intelligence-v5.js','v2/hardening-v3.3b.js'];
+const runtimeClientFiles=['v2/app-v3.2.0.js','v2/core-budget-v4.0b.js','v2/core-budget-actions-v4.0l.js','v2/core-budget-monthly-v4.0e.js','v2/core-lists-v4.1.js','v2/core-household-dashboard-v4.2.js','v2/core-intelligence-v5.js'];
 for(const file of runtimeClientFiles){if(read(file).includes('window.supabase.createClient('))fail('runtime module creates a secondary Supabase client: '+file)}
 const supabaseConfig=read('v2/supabase-config.js');
 if((supabaseConfig.match(/window\.supabase\.createClient\(/g)||[]).length!==1)fail('supabase-config must contain exactly one createClient constructor');
 if(!supabaseConfig.includes('window.PlanlySupabase={get()'))fail('shared PlanlySupabase singleton missing');
 
-const p2bApp=read('v2/app-v3.2.0.js'),p2bHardening=read('v2/hardening-v3.3b.js');
+const p2bApp=read('v2/app-v3.2.0.js');
 if(!p2bApp.includes('PLANLY_HOUSEHOLD_TTL_MS=60000'))fail('household loader TTL missing');
 if(!p2bApp.includes('planlyHouseholdLoadPromise'))fail('household loader single-flight missing');
 if(!p2bApp.includes('PLANLY_CALENDAR_TTL_MS=15000'))fail('calendar loader TTL missing');
 if(!p2bApp.includes('planlyCalendarLoadPromise'))fail('calendar loader single-flight missing');
 if(!p2bApp.includes("if(session&&previousUser&&previousUser===nextUser)return"))fail('same-user auth events must not reload cloud loaders');
-if(p2bHardening.includes("kickForegroundHouseholdSync(){if(!navigator.onLine)return;const now=Date.now();if(now-lastForegroundKick<1200)return;lastForegroundKick=now;kickHouseholdSync()"))fail('foreground wake must not masquerade as remote household change');
-if(!p2bHardening.includes("const ctx=await loadAssignmentContext(false)"))fail('realtime must reuse assignment household context');
+// Tidy-up 2c (part B): the household live updates from hardening-v3.3b.js are the app's "Household live updates" block.
+const p2bLive=p2bApp.slice(p2bApp.indexOf('/* Household live updates'));
+if(!p2bApp.includes('/* Household live updates')||fs.existsSync('v2/hardening-v3.3b.js')||read('v2/sw.js').includes('hardening-v3.3b')||read('v2/runtime-modules.json').includes('hardening'))fail('household live updates must live in the app and hardening-v3.3b.js stay deleted');
+if(!p2bLive.includes("function householdLiveForeground(){if(!navigator.onLine)return;const now=Date.now();if(now-householdLiveForegroundAt<1200)return;householdLiveForegroundAt=now;void armHouseholdLive()}"))fail('foreground wake must not masquerade as remote household change');
+if(!p2bLive.includes("const ctx=await loadHouseholdLiveContext()"))fail('realtime must reuse the household live context');
 
-if(!p2bHardening.includes("window.dispatchEvent(new CustomEvent('planly:foreground-resume'))"))fail('genuine foreground resume event missing');
-if(p2bHardening.includes("window.addEventListener('focus'"))fail('plain focus must not trigger household/cloud resume work');
+if(!p2bLive.includes("window.dispatchEvent(new CustomEvent('planly:foreground-resume'))"))fail('genuine foreground resume event missing');
+if(p2bApp.includes("window.addEventListener('focus'"))fail('plain focus must not trigger household/cloud resume work');
 if(!p2bApp.includes("window.addEventListener('planly:foreground-resume'"))fail('foreground resume reconcile listener missing');
 
 const assignmentWrapper=read('v2/core-assignment-v3.3c.js');
@@ -47,14 +50,14 @@ if(!assignmentWrapper.includes('function loadPlanlyHousehold(force=false)'))fail
 if(!assignmentWrapper.includes('loadPlanlyHouseholdCore(force)'))fail('household loader must forward force argument');
 for(const fn of ['createPlanlyHousehold','createPlanlyHouseholdInvite','revokePlanlyHouseholdInvite','acceptPlanlyHouseholdInvite','transferPlanlyHouseholdOwnership','deletePlanlyHousehold','leavePlanlyHousehold']){const start=p2bApp.indexOf('function '+fn);const body=start>=0?p2bApp.slice(start,p2bApp.indexOf('\n}',start)+2):'';if(!body.includes('loadPlanlyHousehold(true)'))fail(fn+' must force household reload after mutation')}
 
-const p2cApp=read('v2/app-v3.2.0.js'),p2cHardening=read('v2/hardening-v3.3b.js'),p2cLists=read('v2/core-lists-v4.1.js');
+const p2cApp=read('v2/app-v3.2.0.js'),p2cLive=p2cApp.slice(p2cApp.indexOf('/* Household live updates')),p2cLists=read('v2/core-lists-v4.1.js');
 if(!p2cApp.includes('window.PlanlyHouseholdContext=detail'))fail('authoritative shared household context missing');
 if(!p2cApp.includes("acceptedInvites=householdId&&planlyHousehold?.myRole==='owner'"))fail('shared household labels must derive only from authoritative owner invite data');
-if((p2cHardening.match(/from\('planly_household_members'\)/g)||[]).length)fail('hardening must not query household membership');
-if((p2cHardening.match(/from\('planly_household_invites'\)/g)||[]).length)fail('hardening must not query household invites');
+if((p2cLive.match(/from\('planly_household_members'\)/g)||[]).length)fail('household live updates must not query household membership');
+if((p2cLive.match(/from\('planly_household_invites'\)/g)||[]).length)fail('household live updates must not query household invites');
 if((p2cLists.match(/from\('planly_household_members'\)/g)||[]).length)fail('Lists must not query household membership');
 if(!p2cLists.includes('window.PlanlyHouseholdContext'))fail('Lists shared household context consumer missing');
-if(!p2cHardening.includes('window.PlanlyHouseholdContext'))fail('assignment shared household context consumer missing');
+if(!p2cLive.includes('window.PlanlyHouseholdContext'))fail('household live shared household context consumer missing');
 
 const p3App=read('v2/app-v3.2.0.js'),p3Html=read('v2/index.html');
 if(!p3App.includes('setTimeout(()=>void flushPlanlyLastSuccessfulSync().catch(()=>{}),5000)'))fail('sync-state touch must debounce for 5 seconds');
@@ -73,7 +76,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r01'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-123'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-124'"))fail('R1 cache marker mismatch');
 // iPhone Safari zooms in on focus of any field under 16px and stays zoomed: keep a 16px floor and no smaller overrides.
 if(!r1Html.includes('input,select,textarea{font-size:max(16px,1em)}'))fail('form field 16px floor missing (iOS focus zoom)');
 if(!r1Html.includes('content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"'))fail('viewport must disable zoom');
@@ -220,13 +223,11 @@ for(const needle of ['id="taskHouseholdControls"','id="taskVisibilitySegments"',
 // and the task's own assignee, with no injected field, no timers and no capture-phase event interception.
 for(const needle of ["data-task-assignee","function syncTaskChoiceButtons(){","function renderTaskSharing(assigneeId){","function planlyHouseholdWritesReady(){return PLANLY_SHARE_WRITABLE_STATES.has(String(planlyCloudLocalStatus().state||''))}","taskSheetReadOnly=readOnly;renderTaskSharing(task?String(task.assigneeId||task.assignee_id||''):'');","renderSubtaskEditor();\n  renderTaskSharing('');","$('#taskHouseholdControls')?.addEventListener('click',handleTaskSharingClick);$('#taskVisibility')?.addEventListener('change',handleTaskVisibilityChange);","if($('#taskVisibility')?.value==='household'&&!planlyHouseholdWritesReady()){e.stopImmediatePropagation();alert('Household sharing is not ready yet."])if(!s.app.includes(needle))fail('H2A assignment invariant missing: '+needle);
 if(!r1Html.includes('<div id="taskAssigneeField" class="field taskAssigneeField" hidden><label>Assign</label><div id="taskAssigneeSegments"'))fail('H2A Assign field must be part of the sheet markup');
-for(const gone of ['data-task-assignee','data-task-visibility','taskAssigneeField','planly:task-sheet-open',"addEventListener('submit'","addEventListener('change'","addEventListener('click'",'createElement('])if(s.hardening.includes(gone))fail('task sheet sharing must not be driven from hardening: '+gone);
 if(s.app.includes("planly:task-sheet-open"))fail('the task sheet no longer announces itself for an outside script to redraw it');
 for(const needle of ["taskRowDensity:'compact'","state.taskRowDensity!=='comfortable'","class=\"task taskSwipe compactTask","id=\"taskRowDensity\""])if(!s.app.includes(needle))fail('H2B compact-row invariant missing: '+needle);
 for(const needle of ["This week’s chores","No chores this week.","data-add-chore","homeChoresHtml"])if(!r1.includes(needle))fail('H2C chores invariant missing: '+needle);
 if(!r1Html.includes('.day.isToday.selected>span{background:#17687D!important;color:#fff!important}'))fail('H2 F4b selected-today contrast invariant missing');
 
-if(s.hardening.includes('state.tasks'))fail('H2 hardening must not read app-closure state');
 for(const needle of ["top3Mode&&!t.completed?'<button type=\"button\" class=\"top3DragHandle\"","class=\"compactProjectLink\"","href=\"#pi-checklist\""])if(!s.app.includes(needle))fail('H2 compact review invariant missing: '+needle);
 // (The H2 task-sheet bridge event is gone: the app draws Share and Assign itself — see the tidy-up 2c pins.)
 
@@ -239,7 +240,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t12'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t13'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i01')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -400,7 +401,7 @@ if(!read('v2/index.html').includes('<style id="planlyStage4b">'))fail('Stage 4b 
 {for(const needle of ["function planlyRotationAssignee(t,dateKey)","return ((weeks%2)+2)%2===0?String(r.a):String(r.b)","if(!ids.has(String(r.a))||!ids.has(String(r.b)))return null;","assigneeId:planlyRotationAssignee(t,nextDate)||t.assigneeId,","function planlyRotationEligible(t){return !!t&&t.visibility==='household'&&t._planlyOwnedByMe!==false","data-task-menu=\"rotate\"","if(action==='rotate'){planlyToggleRotation(t);","t.rotation={enabled:true,a,b,anchorWeek:startMonday(t.date)}"])if(!s.app.includes(needle))fail('Stage 5 missing: '+needle);
 if(!s.redesignR1.includes("t.rotation?.enabled?' · <span class=\"choreSwap\">⇄ Swaps weekly</span>'"))fail('Home chore swap label missing');
 const m=read('supabase/migrations/046_household_chore_rotation.sql');for(const needle of ['create or replace function planly_private.household_rotation_assignee(','revoke all on function planly_private.household_rotation_assignee(uuid,jsonb,date,uuid) from public, anon, authenticated;',"v_next_assignee := planly_private.household_rotation_assignee(v_task.household_id, v_task.data->'rotation', p_next_date, v_task.assignee_id);",'      v_next_assignee, null, null'])if(!m.includes(needle))fail('Migration 046 missing: '+needle);}
-{const app=read('v2/app-v3.2.0.js'),hard=read('v2/hardening-v3.3b.js');
+{const app=read('v2/app-v3.2.0.js');
 if(!/function planlyRotationEligible\(t\)\{[^\n]*&&!!t\.assigneeId&&!!planlyRotationOther\(t\.assigneeId\)\}/.test(app))fail('Stage 5: Rotate must require an assigned partner (Anyone stays Anyone)');
 if(!app.includes("function planlyRotationNormalize(t)")||!/function stageTaskMutation\(t\)\{[^\n]*planlyRotationNormalize\(t\);/.test(app))fail('Stage 5: every staged task write must normalise rotation');
 if(!/function planlyRotationNormalize\(t\)\{[^\n]*who===String\(r\.a\)\|\|who===String\(r\.b\)[^\n]*t\.rotation=\{enabled:false\}/.test(app))fail('Stage 5: assignment changes must switch rotation off when the assignee leaves the pair');}
@@ -487,7 +488,7 @@ if(html.trimEnd().slice(-7)!=='</html>')fail('Nothing may follow </html>');
 if(html.indexOf('<style id="planlyDockedNav">')<0||html.indexOf('<style id="planlyDockedNav">')>html.indexOf('</head>'))fail('Docked nav styles must be in <head>');}
 // Instant open: the installed version opens from its saved copy (no network wait); updates come as a new service worker.
 {const sw=read('v2/sw.js'),html=read('v2/index.html');
-for(const needle of ["async function cachedOrFresh(cache,url){const hit=await cache.match(url);return hit||freshOrCached(cache,url)}","const cache=await caches.open(CACHE),saved=await cache.match('./index.html');if(saved)return saved;","await Promise.all([cachedOrFresh(cache,APP_URL),cachedOrFresh(cache,HARDENING_URL),...CORE_URLS.map(url=>cachedOrFresh(cache,url)),...appendUrls.map(url=>cachedOrFresh(cache,url))]);","response=await cachedOrFresh(cache,RUNTIME_MANIFEST_URL)","if(event.request.url===SUPABASE_JS_URL){"])if(!sw.includes(needle))fail('Instant open invariant missing: '+needle);
+for(const needle of ["async function cachedOrFresh(cache,url){const hit=await cache.match(url);return hit||freshOrCached(cache,url)}","const cache=await caches.open(CACHE),saved=await cache.match('./index.html');if(saved)return saved;","await Promise.all([cachedOrFresh(cache,APP_URL),...CORE_URLS.map(url=>cachedOrFresh(cache,url)),...appendUrls.map(url=>cachedOrFresh(cache,url))]);","response=await cachedOrFresh(cache,RUNTIME_MANIFEST_URL)","if(event.request.url===SUPABASE_JS_URL){"])if(!sw.includes(needle))fail('Instant open invariant missing: '+needle);
 const pinned=(sw.match(/const SUPABASE_JS_URL='([^']+)'/)||[])[1];if(!pinned||!html.includes('<script src="'+pinned+'"></script>'))fail('Service worker must cache exactly the supabase-js URL the page loads');
 if(!/@\d+\.\d+\.\d+$/.test(pinned))fail('Cached supabase-js URL must be an exact version');}
 // Settled first screen: drawn for the account already signed in on this phone (display only), with saved calendar and bills,
@@ -498,7 +499,7 @@ if(!stored.includes("String(u.id)!==String(localStorage.getItem(PLANLY_CLOUD_LAS
 if(/access_token|refresh_token/.test(stored))fail('The early (unconfirmed) session must not carry any token');
 if(!stored.includes("planlySession={user,provisional:true};restorePlanlyHouseholdCopy(user.id);restorePlanlyCalendarCache();return true"))fail('Early session must be marked provisional');
 {const save=app.slice(app.indexOf('function savePlanlyHouseholdCopy('),app.indexOf('function restorePlanlyHouseholdCopy('));if(!save||/invite/i.test(save.replace('never invites','')))fail('Household copy must hold names and roles only, never invites');if((app.match(/;savePlanlyHouseholdCopy\(userId\);/g)||[]).length!==2)fail('Household copy must be saved whenever the household is confirmed');}
-{const hard=read('v2/hardening-v3.3b.js');if(!hard.includes("if(userId&&shared.householdId&&userId===String(localStorage.getItem(LAST_ACCOUNT_KEY)||''))assignmentContext=assignmentContextFromShared(shared,userId)"))fail('Assignment names must start from the household the app already has (same account only)');}
+{if(!s.app.includes("if(userId&&shared.householdId&&userId===String(localStorage.getItem(PLANLY_CLOUD_LAST_ACCOUNT_KEY)||''))householdLiveContext=householdLiveContextFrom(shared,userId)"))fail('The household live context must start from the household the app already has (same account only)');}
 if(!app.includes("onAuthStateChange((_event,session)=>{const previousUser=planlySession?.provisional?'':String(planlySession?.user?.id||''),"))fail('A provisional session must not skip the first confirmed sign-in work');
 if(!app.includes("load();applyTheme();if(PLANLY_CLOUD_PREVIEW)planlyAdoptStoredUser();"))fail('Stored user must be adopted before the first render');
 if(!app.includes("queueMicrotask(()=>render());"))fail('Render after all modules have run (before first paint) missing');
@@ -553,7 +554,7 @@ if(read('v2/core-budget-nav-v4.0b1.js').includes('Private finance')||!read('v2/c
  for(const n of ['taskHtmlCore','taskHtmlWithHousehold','taskHtml','projectCardMarkup','projectCardHtml','closeProjectsCore','closeProjects','stageProjectMutationCore','stageProjectMutation','replayPlanlyPendingWritesCore','replayPlanlyPendingWrites','cloudInsertTaskCore','cloudInsertTask','loadPlanlyHouseholdCore','loadPlanlyHousehold']){const c=(generated.match(new RegExp('(^|[;\\n}])\\s*(async\\s+)?function\\s+'+n+'\\s*\\(','g'))||[]).length;if(c!==1)fail('wrapper layer must be declared exactly once: '+n+' ('+c+')')}
  for(const d of ["const planlyHouseholdAutoCompleteIntent=new Set();","let planlyHouseholdSubtaskRun=null;","let __planlyHouseholdLoadFlight=null,__planlyHouseholdLoadOwner='';"])if(!s.app.includes(d)||s.assignment.includes(d))fail('household state must be declared in the app before the first render: '+d);}
 // Cleanup: Focus mode and the old Intelligence screens (Plan My Day, Plan my week, Day check, Suggest 3, Tidy up, Why, Monday review) are gone.
-{const html=read('v2/index.html'),sw=read('v2/sw.js'),runtime=[s.app,s.hardening,...[...new Set(sw.match(/core-[a-z0-9.-]+\.js/g))].map(f=>read('v2/'+f))].join('\n');
+{const html=read('v2/index.html'),sw=read('v2/sw.js'),runtime=[s.app,...[...new Set(sw.match(/core-[a-z0-9.-]+\.js/g))].map(f=>read('v2/'+f))].join('\n');
 for(const gone of ['openFocus','closeFocus','renderFocus','refreshFocusIfOpen','focusTicker','data-timeline-focus','data-task-menu="focus"','data-dashboard-focus','focusMs','openPlanDay','renderPlanDay','commitPlanDay','dayPlanDraft','openPlanWeek','weeklyReviewHtml','data-plan-week','todayDayCheckHtml','suggestTop3WithUndo','tidyOverdue','showIntelligenceWhy','intelligenceSnoozeDate','data-i2-','recordIntelligenceCompletion','removeIntelligenceCompletionSample'])if(runtime.includes(gone))fail('Removed feature still referenced: '+gone);
 for(const gone of ['id="focusWrap"','id="planDayWrap"','.focusWrap','.planDayWrap','.todayDayCheck','.tidyRows','.weeklyReview','#planMyDayBtn'])if(html.includes(gone))fail('Removed feature markup/CSS still present: '+gone);
 if(fs.existsSync('v2/core-household-planning-safety-v3.3c.js')||sw.includes('core-household-planning-safety'))fail('Plan My Day safety module must be removed');
@@ -572,7 +573,7 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
 // and left the phone stuck on a rejected copy showing "Anyone" (7 Oct 2026).
 {const save="data.assigneeId=data.visibility==='household'?(assigneeField?String(assigneeField.value||'')||null:(id?(state.tasks.find(x=>x.id===id)?.assigneeId||null):null)):null;";
  if(!s.app.includes("const assigneeField=$('#taskAssignee');")||!s.app.includes(save))fail('task save must carry the assigned person');
- if(/applyPendingAssignment|pendingAssignment|from\('planly_tasks'\)\.update\(\{assignee_id/.test(s.hardening))fail('assignment must not be written separately after the task save');}
+ if(/applyPendingAssignment|pendingAssignment|from\('planly_tasks'\)\.update\(\{assignee_id/.test(s.app))fail('assignment must not be written separately after the task save');}
 // Bottom tabs always work from Projects: tapping one leaves Projects (saving a named new or changed project first)
 // instead of leaving the full-screen Projects layer on top of the new tab (11 Oct 2026).
 {if(!s.projects.includes("function leaveProjectsForNavigation(){")||!s.projects.includes("document.addEventListener('click',e=>{if(!e.target.closest?.('.nav button[data-section]'))return;if(!leaveProjectsForNavigation()){e.preventDefault();e.stopImmediatePropagation()}},true);"))fail('bottom tabs must leave Projects');
