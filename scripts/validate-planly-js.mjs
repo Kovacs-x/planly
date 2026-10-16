@@ -628,6 +628,10 @@ if(!html.includes('.planDayFooter{display:grid'))fail('Repeat prompt footer styl
  const bottle=F.offProduct({product_name:'Water',nutriments:{'energy-kcal_100g':0},quantity:'1,5 l'}),bar=F.offProduct({product_name:'Snack bar',nutriments:{'energy-kcal_100g':400},quantity:'45g',serving_quantity:45});
  if(!bottle||bottle.packG!==1500||!bottle.liquid||!bar||bar.liquid||bar.servingG!==45||bar.packG!==45||bar.packLabel!=='pack')fail('Pack sizes in l or g wrong: '+JSON.stringify([bottle,bar]));
  if(F.offProduct({product_name:'Rice',nutriments:{'energy-kcal_100g':350},quantity:'5 kg'}).packG!==null)fail('A pack over 2 kg must not be offered');
+ // Numbers with a unit are converted like text: 0.5 kg = 500 g, 33 cl = 330 ml; 3 l is over the 2 kg/2 l limit.
+ const nu=(q,u,sq,su)=>F.offProduct({product_name:'X',nutriments:{'energy-kcal_100g':50},product_quantity:q,product_quantity_unit:u,serving_quantity:sq,serving_quantity_unit:su});
+ const k5=nu(0.5,'kg',0.25,'kg'),cl=nu(33,'cl',25,'cl'),l3=nu(3,'l'),kg2=nu(2.5,'KG'),l2=nu(2,'l',0.1,'l');
+ if(k5.packG!==500||k5.servingG!==250||k5.liquid||cl.packG!==330||cl.servingG!==250||!cl.liquid||l3.packG!==null||!l3.liquid||kg2.packG!==null||l2.packG!==2000||l2.servingG!==null)fail('Numeric quantities must be converted by their unit: '+JSON.stringify([k5,cl,l3,kg2,l2].map(x=>[x.packG,x.servingG,x.liquid])));
  if(F.nutrientsFor({basis:'100g',per:{kcal:18,protein:0,carbs:4.5,fat:0}},330,'ml').kcal!==59.4)fail('ml must scale like grams');
  const kj=F.offProduct({product_name:'Oats',nutriments:{'energy-kj_100g':1569}});if(!kj||Math.round(kj.per.kcal)!==375||kj.barcode!==null)fail('kJ-only products must convert to kcal');
  if(F.offProduct({product_name:'',nutriments:{'energy-kcal_100g':5}})||F.offProduct({product_name:'X',nutriments:{}}))fail('Products without a name or energy must be skipped');}

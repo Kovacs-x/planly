@@ -1,5 +1,5 @@
-// Fitness › Food servings: one can or pack is offered from the product's pack size (one item of a multipack), drinks are
-// in ml, a "serving" of exactly 100 is not offered, and a serving size can be set by hand (kept with a favourite).
+// Fitness › Food servings: one can or pack is offered from the product's pack size (one item of a multipack; sizes in kg
+// or l converted), drinks are in ml, a "serving" of exactly 100 is not offered, and a serving size can be set by hand (kept with a favourite).
 // Open Food Facts answers through the real food-search function code, as on iPhone.
 // Run: node tests/browser/fitness-servings.test.mjs (see tests/browser/README.md).
 import {startServer,chromium,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
@@ -14,7 +14,10 @@ const catalogue=[
   P('5000000000101','Pepsi 330ml Can',18,4.6,{serving_quantity:100,serving_size:'100 ml',serving_quantity_unit:'ml',quantity:'330 ml',product_quantity:330,product_quantity_unit:'ml'}),
   P('5000000000118','Cola cans multipack',42,10.6,{quantity:'6 x 330 ml',product_quantity:1980,product_quantity_unit:'ml'}),
   P('5000000000125','Crunchy granola',450,60,{serving_quantity:45,serving_size:'45 g',quantity:'500 g',product_quantity:500,product_quantity_unit:'g'}),
-  P('5000000000132','Ready salted crisps',520,50,{})];
+  P('5000000000132','Ready salted crisps',520,50,{}),
+  // sizes given as a number with a unit (kg, l), as Open Food Facts sometimes does
+  P('5000000000149','Porridge oats',375,60,{product_quantity:0.5,product_quantity_unit:'kg',serving_quantity:0.04,serving_quantity_unit:'kg'}),
+  P('5000000000156','Orange juice big',45,10,{product_quantity:3,product_quantity_unit:'l'})];
 const tok=t=>String(t).toLowerCase().replace(/[^a-z0-9%]+/g,' ').trim().split(' ').filter(Boolean);
 globalThis.fetch=async(url,init={})=>{url=String(url);const h=init.headers||{},j=(s,o)=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json'}});
   if(url===SB+'/auth/v1/user')return /^Bearer ey/.test(h.Authorization||'')?j(200,{id:OWNER}):j(401,{});
@@ -71,6 +74,14 @@ await page.click('[data-pack]');await W(100);s=await sheet();
 check('tapping the pack switches to 500 g',s.amount==='500'&&JSON.stringify(s.on)==='["1 pack · 500 g"]'&&s.preview==='2,250 kcal',JSON.stringify(s));
 await page.click('[data-unit="g"]');await W(100);s=await sheet();
 check('and grams go back to 100 g',s.amount==='100'&&JSON.stringify(s.on)==='["grams"]',JSON.stringify(s));
+await page.click('.fitSheetDone');await W(300);
+
+// 3b. Sizes given in kg or l are converted: 0.5 kg is a 500 g pack, 0.04 kg a 40 g serving; a 3 l carton is over the limit
+await open('porridge','Porridge oats');s=await sheet();
+check('a pack of 0.5 kg is 500 g and a serving of 0.04 kg is 40 g',JSON.stringify(s.chips)==='["grams","servings of 40 g","1 pack · 500 g","Set serving size"]'&&s.amount==='1'&&s.preview==='150 kcal',JSON.stringify(s));
+await page.click('.fitSheetDone');await W(300);
+await open('juice','Orange juice big');s=await sheet();
+check('a 3 l carton is in ml but not offered as one pack',/per 100 ml/.test(s.head)&&JSON.stringify(s.chips)==='["ml","Serving"]'&&s.amount==='100',JSON.stringify(s));
 await page.click('.fitSheetDone');await W(300);
 
 // 4. No serving size at all: set one by hand

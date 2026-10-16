@@ -124,17 +124,19 @@ function saveProfile(values){const t=now(),base=profile||{owner_id:userId,cloud_
 const favFood=f=>({name:f.name,brand:f.brand,barcode:f.barcode,basis:'100g',per:{kcal:num(f.kcal_100),protein:num(f.protein_100),carbs:num(f.carbs_100),fat:num(f.fat_100)},servingG:num(f.serving_g)||null,servingLabel:f.serving_label||'',liquid:/\bml\b/i.test(f.serving_label||''),favouriteId:f.id,source:'favourite'});
 function recentFoods(){const seen=new Set(),out=[];for(const e of [...entries].sort((a,b)=>num(b.client_created_at)-num(a.client_created_at))){const k=(e.name+'|'+e.brand).toLowerCase();if(seen.has(k)||e.source==='quick')continue;seen.add(k);const amt=num(e.amount,1)||1;out.push({name:e.name,brand:e.brand,barcode:e.barcode,basis:e.unit==='serving'?'serving':'100g',per:{kcal:num(e.kcal)/amt*(e.unit==='serving'?1:100),protein:num(e.protein_g)/amt*(e.unit==='serving'?1:100),carbs:num(e.carbs_g)/amt*(e.unit==='serving'?1:100),fat:num(e.fat_g)/amt*(e.unit==='serving'?1:100)},servingG:null,liquid:e.unit==='ml',lastAmount:amt,lastUnit:e.unit==='ml'?'g':e.unit,source:'search'});if(out.length>=8)break}return out}
 // "330 ml", "1 can (330ml)", "0,5 l" → {q:330,u:'ml'}; kg and l become g and ml
-function sizeIn(t){const m=String(t||'').toLowerCase().replace(/(\d),(\d)/g,'$1.$2').match(/(\d+(?:\.\d+)?)\s*(ml|cl|l|kg|g)\b/);if(!m)return null;const q=Number(m[1])*{ml:1,cl:10,l:1000,kg:1000,g:1}[m[2]];return q>0?{q,u:/l$/.test(m[2])?'ml':'g'}:null}
-const unitOf=u=>/^(ml|cl|l)$/i.test(String(u||'').trim())?'ml':/^(g|kg)$/i.test(String(u||'').trim())?'g':'';
+// every weight or volume becomes g or ml, whether it comes as text ("0,5 kg") or as a number with a unit
+const UNIT={ml:1,cl:10,l:1000,g:1,kg:1000};
+const amountIn=(q,u)=>{const k=String(u||'').trim().toLowerCase();return q>0&&UNIT[k]?{q:q*UNIT[k],u:/l$/.test(k)?'ml':'g'}:null};
+function sizeIn(t){const m=String(t||'').toLowerCase().replace(/(\d),(\d)/g,'$1.$2').match(/(\d+(?:\.\d+)?)\s*(ml|cl|l|kg|g)\b/);return m?amountIn(Number(m[1]),m[2]):null}
 function offProduct(p){
   const n=p?.nutriments||{},kcal=num(n['energy-kcal_100g'],NaN),kj=num(n['energy-kj_100g']??n.energy_100g,NaN),k=Number.isFinite(kcal)?kcal:Number.isFinite(kj)?kj/4.184:NaN;
   const name=String(p?.product_name||'').trim();if(!name||!Number.isFinite(k))return null;
   // a serving of exactly 100 is just the per-100 g/ml figure again, so it is not offered as a serving
-  const sq=num(p.serving_quantity,0),qt=String(p.quantity||''),pq=num(p.product_quantity,0);
+  const sq=num(p.serving_quantity,0),qt=String(p.quantity||''),pq=num(p.product_quantity,0),serving=amountIn(sq,p.serving_quantity_unit)||(sq>0?{q:sq,u:''}:null);
   // one can or pack: for a multipack ("6 x 330 ml") the size of one item
-  const pack=/\d\s*[x×]\s*\d/i.test(qt)?sizeIn(qt.replace(/^.*?\d\s*[x×]\s*/i,'')):pq>0?{q:pq,u:unitOf(p.product_quantity_unit)||sizeIn(qt)?.u||''}:sizeIn(qt);
-  const liquid=(unitOf(p.serving_quantity_unit)||sizeIn(p.serving_size)?.u||pack?.u||'')==='ml',text=(name+' '+qt+' '+(p.serving_size||'')).toLowerCase();
-  return {name:name.slice(0,160),brand:String(Array.isArray(p.brands)?p.brands[0]||'':p.brands||'').split(',')[0].trim().slice(0,120),barcode:/^[0-9]{6,14}$/.test(String(p.code||''))?String(p.code):null,basis:'100g',per:{kcal:clamp(k,0,2000),protein:clamp(num(n.proteins_100g),0,100),carbs:clamp(num(n.carbohydrates_100g),0,100),fat:clamp(num(n.fat_100g),0,100)},servingG:sq>0&&sq<=5000&&sq!==100?sq:null,servingLabel:String(p.serving_size||'').slice(0,60),
+  const pack=/\d\s*[x×]\s*\d/i.test(qt)?sizeIn(qt.replace(/^.*?\d\s*[x×]\s*/i,'')):amountIn(pq,p.product_quantity_unit)||sizeIn(qt)||(pq>0?{q:pq,u:''}:null);
+  const liquid=(serving?.u||sizeIn(p.serving_size)?.u||pack?.u||'')==='ml',text=(name+' '+qt+' '+(p.serving_size||'')).toLowerCase();
+  return {name:name.slice(0,160),brand:String(Array.isArray(p.brands)?p.brands[0]||'':p.brands||'').split(',')[0].trim().slice(0,120),barcode:/^[0-9]{6,14}$/.test(String(p.code||''))?String(p.code):null,basis:'100g',per:{kcal:clamp(k,0,2000),protein:clamp(num(n.proteins_100g),0,100),carbs:clamp(num(n.carbohydrates_100g),0,100),fat:clamp(num(n.fat_100g),0,100)},servingG:serving&&serving.q<=5000&&r1(serving.q)!==100?r1(serving.q):null,servingLabel:String(p.serving_size||'').slice(0,60),
     liquid,packG:pack&&pack.q<=2000?r1(pack.q):null,packLabel:/\bcans?\b/.test(text)?'can':/\bbottles?\b/.test(text)?'bottle':'pack',source:'search'};
 }
 // Open Food Facts has two name searches: the newer, faster search service, and the classic one (slower, often busy).
