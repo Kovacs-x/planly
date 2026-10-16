@@ -28,7 +28,7 @@ const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
 const OFF_FAST = 'https://search.openfoodfacts.org/search'
 const OFF_SEARCH = 'https://world.openfoodfacts.org/cgi/search.pl'
 const OFF_PRODUCT = 'https://world.openfoodfacts.org/api/v2/product/'
-const FIELDS = 'code,product_name,brands,nutriments,serving_size,serving_quantity'
+const FIELDS = 'code,product_name,brands,nutriments,serving_size,serving_quantity,serving_quantity_unit,quantity,product_quantity,product_quantity_unit'
 const UK = 'countries:"en:united-kingdom"'
 const AGENT = 'Planly/5.1 (household planner; https://kovacs-x.github.io/planly/)'
 const WORDS = /^[a-z0-9%]{1,30}( [a-z0-9%]{1,30}){0,7}$/
@@ -38,6 +38,7 @@ const NUTRIENTS = ['energy-kcal_100g', 'energy-kj_100g', 'energy_100g', 'protein
 type Product = Record<string, unknown>
 type Clean = {
   code: string; product_name: string; brands: string; serving_size: string; serving_quantity: number | null
+  serving_quantity_unit: string; quantity: string; product_quantity: number | null; product_quantity_unit: string
   nutriments: Record<string, number>; uk: boolean
 }
 
@@ -52,13 +53,19 @@ function clean(p: Product, uk: boolean): Clean | null {
     const v = Number(n[k])
     if (n[k] !== null && n[k] !== undefined && n[k] !== '' && Number.isFinite(v)) nutriments[k] = v
   }
-  const sq = Number(p.serving_quantity)
+  const sq = Number(p.serving_quantity), pq = Number(p.product_quantity)
+  // only plain weight or volume units
+  const unit = (u: unknown) => /^(g|kg|ml|cl|l)$/i.test(String(u ?? '').trim()) ? String(u).trim().toLowerCase() : ''
   return {
     code: /^[0-9]{6,14}$/.test(String(p.code ?? '')) ? String(p.code) : '',
     product_name: name,
     brands: String(brandsRaw ?? '').split(',')[0].trim().slice(0, 120),
     serving_size: String(p.serving_size ?? '').slice(0, 60),
     serving_quantity: Number.isFinite(sq) && sq > 0 && sq <= 5000 ? sq : null,
+    serving_quantity_unit: unit(p.serving_quantity_unit),
+    quantity: String(p.quantity ?? '').slice(0, 60),
+    product_quantity: Number.isFinite(pq) && pq > 0 && pq <= 100000 ? pq : null,
+    product_quantity_unit: unit(p.product_quantity_unit),
     nutriments,
     uk,
   }

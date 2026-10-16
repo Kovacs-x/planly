@@ -796,6 +796,8 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitStatus{margin:0;color:var(--muted);font-size:14px}.fitStatus:empty{display:none}
 .fitField{display:grid;gap:6px}.fitField>span{font-size:13px;font-weight:600;color:var(--muted)}
 .fitAmount{display:grid;gap:8px}.fitUnitFixed{color:var(--muted);font-size:14px}
+.fitUnitFixed{align-self:center}.fitUnit [data-serving-edit]{display:inline-flex;align-items:center;gap:5px}.fitPen{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fitServingEdit{display:flex;align-items:center;gap:8px}.fitServingEdit[hidden]{display:none}.fitServingEdit input{flex:1;min-width:0}.fitServingEdit span{color:var(--muted);font-size:14px}.fitServingEdit button{min-height:42px;padding:0 16px}
 .fitTriple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.fitQuad{grid-template-columns:repeat(2,minmax(0,1fr))}
 .fitPreview{display:grid;gap:3px;padding:12px;border-radius:var(--rControl,12px);background:var(--secTint)}.fitPreview strong{color:var(--sec);font-size:18px}.fitPreview span{font-size:13px;color:var(--text)}
 .fitCheck{display:flex;align-items:center;gap:10px;min-height:44px}.fitCheck input{width:22px;height:22px;accent-color:var(--sec);flex:none}

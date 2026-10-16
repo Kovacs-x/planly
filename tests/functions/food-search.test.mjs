@@ -5,7 +5,7 @@ const env={SUPABASE_URL:'https://sb.test',SUPABASE_ANON_KEY:'anon'};
 let handler;globalThis.Deno={env:{get:k=>env[k]},serve:h=>{handler=h}};
 const calls=[];let off={fast:'ok',classic:'ok',product:'ok',ukRefused:false};
 const j=(s,o)=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json'}});
-const hit=(code,name,extra={})=>({code:code.length<8?code+'00000':code,product_name:name,brands:['Brand '+code,'Other'],nutriments:{'energy-kcal_100g':50,proteins_100g:1,carbohydrates_100g:10,fat_100g:0.1,salt_100g:9,'secret-field':1},serving_quantity:200,serving_size:'1 glass',ingredients_text:'not wanted',...extra});
+const hit=(code,name,extra={})=>({code:code.length<8?code+'00000':code,product_name:name,brands:['Brand '+code,'Other'],nutriments:{'energy-kcal_100g':50,proteins_100g:1,carbohydrates_100g:10,fat_100g:0.1,salt_100g:9,'secret-field':1},serving_quantity:200,serving_size:'1 glass',serving_quantity_unit:'ML',quantity:'6 x 330 ml',product_quantity:1.98,product_quantity_unit:'L',ingredients_text:'not wanted',...extra});
 const redirectTo=new Map(),evil=[];
 // Like real fetch: a redirect is followed unless redirect is 'manual' (the 3xx is returned) or 'error' (it fails).
 globalThis.fetch=async(url,init={})=>{const res=await answer(String(url),init);const to=res.headers.get('location');
@@ -59,7 +59,8 @@ check('a half-typed last word also asks with the finished words, each UK-only an
 check('only Open Food Facts search is called, with a Planly user agent and no account details',r.upstream.every(c=>c.url.startsWith('https://search.openfoodfacts.org/search?')&&/^Planly\//.test(c.h['User-Agent'])&&!JSON.stringify(c).includes('good')&&!JSON.stringify(c).includes('U1')),JSON.stringify(r.upstream.map(c=>c.url)));
 check('UK products come first, each product once',JSON.stringify(r.body.products.map(p=>[p.code.slice(0,3),p.uk]))==='[["111",true],["222",true],["333",false]]',JSON.stringify(r.body.products));
 const p=r.body.products[0];
-check('only the fields the app uses are passed on',JSON.stringify(Object.keys(p).sort())==='["brands","code","nutriments","product_name","serving_quantity","serving_size","uk"]'&&JSON.stringify(Object.keys(p.nutriments).sort())==='["carbohydrates_100g","energy-kcal_100g","fat_100g","proteins_100g"]'&&p.brands==='Brand 111',JSON.stringify(p));
+check('only the fields the app uses are passed on',JSON.stringify(Object.keys(p).sort())==='["brands","code","nutriments","product_name","product_quantity","product_quantity_unit","quantity","serving_quantity","serving_quantity_unit","serving_size","uk"]'&&JSON.stringify(Object.keys(p.nutriments).sort())==='["carbohydrates_100g","energy-kcal_100g","fat_100g","proteins_100g"]'&&p.brands==='Brand 111',JSON.stringify(p));
+check('pack size and units are passed on as plain values',p.quantity==='6 x 330 ml'&&p.product_quantity===1.98&&p.product_quantity_unit==='l'&&p.serving_quantity_unit==='ml',JSON.stringify(p));
 check('the answer goes to the Planly site only',r.cors==='https://kovacs-x.github.io');
 off.ukRefused=true;r=await call({mode:'suggest',q:'apple'});check('if the UK filter is refused, everywhere answers still come back',r.status===200&&r.body.products.map(p=>p.code.slice(0,3)).join()==='333,111',JSON.stringify(r.body));off.ukRefused=false;
 off.fast='empty';r=await call({mode:'suggest',q:'apple'});check('suggestions never use the slower classic search',r.status===200&&r.body.products.length===0&&r.upstream.every(c=>c.url.includes('search.openfoodfacts.org')));
