@@ -330,7 +330,15 @@ function taskHtmlCore(t,top3Mode=false){
   const surface=`<div class="taskSurface"><button class="check" ${readOnly?'disabled aria-label="Shared task status"':'data-action="toggle" aria-label="Toggle complete"'}>${t.completed?'✓':''}${readOnly?'':planlyTapSwitch()}</button><div class="taskBody ${subtasks.length?'checklistTap':''}" ${subtasks.length?`data-action="expand-checklist" role="button" tabindex="0" aria-expanded="${checklistExpanded?'true':'false'}" aria-label="${checklistExpanded?'Hide':'Show'} checklist"`:''}><div class="taskTitle">${esc(t.title)}</div><div class="meta">${t.time?`<span class="taskTimeBadge">${esc(t.time)} · ${durationLabel(t.durationMinutes)}</span>`:''}${isOverdue(t)?`<span class="pill" style="color:var(--danger)">Overdue · ${esc(fmt(t.date,{day:'numeric',month:'short'}))}</span>`:''}<span class="categoryBadge category-${String(t.category||"personal").toLowerCase().replace(/[^a-z0-9_-]/g,"")}"><span class="categoryDot"></span>${esc(t.category)}</span>${projectMeta}${sharedMeta}${priority}${t.recurrence&&t.recurrence!=='none'?`<span class="pill"><svg class="pIcon" style="width:13px;height:13px" aria-hidden="true"><use href="#pi-repeat"/></svg>${esc(recurrenceLabel(t))}</span>`:''}${reminder?`<span class="pill"><svg class="pIcon" style="width:13px;height:13px" aria-hidden="true"><use href="#pi-clock"/></svg>${esc(reminder)}</span>`:''}${subtaskMeta}${calendarSyncHtml(t)}</div>${t.notes?`<div class="taskNotes muted">${esc(t.notes)}</div>`:''}${inlineChecklist}${isOverdue(t)&&!readOnly?`<button class="chip" data-action="today" style="margin-top:10px;padding:7px 10px">Move to Today</button>`:''}</div><div class="taskActions">${!readOnly&&top3Mode&&!t.completed?'<button type="button" class="top3DragHandle" aria-label="Drag to reorder Top 3"><svg class="pIcon" aria-hidden="true"><use href="#pi-grip"/></svg></button>':''}${!readOnly&&t.completed?`<button type="button" class="undoDoneBtn" data-action="toggle" aria-label="Undo: mark ${esc(t.title)} as not done">Undo</button>`:''}${!readOnly&&!t.completed?`<button class="smallbtn ${t.pinned?'isPinned':''}" data-action="pin" aria-label="${t.pinned?'Remove from Top 3':'Add to Top 3'}" aria-pressed="${t.pinned?'true':'false'}"><svg class="pIcon" aria-hidden="true"><use href="#pi-star"/></svg></button>`:''}${readOnly?'<span class="sharedReadOnlyMark" title="Creator-owned">View only</span>':'<button class="smallbtn" data-action="actions" aria-label="Task actions"><svg class="pIcon" aria-hidden="true"><use href="#pi-more"/></svg></button>'}</div></div>`;
   return `<div class="task taskSwipe ${t.completed?'done':''} ${readOnly?'sharedReadOnlyTask':''} ${planlyTaskTone(t)?'personEdge tone-'+planlyTaskTone(t):''}" data-id="${t.id}" data-owner="${esc(t._planlyOwnerId||planlySession?.user?.id||'')}"><div class="swipeUnderlay"><div class="swipeCompleteCue"><svg class="pIcon" aria-hidden="true"><use href="#pi-check"/></svg>Complete</div><div class="swipeQuickActions"><button data-action="tomorrow">Tomorrow</button><button data-action="edit">Edit</button><button data-action="delete">Delete</button></div></div>${surface}</div>`
 }
-function visibleTasks(arr){return state.showCompleted?arr:arr.filter(t=>!t.completed)}
+// Where a task is made decides whether it shows on Today, and the task sheet's "Show on Today" changes it. Tasks saved
+// before that setting: project tasks and household chores stay off Today, everything else shows.
+function planlyOnToday(t){return t?.showOnToday===true||(t?.showOnToday!==false&&!t?.projectId&&t?.visibility!=='household')}
+// Unscheduled means a loose to-do with no date: not a chore, not a project task, not done.
+function planlyUnscheduled(t){return !t.date&&!t.projectId&&t.visibility!=='household'}
+// Completed tasks drop out of the lists a week after they were ticked. They are kept, only no longer listed.
+const PLANLY_DONE_KEEP_MS=7*864e5;
+function planlyDoneRecent(t){if(!t?.completed)return true;const at=Date.parse(t.completedAt||'')||Number(t.updatedAt||0);return !(at>0)||Date.now()-at<PLANLY_DONE_KEEP_MS}
+function visibleTasks(arr){return (state.showCompleted?arr:arr.filter(t=>!t.completed)).filter(planlyDoneRecent)}
 function planlyDoneSectionKey(key){return String(key||'').split(':')[0]||'tasks'}
 function planlyDoneFold(key,count,inner){
   if(!count)return '';
@@ -340,7 +348,7 @@ function planlyDoneFold(key,count,inner){
 window.planlyDoneFold=planlyDoneFold;
 document.addEventListener('toggle',e=>{const d=e.target;if(!d?.matches?.('details.doneFold'))return;const k=d.dataset.doneKey;if(!!completedOpen[k]===d.open)return;if(d.open)completedOpen[k]=true;else delete completedOpen[k];try{localStorage.setItem(PLANLY_DONE_OPEN_KEY,JSON.stringify(completedOpen))}catch{}document.querySelectorAll('details.doneFold').forEach(x=>{if(x!==d&&x.dataset.doneKey===k&&x.open!==d.open)x.open=d.open})},true);
 function completedSection(tasks,key){
-  if(!state.showCompleted||!tasks.length)return '';
+  tasks=tasks.filter(planlyDoneRecent);if(!state.showCompleted||!tasks.length)return '';
   return planlyDoneFold(key,tasks.length,sortTasks(tasks).map(t=>taskHtml(t)).join(''));
 }
 function isOverdue(t){return !!t.date && !t.completed && t.date<localKey(new Date())}
@@ -958,8 +966,8 @@ function todayIntelligence(){
 }
 function todayView(){
   const key=localKey(new Date());
-  const todayAll=state.tasks.filter(t=>t.date===key),completed=sortTasks(todayAll.filter(t=>t.completed)),activeToday=todayAll.filter(t=>!t.completed);
-  const overdue=sortTasks(state.tasks.filter(isOverdue)),pins=sortTop3(activeToday.filter(t=>t.pinned)).slice(0,3),remaining=activeToday.filter(t=>!t.pinned);
+  const todayAll=state.tasks.filter(t=>t.date===key&&planlyOnToday(t)),completed=sortTasks(todayAll.filter(t=>t.completed)),activeToday=todayAll.filter(t=>!t.completed);
+  const overdue=sortTasks(state.tasks.filter(t=>isOverdue(t)&&planlyOnToday(t))),pins=sortTop3(activeToday.filter(t=>t.pinned)).slice(0,3),remaining=activeToday.filter(t=>!t.pinned);
   const scheduled=sortTasks(remaining.filter(t=>t.time)),anytime=sortTasks(remaining.filter(t=>!t.time)),householdEvents=externalEventsForDate(key,'today');
   setHeader('Today',new Intl.DateTimeFormat(undefined,{weekday:'long',day:'numeric',month:'long'}).format(new Date()));
   const pct=todayAll.length?Math.round(completed.length/todayAll.length*100):0,dashboard=todayDashboardHtml(activeToday,todayAll,overdue),billsDue=todayCardOn('bills')?planlyBudgetBillsDueHtml():'',intel=todayIntelligence();
@@ -983,7 +991,7 @@ function upcomingGroup(title,tasks){
 }
 function upcomingView(){
   const today=localKey(new Date()),tomorrow=addDays(today,1),weekEnd=addDays(today,7);
-  const futureAll=state.tasks.filter(t=>t.date&&t.date>today&&(!t.completed||state.showCompleted)),future=futureAll.filter(t=>!t.completed);
+  const futureAll=state.tasks.filter(t=>t.date&&t.date>today&&(!t.completed||state.showCompleted)&&planlyDoneRecent(t)),future=futureAll.filter(t=>!t.completed);
   const tomorrowTasks=futureAll.filter(t=>t.date===tomorrow);
   const nextSeven=futureAll.filter(t=>t.date>tomorrow&&t.date<=weekEnd);
   const later=futureAll.filter(t=>t.date>weekEnd);
@@ -998,7 +1006,7 @@ function upcomingView(){
 function monthStart(key){const d=parseKey(key);d.setDate(1);return localKey(d)}
 function shiftMonth(key,n){const d=parseKey(key);d.setDate(1);d.setMonth(d.getMonth()+n);return localKey(d)}
 
-function inboxView(){setHeader('Inbox','Capture now, schedule later');const arr=visibleTasks(state.tasks.filter(t=>!t.date));$('#view').innerHTML=`<div class="inboxIntro"><div><strong>Your unscheduled tasks</strong></div><div class="inboxCount">${arr.length}</div></div><section class="section inboxTasks">${arr.length?arr.map(t=>taskHtml(t)).join(''):`<div class="empty">Your Inbox is clear.</div>`}</section>`}
+function inboxView(){setHeader('Inbox','Capture now, schedule later');const arr=visibleTasks(state.tasks.filter(planlyUnscheduled));$('#view').innerHTML=`<div class="inboxIntro"><div><strong>Your unscheduled tasks</strong></div><div class="inboxCount">${arr.length}</div></div><section class="section inboxTasks">${arr.length?arr.map(t=>taskHtml(t)).join(''):`<div class="empty">Your Inbox is clear.</div>`}</section>`}
 
 // Planly 3.1 cloud account foundation
 let planlySupabase=null,planlySession=null;
@@ -2143,7 +2151,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-721t-130';
+const PLANLY_RELEASE='planly-v2-721t-131';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -2844,6 +2852,7 @@ function openSheet(task,projectId=''){
   editingSubtasks=Array.isArray(task?.subtasks)?task.subtasks.map(s=>({id:s.id||uid(),title:s.title||'',done:!!s.done})):[];
   renderSubtaskEditor();
   $('#taskCalendar').checked=task?!!task.addToCalendar:false;
+  $('#taskShowToday').checked=task?planlyOnToday(task):!projectId;
   const share=$('#taskVisibility'),shareHelp=$('#taskVisibilityHelp'),canShare=!!(planlySession?.user&&planlyHousehold?.id);if(share){share.value=task?.visibility==='household'?'household':'private';share.disabled=!canShare&&share.value!=='household';if(shareHelp)shareHelp.textContent=canShare?'':'Join or create a Household in Settings before sharing tasks.'}
   $('#deleteTask').style.display=task?'block':'none';
   $('#duplicateTask').style.display=task?'block':'none';
@@ -3090,6 +3099,7 @@ $('#taskForm').addEventListener('submit',async e=>{
     priority:$('#taskPriority').value,
     category:$('#taskCategory').value,
     projectId:$('#taskProject').value||'',
+    showOnToday:!!$('#taskShowToday')?.checked,
     recurrence:repeatData.recurrence,
     recurrenceConfig:repeatData.recurrenceConfig,
     reminder:$('#taskReminder').value,

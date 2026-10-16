@@ -847,6 +847,7 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
   <div class="chips" id="quickDates"><button type="button" class="chip active" data-q="today">Today</button><button type="button" class="chip" data-q="tomorrow">Tomorrow</button><button type="button" class="chip" data-q="weekend">This weekend</button><button type="button" class="chip" data-q="nextweek">Next week</button><button type="button" class="chip" data-q="none">No date</button></div>
   <div class="row2 compactCoreRow" style="margin-top:12px"><div class="field"><label>Date</label><input id="taskDate" type="date" class="input"></div><div class="field"><label>Time</label><input id="taskTime" type="time" class="input"></div></div>
   <div class="field compactPriority"><label>Priority</label><select id="taskPriority" class="select"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></div>
+  <label class="calendarTaskToggle taskTodayToggle"><input id="taskShowToday" type="checkbox" checked><span><strong>Show on Today</strong></span></label>
   <div id="taskHouseholdControls" class="taskHouseholdControls" hidden>
     <div class="field taskSharingField"><label>Share</label><div id="taskVisibilitySegments" class="taskChoiceSegments" role="group" aria-label="Share task"><button type="button" data-task-visibility="private" class="active">Just me</button><button type="button" data-task-visibility="household">Household</button></div><select id="taskVisibility" class="select taskChoiceBacking" aria-hidden="true" tabindex="-1"><option value="private">Private — only me</option><option value="household">Household — shared</option></select><div id="taskVisibilityHelp" class="fieldHint"></div></div>
     <div id="taskAssigneeField" class="field taskAssigneeField" hidden><label>Assign</label><div id="taskAssigneeSegments" class="taskChoiceSegments" role="group" aria-label="Assign task"></div><select id="taskAssignee" class="select taskChoiceBacking" aria-hidden="true" tabindex="-1"><option value="">Anyone</option></select></div>
@@ -875,7 +876,7 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t13';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t14';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

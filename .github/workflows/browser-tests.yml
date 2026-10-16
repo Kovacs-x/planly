@@ -36,6 +36,8 @@ jobs:
         run: node tests/browser/fitness-search-proxy.test.mjs
       - name: Fitness › Food — one can or pack, ml, own serving size (candidate)
         run: node tests/browser/fitness-servings.test.mjs
+      - name: Today — where a task is made, Show on Today, unscheduled count, completed after a week (candidate)
+        run: node tests/browser/today-placement.test.mjs
       - name: Update banner — Update while editing warns, then updates (candidate)
         run: node tests/browser/update-banner.test.mjs
       - name: Sync conflicts — combined automatically when safe; a real clash waits for a choice (candidate)
