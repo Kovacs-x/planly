@@ -617,8 +617,11 @@ function planlyRotationAssignee(t,dateKey){const r=t?.rotation;if(!r||r.enabled!
 function planlyToggleRotation(t){if(!planlyRotationEligible(t))return false;if(t.rotation?.enabled){t.rotation={enabled:false}}else{const a=String(t.assigneeId||''),b=planlyRotationOther(a);if(!a||!b)return false;t.rotation={enabled:true,a,b,anchorWeek:startMonday(t.date)}}t.updatedAt=Date.now();stageTaskMutation(t);save();queuePlanlyPendingReplay('');return true}
 /* A repeat with no date (e.g. a weekly chore) counts its next copy from the day it is completed. */
 function planlyRecurrenceBaseDate(t){return t?.date||localKey(new Date())}
+// A shared chore's next copy is made by whoever ticks it, as their own task, so it comes back even when the other member
+// ticked it. A repeating task saved without a date counts from today.
 function createNextRecurring(t){
-  if(!t||t._planlyOwnedByMe===false||!t.completed||!t.recurrence||t.recurrence==='none')return;
+  const theirs=t?._planlyOwnedByMe===false;
+  if(!t||(theirs&&t.visibility!=='household')||!t.completed||!t.recurrence||t.recurrence==='none')return;
   const cfg=recurrenceConfigForTask(t);
   if(!cfg)return;
   const currentOccurrence=clampInt(t.occurrenceNumber,1,999999,1);
@@ -627,14 +630,13 @@ function createNextRecurring(t){
   if(!nextDate)return;
   if(cfg.endMode==='date'&&cfg.endDate&&nextDate>cfg.endDate)return;
   const seriesId=t.seriesId||t.id;
-  t.seriesId=seriesId;
-  if(!cfg.anchorDate)cfg.anchorDate=t.date;
-  t.recurrenceConfig={...cfg};
-  const exists=state.tasks.some(x=>x.seriesId===seriesId&&x.date===nextDate);
+  if(!cfg.anchorDate)cfg.anchorDate=t.date||nextDate;
+  if(!theirs){t.seriesId=seriesId;t.recurrenceConfig={...cfg}}
+  const exists=state.tasks.some(x=>(x.seriesId||x.id)===seriesId&&x.date===nextDate);
   if(exists)return;
-  const now=Date.now();
+  const now=Date.now(),{_planlyOwnedByMe,_planlyOwnerId,_planlyCloudVersion,...copy}=t;
   state.tasks.push({
-    ...t,
+    ...copy,
     id:uid(),
     seriesId,
     occurrenceNumber:currentOccurrence+1,
@@ -642,6 +644,8 @@ function createNextRecurring(t){
     date:nextDate,
     assigneeId:planlyRotationAssignee(t,nextDate)||t.assigneeId,
     completed:false,
+    completedBy:null,
+    completedAt:null,
     pinned:false,
     subtasks:Array.isArray(t.subtasks)?t.subtasks.map(s=>({...s,id:uid(),done:false})):[],
     googleEventId:t.addToCalendar&&t.recurrence!=='none'?(t.googleEventId||''):'',

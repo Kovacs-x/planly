@@ -8,7 +8,7 @@ let pass=0,fail=0;const check=(n,c,d='')=>{console.log((c?'PASS ':'FAIL ')+n+(c?
 const W=ms=>new Promise(r=>setTimeout(r,ms));
 const key=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const today=key(new Date());
-const chore=(id,title,subtasks)=>({owner_id:OWNER,client_id:id,data:{id,title,date:today,time:'',category:'Home',durationMinutes:30,priority:'normal',completed:false,recurrence:'none',reminder:'none',notes:'',subtasks,createdAt:1,updatedAt:1,visibility:'household',householdId:HOUSEHOLD,assigneeId:null},visibility:'household',household_id:HOUSEHOLD,assignee_id:null,completed_by:null,completed_at:null,cloud_version:1,deleted_at:null,task_date:today});
+const chore=(id,title,subtasks)=>({owner_id:OWNER,client_id:id,data:{id,title,date:today,time:'',category:'Home',durationMinutes:30,priority:'normal',completed:false,recurrence:'none',reminder:'none',notes:'',subtasks,createdAt:1,updatedAt:1,visibility:'household',householdId:HOUSEHOLD,showOnToday:true,assigneeId:null},visibility:'household',household_id:HOUSEHOLD,assignee_id:null,completed_by:null,completed_at:null,cloud_version:1,deleted_at:null,task_date:today});
 const db=makeDb();
 db.tables.planly_tasks.push(chore('h1','Dishes',[{id:'a',title:'Wash',done:false},{id:'b',title:'Dry',done:false}]),chore('h2','Hoover',[]));
 const {context,errors}=await newPhone(browser,db,PARTNER);const page=await openApp(context,errors);
