@@ -76,7 +76,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r02'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-134'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-135'"))fail('R1 cache marker mismatch');
 // Household Budget is violet, Me amber: the Budget tab marks the scope on <html> and the colours follow it (Budget tab only).
 {const nav=read('v2/core-budget-nav-v4.0b1.js'),html=read('v2/index.html');
  if(!nav.includes("const budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal';document.documentElement.dataset.budgetScope=budgetScope;")||!nav.includes("window.addEventListener('planly-budget-scope-changed',"))fail('Budget scope colour: the Budget tab must mark its scope');
@@ -154,7 +154,9 @@ for(const l of ['Time blocked','Flexible','Needs attention','Priorities'])if(app
 if(app.includes('<span class="dashboardLabel">Today</span>'))fail('decorative Today eyebrow returned');}
 // Impeccable stage C: Today shows tasks first; Top 3, deadlines and the capacity check sit below the lists; compact summary.
 {const app=read('v2/app-v3.2.0.js');if(!app.includes("$('#view').innerHTML=`${planlyPushPromptHtml()}${dashboard}${todayCardOn('suggestions')?planlySuggestLineHtml():''}${statusCard}${billsDue}${schedule}${anytimeSection}${overdueSection}${household}${top3}${todayDeadlinesHtml()}${completedSection(completed,'today:'+key)}`"))fail('Today order must put tasks before Top 3 and deadlines, with the Suggestions line under the summary');
-for(const x of ['function todayDeadlinesHtml(){','class="dashboardHero dashboardCompact"','class="dashboardSummaryLine"','role="progressbar"'])if(!app.includes(x))fail('compact Today summary invariant missing: '+x);
+for(const x of ['function todayDeadlinesHtml(){','class="dashboardHero dashboardCompact ','class="dashboardSummaryLine"','role="progressbar"'])if(!app.includes(x))fail('compact Today summary invariant missing: '+x);
+for(const x of ['class="dashboardHero dashboardCompact dashCard','class="dashRing" role="progressbar"','<span class="dashStat open">','planlyCelebrateUntil=Date.now()+4000'])if(!app.includes(x))fail('Today card invariant missing: '+x);
+if(!read('v2/index.html').includes('@media (prefers-reduced-motion:reduce){.dashConfetti{display:none}'))fail('Today confetti must respect reduced motion');
 if(!read('v2/index.html').includes('<style id="planlyRefineC">'))fail('refine stage C styles missing');}
 // Impeccable stage D: one design vocabulary (header, primary/secondary/quiet buttons, selected state, overlays), recorded in DESIGN.md.
 {const html=read('v2/index.html'),i=html.indexOf('<style id="planlyRefineD">');if(i<0)fail('refine stage D styles missing');else{const css=html.slice(i,html.indexOf('</style>',i));
@@ -246,7 +248,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t16'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t17'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i03')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 

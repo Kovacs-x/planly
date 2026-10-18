@@ -11,7 +11,7 @@ const db=makeDb();
 db.tables.planly_tasks.push({owner_id:OWNER,client_id:'r1',data:{id:'r1',title:'Gym',date:today,time:'18:00',category:'Personal',durationMinutes:30,priority:'normal',completed:false,recurrence:'none',reminder:'none',notes:'',subtasks:[],createdAt:1,updatedAt:1,visibility:'private'},visibility:'private',household_id:null,assignee_id:null,completed_by:null,completed_at:null,cloud_version:1,deleted_at:null});
 const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp(context,errors);
 const nav=s=>page.evaluate(s=>document.querySelector(`.nav button[data-section="${s}"]`).click(),s);
-const look=()=>page.evaluate(()=>({title:document.getElementById('pageTitle')?.textContent||'',eyebrow:document.getElementById('eyebrow')?.textContent||'',text:(document.getElementById('view')?.innerText||'').replace(/\s+/g,' ').slice(0,160),
+const look=()=>page.evaluate(()=>({title:document.getElementById('pageTitle')?.textContent||'',eyebrow:document.getElementById('eyebrow')?.textContent||'',text:(document.getElementById('view')?.innerText||'').replace(/\s+/g,' ').slice(0,400),
   active:document.querySelector('.nav button.active')?.dataset.section||'',add:getComputedStyle(document.getElementById('addBtn')).display,segments:!!document.querySelector('.planSegments')}));
 let s;
 await nav('today');await W(1200);s=await look();
