@@ -60,6 +60,16 @@ const keys=r=>r.suggestions.map(x=>x.key);
 const a=S({...base,tasks:[t('call')]}),b=S(JSON.parse(JSON.stringify({...base,tasks:[t('call')]})));if(JSON.stringify(a)!==JSON.stringify(b))throw Error('suggest not deterministic');
 // free slot: after now (09:00 → first 15-min boundary after now+10 = 09:15), avoiding the 10:00–12:00 busy block
 const slot=a.suggestions.find(x=>x.kind==='slot');if(!slot||slot.actions[0].time!=='09:15'||slot.actions[0].op!=='move'||slot.actions[0].date!=='2026-10-05')throw Error('free slot wrong: '+JSON.stringify(a.suggestions));
+// a timed task kept off Today (a project task, or one switched off) takes none of today's free time; a shared chore
+// assigned to me still does, and so does the same project task when it is switched on for Today
+{const callSlot=r=>r.suggestions.find(x=>x.kind==='slot'&&x.actions[0].id==='call')?.actions[0].time;
+ const proj=o=>t('proj',{projectId:'p1',time:'09:15',durationMinutes:45,...o});
+ const off=callSlot(S({...base,tasks:[t('call'),proj({onToday:false})]}));
+ const offPlain=callSlot(S({...base,tasks:[t('call'),t('gym',{time:'09:15',durationMinutes:45,onToday:false})]}));
+ const on=callSlot(S({...base,tasks:[t('call'),proj({onToday:true})]}));
+ const chore=callSlot(S({...base,tasks:[t('call'),t('bins',{visibility:'household',assigneeId:'me',_planlyOwnedByMe:false,time:'09:15',durationMinutes:45,onToday:false})]}));
+ if(off!=='09:15'||offPlain!=='09:15')throw Error('a timed task kept off Today must not take free time: '+JSON.stringify({off,offPlain}));
+ if(!on||on==='09:15'||!chore||chore==='09:15')throw Error('a task on Today and a chore assigned to me must still take free time: '+JSON.stringify({on,chore}));}
 const crowded=S({...base,nowMinutes:9*60+50,tasks:[t('call',{durationMinutes:60})]});if(crowded.suggestions[0]?.actions[0].time!=='12:00')throw Error('slot must skip busy block: '+JSON.stringify(crowded.suggestions));
 // timed tasks block slots too
 const timed=S({...base,tasks:[t('call'),t('meet',{time:'09:15',durationMinutes:45})]});if(timed.suggestions.find(x=>x.kind==='slot').actions[0].time!=='12:00')throw Error('slot must avoid timed task: '+JSON.stringify(timed.suggestions));

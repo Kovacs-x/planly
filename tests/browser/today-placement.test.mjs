@@ -7,7 +7,7 @@ const server=await startServer();const browser=await launchBrowser();
 let pass=0,fail=0;const check=(n,c,d='')=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' — '+d));c?pass++:fail++};
 const W=ms=>new Promise(r=>setTimeout(r,ms));
 const key=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const today=key(new Date()),yesterday=key(new Date(Date.now()-864e5)),daysAgo=n=>new Date(Date.now()-n*864e5).toISOString();
+const today=key(new Date()),yesterday=key(new Date(Date.now()-864e5)),tomorrow=key(new Date(Date.now()+864e5)),daysAgo=n=>new Date(Date.now()-n*864e5).toISOString();
 const T=(id,title,more={})=>{const shared=more.visibility==='household',data={id,title,date:today,time:'',category:'Personal',durationMinutes:30,priority:'normal',completed:false,recurrence:'none',reminder:'none',notes:'',subtasks:[],createdAt:1,updatedAt:1,projectId:'',visibility:shared?'household':'private',householdId:shared?HOUSEHOLD:null,assigneeId:null,...more};
   return {owner_id:OWNER,client_id:id,data,visibility:data.visibility,household_id:data.householdId,assignee_id:null,completed_by:null,completed_at:more.completedAt||null,cloud_version:1,deleted_at:null,task_date:data.date||null}};
 const db=makeDb();
@@ -24,7 +24,11 @@ db.tables.planly_tasks.push(
   T('looseProj','Measure rooms',{date:'',projectId:'p1'}),
   T('doneNew','Post letter',{date:'',completed:true,completedAt:daysAgo(2)}),
   T('doneOld','Return parcel',{date:'',completed:true,completedAt:daysAgo(8)}),
-  T('projDoneOld','Order boxes',{projectId:'p1',completed:true,completedAt:daysAgo(9)}));
+  T('projDoneOld','Order boxes',{projectId:'p1',completed:true,completedAt:daysAgo(9)}),
+  T('lateLoose','Return library book',{date:yesterday}),
+  T('projNext','Order skip',{projectId:'p1',date:tomorrow}),
+  T('projNextOn','Book removal men',{projectId:'p1',date:tomorrow,showOnToday:true}),
+  T('nextLoose','Gym',{date:tomorrow}));
 const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp(context,errors);
 const nav=s=>page.evaluate(s=>document.querySelector(`.nav button[data-section="${s}"]`).click(),s);
 const shown=()=>page.evaluate(()=>[...document.querySelectorAll('#view [data-id]')].map(e=>e.dataset.id));
@@ -39,6 +43,17 @@ const link=await page.evaluate(()=>document.querySelector('[data-r1-plan-inbox]'
 check('"unscheduled" counts only the loose to-do with no date (not chores, project tasks or done tasks)',/^1 unscheduled/.test(link),link);
 await page.evaluate(()=>document.querySelector('[data-r1-plan-inbox]').click());await W(1000);ids=await shown();
 check('the Inbox lists that to-do and a task done 2 days ago, not one done 8 days ago, a chore or a project task',ids.includes('loose')&&ids.includes('doneNew')&&!ids.includes('doneOld')&&!ids.includes('looseChore')&&!ids.includes('looseProj'),JSON.stringify(ids));
+
+// Project tasks live in their project: not in Upcoming or Month unless switched on, and never suggested for Today
+await nav('plan');await W(800);await page.evaluate(()=>document.querySelector('[data-plan-segment="upcoming"]').click());await W(900);ids=await shown();
+check('Upcoming leaves out a project task unless it is switched on for Today',ids.includes('nextLoose')&&ids.includes('projNextOn')&&!ids.includes('projNext'),JSON.stringify(ids));
+await page.evaluate(()=>document.querySelector('[data-plan-segment="month"]').click());await W(900);
+await page.evaluate(d=>document.querySelector(`[data-date="${d}"]`)?.click(),tomorrow);await W(900);ids=await shown();
+check('Month leaves it out too',ids.includes('nextLoose')&&ids.includes('projNextOn')&&!ids.includes('projNext'),JSON.stringify(ids));
+await nav('today');await W(1000);await page.evaluate(()=>document.querySelector('[data-suggest-open]')?.click());await W(1200);
+const sugg=await page.evaluate(()=>document.querySelector('.sheetWrap.open, .suggestWrap.open, [class*="uggest"][class*="open"]')?.innerText||document.body.innerText);
+check('Suggestions offer an overdue to-do but no project task kept off Today',sugg.includes('Return library book')&&!sugg.includes('Book van')&&!sugg.includes('Pack boxes')&&!sugg.includes('Order skip'),sugg.slice(0,400));
+await page.keyboard.press('Escape');await W(300);await page.reload();await W(2500);
 
 // Where a task is made
 await nav('today');await W(1000);await page.evaluate(()=>document.getElementById('addBtn').click());await W(800);
