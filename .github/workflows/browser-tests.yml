@@ -72,6 +72,8 @@ jobs:
         run: node tests/browser/timeline.test.mjs
       - name: Projects — done tasks kept, refused save kept and retried, restore after delete kept (candidate)
         run: node tests/browser/project-sync.test.mjs
+      - name: Projects list — colour, emoji, ring or status, days left, next task (candidate)
+        run: node tests/browser/projects-list.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

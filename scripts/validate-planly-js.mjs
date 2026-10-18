@@ -75,8 +75,8 @@ if(!p3App.includes("await loadPlanlyHousehold(true);await reconcilePlanlyCloud({
 const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
-if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r03'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-138'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r04'"))fail('R1 core runtime missing from service worker');
+if(!s.sw.includes("const CACHE='planly-v2-721t-139'"))fail('R1 cache marker mismatch');
 // Household Budget is violet, Me amber: the Budget tab marks the scope on <html> and the colours follow it (Budget tab only).
 {const nav=read('v2/core-budget-nav-v4.0b1.js'),html=read('v2/index.html');
  if(!nav.includes("const budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal';document.documentElement.dataset.budgetScope=budgetScope;")||!nav.includes("window.addEventListener('planly-budget-scope-changed',"))fail('Budget scope colour: the Budget tab must mark its scope');
@@ -92,7 +92,7 @@ if(!r1Html.includes('html{touch-action:pan-x pan-y}'))fail('pinch/double-tap zoo
 {const app=read('v2/app-v3.2.0.js'),projects=read('v2/core-projects-v3.3c.js');
 // core-projects owns the live reconcilePlanlyCloud (it replaces the app's): the stale-snapshot guard must be there.
 for(const x of ["if(owned&&Number(row.cloud_version||1)<Number(planlyCloudSyncMeta.tasks.get(id)||0))continue;","if(owned&&planlyCloudSyncMeta.tasks.has(id)&&!ownedTaskIds.has(id))return true;","if(owned&&Number(row.cloud_version||1)<Number(planlyCloudSyncMeta.projects.get(id)||0))continue;","if(owned&&planlyCloudSyncMeta.projects.has(id)&&!ownedProjectIds.has(id))return true;"])if(!projects.includes(x))fail('stale refresh guard missing from live reconcile: '+x.slice(0,70));
-if(!read('v2/sw.js').includes("CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p05'"))fail('core-projects cache marker not bumped');
+if(!read('v2/sw.js').includes("CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p06'"))fail('core-projects cache marker not bumped');
 for(const x of ["async function reconcilePlanlyConflictGoogle(task,duplicateEventId)","if(cloudEvent){if(localEvent&&localEvent!==cloudEvent)googleDuplicate=localEvent;local.googleEventId=cloudEvent}local.calendarSync='pending'",
  "if(localEvent&&localEvent!==cloudEvent)googleDuplicate=localEvent;","if(kind==='task'&&(googleTask||googleDuplicate)){await reconcilePlanlyConflictGoogle(googleTask,googleDuplicate);",
  "if(googleTask||googleDuplicate){await reconcilePlanlyConflictGoogle(googleTask,googleDuplicate);","catch(err){if(err?.status===404||err?.status===410)continue;remaining.push(id);"])if(!app.includes(x))fail('calendar conflict convergence invariant missing: '+x.slice(0,70));
@@ -248,7 +248,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t20'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t21'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i03')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -279,7 +279,7 @@ for(const needle of ["calendarClashIds=new Set","taskClashes=new Set","<span>Cla
 if(!s.intelligence.includes("owned(t)&&t.visibility!=='household'&&!t.completed&&String(t.projectId||'')"))fail('I3 project actions must rank personal owner-safe tasks only');
 
 const i3r1=read('v2/core-redesign-r1.js'),i3projects=read('v2/core-projects-v3.3c.js');
-if(!i3r1.includes("typeof projectStatusHtml==='function'?projectStatusHtml(p,projectAnalysis)"))fail('I4 R1 composed project status must reuse cached analysis');if(!i3projects.includes("typeof projectStatusHtml==='function'?projectStatusHtml(p)"))fail('I3 3.3C composed project status missing')
+if(!i3r1.includes("r1ProjectCardHtml(p,projectAnalysis)")||!i3r1.includes("projectIntelligence(p.id,analysis)"))fail('I4 R1 composed project status must reuse cached analysis');if(!i3projects.includes("typeof projectStatusHtml==='function'?projectStatusHtml(p)"))fail('I3 3.3C composed project status missing')
 for(const needle of ['projectIntelligence(p.id)','Next step','data-project-action="plan-block"',"typeof planProjectBlock==='function'"])if(!i3projects.includes(needle))fail('I3 composed project detail/action missing: '+needle);
 for(const needle of ["function firstPlanningGap(","todayTime||firstPlanningGap(tomorrow,t,0)"])if(!s.app.includes(needle))fail('I3 review #99 planning invariant missing: '+needle);
 for(const needle of ["activeAll=all.filter(t=>!t.completed)","status='done'","status='not-scheduled'",'weekCandidates'])if(!s.intelligence.includes(needle))fail('I3 review #99 engine invariant missing: '+needle);
@@ -291,7 +291,7 @@ if(!read('v2/index.html').includes('.projectIntelStatus{font-size:11px'))fail('I
 // I4 chore-balance and deferred I3 review invariants.
 for(const needle of ['intelligenceChoreBalance:false','id="intelligenceChoreBalance"','function householdChoreIntelligence()',"return showToast('Already planned at '+t.time)"])if(!s.app.includes(needle))fail('I4 app invariant missing: '+needle);
 for(const needle of ['function homeChoreBalanceHtml','function openShareOut()','data-share-out','data-share-accept','t._planlyOwnedByMe===false',"t.visibility!=='household'"])if(!r1.includes(needle))fail('I4 Home/share-out invariant missing: '+needle);
-if(!r1.includes('projectStatusHtml(p,projectAnalysis)'))fail('I4 project list must reuse one Intelligence analysis per render');
+if(!r1.includes('r1ProjectCardHtml(p,projectAnalysis)'))fail('I4 project list must reuse one Intelligence analysis per render');
 for(const needle of ['completedDate','weekCounts','ownerUnassigned','shareOut','longShifts'])if(!s.intelligence.includes(needle))fail('I4 engine invariant missing: '+needle);
 
 if(!s.app.includes("assignee_id:visibility==='household'?(t.assigneeId||t.assignee_id||null):null"))fail('I4 authoritative assignee column must travel through optimistic taskCloudRow');
