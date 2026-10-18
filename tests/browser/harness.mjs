@@ -121,6 +121,8 @@ export async function installMock(context, db, userId) {
       for (const it of items) {
         if (table === 'planly_tasks' || table === 'planly_projects') {
           if (rows.some(r => r.owner_id === it.owner_id && r.client_id === it.client_id)) return json(409, { code: '23505', message: 'duplicate key' });
+          // like planly_tasks_live_series_occurrence_key: one live occurrence per owner, series and date
+          if (table === 'planly_tasks' && it.series_client_id && it.task_date && rows.some(r => r.owner_id === it.owner_id && r.series_client_id === it.series_client_id && r.task_date === it.task_date && !r.deleted_at)) return json(409, { code: '23505', message: 'duplicate key value violates unique constraint "planly_tasks_live_series_occurrence_key"' });
         }
         rows.push(it);
       }

@@ -617,11 +617,9 @@ function planlyRotationAssignee(t,dateKey){const r=t?.rotation;if(!r||r.enabled!
 function planlyToggleRotation(t){if(!planlyRotationEligible(t))return false;if(t.rotation?.enabled){t.rotation={enabled:false}}else{const a=String(t.assigneeId||''),b=planlyRotationOther(a);if(!a||!b)return false;t.rotation={enabled:true,a,b,anchorWeek:startMonday(t.date)}}t.updatedAt=Date.now();stageTaskMutation(t);save();queuePlanlyPendingReplay('');return true}
 /* A repeat with no date (e.g. a weekly chore) counts its next copy from the day it is completed. */
 function planlyRecurrenceBaseDate(t){return t?.date||localKey(new Date())}
-// The other member's dated chore gets its next copy from the server when ticked (planly_set_household_task_completed). One
-// with no date cannot, so with adopt the phone that ticked it makes the next copy as its own shared task.
-function createNextRecurring(t,adopt=false){
-  const theirs=t?._planlyOwnedByMe===false;
-  if(!t||(theirs&&!(adopt&&t.visibility==='household'))||!t.completed||!t.recurrence||t.recurrence==='none')return;
+// leaveOriginal: make the next copy without touching the task it follows (the one-off chore restart).
+function createNextRecurring(t,leaveOriginal=false){
+  if(!t||t._planlyOwnedByMe===false||!t.completed||!t.recurrence||t.recurrence==='none')return;
   const cfg=recurrenceConfigForTask(t);
   if(!cfg)return;
   const currentOccurrence=clampInt(t.occurrenceNumber,1,999999,1);
@@ -631,7 +629,7 @@ function createNextRecurring(t,adopt=false){
   if(cfg.endMode==='date'&&cfg.endDate&&nextDate>cfg.endDate)return;
   const seriesId=t.seriesId||t.id;
   if(!cfg.anchorDate)cfg.anchorDate=t.date||nextDate;
-  if(!theirs){t.seriesId=seriesId;t.recurrenceConfig={...cfg}}
+  if(!leaveOriginal){t.seriesId=seriesId;t.recurrenceConfig={...cfg}}
   const exists=state.tasks.some(x=>(x.seriesId||x.id)===seriesId&&x.date===nextDate);
   if(exists)return;
   const now=Date.now(),{_planlyOwnedByMe,_planlyOwnerId,_planlyCloudVersion,...copy}=t;
@@ -656,13 +654,16 @@ function createNextRecurring(t,adopt=false){
 }
 
 // One-off on each phone and account: weekly chores saved with no date and ticked by the other member never got their next
-// copy. Each done, repeating shared chore with no date and nothing open in its series gets one, from today.
+// copy (the server makes it only for a dated chore). The owner's phone gives each of its own done, repeating, undated
+// shared chores with nothing open in the series its next copy, from today. Two phones of the same owner can race: the
+// database allows one live copy per owner, series and date (planly_tasks_live_series_occurrence_key), and the
+// cloudInsertTask path treats the refused duplicate as already done.
 const PLANLY_CHORE_RESTART_KEY='planly-chore-restart-v1:';
 function planlyRestartStalledChores(){
   const uid=String(planlySession?.user?.id||'');if(!uid||!planlyHousehold?.id||!planlyCloudWritesEnabled())return 0;
   const key=PLANLY_CHORE_RESTART_KEY+uid;try{if(localStorage.getItem(key))return 0}catch{return 0}
   const series=t=>String(t.seriesId||t.id),open=new Set(state.tasks.filter(t=>!t.completed).map(series)),done=new Set(),before=cloneTasks();
-  for(const t of state.tasks){if(t.visibility!=='household'||!t.completed||t.date||!t.recurrence||t.recurrence==='none'||open.has(series(t))||done.has(series(t)))continue;done.add(series(t));createNextRecurring(t,true)}
+  for(const t of state.tasks){if(t._planlyOwnedByMe===false||t.visibility!=='household'||!t.completed||t.date||!t.recurrence||t.recurrence==='none'||open.has(series(t))||done.has(series(t)))continue;done.add(series(t));createNextRecurring(t,true)}
   try{localStorage.setItem(key,String(Date.now()))}catch{}
   if(!done.size)return 0;
   stageChangedTasksFromSnapshot(before);save();render();queuePlanlyPendingReplay('');return done.size;

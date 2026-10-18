@@ -244,8 +244,6 @@ async function planlyCompleteHouseholdTaskDirect(t){
     persistPlanlyCloudCache();render();
   },()=>{
     stagePlanlyHouseholdCompletion(t,next,nextDate);
-    // a repeating chore with no date: the server cannot make its next copy, so this phone does, as its own shared chore
-    if(next&&!t.date&&t.recurrence&&t.recurrence!=='none'){const snap=cloneTasks();createNextRecurring(t,true);stageChangedTasksFromSnapshot(snap);save();render()}
     queuePlanlyPendingReplay(next?'Household task completed':'Household task reopened');
   });
   return true;
