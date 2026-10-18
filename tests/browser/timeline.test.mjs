@@ -28,7 +28,7 @@ if(!s.days.some(d=>d.k===day)){await page.evaluate(()=>document.querySelector('[
 await page.evaluate(k=>document.querySelector(`[data-timeline-day="${k}"]`).click(),day);await W(700);
 s=await tl();
 check('tapping a day in the strip shows that day',s.days.find(d=>d.on)?.k===day&&!s.rows.some(r=>r.kind==='now'),JSON.stringify(s.days.find(d=>d.on)));
-check('one stats bar: timed, events, free time, clashes',JSON.stringify(s.stats)===JSON.stringify(['⏱ 3 Timed','📅 2 Events','🌿 13h Free','⚠️ 1 Clashes']),JSON.stringify(s.stats));
+check('one stats bar: timed, events, free time, clashes',JSON.stringify(s.stats)===JSON.stringify(['⏱ 3 Timed','📅 2 Events','🌿 13h 15m Free','⚠️ 1 Clashes']),JSON.stringify(s.stats));
 const order=s.rows.map(r=>r.kind+':'+(r.text.match(/^(?:📅 |🌿 )?([A-Za-z ]+?)(?: ·| \d|$)/)||[])[1]);
 check('the day is a list in time order: free gaps, tasks and calendar events',JSON.stringify(s.rows.filter(r=>r.kind!=='event').map(r=>r.kind+' '+r.time))===JSON.stringify(['free 08:00','task 11:30','task 11:45','free 12:30','task 18:00','free 18:45']),JSON.stringify(order));
 check('free gaps show how long they are (3h 30m, 5h 30m, 4h 15m)',s.rows.filter(r=>r.kind==='free').map(r=>r.text.match(/Free · (\d+h(?: \d+m)?|\d+m)/)?.[1]).join('|')==='3h 30m|5h 30m|4h 15m',JSON.stringify(s.rows.filter(r=>r.kind==='free').map(r=>r.text)));
@@ -45,6 +45,12 @@ s=await tl();
 check('"Put here" schedules it at the start of that gap',s.rows.some(r=>r.kind==='task'&&r.time==='12:30'&&/Ring mum/.test(r.text))&&!s.chips.some(c=>/Ring mum/.test(c.t)),JSON.stringify(s.rows.map(r=>r.time+' '+r.kind)));
 // (it saves once the undo toast has gone)
 await W(3000);check('…and it is saved',db.tables.planly_tasks.find(r=>r.client_id==='mum')?.data?.time==='12:30',JSON.stringify(db.tables.planly_tasks.find(r=>r.client_id==='mum')?.data?.time));
+// someone else's task can never be scheduled here: a pick of it is dropped, and scheduling it is refused
+await page.evaluate(()=>{const b=document.createElement('button');b.dataset.timelinePick='laki';document.getElementById('timelineContent').prepend(b);b.click()});await W(400);
+check('picking someone else\'s task (e.g. a pick that went stale) is dropped: no times or "Put here" offered',await page.evaluate(()=>!document.querySelector('.tlPickTimes')&&!document.querySelector('.tlFree [data-timeline-set]')&&!document.querySelector('.tlChip.active')));
+await page.evaluate(()=>{const b=document.createElement('button');b.dataset.timelineSet='laki';b.dataset.time='10:00';document.getElementById('timelineContent').prepend(b);b.click()});await W(3500);
+const laki=db.tables.planly_tasks.find(r=>r.client_id==='laki');
+check('…and scheduling someone else\'s task is refused, with a note',laki.data.time===''&&laki.cloud_version===1&&await page.evaluate(()=>/only its creator/.test(document.getElementById('planlyToast')?.textContent||document.body.innerText)),JSON.stringify({time:laki.data.time,v:laki.cloud_version}));
 await page.evaluate(()=>document.querySelector('[data-timeline-plan]').click());await W(700);
 check('+ Plan on a free gap opens a new task on that day at that time',await page.evaluate(()=>document.getElementById('sheetWrap').classList.contains('open')&&document.getElementById('taskDate').value)===day&&await page.evaluate(()=>document.getElementById('taskTime').value)==='08:00');
 await page.keyboard.press('Escape');await page.evaluate(()=>{const w=document.getElementById('sheetWrap');if(w.classList.contains('open'))(document.querySelector('#sheetWrap [data-close],#sheetClose,#cancelBtn')||w).click()});await W(600);
