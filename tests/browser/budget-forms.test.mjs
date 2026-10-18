@@ -7,10 +7,10 @@ const server=await startServer();const browser=await launchBrowser();
 let pass=0,fail=0;const check=(n,c,d='')=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' — '+d));c?pass++:fail++};
 const W=ms=>new Promise(r=>setTimeout(r,ms));
 const d=new Date(),ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),now=d.toISOString();
-const P='11111111-0000-4000-8000-000000000001',BILLS='a1000000-0000-4000-8000-000000000001';
+const P='11111111-0000-4000-8000-000000000001',BILLS='a1000000-0000-4000-8000-000000000001',FUN='a1000000-0000-4000-8000-000000000002';
 const db=makeDb();
 db.tables.planly_budget_scopes=[{id:P,owner_id:OWNER,scope_type:'personal',household_id:null,name:'Me',currency:'GBP',created_at:now,updated_at:now,deleted_at:null,cloud_version:1}];
-db.tables.planly_budget_categories=[{id:BILLS,scope_id:P,owner_id:OWNER,client_id:'c-bills',kind:'expense',name:'Bills',icon_key:'wallet',color:null,archived:false,sort_order:1,created_at:now,updated_at:now,deleted_at:null,cloud_version:1}];
+db.tables.planly_budget_categories=[{id:BILLS,scope_id:P,owner_id:OWNER,client_id:'c-bills',kind:'expense',name:'Bills',icon_key:'wallet',color:null,archived:false,sort_order:1,created_at:now,updated_at:now,deleted_at:null,cloud_version:1},{id:FUN,scope_id:P,owner_id:OWNER,client_id:'c-fun',kind:'expense',name:'Fun',icon_key:'wallet',color:null,archived:false,sort_order:2,created_at:now,updated_at:now,deleted_at:null,cloud_version:1}];
 db.tables.planly_budget_targets=[];
 db.tables.planly_budget_entries=['Rent','Phone','Water','Gas','Electric','Internet','Council tax','Insurance'].map((n,i)=>({id:`b1000000-0000-4000-8000-00000000000${i}`,scope_id:P,category_id:BILLS,owner_id:OWNER,client_id:'e'+i,kind:'expense',amount_minor:1000*(i+1),entry_date:ym+'-05',description:n,notes:'',allocation_status:'planned',due_day:5,recurring_monthly:true,show_on_today:false,today_lead_days:2,created_at:now,updated_at:now,deleted_at:null,cloud_version:1}));
 const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp(context,errors);
@@ -28,6 +28,18 @@ check('a category\'s "+ Add a bill" is at the top, above its bills, without scro
 await page.evaluate(()=>[...document.querySelectorAll('[data-act="allocation"]')].find(b=>/Add a bill/.test(b.textContent))?.click());await W(1000);
 const order=await page.evaluate(()=>[...document.querySelectorAll('#budgetAllocationForm label')].map(l=>l.textContent.trim()).slice(0,2));
 check('Add payment asks "What for?" first, then the amount',JSON.stringify(order)==='["What for?","Amount"]',JSON.stringify(order));
+
+// A choice made before anything is typed survives coming back to the app (or a sync redraw)
+const chosen=()=>page.evaluate(()=>({cat:document.querySelector('[data-category-chip][aria-pressed="true"]')?.dataset.categoryChip||'',due:document.querySelector('.budgetDueRow .active')?.textContent.trim()||''}));
+await page.evaluate(id=>document.querySelector(`[data-category-chip="${id}"]`)?.click(),FUN);await W(200);
+await comeBack();await W(2500);
+check('choosing only a category, then coming back to the app, keeps that category',(await chosen()).cat===FUN,JSON.stringify(await chosen()));
+await click('[data-act="back"]');await W(800);await click('[data-act="allocation"]');await W(1000);
+await click('[data-due="21"]');await W(200);
+await page.evaluate(()=>window.dispatchEvent(new Event('planly-budget-sync-change')));await page.evaluate(()=>window.PlanlyBudgetUI?.renderTab?.(document.getElementById('view')));await W(1500);
+check('choosing only a due day, then a sync redraw, keeps that day',(await chosen()).due==='21st',JSON.stringify(await chosen()));
+await click('[data-act="back"]');await W(800);await click(`[data-cat="${BILLS}"]`);await W(1200);
+await page.evaluate(()=>[...document.querySelectorAll('[data-act="allocation"]')].find(b=>/Add a bill/.test(b.textContent))?.click());await W(1000);
 
 // Coming back to the app while typing
 await type('allocName','Window cleaner');await type('allocAmount','12.50');await click('[data-due="15"]');await W(200);
