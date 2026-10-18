@@ -247,7 +247,7 @@ for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSugge
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
 if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t15'"))fail('Intelligence app runtime boot marker mismatch');
-const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i02')fail('Intelligence must be final runtime module');
+const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i03')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
 

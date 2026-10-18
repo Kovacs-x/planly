@@ -96,7 +96,8 @@ function suggest(input={}){
  const profile=learn({today,history:input.history});
  const tasks=Array.isArray(input.tasks)?input.tasks:[],live=t=>t&&!t.completed&&!t.deleted&&!t.deleted_at;
  const mine=t=>live(t)&&owned(t)&&t.onToday!==false&&String(t.visibility||'private')!=='household';
- const blocksMe=t=>live(t)&&(owned(t)||String(t.assigneeId||t.assignee_id||'')===uid);
+ // a personal task kept off Today (e.g. a project task) takes no time today; a household chore assigned to me still does
+ const blocksMe=t=>live(t)&&!(t.onToday===false&&String(t.visibility||'private')!=='household')&&(owned(t)||String(t.assigneeId||t.assignee_id||'')===uid);
  const dur=t=>fixedDuration(t,defaultDuration),cat=t=>String(t?.category||'Personal'),q=s=>'“'+short(s||'Untitled')+'”';
  const round15=n=>Math.ceil(n/15)*15,todayWd=dateParts(today)?weekdayOf(today):0;
  // What you tend to do with each kind of suggestion (last 60 days, counted by the caller).

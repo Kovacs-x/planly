@@ -20,7 +20,7 @@ const BUDGET_ACTIONS_URL='./core-budget-actions-v4.0l.js?v=722l01';
 const BUDGET_SCROLL_URL='./core-budget-scroll-v4.0m.js?v=721m01';
 const LISTS_RUNTIME_URL='./core-lists-v4.1.js?v=610l01';
 const HOUSEHOLD_DASHBOARD_URL='./core-household-dashboard-v4.2.js?v=420a04';
-const INTELLIGENCE_RUNTIME_URL='./core-intelligence-v5.js?v=704i02';
+const INTELLIGENCE_RUNTIME_URL='./core-intelligence-v5.js?v=704i03';
 const UPDATE_RUNTIME_URL='./core-update-v4.3.js?v=702u01';
 const SAFARI_DIAGNOSTICS_URL='./core-safari-diagnostics-v4.3b.js?v=430b01';
 const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_BUDGET_NAV_URL,CORE_FITNESS_URL,CORE_REDESIGN_R1_URL];
