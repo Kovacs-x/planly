@@ -76,7 +76,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r03'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-137'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-138'"))fail('R1 cache marker mismatch');
 // Household Budget is violet, Me amber: the Budget tab marks the scope on <html> and the colours follow it (Budget tab only).
 {const nav=read('v2/core-budget-nav-v4.0b1.js'),html=read('v2/index.html');
  if(!nav.includes("const budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal';document.documentElement.dataset.budgetScope=budgetScope;")||!nav.includes("window.addEventListener('planly-budget-scope-changed',"))fail('Budget scope colour: the Budget tab must mark its scope');
@@ -92,7 +92,7 @@ if(!r1Html.includes('html{touch-action:pan-x pan-y}'))fail('pinch/double-tap zoo
 {const app=read('v2/app-v3.2.0.js'),projects=read('v2/core-projects-v3.3c.js');
 // core-projects owns the live reconcilePlanlyCloud (it replaces the app's): the stale-snapshot guard must be there.
 for(const x of ["if(owned&&Number(row.cloud_version||1)<Number(planlyCloudSyncMeta.tasks.get(id)||0))continue;","if(owned&&planlyCloudSyncMeta.tasks.has(id)&&!ownedTaskIds.has(id))return true;","if(owned&&Number(row.cloud_version||1)<Number(planlyCloudSyncMeta.projects.get(id)||0))continue;","if(owned&&planlyCloudSyncMeta.projects.has(id)&&!ownedProjectIds.has(id))return true;"])if(!projects.includes(x))fail('stale refresh guard missing from live reconcile: '+x.slice(0,70));
-if(!read('v2/sw.js').includes("CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p04'"))fail('core-projects cache marker not bumped');
+if(!read('v2/sw.js').includes("CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p05'"))fail('core-projects cache marker not bumped');
 for(const x of ["async function reconcilePlanlyConflictGoogle(task,duplicateEventId)","if(cloudEvent){if(localEvent&&localEvent!==cloudEvent)googleDuplicate=localEvent;local.googleEventId=cloudEvent}local.calendarSync='pending'",
  "if(localEvent&&localEvent!==cloudEvent)googleDuplicate=localEvent;","if(kind==='task'&&(googleTask||googleDuplicate)){await reconcilePlanlyConflictGoogle(googleTask,googleDuplicate);",
  "if(googleTask||googleDuplicate){await reconcilePlanlyConflictGoogle(googleTask,googleDuplicate);","catch(err){if(err?.status===404||err?.status===410)continue;remaining.push(id);"])if(!app.includes(x))fail('calendar conflict convergence invariant missing: '+x.slice(0,70));
@@ -248,7 +248,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t19'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t20'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i03')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
@@ -358,7 +358,7 @@ if(!s.app.includes("'<button type=\"button\" data-task-assignee=\"'+esc(id)+'\">
 // Part 4: "Completed (n)" folds everywhere, open/closed remembered per section on the device; signed-out welcome screen.
 {const html=read('v2/index.html');for(const needle of ['<style id="planlyStage4Part4">','.doneFold>summary{','.planlyWelcome{position:fixed;inset:0;z-index:300'])if(!html.includes(needle))fail('Part 4 CSS missing: '+needle);
 for(const needle of ["const PLANLY_DONE_OPEN_KEY='planly-completed-open-v1'","function planlyDoneSectionKey(key){return String(key||'').split(':')[0]||'tasks'}",'<summary class="doneFoldToggle"><span>Completed (\'+count+\')</span>','window.planlyDoneFold=planlyDoneFold',"localStorage.setItem(PLANLY_DONE_OPEN_KEY,JSON.stringify(completedOpen))","return planlyDoneFold(key,tasks.length,","planlyDoneFold('upcoming',done.length,"])if(!s.app.includes(needle))fail('Completed fold runtime missing: '+needle);
-if(!s.projects.includes("planlyDoneFold('project',stats.completed.filter(planlyDoneRecent).length,"))fail('Project detail completed fold missing');
+if(!s.projects.includes("planlyDoneFold('project',stats.completed.length,"))fail('Project detail completed fold missing');
 // What shows on Today, what counts as unscheduled, and completed tasks leaving the lists after a week.
 for(const x of ["function planlyOnToday(t){return t?.showOnToday===true||(t?.showOnToday!==false&&!t?.projectId&&t?.visibility!=='household')}","function planlyUnscheduled(t){return !t.date&&!t.projectId&&t.visibility!=='household'}","const PLANLY_DONE_KEEP_MS=7*864e5;","state.tasks.filter(t=>t.date===key&&planlyOnToday(t))","state.tasks.filter(t=>isOverdue(t)&&planlyOnToday(t))","$('#taskShowToday').checked=task?planlyOnToday(task):!projectId;","showOnToday:!!$('#taskShowToday')?.checked,","const arr=visibleTasks(state.tasks.filter(planlyUnscheduled));"])if(!s.app.includes(x))fail('Today placement rule missing: '+x);
 if(!s.redesignR1.includes("if(addChore){openSheet();$('#taskShowToday').checked=false;")||(s.redesignR1.match(/state\.tasks\.filter\(t=>planlyUnscheduled\(t\)&&!t\.completed\)\.length/g)||[]).length!==2)fail('Home chores must start off Today and the unscheduled count must use planlyUnscheduled');
