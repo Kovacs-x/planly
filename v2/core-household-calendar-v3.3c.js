@@ -3,7 +3,7 @@
    Shared means explicitly household-visible Planly tasks, never external ICS. */
 function planlyTaskOwnedByMe(t){return !!t&&t._planlyOwnedByMe!==false&&String(t._planlyOwnerId||planlySession?.user?.id||'')===String(planlySession?.user?.id||'')}
 function planlyTaskHouseholdVisible(t){return !!t&&t.visibility==='household'&&!!t.householdId&&String(t.householdId)===String(planlyHousehold?.id||'')}
-function planlyMonthTasksForDate(key,filter){const items=calendarTasksForDate(key);if(filter==='me')return items.filter(planlyTaskOwnedByMe);if(filter==='shared')return items.filter(planlyTaskHouseholdVisible);if(filter==='calendar')return [];return items}
+function planlyMonthTasksForDate(key,filter){const items=calendarTasksForDate(key).filter(planlyInPlan);if(filter==='me')return items.filter(planlyTaskOwnedByMe);if(filter==='shared')return items.filter(planlyTaskHouseholdVisible);if(filter==='calendar')return [];return items}
 function planlyMonthExternalForDate(key,context,filter){
   /* External sources are deliberately excluded from Shared. RLS already keeps calendar_sources owner-only.
      Legacy audit equivalence was: filter==='all'||filter==='wife'?externalEventsForDate(key,context):[] */
