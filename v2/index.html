@@ -851,16 +851,18 @@ html{overflow-x:clip}
 .topbar .syncChip{color:rgba(255,255,255,.92)}
 </style>
 <style id="planlyTodayCard">
-/* Today's summary card: a progress ring, what is left, three counts; green with 🎉 when everything is done */
+/* The summary cards (Today, Budget, Home chores): a progress ring, what is left, three counts; green with 🎉 when everything is done */
 :root{--dashLate:#fff1e8;--dashDone:#e8f7ee;--dashWin:#e3f6ec;--dashWinInk:#17703f}
 :root[data-theme="dark"]{--dashLate:rgba(255,140,80,.14);--dashDone:rgba(47,191,113,.15);--dashWin:rgba(47,191,113,.16);--dashWinInk:#7fe0a8}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--dashLate:rgba(255,140,80,.14);--dashDone:rgba(47,191,113,.15);--dashWin:rgba(47,191,113,.16);--dashWinInk:#7fe0a8}}
-.todayDashboard .dashCard{position:relative;overflow:hidden;display:grid;gap:14px;padding:18px;border-radius:24px;background:var(--card);box-shadow:0 14px 34px rgba(30,30,90,.14)}
+.todayDashboard .dashCard,#view .dashCard.budgetHero,#view .dashCard.homeChoreCard{position:relative;overflow:hidden;display:grid;gap:14px;padding:18px;border:0;border-radius:24px!important;background:var(--card);box-shadow:0 14px 34px rgba(30,30,90,.14)!important}
+#view .budgetHero{--ringInk:var(--budget);--ringTrack:var(--budgetTint)}#view .homeChoreCard{--ringInk:var(--home);--ringTrack:var(--homeTint)}
+#view .budgetHero .budgetHeroBalance{font-size:30px;line-height:1.1}#view .budgetHero .budgetActions{margin-top:0}
 .dashTop{display:flex;align-items:center;gap:16px}
 .dashRing{position:relative;flex:0 0 84px;width:84px;height:84px}
 .dashRing svg{display:block;width:84px;height:84px}
-.dashRingTrack{fill:none;stroke:var(--todayTint);stroke-width:9}
-.dashRingFill{fill:none;stroke:var(--today);stroke-width:9;stroke-linecap:round;transition:stroke-dasharray .6s ease}
+.dashRingTrack{fill:none;stroke:var(--ringTrack,var(--todayTint));stroke-width:9}
+.dashRingFill{fill:none;stroke:var(--ringInk,var(--today));stroke-width:9;stroke-linecap:round;transition:stroke-dasharray .6s ease}
 .dashRingText{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:780}
 .dashHead{display:grid;gap:3px;min-width:0}
 .dashEyebrow{font-size:13px;font-weight:650;color:var(--muted)}
@@ -868,11 +870,15 @@ html{overflow-x:clip}
 .dashCard .dashboardSummaryLine{margin:0;font-size:14px;color:var(--muted)}
 .dashStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .dashStat{border-radius:14px;padding:10px 4px;text-align:center;font-size:13px;font-weight:720;white-space:nowrap}
-.dashStat.open{background:var(--todayTint)}.dashStat.late{background:var(--dashLate)}.dashStat.done{background:var(--dashDone)}
-.todayDashboard .dashCard.allDone{background:linear-gradient(150deg,var(--dashWin) 0%,var(--card) 64%)}
+.dashStat.open{background:var(--ringTrack,var(--todayTint))}.dashStat.late{background:var(--dashLate)}.dashStat.done{background:var(--dashDone)}
+.todayDashboard .dashCard.allDone,#view .dashCard.budgetHero.allDone,#view .dashCard.homeChoreCard.allDone{background:linear-gradient(150deg,var(--dashWin) 0%,var(--card) 64%)}
+#view .dashCard.budgetHero.allDone{background-image:linear-gradient(150deg,var(--dashWin) 0%,var(--card) 64%)!important}
 .allDone .dashRingTrack,.allDone .dashRingFill{stroke:#2fbf71}
 .allDone .dashRingText{font-size:30px}
 .allDone .dashEyebrow{color:var(--dashWinInk)}
+.dashButtons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#view .dashButtons button{min-height:46px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;font-size:16px;font-weight:650}
+#view .dashButtons .dashMain{background:var(--ringInk,var(--today))!important;border:1px solid var(--ringInk,var(--today))!important;color:var(--bg)!important;border-radius:14px!important}
 .dashConfetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .dashConfetti i{position:absolute;top:-14px;left:var(--x);width:8px;height:12px;border-radius:2px;background:var(--c);animation:dashFall 1.8s ease-in var(--d) 2 both}
 .celebrate .dashRing{animation:dashPop .7s cubic-bezier(.2,.8,.3,1.2) both}
@@ -943,7 +949,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t17';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t18';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

@@ -66,6 +66,8 @@ jobs:
         run: node tests/browser/look-band.test.mjs
       - name: Today card — ring, counts, 100% celebration once a day (candidate)
         run: node tests/browser/today-card.test.mjs
+      - name: Budget and Home cards — ring, counts, 🎉 when done, confetti once a week (candidate)
+        run: node tests/browser/summary-cards.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
