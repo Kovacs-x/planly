@@ -56,7 +56,14 @@ h=await card('#view .homeChoreCard');
 check('ticking the last chore turns the Home card green with 🎉 and a confetti burst',h?.all&&h.ring==='🎉'&&/All chores done!/.test(h.head)&&h.burst&&h.confetti===6,JSON.stringify(h));
 await page.evaluate(()=>window.dispatchEvent(new Event('planly:household-ready')));await W(400);
 check('a redraw straight after keeps the burst playing',(await card('#view .homeChoreCard'))?.burst===true);
-check('the confetti is hidden when the phone reduces motion',await page.evaluate(()=>[...document.styleSheets].some(s=>{try{return [...s.cssRules].some(r=>r.media&&/reduce/.test(r.media.mediaText)&&/\.dashConfetti\s*\{\s*display:\s*none/.test(r.cssText))}catch{return false}})));
+await page.emulateMedia({reducedMotion:'reduce'});await W(200);
+check('with reduced motion on the phone, the confetti is not shown and the ring does not pop',await page.evaluate(()=>{const c=document.querySelector('#view .homeChoreCard .dashConfetti'),r=document.querySelector('#view .homeChoreCard .dashRing');return !!c&&getComputedStyle(c).display==='none'&&getComputedStyle(r).animationName==='none'}));
+await page.emulateMedia({reducedMotion:'no-preference'});
+// dark mode: the card is dark and the ring keeps its colour
+await page.evaluate(()=>{document.documentElement.dataset.theme='dark'});await W(200);
+{const d=await page.evaluate(()=>{const c=document.querySelector('#view .homeChoreCard'),lum=s=>{const [r,g,b]=s.match(/\d+(\.\d+)?/g).map(Number);return (r*299+g*587+b*114)/1000};return {card:(h=>parseInt(h.slice(1,3),16)*.299+parseInt(h.slice(3,5),16)*.587+parseInt(h.slice(5,7),16)*.114)(getComputedStyle(c).getPropertyValue('--card').trim()),text:lum(getComputedStyle(c.querySelector('.dashHead strong')).color),ring:getComputedStyle(c.querySelector('.dashRingFill')).stroke}});
+check('in dark mode the card is dark with light text, and the done ring stays green',d.card<60&&d.text>180&&/47, 191, 113/.test(d.ring),JSON.stringify(d))}
+await page.evaluate(()=>{delete document.documentElement.dataset.theme});
 await page.reload();await W(3000);await nav('home');await W(2000);
 h=await card('#view .homeChoreCard');
 check('…and only once a week: opening the app again shows 🎉 without confetti',h?.all&&!h.burst&&h.confetti===0,JSON.stringify(h));

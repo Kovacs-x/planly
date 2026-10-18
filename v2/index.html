@@ -850,6 +850,56 @@ html{overflow-x:clip}
 .topbar .eyebrow{color:rgba(255,255,255,.86)}
 .topbar .syncChip{color:rgba(255,255,255,.92)}
 </style>
+<style id="planlyTimeline">
+/* Timeline: a colour band with the date and a Mon–Sun strip, one stats bar, Anytime chips, and the day as a list */
+#timelineWrap{--tl1:#2f4fd0;--tl2:#5a3fc8;--tlNow:#e0405a;--tlTask:var(--todayTint);--tlShared:var(--homeTint)}
+:root[data-theme="dark"] #timelineWrap{--tl1:#26338a;--tl2:#3f2a8c;--tlNow:#ff6b81}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #timelineWrap{--tl1:#26338a;--tl2:#3f2a8c;--tlNow:#ff6b81}}
+#timelineWrap .timelinePanel{position:relative;isolation:isolate;background:radial-gradient(circle at 85% 40%,var(--glow1,transparent) 0,transparent 46%),radial-gradient(circle at 0% 70%,var(--glow2,transparent) 0,transparent 44%),var(--bg)}
+#timelineWrap .timelinePanel::before{content:"";position:absolute;left:0;right:0;top:0;height:calc(env(safe-area-inset-top) + 172px);z-index:-1;background:linear-gradient(160deg,var(--tl1) 0%,var(--tl2) 100%);border-radius:0 0 32px 32px}
+#timelineWrap .timelineHeader{border:0;min-height:0;padding:4px 6px 4px;color:#fff}
+#timelineWrap .timelineHeader .eyebrow{color:rgba(255,255,255,.82);font-size:13px;font-weight:600}
+#timelineWrap .timelineTitle{font-size:28px;font-weight:780;color:#fff}
+#timelineWrap .timelineHeader>button{min-height:40px;padding:0 16px;border-radius:20px;background:rgba(255,255,255,.2);color:#fff}
+.tlWeek{display:grid;grid-template-columns:22px repeat(7,minmax(0,1fr)) 22px;gap:4px;align-items:center;padding:10px 0 14px}
+.tlWeek button{border:0;background:transparent;color:#fff;font:inherit}
+.tlWeekStep{font-size:22px;min-height:44px;padding:0;opacity:.8}
+.tlDay{display:grid;justify-items:center;gap:1px;min-height:58px;padding:6px 0 4px;border-radius:14px}
+.tlDay span{font-size:12px;opacity:.85}.tlDay strong{font-size:17px;font-weight:720}
+.tlDay i{width:5px;height:5px;border-radius:3px;background:currentColor;opacity:.75}.tlDay i[hidden]{display:block;visibility:hidden}
+.tlDay.today:not(.active) strong{text-decoration:underline;text-underline-offset:3px}
+.tlDay.active{background:#fff;color:var(--tl1)}
+:root[data-theme="dark"] .tlDay.active{background:var(--card);color:#c8d2ff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tlDay.active{background:var(--card);color:#c8d2ff}}
+#timelineWrap .tlStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 14px;padding:12px 10px;border-radius:18px;background:var(--card);box-shadow:0 12px 28px rgba(30,30,90,.14);text-align:center}
+#timelineWrap .tlStats>div{background:transparent;border:0;padding:0;display:grid;gap:2px;min-width:0}
+#timelineWrap .tlStats strong{font-size:15px;font-weight:740;white-space:nowrap}
+#timelineWrap .tlStats span{font-size:12px;color:var(--muted)}
+#timelineWrap .tlStats .warningMetric strong{color:var(--danger)}
+.tlAnytime,.tlAllDay{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 2px 12px}
+.tlLabel{font-size:13px;font-weight:650;color:var(--muted);margin-right:2px}
+.tlChip{min-height:38px;display:inline-flex;align-items:center;padding:0 13px;border-radius:999px;border:1px dashed color-mix(in srgb,var(--today) 40%,var(--line));background:var(--card);color:var(--text);font:inherit;font-size:14px;font-weight:620}
+.tlChip.active{border-style:solid;border-color:var(--today);background:var(--todayTint);color:var(--today)}
+.tlChip.readOnly{border-style:solid;color:var(--muted)}
+.tlEventChip{border-style:solid;border-color:var(--calendar-source);background:color-mix(in srgb,var(--calendar-source) 14%,var(--card))}
+.tlPickTimes{display:flex;flex-wrap:wrap;gap:8px;margin:-2px 2px 12px}
+.tlPickTimes button,.tlPickTimes input{min-height:40px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit;font-size:16px;font-weight:620;padding:0 12px}
+.tlAgenda{display:grid;grid-template-columns:50px minmax(0,1fr);row-gap:10px;padding:14px 14px 14px 0;border-radius:20px;background:color-mix(in srgb,var(--card) 92%,transparent)}
+.tlRow{display:contents}
+.tlTime{font-size:12px;color:var(--muted);text-align:right;padding:11px 10px 0 0;font-variant-numeric:tabular-nums}
+.tlCard{display:grid;gap:2px;width:100%;text-align:left;border:0;border-radius:14px;padding:10px 12px;font:inherit;color:var(--text);background:var(--tlTask)}
+.tlCard strong{font-size:15px;font-weight:700;overflow-wrap:anywhere}.tlCard>span{font-size:13px;color:var(--muted)}
+.tlTask.shared{background:var(--tlShared)}
+.tlTask.clash{box-shadow:inset 0 0 0 2px var(--danger)}.tlTask em{font-style:normal;font-size:12px;font-weight:700;color:var(--danger)}
+.tlEvent{background:color-mix(in srgb,var(--calendar-source) 16%,var(--card));box-shadow:inset 4px 0 0 var(--calendar-source)}
+.tlCard.past{opacity:.55}
+.tlFree{display:flex;align-items:center;gap:8px;background:transparent;border:1px dashed var(--line);color:var(--muted)}
+.tlFree>span{flex:1;display:grid;font-size:14px}.tlFree small{font-size:12px}
+.tlFree button{min-height:40px;border:0;background:transparent;color:var(--today);font:inherit;font-weight:700;padding:0 4px}
+.tlNowRow .tlTime{color:var(--tlNow);font-weight:700;padding-top:0;align-self:center}
+.tlNow{display:flex;align-items:center;gap:6px;color:var(--tlNow);font-size:12px;font-weight:700}
+.tlNow i{width:10px;height:10px;border-radius:5px;background:var(--tlNow)}.tlNow b{flex:1;height:2px;background:var(--tlNow)}
+</style>
 <style id="planlyTodayCard">
 /* The summary cards (Today, Budget, Home chores): a progress ring, what is left, three counts; green with 🎉 when everything is done */
 :root{--dashLate:#fff1e8;--dashDone:#e8f7ee;--dashWin:#e3f6ec;--dashWinInk:#17703f}
@@ -909,7 +959,7 @@ html{overflow-x:clip}
 
 <div id="taskActionWrap" class="taskActionWrap" aria-hidden="true"><div class="taskActionBackdrop"></div><div class="taskActionSheet"><div class="taskActionGrab"></div><div class="taskActionHeader"><div><span>Task actions</span><strong id="taskActionTitle">Task</strong></div><button id="taskActionClose" type="button">Done</button></div><div id="taskActionContent" class="taskActionContent"></div></div></div>
 
-<div id="timelineWrap" class="timelineWrap" aria-hidden="true"><div class="timelinePanel"><div class="timelineHeader"><div><div class="eyebrow">Time planning</div><div id="timelineTitle" class="timelineTitle">Today</div></div><button id="timelineClose" type="button">Done</button></div><div class="timelineDateNav"><button id="timelinePrev" type="button" aria-label="Previous day">‹</button><input id="timelineDate" type="date" class="input"><button id="timelineNext" type="button" aria-label="Next day">›</button></div><div id="timelineContent" class="timelineContent"></div></div></div>
+<div id="timelineWrap" class="timelineWrap" aria-hidden="true"><div class="timelinePanel"><div class="timelineHeader"><div><div id="timelineEyebrow" class="eyebrow">🕒 Timeline</div><div id="timelineTitle" class="timelineTitle">Today</div></div><button id="timelineClose" type="button">Done</button></div><div id="timelineWeek" class="tlWeek" role="group" aria-label="Choose a day"></div><div id="timelineContent" class="timelineContent"></div></div></div>
 
 <div id="projectsWrap" class="projectsWrap" aria-hidden="true"><div class="projectsPanel"><div class="projectsHeader"><button id="projectsBack" type="button" class="projectsBack" hidden aria-label="Back">‹</button><div class="projectsHeading"><div id="projectsEyebrow" class="eyebrow">Outcomes & task groups</div><div id="projectsTitle" class="projectsTitle">Projects</div></div><button id="projectsClose" type="button" class="projectsClose">Done</button></div><div id="projectsContent" class="projectsContent"></div></div></div>
 
@@ -950,7 +1000,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t18';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t19';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
