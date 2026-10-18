@@ -617,11 +617,11 @@ function planlyRotationAssignee(t,dateKey){const r=t?.rotation;if(!r||r.enabled!
 function planlyToggleRotation(t){if(!planlyRotationEligible(t))return false;if(t.rotation?.enabled){t.rotation={enabled:false}}else{const a=String(t.assigneeId||''),b=planlyRotationOther(a);if(!a||!b)return false;t.rotation={enabled:true,a,b,anchorWeek:startMonday(t.date)}}t.updatedAt=Date.now();stageTaskMutation(t);save();queuePlanlyPendingReplay('');return true}
 /* A repeat with no date (e.g. a weekly chore) counts its next copy from the day it is completed. */
 function planlyRecurrenceBaseDate(t){return t?.date||localKey(new Date())}
-// A shared chore's next copy is made by whoever ticks it, as their own task, so it comes back even when the other member
-// ticked it. A repeating task saved without a date counts from today.
-function createNextRecurring(t){
+// The other member's dated chore gets its next copy from the server when ticked (planly_set_household_task_completed). One
+// with no date cannot, so with adopt the phone that ticked it makes the next copy as its own shared task.
+function createNextRecurring(t,adopt=false){
   const theirs=t?._planlyOwnedByMe===false;
-  if(!t||(theirs&&t.visibility!=='household')||!t.completed||!t.recurrence||t.recurrence==='none')return;
+  if(!t||(theirs&&!(adopt&&t.visibility==='household'))||!t.completed||!t.recurrence||t.recurrence==='none')return;
   const cfg=recurrenceConfigForTask(t);
   if(!cfg)return;
   const currentOccurrence=clampInt(t.occurrenceNumber,1,999999,1);
@@ -655,6 +655,18 @@ function createNextRecurring(t){
   });
 }
 
+// One-off on each phone and account: weekly chores saved with no date and ticked by the other member never got their next
+// copy. Each done, repeating shared chore with no date and nothing open in its series gets one, from today.
+const PLANLY_CHORE_RESTART_KEY='planly-chore-restart-v1:';
+function planlyRestartStalledChores(){
+  const uid=String(planlySession?.user?.id||'');if(!uid||!planlyHousehold?.id||!planlyCloudWritesEnabled())return 0;
+  const key=PLANLY_CHORE_RESTART_KEY+uid;try{if(localStorage.getItem(key))return 0}catch{return 0}
+  const series=t=>String(t.seriesId||t.id),open=new Set(state.tasks.filter(t=>!t.completed).map(series)),done=new Set(),before=cloneTasks();
+  for(const t of state.tasks){if(t.visibility!=='household'||!t.completed||t.date||!t.recurrence||t.recurrence==='none'||open.has(series(t))||done.has(series(t)))continue;done.add(series(t));createNextRecurring(t,true)}
+  try{localStorage.setItem(key,String(Date.now()))}catch{}
+  if(!done.size)return 0;
+  stageChangedTasksFromSnapshot(before);save();render();queuePlanlyPendingReplay('');return done.size;
+}
 function getGoogleClientId(){return String(window.PLANLY_GOOGLE_CLIENT_ID||localStorage.getItem(GOOGLE_CLIENT_ID_KEY)||'').trim()}
 function setGoogleClientId(v){const id=(v||'').trim();if(id)localStorage.setItem(GOOGLE_CLIENT_ID_KEY,id);else localStorage.removeItem(GOOGLE_CLIENT_ID_KEY)}
 function getGoogleAuth(){try{return JSON.parse(localStorage.getItem(GOOGLE_AUTH_KEY)||'{}')}catch{return {}}}
@@ -3114,6 +3126,8 @@ $('#taskForm').addEventListener('submit',async e=>{
     householdId:$('#taskVisibility')?.value==='household'?(planlyHousehold?.id||null):null,
     updatedAt:now
   };
+  // A repeating task always has a date (a weekly chore with no date never came back): the first day it falls on, from today.
+  if(data.recurrence&&data.recurrence!=='none'&&!data.date){const today=localKey(new Date());data.date=nextOccurrence(addDays(today,-1),data.recurrence,recurrenceConfigForTask(data))||today}
   /* The person is part of the same save as the rest of the task, so the phone and the cloud never disagree about it. */
   const assigneeField=$('#taskAssignee');
   data.assigneeId=data.visibility==='household'?(assigneeField?String(assigneeField.value||'')||null:(id?(state.tasks.find(x=>x.id===id)?.assigneeId||null):null)):null;
