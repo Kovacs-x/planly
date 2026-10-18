@@ -813,6 +813,34 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitScanMiss{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.fitScanMiss[hidden]{display:none}.fitScanMiss button{padding:0 6px;font-size:14px}
 @media (prefers-reduced-motion:no-preference){.fitScanFrame span{animation:fitScanLine 1.8s ease-in-out infinite alternate}@keyframes fitScanLine{from{top:18%}to{top:82%}}}
 </style>
+<style id="planlyLookBand">
+/* Look: a soft colour glow behind every screen, and a band in the section's colour behind the page title. Both sit
+   behind everything (z-index -1, no new stacking context), so no screen, sheet or overlay changes stacking. */
+:root{--band1:#2f4fd0;--band2:#5a3fc8;--glow1:#d9e1ff;--glow2:#f3e1ff;--glow3:#ddf3e8}
+:root[data-theme="dark"]{--band1:#26338a;--band2:#3f2a8c;--glow1:rgba(91,116,255,.20);--glow2:rgba(255,92,150,.12);--glow3:rgba(64,180,255,.11)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--band1:#26338a;--band2:#3f2a8c;--glow1:rgba(91,116,255,.20);--glow2:rgba(255,92,150,.12);--glow3:rgba(64,180,255,.11)}}
+body:has(.nav [data-section="plan"].active){--band1:#5a3fc8;--band2:#7a4fd8}
+body:has(.nav [data-section="home"].active){--band1:#1b7a4c;--band2:#2a9461}
+body:has(.nav [data-section="budget"].active){--band1:#a84b07;--band2:#c86a0c}
+:root[data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#5540B8;--band2:#7458d6}
+body:has(.nav [data-section="fitness"].active){--band1:#17738c;--band2:#2591aa}
+body:has(.nav [data-section="settings"].active){--band1:#4d5360;--band2:#6b7280}
+:root[data-theme="dark"] body:has(.nav [data-section="plan"].active){--band1:#3d2a8f;--band2:#55389e}
+:root[data-theme="dark"] body:has(.nav [data-section="home"].active){--band1:#145a39;--band2:#1d6f48}
+:root[data-theme="dark"] body:has(.nav [data-section="budget"].active){--band1:#7a3806;--band2:#94500a}
+:root[data-theme="dark"][data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#3d2d8a;--band2:#53409f}
+:root[data-theme="dark"] body:has(.nav [data-section="fitness"].active){--band1:#10586b;--band2:#187085}
+:root[data-theme="dark"] body:has(.nav [data-section="settings"].active){--band1:#33373f;--band2:#454a55}
+html body{background:transparent}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 88% 4%,var(--glow1) 0,transparent 46%),radial-gradient(circle at 0% 46%,var(--glow2) 0,transparent 44%),radial-gradient(circle at 100% 92%,var(--glow3) 0,transparent 42%)}
+/* the band hangs from the header (whatever sits above it) down into the top of the first card */
+html{overflow-x:clip}
+.topbar{position:relative}
+.topbar::before{content:"";position:absolute;left:calc(50% - 50vw);width:100vw;top:-100vh;bottom:-46px;z-index:-1;pointer-events:none;background:linear-gradient(160deg,var(--band1),var(--band2));border-radius:0 0 30px 30px}
+.topbar #pageTitle,.topbar .title{color:#fff}
+.topbar .eyebrow{color:rgba(255,255,255,.86)}
+.topbar .syncChip{color:rgba(255,255,255,.92)}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>

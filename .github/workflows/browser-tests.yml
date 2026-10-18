@@ -62,6 +62,8 @@ jobs:
         run: node tests/browser/budget-scope-colour.test.mjs
       - name: Budget — What for first, Add a bill at the top, typing kept (candidate)
         run: node tests/browser/budget-forms.test.mjs
+      - name: Look — colour band behind the title, glow behind every screen (candidate)
+        run: node tests/browser/look-band.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
