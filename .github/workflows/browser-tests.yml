@@ -74,6 +74,8 @@ jobs:
         run: node tests/browser/project-sync.test.mjs
       - name: Projects list — colour, emoji, ring or status, days left, next task (candidate)
         run: node tests/browser/projects-list.test.mjs
+      - name: Projects with the same id from two members — own status, next task and opening (candidate)
+        run: node tests/browser/projects-owners.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

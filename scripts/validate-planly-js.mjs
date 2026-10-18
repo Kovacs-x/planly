@@ -249,7 +249,7 @@ for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSugge
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
 if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t21'"))fail('Intelligence app runtime boot marker mismatch');
-const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i03')fail('Intelligence must be final runtime module');
+const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i04')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 
 
@@ -276,11 +276,11 @@ for(const needle of ["const VERSION='5.0.0-i5'","projectSignals.push","nextStepI
 for(const needle of ["calendarClashIds=new Set","taskClashes=new Set","<span>Clashes</span>","data-timeline-day=","data-timeline-plan=","tlNowRow"])if(!s.app.includes(needle))fail('I3 Timeline clash consistency invariant missing: '+needle);
 
 {const a=s.app.indexOf('function planProjectBlock('),b=s.app.indexOf('\nfunction projectById',a),block=s.app.slice(a,b);if(!block.includes("t.visibility==='household'"))fail('I3 Plan a Block household boundary missing');if(!block.includes('stageChangedTasksFromSnapshot(before)')||!block.includes("showUndoToast('Planned "))fail('I3 Plan a Block cloud/Undo path missing');}
-if(!s.intelligence.includes("owned(t)&&t.visibility!=='household'&&!t.completed&&String(t.projectId||'')"))fail('I3 project actions must rank personal owner-safe tasks only');
+if(!s.intelligence.includes("owned(t)&&t.visibility!=='household'&&!t.completed&&ofP(t)"))fail('I3 project actions must rank personal owner-safe tasks only');
 
 const i3r1=read('v2/core-redesign-r1.js'),i3projects=read('v2/core-projects-v3.3c.js');
-if(!i3r1.includes("r1ProjectCardHtml(p,projectAnalysis)")||!i3r1.includes("projectIntelligence(p.id,analysis)"))fail('I4 R1 composed project status must reuse cached analysis');if(!i3projects.includes("typeof projectStatusHtml==='function'?projectStatusHtml(p)"))fail('I3 3.3C composed project status missing')
-for(const needle of ['projectIntelligence(p.id)','Next step','data-project-action="plan-block"',"typeof planProjectBlock==='function'"])if(!i3projects.includes(needle))fail('I3 composed project detail/action missing: '+needle);
+if(!i3r1.includes("r1ProjectCardHtml(p,projectAnalysis)")||!i3r1.includes("projectIntelligence(p.id,analysis,p._planlyOwnerId||null)"))fail('I4 R1 composed project status must reuse cached analysis');if(!i3projects.includes("typeof projectStatusHtml==='function'?projectStatusHtml(p)"))fail('I3 3.3C composed project status missing')
+for(const needle of ['projectIntelligence(p.id,null,p._planlyOwnerId||null)','Next step','data-project-action="plan-block"',"typeof planProjectBlock==='function'"])if(!i3projects.includes(needle))fail('I3 composed project detail/action missing: '+needle);
 for(const needle of ["function firstPlanningGap(","todayTime||firstPlanningGap(tomorrow,t,0)"])if(!s.app.includes(needle))fail('I3 review #99 planning invariant missing: '+needle);
 for(const needle of ["activeAll=all.filter(t=>!t.completed)","status='done'","status='not-scheduled'",'weekCandidates'])if(!s.intelligence.includes(needle))fail('I3 review #99 engine invariant missing: '+needle);
 if(!read('v2/index.html').includes('.projectIntelStatus{font-size:11px'))fail('I3 review #99 mobile type floor missing');
