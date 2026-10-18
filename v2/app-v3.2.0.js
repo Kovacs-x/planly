@@ -41,7 +41,7 @@ const PLANLY_CONFLICT_TEST_ID_KEY='planly-cloud-conflict-test-id-v1';
 let editingSubtasks=[];
 let activeSearchFilter='all';
 let projectPanelMode='list',activeProjectId='',editingProjectId='';
-let timelineDate=localKey(new Date()),timelineDrag=null;
+let timelineDate=localKey(new Date());
 let taskActionId='';
 let state={tasks:[],projects:[],tab:'today',theme:'light',showCompleted:true,taskRowDensity:'compact',defaultCategory:'Personal',defaultDuration:30,autoCalendarTimed:false,autoCompleteParentSubtasks:false,intelligenceSuggestions:true,intelligenceChoreBalance:false,intelligenceNightRest:true,intelligenceNightRestHours:8,planningStart:'08:00',planningEnd:'23:00',selectedDate:localKey(new Date()),weekAnchor:localKey(new Date()),monthAnchor:localKey(new Date())};
 const PLANLY_DONE_OPEN_KEY='planly-completed-open-v1';
@@ -138,49 +138,43 @@ function timelineAnalysis(tasks,startMin,endMin,extraBusy=[]){
   if(cursor<endMin)freeGaps.push({start:cursor,end:endMin,minutes:endMin-cursor});
   return {timed,conflictIds,conflictPairs,freeGaps,freeMinutes:freeGaps.reduce((s,g)=>s+g.minutes,0)};
 }
-function timelineLayout(tasks){
-  const items=tasks.filter(t=>t.time).map(t=>({t,...taskTimeInterval(t),col:0,cols:1})).sort((a,b)=>a.start-b.start||a.end-b.end);
-  const clusters=[];let cluster=[],clusterEnd=-1;
-  const flush=()=>{if(cluster.length){clusters.push(cluster);cluster=[];clusterEnd=-1}};
-  for(const item of items){
-    if(cluster.length&&item.start>=clusterEnd)flush();
-    cluster.push(item);clusterEnd=Math.max(clusterEnd,item.end);
-  }
-  flush();
-  for(const group of clusters){
-    const ends=[];
-    for(const item of group){
-      let col=ends.findIndex(end=>end<=item.start);
-      if(col<0){col=ends.length;ends.push(item.end)}else ends[col]=item.end;
-      item.col=col;
-    }
-    const cols=Math.max(1,ends.length);group.forEach(item=>item.cols=cols);
-  }
-  return items;
-}
-function freeGapLabel(g){return minutesToTime(g.start)+'–'+minutesToTime(g.end)+' · '+durationLabel(g.minutes)}
 function planTimelinePreviewHtml(tasks){
   const {start,end}=planningBounds(),analysis=timelineAnalysis(tasks,start,end);
   const timed=analysis.timed;
   if(!timed.length)return '<div class="muted planTimelineEmpty">No timed tasks yet.</div>';
   return `<div class="planTimelineStats"><span>${durationLabel(analysis.freeMinutes)} free within ${esc(state.planningStart)}–${esc(state.planningEnd)}</span>${analysis.conflictPairs.length?`<strong>${analysis.conflictPairs.length} overlap${analysis.conflictPairs.length===1?'':'s'}</strong>`:'<strong>No overlaps</strong>'}</div><div class="planTimelinePreview">${timed.map(x=>`<div class="${analysis.conflictIds.has(x.t.id)?'conflict':''}"><span>${esc(minutesToTime(x.start))}<small>${esc(minutesToTime(Math.min(1439,x.end)))}</small></span><strong>${esc(x.t.title)}</strong>${analysis.conflictIds.has(x.t.id)?'<em>Overlap</em>':''}</div>`).join('')}</div>`;
 }
+/* Timeline: a week strip to pick the day, one stats bar, Anytime tasks as chips, and the day as a list in time order —
+   tasks, calendar events and free gaps, with a red Now line. Tap a task to open it; pick an Anytime chip, then a time or a
+   free gap, to schedule it (your own tasks only); + Plan adds a task at the start of a free gap. */
+let timelinePick='';
+function timelineWeekHtml(){
+  const monday=startMonday(timelineDate),today=localKey(new Date());
+  const days=Array.from({length:7},(_,i)=>addDays(monday,i)).map(k=>{const n=state.tasks.filter(t=>!t.completed&&t.date===k).length;return `<button type="button" class="tlDay${k===timelineDate?' active':''}${k===today?' today':''}" data-timeline-day="${k}" aria-pressed="${k===timelineDate}" aria-label="${esc(fmt(k,{weekday:'long',day:'numeric',month:'long'}))}"><span>${esc(fmt(k,{weekday:'short'}))}</span><strong>${Number(k.slice(8))}</strong><i${n?'':' hidden'}></i></button>`}).join('');
+  return `<button type="button" class="tlWeekStep" data-timeline-week="-7" aria-label="Previous week">‹</button>${days}<button type="button" class="tlWeekStep" data-timeline-week="7" aria-label="Next week">›</button>`;
+}
 function renderTimeline(){
-  if(!$('#timelineWrap')?.classList.contains('open'))return;$('#timelineDate').value=timelineDate;$('#timelineTitle').textContent=timelineDate===localKey(new Date())?'Today':fmt(timelineDate,{weekday:'long',day:'numeric',month:'long'});
+  if(!$('#timelineWrap')?.classList.contains('open'))return;
+  const todayKey=localKey(new Date()),isToday=timelineDate===todayKey;
+  $('#timelineEyebrow').textContent=isToday?'🕒 Today':'🕒 Timeline';$('#timelineTitle').textContent=fmt(timelineDate,{weekday:'long',day:'numeric',month:'short'});$('#timelineWeek').innerHTML=timelineWeekHtml();
   const tasks=state.tasks.filter(t=>!t.completed&&t.date===timelineDate),timed=tasks.filter(t=>t.time),anytime=sortTasks(tasks.filter(t=>!t.time));
-  const external=externalEventsForDate(timelineDate,'timeline'),externalTimed=externalTimelineIntervals(timelineDate),externalAllDay=external.filter(e=>e.is_all_day),{start:planStart,end:planEnd}=planningBounds(),analysis=timelineAnalysis(tasks,planStart,planEnd,externalTimed.filter(x=>planlySourceRepresents(x.event?.source_id)!=='partner')),layout=timelineLayout(tasks),intelligence=intelligenceForDate(timelineDate,timelineDate===localKey(new Date())?new Date().getHours()*60+new Date().getMinutes():0),clashes=Array.isArray(intelligence?.day?.clashes)?intelligence.day.clashes:[],calendarClashes=new Set(clashes.filter(x=>x?.b==='calendar').map(x=>String(x.a||''))).size,taskClashes=new Set(clashes.filter(x=>x?.b&&x.b!=='calendar').map(x=>[String(x.a||''),String(x.b||'')].sort().join('|'))).size;
-  const busyStarts=[...layout.map(x=>x.start),...externalTimed.map(x=>x.start)],busyEnds=[...layout.map(x=>x.end),...externalTimed.map(x=>x.end)],earliest=busyStarts.length?Math.min(...busyStarts):planStart,latest=busyEnds.length?Math.max(...busyEnds):planEnd;
-  const displayStart=Math.max(0,Math.floor(Math.min(planStart,earliest)/60)*60),displayEnd=Math.min(1440,Math.ceil(Math.max(planEnd,latest)/60)*60),scale=1.05,stageHeight=Math.max(360,(displayEnd-displayStart)*scale),hours=[];
-  for(let m=displayStart;m<=displayEnd;m+=60){const top=(m-displayStart)*scale;hours.push(`<div class="timelineHour" style="top:${top}px"><span>${esc(minutesToTime(m===1440?1439:m).replace('23:59','24:00'))}</span><i></i></div>`)}
-  const freeBands=analysis.freeGaps.map(g=>{const a=Math.max(displayStart,g.start),b=Math.min(displayEnd,g.end);if(b<=a)return '';return `<div class="timelineFreeBand" style="top:${(a-displayStart)*scale}px;height:${Math.max(2,(b-a)*scale)}px"></div>`}).join('');
-  const externalBlocks=externalTimed.map(x=>{const top=(x.start-displayStart)*scale,height=Math.max(28,Math.min((x.end-x.start)*scale,stageHeight-top));return `<div class="timelineExternalBlock" style="--calendar-source:${x.colour};top:${top}px;height:${height}px"><strong>${esc(x.event.title||'Busy')}</strong><span>${esc(externalEventTimeLabel(x.event,timelineDate))}</span><small>Read only</small></div>`}).join('');
-  const blocks=layout.map(x=>{const top=(x.start-displayStart)*scale,height=Math.max(34,Math.min((x.end-x.start)*scale,stageHeight-top)),left=(x.col/x.cols)*100,width=100/x.cols,conflict=analysis.conflictIds.has(x.t.id),project=projectNameForTask(x.t);return `<div class="timelineBlock ${conflict?'conflict':''}" data-timeline-id="${esc(x.t.id)}" style="top:${top}px;height:${height}px;left:${left}%;width:calc(${width}% - 4px)"><button type="button" class="timelineDragHandle" data-timeline-drag="${esc(x.t.id)}" aria-label="Drag to reschedule">↕</button><div class="timelineBlockText"><strong>${esc(x.t.title)}</strong><span>${esc(x.t.time)}–${esc(minutesToTime(Math.min(1439,x.end)))} · ${durationLabel(x.duration)}${project?' · '+esc(project):''}</span></div>${conflict?'<em>Overlap</em>':''}</div>`}).join('');
-  const nowMinutes=new Date().getHours()*60+new Date().getMinutes(),nowLine=timelineDate===localKey(new Date())&&nowMinutes>=displayStart&&nowMinutes<=displayEnd?`<div class="timelineNow" style="top:${(nowMinutes-displayStart)*scale}px"><span>Now</span></div>`:'';
-  const gaps=analysis.freeGaps.length?analysis.freeGaps.map(g=>`<span class="timelineGapChip">${esc(freeGapLabel(g))}</span>`).join(''):'<span class="timelineGapChip">No free gaps inside planning hours</span>';
-  const summary=`<div class="timelineMetrics"><div><strong>${timed.length}</strong><span>Timed tasks</span></div><div><strong>${external.length}</strong><span>Calendar items</span></div><div><strong>${durationLabel(analysis.freeMinutes)}</strong><span>Free time</span></div><div class="${taskClashes||calendarClashes?'warningMetric':''}"><strong>${taskClashes+calendarClashes}</strong><span>Clashes</span></div></div><div class="timelineGapList">${gaps}</div>`;
-  const allDayHtml=externalAllDay.length?`<section class="timelineExternalAllDay"><div class="sectionHead"><h2>All day</h2><span class="muted">${externalAllDay.length}</span></div>${externalAllDay.map(e=>externalEventHtml(e,timelineDate)).join('')}</section>`:'';
-  const anytimeHtml=`<section class="timelineAnytime"><div class="sectionHead"><h2>Anytime</h2><span class="muted">${anytime.length}</span></div>${anytime.length?anytime.map(t=>`<div class="timelineAnytimeRow"><div><strong>${esc(t.title)}</strong><span>${durationLabel(t.durationMinutes)}${projectNameForTask(t)?' · '+esc(projectNameForTask(t)):''}</span></div><div class="timelineQuickTimes"><button type="button" data-timeline-set="${esc(t.id)}" data-time="09:00">Morning</button><button type="button" data-timeline-set="${esc(t.id)}" data-time="14:00">Afternoon</button><button type="button" data-timeline-set="${esc(t.id)}" data-time="18:00">Evening</button><input type="time" data-timeline-time="${esc(t.id)}" aria-label="Choose time"></div></div>`).join(''):'<div class="empty compactEmpty">No Anytime tasks for this day.</div>'}</section>`;
-  $('#timelineContent').innerHTML=summary+allDayHtml+`<div class="timelineStage" data-start="${displayStart}" data-end="${displayEnd}" data-scale="${scale}" style="height:${stageHeight}px">${hours.join('')}${nowLine}<div class="timelineLane">${freeBands}${externalBlocks}${blocks}</div></div>`+anytimeHtml;
+  const external=externalEventsForDate(timelineDate,'timeline'),externalTimed=externalTimelineIntervals(timelineDate),externalAllDay=external.filter(e=>e.is_all_day),{start:planStart,end:planEnd}=planningBounds(),analysis=timelineAnalysis(tasks,planStart,planEnd,externalTimed.filter(x=>planlySourceRepresents(x.event?.source_id)!=='partner')),intelligence=intelligenceForDate(timelineDate,isToday?new Date().getHours()*60+new Date().getMinutes():0),clashes=Array.isArray(intelligence?.day?.clashes)?intelligence.day.clashes:[],calendarClashIds=new Set(clashes.filter(x=>x?.b==='calendar').map(x=>String(x.a||''))),calendarClashes=calendarClashIds.size,taskClashes=new Set(clashes.filter(x=>x?.b&&x.b!=='calendar').map(x=>[String(x.a||''),String(x.b||'')].sort().join('|'))).size,clashCount=taskClashes+calendarClashes;
+  if(timelinePick&&!anytime.some(t=>t.id===timelinePick))timelinePick='';
+  const nowMinutes=new Date().getHours()*60+new Date().getMinutes(),past=end=>isToday&&end<=nowMinutes;
+  const freeLeft=analysis.freeGaps.map(g=>{const start=isToday?Math.max(g.start,Math.ceil(nowMinutes/15)*15):g.start;return {...g,start,minutes:g.end-start}}).filter(g=>g.minutes>=15),freeTotal=freeLeft.reduce((n,g)=>n+g.minutes,0);
+  const rows=[
+    ...analysis.timed.map(x=>{const t=x.t,project=projectNameForTask(t),clash=analysis.conflictIds.has(t.id)||calendarClashIds.has(String(t.id));return {start:x.start,html:`<button type="button" class="tlCard tlTask${t.visibility==='household'?' shared':''}${clash?' clash':''}${past(x.end)?' past':''}" data-timeline-open="${esc(t.id)}"><strong>${esc(t.title)}</strong><span>${esc(minutesToTime(x.start))} – ${esc(minutesToTime(Math.min(1439,x.end)))} · ${durationLabel(x.duration)}${project?' · '+esc(project):''}</span>${clash?'<em>⚠️ Clash</em>':''}</button>`}}),
+    ...externalTimed.map(x=>({start:x.start,html:`<div class="tlCard tlEvent${past(x.end)?' past':''}" style="--calendar-source:${x.colour}"><strong>📅 ${esc(x.event.title||'Busy')}</strong><span>${esc(externalEventTimeLabel(x.event,timelineDate))}</span></div>`})),
+    ...freeLeft.map(g=>({start:g.start,free:true,html:`<div class="tlCard tlFree"><span>🌿 Free · ${durationLabel(g.minutes)}<small>${esc(minutesToTime(g.start))} – ${esc(minutesToTime(Math.min(1439,g.end)))}</small></span>${timelinePick?`<button type="button" data-timeline-set="${esc(timelinePick)}" data-time="${esc(minutesToTime(g.start))}">Put here</button>`:`<button type="button" data-timeline-plan="${esc(minutesToTime(g.start))}">+ Plan</button>`}</div>`}))
+  ].sort((a,b)=>a.start-b.start||(a.free?1:0)-(b.free?1:0));
+  const nowAt=isToday?rows.findIndex(r=>r.start>nowMinutes):-1,nowRow=`<div class="tlRow tlNowRow"><span class="tlTime">${esc(minutesToTime(nowMinutes))}</span><div class="tlNow"><i></i><b></b><span>Now</span></div></div>`;
+  const agenda=rows.map(r=>`<div class="tlRow"><span class="tlTime">${esc(minutesToTime(r.start))}</span>${r.html}</div>`);
+  if(isToday)agenda.splice(nowAt<0?agenda.length:nowAt,0,nowRow);
+  const stats=`<div class="tlStats timelineMetrics"><div><strong>⏱ ${timed.length}</strong><span>Timed</span></div><div><strong>📅 ${external.length}</strong><span>Events</span></div><div><strong>🌿 ${freeTotal>=60?Math.round(freeTotal/60)+'h':freeTotal+'m'}</strong><span>Free</span></div><div class="${clashCount?'warningMetric':''}"><strong>${clashCount?'⚠️':'✅'} ${clashCount}</strong><span>Clashes</span></div></div>`;
+  const allDay=externalAllDay.length?`<div class="tlAllDay"><span class="tlLabel">All day</span>${externalAllDay.map(e=>`<span class="tlChip tlEventChip" style="--calendar-source:${calendarColour(planlyCalendarSource(e.source_id)?.colour)}">📅 ${esc(e.title||'Busy')}</span>`).join('')}</div>`:'';
+  const pick=anytime.find(t=>t.id===timelinePick);
+  const anytimeHtml=anytime.length?`<div class="tlAnytime"><span class="tlLabel">Anytime</span>${anytime.map(t=>t._planlyOwnedByMe===false?`<span class="tlChip readOnly">${esc(t.title)}</span>`:`<button type="button" class="tlChip${t.id===timelinePick?' active':''}" data-timeline-pick="${esc(t.id)}" aria-pressed="${t.id===timelinePick}">↕ ${esc(t.title)}</button>`).join('')}</div>${pick?`<div class="tlPickTimes timelineQuickTimes"><button type="button" data-timeline-set="${esc(pick.id)}" data-time="09:00">Morning</button><button type="button" data-timeline-set="${esc(pick.id)}" data-time="14:00">Afternoon</button><button type="button" data-timeline-set="${esc(pick.id)}" data-time="18:00">Evening</button><input type="time" data-timeline-time="${esc(pick.id)}" aria-label="Choose time"></div>`:''}`:'';
+  $('#timelineContent').innerHTML=stats+allDay+anytimeHtml+`<div class="tlAgenda">${agenda.join('')}</div>`;
 }
 function openTimeline(date=localKey(new Date())){
   if($('#taskActionWrap')?.classList.contains('open'))closeTaskActions();
@@ -188,45 +182,23 @@ function openTimeline(date=localKey(new Date())){
   closeOpenTaskSwipes();timelineDate=date||localKey(new Date());
   $('#timelineWrap').classList.add('open');$('#timelineWrap').setAttribute('aria-hidden','false');renderTimeline();
 }
-function closeTimeline(){$('#timelineWrap').classList.remove('open');$('#timelineWrap').setAttribute('aria-hidden','true');timelineDrag=null}
+function closeTimeline(){$('#timelineWrap').classList.remove('open');$('#timelineWrap').setAttribute('aria-hidden','true');timelinePick=''}
 function refreshTimelineIfOpen(){if($('#timelineWrap')?.classList.contains('open'))renderTimeline()}
 function setTimelineTaskTime(id,time,message='Time updated'){
   const t=state.tasks.find(x=>x.id===id);if(!t||!time||t.time===time)return;
   const before=cloneTasks();t.time=time;t.updatedAt=Date.now();if(t.addToCalendar)t.calendarSync='pending';const pendingIds=stageChangedTasksFromSnapshot(before);save();render();
   showUndoToast(message,()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(before)},()=>{queuePlanlyPendingReplay('Task synced');finishCalendarChange(state.tasks.find(x=>x.id===id))});
 }
-function beginTimelineDrag(e){
-  const handle=e.target.closest('[data-timeline-drag]');if(!handle)return;
-  const t=state.tasks.find(x=>x.id===handle.dataset.timelineDrag),stage=handle.closest('.timelineStage'),touch=e.touches?.[0];
-  if(!t||!stage||!touch)return;
-  const block=handle.closest('.timelineBlock'),scale=Number(stage.dataset.scale||1),displayStart=Number(stage.dataset.start||0),displayEnd=Number(stage.dataset.end||1440);
-  timelineDrag={id:t.id,block,startY:touch.clientY,originalStart:timeToMinutes(t.time),candidate:timeToMinutes(t.time),scale,displayStart,displayEnd,duration:Math.max(5,Number(t.durationMinutes||state.defaultDuration||30)),before:cloneTasks(),moved:false};
-  block?.classList.add('dragging');
-}
-function moveTimelineDrag(e){
-  if(!timelineDrag)return;const touch=e.touches?.[0];if(!touch)return;e.preventDefault();
-  const g=timelineDrag,dy=touch.clientY-g.startY;
-  let candidate=Math.round((g.originalStart+dy/g.scale)/15)*15;
-  candidate=Math.max(g.displayStart,Math.min(g.displayEnd-g.duration,candidate));
-  g.candidate=candidate;g.moved=Math.abs(candidate-g.originalStart)>=15;
-  if(g.block){
-    g.block.style.top=((candidate-g.displayStart)*g.scale)+'px';
-    const label=g.block.querySelector('.timelineBlockText span');
-    if(label)label.textContent=minutesToTime(candidate)+'–'+minutesToTime(Math.min(1439,candidate+g.duration))+' · '+durationLabel(g.duration);
-  }
-}
-function endTimelineDrag(){
-  if(!timelineDrag)return;const g=timelineDrag;timelineDrag=null;g.block?.classList.remove('dragging');
-  if(!g.moved||g.candidate===g.originalStart){renderTimeline();return}
-  const t=state.tasks.find(x=>x.id===g.id);if(!t){renderTimeline();return}
-  t.time=minutesToTime(g.candidate);t.updatedAt=Date.now();if(t.addToCalendar)t.calendarSync='pending';const pendingIds=stageChangedTasksFromSnapshot(g.before);save();render();
-  showUndoToast('Task moved to '+t.time,()=>{clearPendingTaskIds(pendingIds);restoreTaskSnapshot(g.before)},()=>{queuePlanlyPendingReplay('Task synced');finishCalendarChange(state.tasks.find(x=>x.id===g.id))});
-}
 function handleTimelineClick(e){
-  const set=e.target.closest('[data-timeline-set]');if(set){setTimelineTaskTime(set.dataset.timelineSet,set.dataset.time,'Task scheduled for '+set.dataset.time);return}
+  const day=e.target.closest('[data-timeline-day]');if(day){timelineDate=day.dataset.timelineDay;timelinePick='';renderTimeline();return}
+  const week=e.target.closest('[data-timeline-week]');if(week){timelineDate=addDays(timelineDate,Number(week.dataset.timelineWeek));timelinePick='';renderTimeline();return}
+  const pick=e.target.closest('[data-timeline-pick]');if(pick){timelinePick=timelinePick===pick.dataset.timelinePick?'':pick.dataset.timelinePick;renderTimeline();return}
+  const set=e.target.closest('[data-timeline-set]');if(set){timelinePick='';setTimelineTaskTime(set.dataset.timelineSet,set.dataset.time,'Task scheduled for '+set.dataset.time);return}
+  const open=e.target.closest('[data-timeline-open]');if(open){const t=state.tasks.find(x=>String(x.id)===String(open.dataset.timelineOpen));if(t)openTaskActions(t);return}
+  const plan=e.target.closest('[data-timeline-plan]');if(plan){openSheet();$('#taskDate').value=timelineDate;$('#taskTime').value=plan.dataset.timelinePlan;['#taskDate','#taskTime'].forEach(id=>$(id).dispatchEvent(new Event('change',{bubbles:true})));return}
 }
 function handleTimelineChange(e){
-  const time=e.target.closest('[data-timeline-time]');if(time&&time.value)setTimelineTaskTime(time.dataset.timelineTime,time.value,'Task scheduled for '+time.value);
+  const time=e.target.closest('[data-timeline-time]');if(time&&time.value){timelinePick='';setTimelineTaskTime(time.dataset.timelineTime,time.value,'Task scheduled for '+time.value)}
 }
 
 function intelligenceLearningInput(){const by=intelligenceLearning().byCategory,out={};for(const [category,g] of Object.entries(by))if(g.n>=3)out[category]={usualMinutes:g.usualMinutes,bestTimeMinutes:g.bestTimeMinutes,samples:g.n};return out}
@@ -1052,7 +1024,7 @@ function resetPlanlyCloudRuntimeState(){
   state.tasks=[];state.projects=[];
   state.defaultCategory='Personal';state.defaultDuration=30;state.autoCompleteParentSubtasks=false;state.planningStart='08:00';state.planningEnd='23:00';
   planlyCloudSyncMeta={tasks:new Map(),projects:new Map(),preferences:0};planlyCloudReadOnly=true;planlyCloudBootstrapPending=PLANLY_CLOUD_PREVIEW;planlyReconcilePromise=null;planlyLastReconcileAt=0;
-  editingSubtasks=[];activeSearchFilter='all';projectPanelMode='list';activeProjectId='';editingProjectId='';timelineDrag=null;taskActionId='';
+  editingSubtasks=[];activeSearchFilter='all';projectPanelMode='list';activeProjectId='';editingProjectId='';timelinePick='';taskActionId='';
   expandedTaskChecklists.clear();
   planlyCalendarSources=[];planlyExternalEvents=[];planlyCalendarDataError='';planlyCalendarLoadPromise=null;planlyCalendarLoadedAt=0;planlyCalendarLoadedUser='';
   planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';planlyFreshHouseholdInvite=null;planlyHouseholdLoadPromise=null;planlyHouseholdLoadedAt=0;planlyHouseholdLoadedUser='';window.PlanlyHouseholdContext=null;
@@ -1774,7 +1746,7 @@ function planlyMutationCoverageAudit(){
     ['Top 3 pin',toggleTaskPin,'stageChangedTasksFromSnapshot'],
     ['checklist',toggleTaskSubtask,'stageTaskMutation'],
     ['suggestion apply',applySuggestion,'stageChangedTasksFromSnapshot'],
-    ['timeline move',endTimelineDrag,'stageChangedTasksFromSnapshot'],
+    ['timeline schedule',setTimelineTaskTime,'stageChangedTasksFromSnapshot'],
     ['project create/edit',saveProjectEditor,'stageProjectMutation'],
     ['project archive/restore',handleProjectsClick,'stageProjectMutation'],
     ['task quick actions',handleTaskActionClick,'stageTaskMutation'],
@@ -2181,7 +2153,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-721t-136';
+const PLANLY_RELEASE='planly-v2-721t-137';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -3291,7 +3263,7 @@ sheetDragZone.addEventListener('touchstart',beginSheetDrag,{passive:true});
 sheetDragZone.addEventListener('touchmove',moveSheetDrag,{passive:false});
 sheetDragZone.addEventListener('touchend',endSheetDrag,{passive:true});
 sheetDragZone.addEventListener('touchcancel',endSheetDrag,{passive:true});
-$('#taskActionClose').onclick=closeTaskActions;$('#taskActionWrap').addEventListener('click',e=>{if(e.target.classList.contains('taskActionBackdrop'))closeTaskActions();else handleTaskActionClick(e)});$('#taskActionContent').addEventListener('change',handleTaskActionChange);$('#timelineClose').onclick=closeTimeline;$('#timelinePrev').onclick=()=>{timelineDate=addDays(timelineDate,-1);renderTimeline()};$('#timelineNext').onclick=()=>{timelineDate=addDays(timelineDate,1);renderTimeline()};$('#timelineDate').addEventListener('change',e=>{if(e.target.value){timelineDate=e.target.value;renderTimeline()}});$('#timelineContent').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('change',handleTimelineChange);$('#timelineContent').addEventListener('touchstart',beginTimelineDrag,{passive:true});$('#timelineContent').addEventListener('touchmove',moveTimelineDrag,{passive:false});$('#timelineContent').addEventListener('touchend',endTimelineDrag,{passive:true});$('#timelineContent').addEventListener('touchcancel',endTimelineDrag,{passive:true});$('#projectsToggle').onclick=()=>openProjects();$('#projectsClose').onclick=closeProjects;$('#projectsBack').onclick=()=>{if(projectPanelMode==='editor'&&editingProjectId){activeProjectId=editingProjectId;editingProjectId='';projectPanelMode='detail'}else if(projectPanelMode==='editor'){editingProjectId='';projectPanelMode='list'}else{activeProjectId='';projectPanelMode='list'}renderProjectsPanel()};$('#projectsContent').addEventListener('click',e=>{handleProjectsClick(e);handleViewClick(e)});$('#projectsContent').addEventListener('submit',e=>{if(e.target.id==='projectForm'){e.preventDefault();saveProjectEditor()}});$('#projectsContent').addEventListener('touchstart',beginTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchmove',moveTaskSwipe,{passive:false});$('#projectsContent').addEventListener('touchend',endTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchcancel',endTaskSwipe,{passive:true});$('#sheetWrap').addEventListener('click',e=>{if(e.target===$('#sheetWrap'))closeSheet()});$('#subtaskAdd').addEventListener('click',addEditingSubtask);$('#subtaskInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addEditingSubtask()}});$('#subtaskList').addEventListener('click',handleSubtaskEditorClick);$('#taskDate').addEventListener('change',()=>{refreshQuickDateSelection();if($('#taskRepeat').value!=='none'&&$('#taskRepeat').value!=='custom')applyRepeatPreset()});$('#taskTime').addEventListener('change',()=>{if(!$('#taskId').value&&state.autoCalendarTimed&&$('#taskTime').value)$('#taskCalendar').checked=true});$('#taskRepeat').addEventListener('change',applyRepeatPreset);
+$('#taskActionClose').onclick=closeTaskActions;$('#taskActionWrap').addEventListener('click',e=>{if(e.target.classList.contains('taskActionBackdrop'))closeTaskActions();else handleTaskActionClick(e)});$('#taskActionContent').addEventListener('change',handleTaskActionChange);$('#timelineClose').onclick=closeTimeline;$('#timelineWeek').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('change',handleTimelineChange);$('#projectsToggle').onclick=()=>openProjects();$('#projectsClose').onclick=closeProjects;$('#projectsBack').onclick=()=>{if(projectPanelMode==='editor'&&editingProjectId){activeProjectId=editingProjectId;editingProjectId='';projectPanelMode='detail'}else if(projectPanelMode==='editor'){editingProjectId='';projectPanelMode='list'}else{activeProjectId='';projectPanelMode='list'}renderProjectsPanel()};$('#projectsContent').addEventListener('click',e=>{handleProjectsClick(e);handleViewClick(e)});$('#projectsContent').addEventListener('submit',e=>{if(e.target.id==='projectForm'){e.preventDefault();saveProjectEditor()}});$('#projectsContent').addEventListener('touchstart',beginTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchmove',moveTaskSwipe,{passive:false});$('#projectsContent').addEventListener('touchend',endTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchcancel',endTaskSwipe,{passive:true});$('#sheetWrap').addEventListener('click',e=>{if(e.target===$('#sheetWrap'))closeSheet()});$('#subtaskAdd').addEventListener('click',addEditingSubtask);$('#subtaskInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addEditingSubtask()}});$('#subtaskList').addEventListener('click',handleSubtaskEditorClick);$('#taskDate').addEventListener('change',()=>{refreshQuickDateSelection();if($('#taskRepeat').value!=='none'&&$('#taskRepeat').value!=='custom')applyRepeatPreset()});$('#taskTime').addEventListener('change',()=>{if(!$('#taskId').value&&state.autoCalendarTimed&&$('#taskTime').value)$('#taskCalendar').checked=true});$('#taskRepeat').addEventListener('change',applyRepeatPreset);
 $('#repeatInterval').addEventListener('input',markRepeatCustom);
 $('#repeatUnit').addEventListener('change',()=>{markRepeatCustom();refreshRecurrenceAdvancedUI()});
 $('#repeatWeekdays').addEventListener('click',e=>{const b=e.target.closest('[data-weekday]');if(!b)return;b.classList.toggle('active');markRepeatCustom()});

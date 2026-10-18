@@ -68,6 +68,8 @@ jobs:
         run: node tests/browser/today-card.test.mjs
       - name: Budget and Home cards — ring, counts, 🎉 when done, confetti once a week (candidate)
         run: node tests/browser/summary-cards.test.mjs
+      - name: Timeline — week strip, stats, Anytime chips, the day as a list with free gaps and Now (candidate)
+        run: node tests/browser/timeline.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
