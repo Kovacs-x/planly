@@ -60,6 +60,8 @@ jobs:
         run: node tests/browser/budget-due-date.test.mjs
       - name: Budget scope colour — Me amber, Household violet, Budget tab only (candidate)
         run: node tests/browser/budget-scope-colour.test.mjs
+      - name: Budget — What for first, Add a bill at the top, typing kept (candidate)
+        run: node tests/browser/budget-forms.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
