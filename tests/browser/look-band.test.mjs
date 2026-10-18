@@ -29,5 +29,14 @@ check('with the install note above the header, the title still sits on the band'
 check('tapping still works through the band: the first card button is the element on top',await page.evaluate(()=>{const b=document.querySelector('[data-budget-scope="personal"]'),r=b.getBoundingClientRect(),e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return e===b||b.contains(e)}));
 await page.evaluate(()=>{document.documentElement.dataset.theme='dark'});await page.evaluate(()=>document.querySelector('.nav button[data-section="today"]').click());await W(1200);
 check('dark mode uses a deeper band',(await look()).band.includes('rgb(38, 51, 138)'),(await look()).band);
+// The phone in dark mode with no Planly theme set (e.g. while the app starts): every section uses its deeper band
+await page.emulateMedia({colorScheme:'dark'});await page.evaluate(()=>{delete document.documentElement.dataset.theme});
+const AUTO={today:'rgb(38, 51, 138)',plan:'rgb(61, 42, 143)',home:'rgb(20, 90, 57)',budget:'rgb(122, 56, 6)',fitness:'rgb(16, 88, 107)'};
+for(const [s,col] of Object.entries(AUTO)){await page.evaluate(s=>document.querySelector(`.nav button[data-section="${s}"]`).click(),s);await W(1500);if(s==='budget'){await page.evaluate(()=>document.querySelector('[data-budget-scope="personal"]')?.click());await W(1500)}await page.evaluate(()=>{delete document.documentElement.dataset.theme});await W(100);
+  const b=(await look()).band;check(`automatic dark mode: ${s} uses its deeper band`,b.includes(col),b);}
+await page.evaluate(()=>document.querySelector('.nav button[data-section="budget"]').click());await W(1200);await page.evaluate(()=>document.querySelector('[data-budget-scope="household"]')?.click());await W(1500);await page.evaluate(()=>{delete document.documentElement.dataset.theme});await W(100);
+check('automatic dark mode: Budget in Household uses the deeper violet band',(await look()).band.includes('rgb(61, 45, 138)'),(await look()).band);
+await page.evaluate(()=>{document.documentElement.dataset.theme='light'});await W(100);
+check('a light Planly theme on a dark phone keeps the light band',(await look()).band.includes('rgb(85, 64, 184)'),(await look()).band);
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);

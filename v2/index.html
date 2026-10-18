@@ -831,6 +831,15 @@ body:has(.nav [data-section="settings"].active){--band1:#4d5360;--band2:#6b7280}
 :root[data-theme="dark"][data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#3d2d8a;--band2:#53409f}
 :root[data-theme="dark"] body:has(.nav [data-section="fitness"].active){--band1:#10586b;--band2:#187085}
 :root[data-theme="dark"] body:has(.nav [data-section="settings"].active){--band1:#33373f;--band2:#454a55}
+/* the same deeper bands when the phone is in dark mode and Planly has no theme of its own yet */
+@media (prefers-color-scheme:dark){
+:root:not([data-theme="light"]) body:has(.nav [data-section="plan"].active){--band1:#3d2a8f;--band2:#55389e}
+:root:not([data-theme="light"]) body:has(.nav [data-section="home"].active){--band1:#145a39;--band2:#1d6f48}
+:root:not([data-theme="light"]) body:has(.nav [data-section="budget"].active){--band1:#7a3806;--band2:#94500a}
+:root:not([data-theme="light"])[data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#3d2d8a;--band2:#53409f}
+:root:not([data-theme="light"]) body:has(.nav [data-section="fitness"].active){--band1:#10586b;--band2:#187085}
+:root:not([data-theme="light"]) body:has(.nav [data-section="settings"].active){--band1:#33373f;--band2:#454a55}
+}
 html body{background:transparent}
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 88% 4%,var(--glow1) 0,transparent 46%),radial-gradient(circle at 0% 46%,var(--glow2) 0,transparent 44%),radial-gradient(circle at 100% 92%,var(--glow3) 0,transparent 42%)}
 /* the band hangs from the header (whatever sits above it) down into the top of the first card */
