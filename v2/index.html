@@ -850,6 +850,39 @@ html{overflow-x:clip}
 .topbar .eyebrow{color:rgba(255,255,255,.86)}
 .topbar .syncChip{color:rgba(255,255,255,.92)}
 </style>
+<style id="planlyProjects">
+/* Projects list: each project in its colour and emoji, a ring or a status chip, days left and the next task */
+:root{--pjLate:#fde8ec;--pjLateInk:#c2264b;--pjRisk:#fff1e0;--pjRiskInk:#b45309;--pjDone:#e3f6ec;--pjDoneInk:#17703f}
+:root[data-theme="dark"]{--pjLate:rgba(255,92,120,.16);--pjLateInk:#ff8fa3;--pjRisk:rgba(255,170,60,.16);--pjRiskInk:#ffc069;--pjDone:rgba(47,191,113,.16);--pjDoneInk:#7fe0a8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pjLate:rgba(255,92,120,.16);--pjLateInk:#ff8fa3;--pjRisk:rgba(255,170,60,.16);--pjRiskInk:#ffc069;--pjDone:rgba(47,191,113,.16);--pjDoneInk:#7fe0a8}}
+#view .planProjectGrid{gap:12px}
+#view .pjCard{position:relative;overflow:hidden;display:grid;gap:10px;border:0;border-radius:20px;padding:14px 14px 14px 18px;background:var(--card);box-shadow:0 6px 18px rgba(30,30,90,.08)}
+#view .pjCard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--pj)}
+#view .pjCard span{margin:0}
+#view .pjCard .pjTop{display:flex;align-items:center;gap:12px;color:var(--text)}
+#view .pjCard .pjIcon{flex:0 0 46px;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:color-mix(in srgb,var(--pj) 16%,var(--card))}
+#view .pjCard .pjText{flex:1;min-width:0;display:grid;gap:2px}
+#view .pjCard .pjText strong{font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+#view .pjCard .planProjectMeta{font-size:13px;color:var(--muted)}
+#view .pjCard .pjRing{position:relative;flex:0 0 46px;width:46px;height:46px}
+.pjRing svg{width:46px;height:46px;display:block}.pjRingTrack{fill:none;stroke:color-mix(in srgb,var(--pj) 18%,var(--card));stroke-width:5}.pjRingFill{fill:none;stroke:var(--pj);stroke-width:5;stroke-linecap:round}
+#view .pjCard .pjRing b{position:absolute;inset:0;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--text)}
+#view .pjCard .pjChip{flex:0 0 auto;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;white-space:nowrap}
+#view .pjCard .pjChip.late{background:var(--pjLate);color:var(--pjLateInk)}#view .pjCard .pjChip.risk{background:var(--pjRisk);color:var(--pjRiskInk)}#view .pjCard .pjChip.done{background:var(--pjDone);color:var(--pjDoneInk)}
+#view .pjCard .pjNext{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--pj) 7%,var(--bg));color:var(--text);font-size:13px}
+#view .pjCard .pjNextText{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-size:13px}
+#view .pjCard .pjNext em{font-style:normal;color:var(--muted)}
+#view .pjCard .pjAvatar{flex:0 0 24px;width:24px;height:24px;border-radius:12px;display:grid;place-items:center;font-size:11px;font-weight:700;background:color-mix(in srgb,var(--tone,var(--pj)) 18%,var(--card));color:var(--toneText,var(--text))}
+#view .pjCard.done{opacity:.85}
+#view .pjNew{border:1px dashed color-mix(in srgb,var(--plan) 40%,var(--line));background:color-mix(in srgb,var(--card) 80%,transparent);min-height:52px;color:var(--plan)}
+#view .pjNew strong{color:var(--plan)}
+.pjGroupLabel{margin:6px 4px 0;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.pjPickRow{display:flex;flex-wrap:wrap;gap:8px;padding:4px}
+.pjEmojiPick{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--cardSoft,var(--card));font-size:22px;padding:0}
+.pjEmojiPick.active{border:2px solid var(--plan);background:var(--planTint)}
+.pjColourPick{width:32px;height:32px;border-radius:16px;border:0;background:var(--pj);padding:0;margin:0}
+.pjColourPick.active{box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--pj)}
+</style>
 <style id="planlyTimeline">
 /* Timeline: a colour band with the date and a Mon–Sun strip, one stats bar, Anytime chips, and the day as a list */
 #timelineWrap{--tl1:#2f4fd0;--tl2:#5a3fc8;--tlNow:#e0405a;--tlTask:var(--todayTint);--tlShared:var(--homeTint)}
@@ -1000,7 +1033,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t20';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t21';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
