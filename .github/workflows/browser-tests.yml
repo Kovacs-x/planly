@@ -64,6 +64,8 @@ jobs:
         run: node tests/browser/budget-forms.test.mjs
       - name: Look — colour band behind the title, glow behind every screen (candidate)
         run: node tests/browser/look-band.test.mjs
+      - name: Today card — ring, counts, 100% celebration once a day (candidate)
+        run: node tests/browser/today-card.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
