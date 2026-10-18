@@ -38,3 +38,9 @@ for(const marker of ['const DUE_QUICK=[1,7,15,21,28];','function bindDuePicker(r
 console.log('Authoritative collaborative Budget mutation validation passed');
 
 for(const marker of ["acceptTodayBillMutation(server)","planly-budget-mutation-confirmed"])if(!core.includes(marker))fail('C1 authoritative create refresh invariant missing: '+marker);
+// Budget forms keep what is typed: a form being filled in is not redrawn, and its typing is kept until saved or left.
+{const ui=fs.readFileSync('v2/core-budget-ui-v4.0b.js','utf8');
+ for(const x of ["const DRAFT_KEY='planly-budget-draft-v1'","function navigate(next,fn){const from=mode;if(formOpen())clearDraft();","function refreshVisible(){if(!host||formOpen())return;","host=target||document.getElementById('view');if(!host||formOpen())return;","function rendered(){restoreDraft();","document.addEventListener('click',e=>{const f=e.target?.closest?.('form.budgetForm');if(!f||!host?.contains(f)||!e.target.closest('button'))return;editingForm=f;saveDraft(f)},true);",'<form id="budgetAllocationForm" class="budgetForm"><div><label for="allocName">What for?</label>','budgetHeadAdd" data-act="allocation" data-category="${esc(c.id)}">+ Add a bill</button>'])
+  if(!ui.includes(x))throw new Error('Budget form rule missing: '+x);
+ if(/margin-top:14px" data-act="allocation"/.test(ui))throw new Error('Add a bill must not also sit at the bottom');}
+
