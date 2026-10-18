@@ -1379,6 +1379,8 @@ async function tryAutoResolvePlanlyConflict(kind,id){
     if(op.action==='delete'){
       if(!base||!planlySyncSame(planlySyncComparable(base),planlySyncComparable(server.data)))return false; // the cloud copy really changed: ask
       if(kind==='task')await cloudDeleteTaskById(id,true,server.version);else if(kind==='project')await cloudDeleteProjectById(id,true,server.version);else return false;
+      // restored or edited here while that delete was in flight: the delete kept the newer write queued, so keep it and the item
+      {const after=pendingPlanlyWrite(kind,id);if(after&&after.action!=='delete'){clearPlanlyConflict(kind,id);persistPlanlyCloudCache();return true}}
       if(kind==='task')state.tasks=state.tasks.filter(x=>String(x.id)!==String(id));else state.projects=state.projects.filter(x=>String(x.id)!==String(id));
       return done();
     }

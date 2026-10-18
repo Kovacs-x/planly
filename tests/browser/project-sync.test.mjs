@@ -7,7 +7,7 @@ const server=await startServer();const browser=await launchBrowser();
 let pass=0,fail=0;const check=(n,c,d='')=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' — '+d));c?pass++:fail++};
 const W=ms=>new Promise(r=>setTimeout(r,ms));
 const P=(id,name)=>({owner_id:OWNER,client_id:id,data:{id,name,dueDate:'',notes:'',visibility:'private',householdId:null,archived:false,createdAt:1,updatedAt:1},visibility:'private',household_id:null,name,due_date:null,notes:'',archived:false,cloud_version:1,deleted_at:null});
-const db=makeDb();db.tables.planly_projects.push(P('p1','House move'),P('p2','Garden'));
+const db=makeDb();db.tables.planly_projects.push(P('p1','House move'),P('p2','Garden'),P('p3','Garage'));
 const old=new Date(Date.now()-30*864e5).toISOString();
 db.tables.planly_tasks.push({owner_id:OWNER,client_id:'t1',data:{id:'t1',title:'Find a van',date:'',time:'',category:'Personal',durationMinutes:30,priority:'normal',completed:true,completedAt:old,recurrence:'none',reminder:'none',notes:'',subtasks:[],createdAt:1,updatedAt:1,visibility:'private',householdId:null,assigneeId:null,projectId:'p1'},visibility:'private',household_id:null,assignee_id:null,completed_by:OWNER,completed_at:old,cloud_version:1,deleted_at:null,task_date:null});
 const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp(context,errors);
@@ -50,5 +50,22 @@ check('the delete reached the server, and the newer restore is still waiting, no
 db.delays.planly_projects=0;
 await page.evaluate(()=>window.dispatchEvent(new Event('online')));await W(3500);
 check('…and once it is sent, the project is back on the server and nothing is left waiting',!row('p2').deleted_at&&row('p2').cloud_version>=3&&!(await pending()).some(x=>x.id==='p2'),JSON.stringify({deleted:row('p2').deleted_at,v:row('p2').cloud_version,pending:await pending()}));
+// 3. the same, when the delete is sent by automatic conflict resolution: the phone's delete is based on an older cloud
+// version (the cloud copy has the same content), so it is refused, then resolved by deleting at the cloud's version — and
+// the restore is staged while that second delete is in flight
+row('p3').cloud_version=2;
+await page.evaluate(k=>{const l=JSON.parse(localStorage.getItem(k)||'[]'),d={id:'p3',name:'Garage',dueDate:'',notes:'',visibility:'private',householdId:null,archived:false,createdAt:1,updatedAt:1};l.push({kind:'project',action:'delete',id:'p3',data:null,baseVersion:1,baseData:d,operationId:'del-p3',stagedAt:new Date().toISOString(),lastEditedAt:new Date().toISOString(),attempts:0,lastAttemptAt:'',lastError:'',status:'queued',edits:1});localStorage.setItem(k,JSON.stringify(l))},KEY);
+let p3Writes=0,restoreStaged=null;
+page.on('request',r=>{if(r.method()==='PATCH'&&r.url().includes('/rest/v1/planly_projects')&&r.url().includes('p3')&&++p3Writes===2)restoreStaged=page.evaluate(k=>{const l=JSON.parse(localStorage.getItem(k)||'[]'),i=l.findIndex(x=>x.kind==='project'&&x.id==='p3');if(i<0)return false;l[i]={...l[i],action:'upsert',data:{id:'p3',name:'Garage',dueDate:'',notes:'',visibility:'private',householdId:null,archived:false,createdAt:1,updatedAt:Date.now()},lastEditedAt:new Date(Date.now()+1).toISOString(),edits:l[i].edits+1};localStorage.setItem(k,JSON.stringify(l));return true},KEY)});
+db.delays.planly_projects=1200;
+await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+for(let i=0;i<100&&!row('p3').deleted_at;i++)await W(50);
+await W(300);
+const mid3=await pending();
+check('conflict resolution sent the delete at the cloud version, and the restore staged meanwhile is still waiting',p3Writes>=2&&await restoreStaged===true&&!!row('p3').deleted_at&&mid3.some(x=>x.id==='p3'&&x.action==='upsert'),JSON.stringify({p3Writes,deleted:row('p3').deleted_at,mid3}));
+db.delays.planly_projects=0;
+await page.evaluate(()=>window.dispatchEvent(new Event('online')));await W(3500);
+await home();
+check('…the project stays on the phone, is back on the server, and nothing is left waiting',(await shown()).includes('Garage')&&!row('p3').deleted_at&&!(await pending()).some(x=>x.id==='p3'),JSON.stringify({shown:await shown(),deleted:row('p3').deleted_at,pending:await pending()}));
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
