@@ -877,6 +877,20 @@ html{overflow-x:clip}
 .pjBars{display:flex;align-items:flex-end;gap:8px;height:64px;margin-top:10px}
 .pjBars i{flex:1;border-radius:6px;background:color-mix(in srgb,var(--pj) 28%,var(--card))}.pjBars i.now{background:var(--pj)}
 .pjBarLabels{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.pjStage{margin:0 0 12px;padding:12px;border-radius:18px;background:var(--card);box-shadow:0 4px 14px rgba(30,30,90,.06)}
+.pjStageHead{display:flex;align-items:center;gap:10px;margin:0 2px 6px;font-size:15px}
+.pjStageHead strong{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pjStageHead i{flex:1 1 40px;height:6px;border-radius:3px;background:color-mix(in srgb,var(--pj,var(--plan)) 16%,var(--card));position:relative;overflow:hidden}
+.pjStageHead i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--p);background:var(--pj,var(--plan));border-radius:3px}
+.pjStageHead small{font-size:12px;font-weight:600;color:var(--muted)}
+.pjStage.done .pjStageHead strong::after{content:" ✓";color:var(--success)}
+.pjStage .pjQuickAdd{margin:8px 0 0}
+.pjStageOther .pjStageHead strong{color:var(--muted)}
+.pjStageEdit{display:grid;gap:8px;margin-bottom:8px}
+.pjStageRow{display:flex;gap:8px;align-items:center}
+.pjStageRow .input{flex:1;min-width:0;font-size:16px}
+.pjStageRemove{flex:0 0 44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:20px}
+.pjStageAdd{width:100%}
 </style>
 <style id="planlyProjects">
 /* Projects list: each project in its colour and emoji, a ring or a status chip, days left and the next task */
@@ -1061,7 +1075,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t22';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t23';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
