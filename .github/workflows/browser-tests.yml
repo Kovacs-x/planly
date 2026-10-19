@@ -84,6 +84,8 @@ jobs:
         run: node tests/browser/project-board.test.mjs
       - name: Add-task sheet — swipe down from anywhere to close, no blur while dragging (candidate)
         run: node tests/browser/sheet-swipe.test.mjs
+      - name: Budget income edit — Save and ‹ Budget go back after typing (candidate)
+        run: node tests/browser/budget-income-edit.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
