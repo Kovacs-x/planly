@@ -78,6 +78,8 @@ jobs:
         run: node tests/browser/projects-owners.test.mjs
       - name: Project page — colour header, ring and counts, quick add, finish (candidate)
         run: node tests/browser/project-page.test.mjs
+      - name: Project stages — grouped tasks, stage progress, quick add per stage, stage picker (candidate)
+        run: node tests/browser/project-stages.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
