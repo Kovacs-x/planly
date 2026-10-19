@@ -943,6 +943,11 @@ html{overflow-x:clip}
 .pjColourPick{width:32px;height:32px;border-radius:16px;border:0;background:var(--pj);padding:0;margin:0}
 .pjColourPick.active{box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--pj)}
 </style>
+<style id="planlySheetSwipe">
+/* The backdrop blur is redrawn on every frame of a drag on iPhone; switch it off while dragging and while closing */
+#sheetWrap.dragging,#sheetWrap.closing{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+#sheetWrap.closing{pointer-events:none}
+</style>
 <style id="planlyTimeline">
 /* Timeline: a colour band with the date and a Mon–Sun strip, one stats bar, Anytime chips, and the day as a list */
 #timelineWrap{--tl1:#2f4fd0;--tl2:#5a3fc8;--tlNow:#e0405a;--tlTask:var(--todayTint);--tlShared:var(--homeTint)}
@@ -1093,7 +1098,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t24';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t25';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

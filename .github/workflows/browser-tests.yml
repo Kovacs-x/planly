@@ -82,6 +82,8 @@ jobs:
         run: node tests/browser/project-stages.test.mjs
       - name: Project board — List/Board switch, To do / Doing / Done, owner-only moves (candidate)
         run: node tests/browser/project-board.test.mjs
+      - name: Add-task sheet — swipe down from anywhere to close, no blur while dragging (candidate)
+        run: node tests/browser/sheet-swipe.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

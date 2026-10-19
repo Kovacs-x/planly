@@ -2161,7 +2161,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-721t-142';
+const PLANLY_RELEASE='planly-v2-721t-143';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -2773,7 +2773,7 @@ function unlockSheetBackground(){
 function resetSheetPosition(){
   const sheet=$('.sheet'),wrap=$('#sheetWrap');
   if(sheet){sheet.style.transform='';sheet.style.transition=''}
-  if(wrap){wrap.style.background='';wrap.classList.remove('dragging')}
+  if(wrap){wrap.style.background='';wrap.classList.remove('dragging','closing')}
 }
 
 function taskHasMoreOptions(task){
@@ -2876,6 +2876,7 @@ function openSheet(task,projectId=''){
 function closeSheet(){
   const active=document.activeElement;
   if(active&&typeof active.blur==='function')active.blur();
+  $('#sheetWrap').classList.add('closing');
   $('#sheetWrap').classList.remove('open');
   $('#sheetWrap').setAttribute('aria-hidden','true');
   resetSheetPosition();
@@ -2915,6 +2916,7 @@ function endSheetDrag(){
   wrap.classList.remove('dragging');
   sheet.style.transition='transform .2s cubic-bezier(.22,.61,.36,1)';
   if(shouldClose){
+    wrap.classList.add('closing');
     sheet.style.transform=`translateY(${Math.max(window.innerHeight,sheet.offsetHeight)}px)`;
     wrap.style.background='rgba(0,0,0,0)';
     setTimeout(closeSheet,190);
@@ -3272,6 +3274,13 @@ sheetDragZone.addEventListener('touchstart',beginSheetDrag,{passive:true});
 sheetDragZone.addEventListener('touchmove',moveSheetDrag,{passive:false});
 sheetDragZone.addEventListener('touchend',endSheetDrag,{passive:true});
 sheetDragZone.addEventListener('touchcancel',endSheetDrag,{passive:true});
+/* A downward swipe that starts anywhere on the sheet closes it too, as long as the form is scrolled to the top (like the
+   phone's own sheets); with the form scrolled down, or a sideways swipe, the form scrolls as usual. */
+let sheetPull=null;const sheetEl=$('#sheetWrap .sheet');
+sheetEl.addEventListener('touchstart',e=>{const t=e.touches?.[0];sheetPull=t&&!e.target.closest('#sheetDragZone,textarea')?{x:t.clientX,y:t.clientY,top:sheetEl.scrollTop<=0}:null},{passive:true});
+sheetEl.addEventListener('touchmove',e=>{if(sheetDragging){moveSheetDrag(e);return}const t=e.touches?.[0];if(!sheetPull||!t)return;const dy=t.clientY-sheetPull.y,dx=t.clientX-sheetPull.x;if(!sheetPull.top||sheetEl.scrollTop>0||dy<10||Math.abs(dx)>dy){if(Math.abs(dy)>10||Math.abs(dx)>10)sheetPull=null;return}sheetPull=null;sheetDragging=true;sheetDragStartY=t.clientY;sheetDragY=0;sheetDragStartedAt=performance.now();$('#sheetWrap').classList.add('dragging');sheetEl.style.transition='none';e.preventDefault()},{passive:false});
+sheetEl.addEventListener('touchend',()=>{sheetPull=null;endSheetDrag()},{passive:true});
+sheetEl.addEventListener('touchcancel',()=>{sheetPull=null;endSheetDrag()},{passive:true});
 $('#taskActionClose').onclick=closeTaskActions;$('#taskActionWrap').addEventListener('click',e=>{if(e.target.classList.contains('taskActionBackdrop'))closeTaskActions();else handleTaskActionClick(e)});$('#taskActionContent').addEventListener('change',handleTaskActionChange);$('#timelineClose').onclick=closeTimeline;$('#timelineWeek').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('change',handleTimelineChange);$('#projectsToggle').onclick=()=>openProjects();$('#projectsClose').onclick=closeProjects;$('#projectsBack').onclick=()=>{if(projectPanelMode==='editor'&&editingProjectId){activeProjectId=editingProjectId;editingProjectId='';projectPanelMode='detail'}else if(projectPanelMode==='editor'){editingProjectId='';projectPanelMode='list'}else{activeProjectId='';projectPanelMode='list'}renderProjectsPanel()};$('#projectsContent').addEventListener('click',e=>{handleProjectsClick(e);handleViewClick(e)});$('#projectsContent').addEventListener('submit',e=>{if(e.target.id==='projectForm'){e.preventDefault();saveProjectEditor()}});$('#projectsContent').addEventListener('touchstart',beginTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchmove',moveTaskSwipe,{passive:false});$('#projectsContent').addEventListener('touchend',endTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchcancel',endTaskSwipe,{passive:true});$('#sheetWrap').addEventListener('click',e=>{if(e.target===$('#sheetWrap'))closeSheet()});$('#subtaskAdd').addEventListener('click',addEditingSubtask);$('#subtaskInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addEditingSubtask()}});$('#subtaskList').addEventListener('click',handleSubtaskEditorClick);$('#taskDate').addEventListener('change',()=>{refreshQuickDateSelection();if($('#taskRepeat').value!=='none'&&$('#taskRepeat').value!=='custom')applyRepeatPreset()});$('#taskTime').addEventListener('change',()=>{if(!$('#taskId').value&&state.autoCalendarTimed&&$('#taskTime').value)$('#taskCalendar').checked=true});$('#taskRepeat').addEventListener('change',applyRepeatPreset);
 $('#repeatInterval').addEventListener('input',markRepeatCustom);
 $('#repeatUnit').addEventListener('change',()=>{markRepeatCustom();refreshRecurrenceAdvancedUI()});
