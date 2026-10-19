@@ -850,6 +850,34 @@ html{overflow-x:clip}
 .topbar .eyebrow{color:rgba(255,255,255,.86)}
 .topbar .syncChip{color:rgba(255,255,255,.92)}
 </style>
+<style id="planlyProjectPage">
+/* Project page: a band in the project's colour behind its header, emoji and "why"; a ring card; quick add; momentum */
+.projectsWrap.pjDetailOpen .projectsPanel{position:relative;isolation:isolate}
+.projectsWrap.pjDetailOpen .projectsPanel::before{content:"";position:absolute;left:0;right:0;top:0;height:calc(env(safe-area-inset-top) + 250px);z-index:-1;background:linear-gradient(160deg,var(--pj) 0%,color-mix(in srgb,var(--pj) 72%,#1a1240) 100%);border-radius:0 0 32px 32px}
+.projectsWrap.pjDetailOpen .projectsHeader{background:var(--pj)!important;border-bottom:0!important;color:#fff;-webkit-backdrop-filter:none;backdrop-filter:none}
+.projectsWrap.pjDetailOpen .projectsHeader .eyebrow{color:rgba(255,255,255,.82)!important}
+.projectsWrap.pjDetailOpen .projectsTitle{color:#fff!important}
+.projectsWrap.pjDetailOpen .projectsClose{color:#fff!important;background:rgba(255,255,255,.18)!important;border:0!important;border-radius:20px!important;padding:0 16px!important}
+.projectsWrap.pjDetailOpen .projectsBack{background:rgba(255,255,255,.18)!important;border:0!important;color:#fff!important}
+.pjDetailHead{display:grid;gap:4px;padding:2px 4px 14px;color:#fff}
+.pjBigEmoji{font-size:40px;line-height:1.1}
+.pjWhy{margin:0;font-size:15px;color:rgba(255,255,255,.92)}
+#projectsContent .pjHero{--ringInk:var(--pj);--ringTrack:color-mix(in srgb,var(--pj) 16%,var(--card));position:relative;overflow:hidden;display:grid;gap:14px;padding:18px;border:0!important;border-radius:24px;background:var(--card)!important;box-shadow:0 14px 34px rgba(30,30,90,.16)}
+#projectsContent .pjHero.allDone{background:linear-gradient(150deg,var(--dashWin) 0%,var(--card) 64%)!important}
+#projectsContent .pjHero .dashTop{align-items:flex-start}
+#projectsContent .pjHero .projectDetailDue{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+#projectsContent .pjHero .projectHeroActions{margin-top:0}
+#projectsContent .pjHero .projectIntelligence{margin:0}
+#projectsContent .pjFinish{background:var(--pj)!important;border-color:var(--pj)!important;color:#fff!important}
+.pjQuickAdd{display:flex;gap:8px;margin:0 0 10px}
+#projectsContent .pjQuickAdd .input{flex:1 1 auto;width:auto!important;min-width:0;min-height:46px;font-size:16px}
+#projectsContent .pjQuickAdd button{flex:0 0 auto;width:auto!important;min-height:46px;margin:0!important;padding:0 18px}
+.pjMomentum{margin-top:14px;padding:14px;border-radius:20px;background:var(--card)}
+.pjMomentumHead{display:flex;justify-content:space-between;align-items:center;font-size:15px}.pjMomentumHead span{font-size:13px;color:var(--muted)}
+.pjBars{display:flex;align-items:flex-end;gap:8px;height:64px;margin-top:10px}
+.pjBars i{flex:1;border-radius:6px;background:color-mix(in srgb,var(--pj) 28%,var(--card))}.pjBars i.now{background:var(--pj)}
+.pjBarLabels{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+</style>
 <style id="planlyProjects">
 /* Projects list: each project in its colour and emoji, a ring or a status chip, days left and the next task */
 :root{--pjLate:#fde8ec;--pjLateInk:#c2264b;--pjRisk:#fff1e0;--pjRiskInk:#b45309;--pjDone:#e3f6ec;--pjDoneInk:#17703f}
@@ -1033,7 +1061,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t21';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t22';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
