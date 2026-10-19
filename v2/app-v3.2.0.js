@@ -2844,6 +2844,7 @@ function handleTaskVisibilityChange(e){if(e.target.value==='household'&&!planlyH
 function openSheet(task,projectId=''){
   const readOnly=!!(task&&task._planlyOwnedByMe===false);
   if($('#taskActionWrap')?.classList.contains('open'))closeTaskActions();
+  clearSheetGesture();
   resetSheetPosition();
   lockSheetBackground();
   $('#sheetWrap').classList.add('open');
@@ -2874,6 +2875,7 @@ function openSheet(task,projectId=''){
   taskSheetReadOnly=readOnly;renderTaskSharing(task?String(task.assigneeId||task.assignee_id||''):'');
 }
 function closeSheet(){
+  clearSheetGesture();
   const active=document.activeElement;
   if(active&&typeof active.blur==='function')active.blur();
   $('#sheetWrap').classList.add('closing');
@@ -2882,10 +2884,23 @@ function closeSheet(){
   resetSheetPosition();
   unlockSheetBackground();
 }
-let sheetDragging=false,sheetDragStartY=0,sheetDragY=0,sheetDragStartedAt=0;
+let sheetDragging=false,sheetDragStartY=0,sheetDragY=0,sheetDragStartedAt=0,sheetPull=null,sheetTimer=0,sheetLife=0;
+/* Each open or close starts a new sheet lifecycle: a slide-away or settle timer from an earlier one is cancelled, and
+   would do nothing anyway, so it can never close a sheet that was opened again in the meantime. */
+function clearSheetGesture(){
+  sheetLife++;
+  clearTimeout(sheetTimer);
+  sheetTimer=0;sheetDragging=false;sheetDragStartY=0;sheetDragY=0;sheetDragStartedAt=0;sheetPull=null;
+}
+function afterSheetMotion(fn,ms){
+  const life=sheetLife;
+  clearTimeout(sheetTimer);
+  sheetTimer=setTimeout(()=>{sheetTimer=0;if(life===sheetLife)fn()},matchMedia('(prefers-reduced-motion: reduce)').matches?0:ms);
+}
 function beginSheetDrag(e){
   const touch=e.touches?.[0];
   if(!touch)return;
+  clearTimeout(sheetTimer);
   sheetDragging=true;
   sheetDragStartY=touch.clientY;
   sheetDragY=0;
@@ -2919,11 +2934,11 @@ function endSheetDrag(){
     wrap.classList.add('closing');
     sheet.style.transform=`translateY(${Math.max(window.innerHeight,sheet.offsetHeight)}px)`;
     wrap.style.background='rgba(0,0,0,0)';
-    setTimeout(closeSheet,190);
+    afterSheetMotion(closeSheet,190);
   }else{
     sheet.style.transform='translateY(0)';
     wrap.style.background='';
-    setTimeout(resetSheetPosition,210);
+    afterSheetMotion(resetSheetPosition,210);
   }
   sheetDragY=0;
 }
@@ -3271,14 +3286,11 @@ function endTaskSwipe(){
 
 const sheetDragZone=$('#sheetDragZone');
 sheetDragZone.addEventListener('touchstart',beginSheetDrag,{passive:true});
-sheetDragZone.addEventListener('touchmove',moveSheetDrag,{passive:false});
-sheetDragZone.addEventListener('touchend',endSheetDrag,{passive:true});
-sheetDragZone.addEventListener('touchcancel',endSheetDrag,{passive:true});
 /* A downward swipe that starts anywhere on the sheet closes it too, as long as the form is scrolled to the top (like the
    phone's own sheets); with the form scrolled down, or a sideways swipe, the form scrolls as usual. */
-let sheetPull=null;const sheetEl=$('#sheetWrap .sheet');
+const sheetEl=$('#sheetWrap .sheet');
 sheetEl.addEventListener('touchstart',e=>{const t=e.touches?.[0];sheetPull=t&&!e.target.closest('#sheetDragZone,textarea')?{x:t.clientX,y:t.clientY,top:sheetEl.scrollTop<=0}:null},{passive:true});
-sheetEl.addEventListener('touchmove',e=>{if(sheetDragging){moveSheetDrag(e);return}const t=e.touches?.[0];if(!sheetPull||!t)return;const dy=t.clientY-sheetPull.y,dx=t.clientX-sheetPull.x;if(!sheetPull.top||sheetEl.scrollTop>0||dy<10||Math.abs(dx)>dy){if(Math.abs(dy)>10||Math.abs(dx)>10)sheetPull=null;return}sheetPull=null;sheetDragging=true;sheetDragStartY=t.clientY;sheetDragY=0;sheetDragStartedAt=performance.now();$('#sheetWrap').classList.add('dragging');sheetEl.style.transition='none';e.preventDefault()},{passive:false});
+sheetEl.addEventListener('touchmove',e=>{if(sheetDragging){moveSheetDrag(e);return}const t=e.touches?.[0];if(!sheetPull||!t)return;const dy=t.clientY-sheetPull.y,dx=t.clientX-sheetPull.x;if(!sheetPull.top||sheetEl.scrollTop>0||dy<10||Math.abs(dx)>dy){if(Math.abs(dy)>10||Math.abs(dx)>10)sheetPull=null;return}sheetPull=null;clearTimeout(sheetTimer);sheetDragging=true;sheetDragStartY=t.clientY;sheetDragY=0;sheetDragStartedAt=performance.now();$('#sheetWrap').classList.add('dragging');sheetEl.style.transition='none';e.preventDefault()},{passive:false});
 sheetEl.addEventListener('touchend',()=>{sheetPull=null;endSheetDrag()},{passive:true});
 sheetEl.addEventListener('touchcancel',()=>{sheetPull=null;endSheetDrag()},{passive:true});
 $('#taskActionClose').onclick=closeTaskActions;$('#taskActionWrap').addEventListener('click',e=>{if(e.target.classList.contains('taskActionBackdrop'))closeTaskActions();else handleTaskActionClick(e)});$('#taskActionContent').addEventListener('change',handleTaskActionChange);$('#timelineClose').onclick=closeTimeline;$('#timelineWeek').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('click',handleTimelineClick);$('#timelineContent').addEventListener('change',handleTimelineChange);$('#projectsToggle').onclick=()=>openProjects();$('#projectsClose').onclick=closeProjects;$('#projectsBack').onclick=()=>{if(projectPanelMode==='editor'&&editingProjectId){activeProjectId=editingProjectId;editingProjectId='';projectPanelMode='detail'}else if(projectPanelMode==='editor'){editingProjectId='';projectPanelMode='list'}else{activeProjectId='';projectPanelMode='list'}renderProjectsPanel()};$('#projectsContent').addEventListener('click',e=>{handleProjectsClick(e);handleViewClick(e)});$('#projectsContent').addEventListener('submit',e=>{if(e.target.id==='projectForm'){e.preventDefault();saveProjectEditor()}});$('#projectsContent').addEventListener('touchstart',beginTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchmove',moveTaskSwipe,{passive:false});$('#projectsContent').addEventListener('touchend',endTaskSwipe,{passive:true});$('#projectsContent').addEventListener('touchcancel',endTaskSwipe,{passive:true});$('#sheetWrap').addEventListener('click',e=>{if(e.target===$('#sheetWrap'))closeSheet()});$('#subtaskAdd').addEventListener('click',addEditingSubtask);$('#subtaskInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addEditingSubtask()}});$('#subtaskList').addEventListener('click',handleSubtaskEditorClick);$('#taskDate').addEventListener('change',()=>{refreshQuickDateSelection();if($('#taskRepeat').value!=='none'&&$('#taskRepeat').value!=='custom')applyRepeatPreset()});$('#taskTime').addEventListener('change',()=>{if(!$('#taskId').value&&state.autoCalendarTimed&&$('#taskTime').value)$('#taskCalendar').checked=true});$('#taskRepeat').addEventListener('change',applyRepeatPreset);
