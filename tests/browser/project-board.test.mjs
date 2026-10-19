@@ -1,7 +1,9 @@
 // Project board view: a List / Board switch on the project page (remembered on this phone). The board has To do / Doing /
 // Done columns; ▶ Start moves a task to Doing (kept as doing:true in the task's data), ↩ moves it back, ✓ Done completes it
 // through the usual completion. Cards show the stage, the day (Late in red) and who it is for, and open the task's actions.
-// Someone else's shared project shows its board without moves. Stages with a repeated id are shown once.
+// Someone else's shared project shows its board without moves. Stages with a repeated id are shown once. A move needs
+// positive proof the task is yours in your project: same ids across members, stale buttons after switching project and
+// forged buttons change nothing; a task added on this phone can move straight away.
 // Run: node tests/browser/project-board.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER,PARTNER,HOUSEHOLD} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -12,8 +14,8 @@ const n=new Date(),day=k=>key(new Date(n.getFullYear(),n.getMonth(),n.getDate()+
 const P=(owner,id,name,more={})=>({owner_id:owner,client_id:id,data:{id,name,dueDate:'',notes:'',visibility:more.visibility||'private',householdId:more.visibility?HOUSEHOLD:null,archived:false,createdAt:1,updatedAt:1,...more},visibility:more.visibility||'private',household_id:more.visibility?HOUSEHOLD:null,name,due_date:null,notes:'',archived:false,cloud_version:1,deleted_at:null});
 const T=(owner,id,proj,title,done,more={})=>{const vis=more.visibility||'private',{visibility,...extra}=more;return {owner_id:owner,client_id:id,data:{id,title,date:extra.date||'',time:'',category:'Personal',durationMinutes:30,priority:'normal',completed:done,completedAt:done?now:null,recurrence:'none',reminder:'none',notes:'',subtasks:[],createdAt:1,updatedAt:1,visibility:vis,householdId:vis==='household'?HOUSEHOLD:null,assigneeId:null,projectId:proj,...extra},visibility:vis,household_id:vis==='household'?HOUSEHOLD:null,assignee_id:null,completed_by:done?owner:null,completed_at:done?now:null,cloud_version:1,deleted_at:null,task_date:extra.date||null}};
 const db=makeDb();
-db.tables.planly_projects.push(P(OWNER,'p1','Move into new flat',{stages:[{id:'s1',name:'Buy'},{id:'s1',name:'Duplicate'}]}),P(PARTNER,'p3',"Laki's plan",{visibility:'household'}));
-db.tables.planly_tasks.push(T(OWNER,'a','p1','Order sofa',false,{stageId:'s1',date:day(-1)}),T(OWNER,'b','p1','Pack kitchen',false,{doing:true}),T(OWNER,'c','p1','Measure rooms',true),T(PARTNER,'l','p3',"Laki's step",false,{visibility:'household'}));
+db.tables.planly_projects.push(P(OWNER,'p1','Move into new flat',{stages:[{id:'s1',name:'Buy'},{id:'s1',name:'Duplicate'}]}),P(PARTNER,'p3',"Laki's plan",{visibility:'household'}),P(OWNER,'same','My same',{}),P(PARTNER,'same','Laki same',{visibility:'household'}));
+db.tables.planly_tasks.push(T(OWNER,'a','p1','Order sofa',false,{stageId:'s1',date:day(-1)}),T(OWNER,'b','p1','Pack kitchen',false,{doing:true}),T(OWNER,'c','p1','Measure rooms',true),T(PARTNER,'l','p3',"Laki's step",false,{visibility:'household'}),T(OWNER,'x','same','My x',false),T(PARTNER,'x','same','Laki x',false,{visibility:'household'}));
 const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp(context,errors);
 const list=async()=>{await page.evaluate(()=>document.querySelector('.nav button[data-section="plan"]').click());await W(800);await page.evaluate(()=>document.querySelector('[data-plan-segment="projects"]').click());await W(1000)};
 const openP=async(id,owner=null)=>{await page.evaluate(()=>document.getElementById('projectsClose')?.click());await list();await page.evaluate(([id,o])=>document.querySelector(`#view [data-r1-project="${id}"]${o?`[data-r1-owner="${o}"]`:''}`).click(),[id,owner]);await W(900)};
@@ -42,5 +44,29 @@ await page.reload();await W(3000);await openP('p1');
 check('the Board choice is remembered on this phone',!!(await page.evaluate(()=>document.querySelector('#projectsContent .pjBoard'))));
 await openP('p3',PARTNER);b=await board();
 check('someone else\'s shared project shows its board without moves or quick add',b.todo?.cards.length===1&&b.todo.cards[0].moves.length===0&&!b.todo.quick,JSON.stringify(b));
+// same project and task ids from two members
+const rowOf=(owner,id)=>db.tables.planly_tasks.find(r=>r.client_id===id&&r.owner_id===owner);
+await openP('same',PARTNER);b=await board();
+check('Laki\'s project with the same ids: no moves on Laki\'s task',b.todo?.cards.length===1&&b.todo.cards[0].moves.length===0,JSON.stringify(b));
+await page.evaluate(()=>document.querySelector('#projectsContent [data-board-open="x"]').click());await W(600);
+check('…and its card opens Laki\'s task, not mine with the same id',await page.evaluate(()=>{const w=document.getElementById('taskActionWrap');return w.classList.contains('open')&&/Laki x/.test(w.textContent)&&!/My x/.test(w.textContent)}));
+await page.evaluate(()=>document.getElementById('taskActionClose')?.click());await W(300);
+// a forged move button for Laki's task, with Laki's project scope, is refused
+const before=JSON.stringify([rowOf(PARTNER,'x').data,rowOf(OWNER,'x').data]);
+await page.evaluate(o=>{const b=document.createElement('button');b.dataset.boardMove='doing';b.dataset.boardId='x';b.dataset.boardProject='same';b.dataset.boardOwner=o;document.getElementById('projectsContent').prepend(b);b.click()},PARTNER);await W(2000);
+check('a forged move on someone else\'s task changes nothing',JSON.stringify([rowOf(PARTNER,'x').data,rowOf(OWNER,'x').data])===before);
+// a stale move button from my board, clicked after switching to Laki's project
+await openP('same',OWNER);const staleBtn=await page.evaluate(()=>document.querySelector('#projectsContent [data-board-move="doing"][data-board-id="x"]').outerHTML);
+await openP('same',PARTNER);
+await page.evaluate(h=>{document.getElementById('projectsContent').insertAdjacentHTML('afterbegin',h);document.querySelector('#projectsContent [data-board-move]').click()},staleBtn);await W(2000);
+check('a stale move from my board, tapped after switching to Laki\'s project, changes nothing',JSON.stringify([rowOf(PARTNER,'x').data,rowOf(OWNER,'x').data])===before);
+await openP('same',OWNER);await move('x','doing');
+check('on my own project, my task with that id moves (and Laki\'s does not)',rowOf(OWNER,'x').data.doing===true&&!('doing' in rowOf(PARTNER,'x').data));
+// a task added on this phone can move straight away; who owns it never goes into its saved data
+await openP('p1');await page.evaluate(()=>{const i=document.getElementById('projectQuickAdd');i.value='Fresh one';i.form.requestSubmit()});await W(2500);
+const fresh=db.tables.planly_tasks.find(r=>r.data?.title==='Fresh one');
+check('a task added on this phone has no owner fields in its saved data',!!fresh&&!('_planlyOwnerId' in fresh.data)&&!('_planlyOwnedByMe' in fresh.data),JSON.stringify(fresh?.data));
+await move(fresh.client_id,'doing');
+check('…and can be started on the board straight away',db.tables.planly_tasks.find(r=>r.client_id===fresh.client_id).data.doing===true);
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
