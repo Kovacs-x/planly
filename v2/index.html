@@ -891,6 +891,24 @@ html{overflow-x:clip}
 .pjStageRow .input{flex:1;min-width:0;font-size:16px}
 .pjStageRemove{flex:0 0 44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:20px}
 .pjStageAdd{width:100%}
+.pjViewToggle{margin-left:auto;display:flex;background:var(--cardSoft,var(--line));border-radius:12px;padding:3px;gap:2px}
+.pjViewToggle button{min-height:34px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:650}
+.pjViewToggle button[aria-pressed="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.projectTasksSection .sectionHead{display:flex;align-items:center;gap:8px}
+.pjBoard{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,78%);gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;margin:0 -2px}
+.pjCol{scroll-snap-align:start;min-width:0;background:color-mix(in srgb,var(--card) 70%,transparent);border-radius:18px;padding:10px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-content:start}
+.pjCol>*{min-width:0}
+.pjCol h4{margin:2px 4px 2px;display:flex;justify-content:space-between;font-size:14px}.pjCol h4 span{color:var(--muted);font-weight:600}
+.pjColEmpty{color:var(--muted);text-align:center;padding:8px 0}
+.pjBoardCard{background:var(--card);border-radius:14px;box-shadow:0 3px 10px rgba(30,30,90,.07);overflow:hidden}
+.pjBoardCard.doing{box-shadow:inset 4px 0 0 var(--pj,var(--plan)),0 3px 10px rgba(30,30,90,.07)}
+.pjBoardMain{display:grid;gap:3px;width:100%;text-align:left;border:0;background:transparent;color:var(--text);font:inherit;padding:10px 12px}
+.pjBoardMain strong{font-size:15px;font-weight:650;overflow-wrap:anywhere}.pjBoardMain small{font-size:12px;color:var(--muted)}
+.pjBoardCard.late .pjBoardMain small{color:var(--danger)}
+.pjBoardMoves{display:flex;gap:6px;padding:0 10px 10px;justify-content:flex-end}
+.pjMove{min-height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;font-size:13px;font-weight:650}
+.pjMove:not(.back){background:var(--pj,var(--plan));border-color:var(--pj,var(--plan));color:#fff}
+.pjBoardSection .pjQuickAdd{margin:2px 0 0}
 </style>
 <style id="planlyProjects">
 /* Projects list: each project in its colour and emoji, a ring or a status chip, days left and the next task */
@@ -1075,7 +1093,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t23';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t24';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

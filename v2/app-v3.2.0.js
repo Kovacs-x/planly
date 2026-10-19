@@ -42,7 +42,9 @@ let editingSubtasks=[];
 let activeSearchFilter='all';
 let projectPanelMode='list',activeProjectId='',editingProjectId='';
 let timelineDate=localKey(new Date());
-let taskActionId='';
+let taskActionId='',taskActionOwner='';
+/* the task the actions sheet is about: its id and its owner (two members can have tasks with the same id) */
+function taskActionTask(){const me=String(planlySession?.user?.id||'');return state.tasks.find(x=>x.id===taskActionId&&String(x._planlyOwnerId||me)===taskActionOwner)||null}
 let state={tasks:[],projects:[],tab:'today',theme:'light',showCompleted:true,taskRowDensity:'compact',defaultCategory:'Personal',defaultDuration:30,autoCalendarTimed:false,autoCompleteParentSubtasks:false,intelligenceSuggestions:true,intelligenceChoreBalance:false,intelligenceNightRest:true,intelligenceNightRestHours:8,planningStart:'08:00',planningEnd:'23:00',selectedDate:localKey(new Date()),weekAnchor:localKey(new Date()),monthAnchor:localKey(new Date())};
 const PLANLY_DONE_OPEN_KEY='planly-completed-open-v1';
 const completedOpen=(()=>{try{const d=JSON.parse(localStorage.getItem(PLANLY_DONE_OPEN_KEY)||'{}');return d&&typeof d==='object'&&!Array.isArray(d)?d:{}}catch{return {}}})();
@@ -233,7 +235,7 @@ function refreshProjectsIfOpen(){if($('#projectsWrap')?.classList.contains('open
 function renderTaskActions(){
   const wrap=$('#taskActionWrap'),content=$('#taskActionContent'),title=$('#taskActionTitle');
   if(!wrap||!content||!title)return;
-  const t=state.tasks.find(x=>x.id===taskActionId);
+  const t=taskActionTask();
   if(!t){closeTaskActions();return}
   title.textContent=t.title;
   const today=localKey(new Date());
@@ -250,17 +252,17 @@ function renderTaskActions(){
 }
 function openTaskActions(t){
   if(!t)return;
-  closeOpenTaskSwipes();taskActionId=t.id;
+  closeOpenTaskSwipes();taskActionId=t.id;taskActionOwner=String(t._planlyOwnerId||planlySession?.user?.id||'');
   $('#taskActionWrap').classList.add('open');$('#taskActionWrap').setAttribute('aria-hidden','false');
   renderTaskActions();
 }
 function closeTaskActions(){
-  $('#taskActionWrap')?.classList.remove('open');$('#taskActionWrap')?.setAttribute('aria-hidden','true');taskActionId='';
+  $('#taskActionWrap')?.classList.remove('open');$('#taskActionWrap')?.setAttribute('aria-hidden','true');taskActionId='';taskActionOwner='';
 }
 function refreshTaskActionsIfOpen(){if($('#taskActionWrap')?.classList.contains('open'))renderTaskActions()}
 function handleTaskActionClick(e){
   const action=e.target.closest('[data-task-menu]')?.dataset.taskMenu;if(!action)return;
-  const t=state.tasks.find(x=>x.id===taskActionId);if(!t){closeTaskActions();return}
+  const t=taskActionTask();if(!t){closeTaskActions();return}
   const today=localKey(new Date());
   if(action==='complete'){closeTaskActions();completeTaskWithUndo(t);return}
   if(action==='reopen'){t.completed=false;t.updatedAt=Date.now();stageTaskMutation(t);save();queuePlanlyPendingReplay('Task synced');closeTaskActions();render();return}
@@ -275,9 +277,9 @@ function handleTaskActionClick(e){
   if(action==='delete'){if(confirm('Delete this task?')){closeTaskActions();deleteTaskWithUndo(t)}return}
 }
 function handleTaskActionChange(e){
-  const stage=e.target.closest('#taskActionStage');if(stage){const t=state.tasks.find(x=>x.id===taskActionId);if(!t||t._planlyOwnedByMe===false||String(t.stageId||'')===stage.value)return;if(stage.value)t.stageId=stage.value;else delete t.stageId;t.updatedAt=Date.now();stageTaskMutation(t);save();queuePlanlyPendingReplay('Task synced');render();refreshTaskActionsIfOpen();if(typeof refreshProjectsIfOpen==='function')refreshProjectsIfOpen();return}
+  const stage=e.target.closest('#taskActionStage');if(stage){const t=taskActionTask();if(!t||t._planlyOwnedByMe===false||String(t.stageId||'')===stage.value)return;if(stage.value)t.stageId=stage.value;else delete t.stageId;t.updatedAt=Date.now();stageTaskMutation(t);save();queuePlanlyPendingReplay('Task synced');render();refreshTaskActionsIfOpen();if(typeof refreshProjectsIfOpen==='function')refreshProjectsIfOpen();return}
   const select=e.target.closest('#taskActionProject');if(!select)return;
-  const t=state.tasks.find(x=>x.id===taskActionId);if(!t)return;
+  const t=taskActionTask();if(!t)return;
   if((t.projectId||'')===select.value)return;
   t.projectId=select.value||'';delete t.stageId;t.updatedAt=Date.now();if(t.addToCalendar)t.calendarSync='pending';
   stageTaskMutation(t);save();queuePlanlyPendingReplay('Task synced');render();refreshTaskActionsIfOpen();
@@ -1028,7 +1030,7 @@ function resetPlanlyCloudRuntimeState(){
   state.tasks=[];state.projects=[];
   state.defaultCategory='Personal';state.defaultDuration=30;state.autoCompleteParentSubtasks=false;state.planningStart='08:00';state.planningEnd='23:00';
   planlyCloudSyncMeta={tasks:new Map(),projects:new Map(),preferences:0};planlyCloudReadOnly=true;planlyCloudBootstrapPending=PLANLY_CLOUD_PREVIEW;planlyReconcilePromise=null;planlyLastReconcileAt=0;
-  editingSubtasks=[];activeSearchFilter='all';projectPanelMode='list';activeProjectId='';editingProjectId='';timelinePick='';taskActionId='';
+  editingSubtasks=[];activeSearchFilter='all';projectPanelMode='list';activeProjectId='';editingProjectId='';timelinePick='';taskActionId='';taskActionOwner='';
   expandedTaskChecklists.clear();
   planlyCalendarSources=[];planlyExternalEvents=[];planlyCalendarDataError='';planlyCalendarLoadPromise=null;planlyCalendarLoadedAt=0;planlyCalendarLoadedUser='';
   planlyHousehold=null;planlyHouseholdMembers=[];planlyHouseholdInvites=[];planlyHouseholdError='';planlyFreshHouseholdInvite=null;planlyHouseholdLoadPromise=null;planlyHouseholdLoadedAt=0;planlyHouseholdLoadedUser='';window.PlanlyHouseholdContext=null;
@@ -1257,7 +1259,7 @@ async function sha256Text(text){const bytes=new TextEncoder().encode(text),hash=
 function migrationPayloadFromRaw(raw){let parsed={};try{parsed=JSON.parse(raw)||{}}catch{throw new Error('The Planly migration data is not valid JSON.')}const tasks=Array.isArray(parsed.tasks)?parsed.tasks:[],projects=Array.isArray(parsed.projects)?parsed.projects:[];return {raw,parsed,tasks,projects,preferences:{defaultCategory:parsed.defaultCategory||'Personal',defaultDuration:Number(parsed.defaultDuration||30),autoCompleteParentSubtasks:!!parsed.autoCompleteParentSubtasks,planningStart:parsed.planningStart||'08:00',planningEnd:parsed.planningEnd||'23:00'}}}
 function planlyMigrationPayload(){return migrationPayloadFromRaw(localStorage.getItem(STORE)||'{}')}
 function validateMigrationBackupFile(d){if(!d||d.kind!=='planly-cloud-migration-backup'||Number(d.version)!==1||d.storeKey!==STORE||typeof d.raw!=='string')throw new Error('This is not a Planly 3.2 migration backup.');const snapshot=migrationPayloadFromRaw(d.raw);assertUniqueLocalIds(snapshot.projects,'Projects');assertUniqueLocalIds(snapshot.tasks,'Tasks');if(!snapshot.tasks.length&&!snapshot.projects.length)throw new Error('The migration backup contains no tasks or projects.');if(Number(d.taskCount)!==snapshot.tasks.length||Number(d.projectCount)!==snapshot.projects.length)throw new Error('Migration backup counts do not match its embedded Planly data.');return snapshot}
-function taskCloudRow(t,ownerId){const visibility=t.visibility==='household'?'household':'private',householdId=visibility==='household'?(t.householdId||planlyHousehold?.id||null):null,cloudData={...t,visibility,householdId};return {owner_id:ownerId,client_id:String(t.id),data:cloudData,visibility,household_id:householdId,assignee_id:visibility==='household'?(t.assigneeId||t.assignee_id||null):null,series_client_id:t.seriesId?String(t.seriesId):null,title:String(t.title||''),task_date:t.date||null,task_time:t.time||null,duration_minutes:Number(t.durationMinutes||30),priority:String(t.priority||'normal'),category:String(t.category||'Personal'),project_client_id:t.projectId?String(t.projectId):null,recurrence:String(t.recurrence||'none'),recurrence_config:t.recurrenceConfig??null,occurrence_number:Number.isFinite(Number(t.occurrenceNumber))?Number(t.occurrenceNumber):null,reminder:String(t.reminder||'none'),notes:String(t.notes||''),subtasks:Array.isArray(t.subtasks)?t.subtasks:[],completed:!!t.completed,pinned:!!t.pinned,top3_order:Number.isFinite(Number(t.top3Order))?Number(t.top3Order):null,add_to_calendar:!!t.addToCalendar,google_event_id:t.googleEventId||null,google_recurrence_start_date:t.googleRecurrenceStartDate||null,google_recurrence_version:Number.isFinite(Number(t.googleRecurrenceVersion))?Number(t.googleRecurrenceVersion):null,calendar_sync:String(t.calendarSync||''),calendar_synced_at:Number.isFinite(Number(t.calendarSyncedAt))?Number(t.calendarSyncedAt):null,client_created_at:Number.isFinite(Number(t.createdAt))?Number(t.createdAt):null,client_updated_at:Number.isFinite(Number(t.updatedAt))?Number(t.updatedAt):Number(t.createdAt)||Date.now(),deleted_at:null}}
+function taskCloudRow(t,ownerId){const visibility=t.visibility==='household'?'household':'private',householdId=visibility==='household'?(t.householdId||planlyHousehold?.id||null):null,cloudData={...t,visibility,householdId};/* who owns a task is the row's owner, never a field inside its data */delete cloudData._planlyOwnerId;delete cloudData._planlyOwnedByMe;return {owner_id:ownerId,client_id:String(t.id),data:cloudData,visibility,household_id:householdId,assignee_id:visibility==='household'?(t.assigneeId||t.assignee_id||null):null,series_client_id:t.seriesId?String(t.seriesId):null,title:String(t.title||''),task_date:t.date||null,task_time:t.time||null,duration_minutes:Number(t.durationMinutes||30),priority:String(t.priority||'normal'),category:String(t.category||'Personal'),project_client_id:t.projectId?String(t.projectId):null,recurrence:String(t.recurrence||'none'),recurrence_config:t.recurrenceConfig??null,occurrence_number:Number.isFinite(Number(t.occurrenceNumber))?Number(t.occurrenceNumber):null,reminder:String(t.reminder||'none'),notes:String(t.notes||''),subtasks:Array.isArray(t.subtasks)?t.subtasks:[],completed:!!t.completed,pinned:!!t.pinned,top3_order:Number.isFinite(Number(t.top3Order))?Number(t.top3Order):null,add_to_calendar:!!t.addToCalendar,google_event_id:t.googleEventId||null,google_recurrence_start_date:t.googleRecurrenceStartDate||null,google_recurrence_version:Number.isFinite(Number(t.googleRecurrenceVersion))?Number(t.googleRecurrenceVersion):null,calendar_sync:String(t.calendarSync||''),calendar_synced_at:Number.isFinite(Number(t.calendarSyncedAt))?Number(t.calendarSyncedAt):null,client_created_at:Number.isFinite(Number(t.createdAt))?Number(t.createdAt):null,client_updated_at:Number.isFinite(Number(t.updatedAt))?Number(t.updatedAt):Number(t.createdAt)||Date.now(),deleted_at:null}}
 
 function migrationEntityMap(rows){return new Map((rows||[]).map(r=>[String(r.client_id),r]))}
 function assertUniqueLocalIds(items,label){const ids=items.map(x=>String(x?.id||''));if(ids.some(id=>!id))throw new Error(label+' contains an item without an ID.');if(new Set(ids).size!==ids.length)throw new Error(label+' contains duplicate IDs. Migration stopped.')}
@@ -2159,7 +2161,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-721t-141';
+const PLANLY_RELEASE='planly-v2-721t-142';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -3135,7 +3137,8 @@ $('#taskForm').addEventListener('submit',async e=>{
     if(data.addToCalendar)t.calendarSync='pending';
     else{if(wasCalendar&&oldEventId&&(!t.recurrence||t.recurrence==='none'))queueGoogleDelete(oldEventId);t.googleEventId='';t.calendarSync=''}
   }else{
-    t={id:uid(),...data,occurrenceNumber:data.recurrence!=='none'?1:undefined,completed:false,pinned:false,googleEventId:'',calendarSync:data.addToCalendar?'pending':'',createdAt:now};
+    /* a new task is yours: say so on the phone too, so owner checks never have to guess (stripped from the cloud row) */
+    t={id:uid(),...data,...(planlySession?.user?.id?{_planlyOwnerId:String(planlySession.user.id),_planlyOwnedByMe:true}:{}),occurrenceNumber:data.recurrence!=='none'?1:undefined,completed:false,pinned:false,googleEventId:'',calendarSync:data.addToCalendar?'pending':'',createdAt:now};
     state.tasks.push(t);
   }
   let checklistAutoSnapshot=null,checklistAutoPendingIds=[];

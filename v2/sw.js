@@ -1,8 +1,8 @@
-const CACHE='planly-v2-721t-141';
-const VERSION='planly-v2-sw-721t-141';
-const APP_URL='./app-v3.2.0.js?v=721t23';
+const CACHE='planly-v2-721t-142';
+const VERSION='planly-v2-sw-721t-142';
+const APP_URL='./app-v3.2.0.js?v=721t24';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
-const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p08';
+const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p09';
 const CORE_BUILD_URL='./core-build-v3.3c.js?v=724w01';
 const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=718s01';
 const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=713n01';
