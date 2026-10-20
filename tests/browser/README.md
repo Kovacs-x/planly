@@ -61,6 +61,7 @@ The tests use port 8765, so run one at a time.
 | `budget-safety.test.mjs` | Budget: a double tap on a bill tick (Budget or Today), Edit payment's or Edit category's Save, a payment's Delete or Delete category saves once with no false "changed on another device"; a save finishing after leaving Budget does not draw over the other tab; tapping Budget on a category, Add payment or Edit income (even after typing) goes back to the Budget home; Manage's Create starts with an empty name. |
 | `lists-projects-typing.test.mjs` | Lists: after adding an item the field stays ready; a sync landing while typing keeps the typing and cursor; quick adds save once each; closing Lists returns Home to its scroll position. Projects: a New project name survives leaving the app and coming back. |
 | `polish.test.mjs` | Task actions sheet: the page behind stays locked in place, one blur only, swipe down to close (no blur while dragging), a short drag springs back, the page returns to its scroll position; Settings: a calendar name typed survives coming back to the app; a double tap on Create invitation link or Create household sends one request. |
+| `stat-pills.test.mjs` | Budget summary pills (paid / to pay / due soon): the text stays inside each pill and the pills match in height, at 390 px and 320 px, with ordinary and very large amounts. |
 
 CI: `.github/workflows/browser-tests.yml` runs these on every pull request that touches `v2/` or `tests/browser/`.
 On a pull request it also runs them against the base branch for comparison; that run is informational, not a gate.
