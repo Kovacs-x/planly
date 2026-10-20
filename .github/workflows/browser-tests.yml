@@ -88,6 +88,8 @@ jobs:
         run: node tests/browser/budget-income-edit.test.mjs
       - name: Task Undo — bar goes away, Undo keeps newer tasks, held writes (candidate)
         run: node tests/browser/task-undo.test.mjs
+      - name: Budget safety — double taps, drawing only on Budget, Budget tab goes home (candidate)
+        run: node tests/browser/budget-safety.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
