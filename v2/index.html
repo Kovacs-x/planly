@@ -1035,6 +1035,15 @@ html{overflow-x:clip}
 @keyframes dashPop{0%{transform:scale(.6)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.dashConfetti{display:none}.celebrate .dashRing{animation:none}.dashRingFill{transition:none}}
 </style>
+<style id="planlyGlassNav">
+/* The tab bar floats above the page as frosted glass: inset from the edges, fully rounded, see-through with a blur, a
+   hairline edge and a soft shadow; the current tab sits on a soft pill. */
+.nav{left:12px!important;right:12px!important;width:auto!important;max-width:560px!important;margin:0 auto!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;padding:6px!important;border-radius:28px!important;background:color-mix(in srgb,var(--card) 78%,transparent)!important;-webkit-backdrop-filter:blur(22px) saturate(180%)!important;backdrop-filter:blur(22px) saturate(180%)!important;border:1px solid color-mix(in srgb,#fff 55%,transparent)!important;box-shadow:0 12px 32px rgba(17,24,39,.14),inset 0 1px 0 rgba(255,255,255,.5)!important}
+.nav button{min-height:50px!important;border-radius:22px!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nav{background:color-mix(in srgb,var(--card) 74%,transparent)!important;border-color:rgba(255,255,255,.09)!important;box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)!important}}
+:root[data-theme="dark"] .nav{background:color-mix(in srgb,var(--card) 74%,transparent)!important;border-color:rgba(255,255,255,.09)!important;box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)!important}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.nav{background:var(--card)!important}}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -1098,7 +1107,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t31';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t32';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
