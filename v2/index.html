@@ -1036,10 +1036,13 @@ html{overflow-x:clip}
 @media (prefers-reduced-motion:reduce){.dashConfetti{display:none}.celebrate .dashRing{animation:none}.dashRingFill{transition:none}}
 </style>
 <style id="planlyGlassNav">
-/* The tab bar floats above the page as frosted glass: inset from the edges, fully rounded, see-through with a blur, a
-   hairline edge and a soft shadow; the current tab sits on a soft pill. */
-.nav{left:12px!important;right:12px!important;width:auto!important;max-width:560px!important;margin:0 auto!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;padding:6px!important;border-radius:28px!important;background:color-mix(in srgb,var(--card) 78%,transparent)!important;-webkit-backdrop-filter:blur(22px) saturate(180%)!important;backdrop-filter:blur(22px) saturate(180%)!important;border:1px solid color-mix(in srgb,#fff 55%,transparent)!important;box-shadow:0 12px 32px rgba(17,24,39,.14),inset 0 1px 0 rgba(255,255,255,.5)!important}
-.nav button{min-height:50px!important;border-radius:22px!important}
+/* The tab bar is a compact glass capsule floating in the middle above the bottom edge (like Uber's): a fixed narrow
+   width, fully rounded ends, see-through with a blur, a hairline edge and a soft shadow; small icons and labels, the
+   current tab on a soft pill in its section colour. */
+.nav{left:50%!important;right:auto!important;transform:translateX(-50%)!important;width:min(calc(100% - 48px),300px)!important;max-width:none!important;margin:0!important;bottom:calc(14px + env(safe-area-inset-bottom))!important;padding:4px!important;border-radius:999px!important;background:color-mix(in srgb,var(--card) 78%,transparent)!important;-webkit-backdrop-filter:blur(22px) saturate(180%)!important;backdrop-filter:blur(22px) saturate(180%)!important;border:1px solid color-mix(in srgb,#fff 55%,transparent)!important;box-shadow:0 12px 32px rgba(17,24,39,.16),inset 0 1px 0 rgba(255,255,255,.5)!important}
+.nav button,.nav button.active,.nav button:hover:not(.active){min-height:46px!important;border-radius:999px!important;padding:4px 0 3px!important;gap:2px!important;font-size:10px!important}
+.nav .pIcon{width:21px!important;height:21px!important;padding:0!important;background:transparent!important}
+.nav button[data-section="today"].active{background:var(--todayTint)!important}.nav button[data-section="plan"].active{background:var(--planTint)!important}.nav button[data-section="home"].active{background:var(--homeTint)!important}.nav button[data-section="budget"].active{background:var(--budgetTint)!important}.nav button[data-section="fitness"].active{background:var(--fitnessTint)!important}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nav{background:color-mix(in srgb,var(--card) 74%,transparent)!important;border-color:rgba(255,255,255,.09)!important;box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)!important}}
 :root[data-theme="dark"] .nav{background:color-mix(in srgb,var(--card) 74%,transparent)!important;border-color:rgba(255,255,255,.09)!important;box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)!important}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.nav{background:var(--card)!important}}
