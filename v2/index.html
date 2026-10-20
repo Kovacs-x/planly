@@ -1043,6 +1043,9 @@ html{overflow-x:clip}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nav{background:color-mix(in srgb,var(--card) 74%,transparent)!important;border-color:rgba(255,255,255,.09)!important;box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)!important}}
 :root[data-theme="dark"] .nav{background:color-mix(in srgb,var(--card) 74%,transparent)!important;border-color:rgba(255,255,255,.09)!important;box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)!important}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.nav{background:var(--card)!important}}
+/* Nothing shows under the bar: a strip of the page's own background sits behind it, from just above the bar to the
+   screen edge, fading in at its top, so content scrolls away before it reaches the bar. */
+body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--planly-nav-h) + 40px + env(safe-area-inset-bottom));z-index:39;pointer-events:none;background:var(--bg);-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18px);mask-image:linear-gradient(to bottom,transparent 0,#000 18px)}
 </style>
 </head>
 <body>
