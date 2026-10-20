@@ -94,6 +94,8 @@ jobs:
         run: node tests/browser/lists-projects-typing.test.mjs
       - name: Polish — task actions sheet swipe and scroll lock, Settings typing, invite double tap (candidate)
         run: node tests/browser/polish.test.mjs
+      - name: Budget summary pills keep their text inside (candidate)
+        run: node tests/browser/stat-pills.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

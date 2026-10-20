@@ -1018,7 +1018,7 @@ html{overflow-x:clip}
 .dashHead strong{font-size:24px;font-weight:780;line-height:1.12}
 .dashCard .dashboardSummaryLine{margin:0;font-size:14px;color:var(--muted)}
 .dashStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.dashStat{border-radius:14px;padding:10px 4px;text-align:center;font-size:13px;font-weight:720;white-space:nowrap}
+.dashStat{border-radius:14px;padding:8px 6px;text-align:center;font-size:13px;font-weight:720;line-height:1.25;min-width:0;display:flex;align-items:center;justify-content:center;white-space:normal;text-wrap:balance;overflow-wrap:anywhere}
 .dashStat.open{background:var(--ringTrack,var(--todayTint))}.dashStat.late{background:var(--dashLate)}.dashStat.done{background:var(--dashDone)}
 .todayDashboard .dashCard.allDone,#view .dashCard.budgetHero.allDone,#view .dashCard.homeChoreCard.allDone{background:linear-gradient(150deg,var(--dashWin) 0%,var(--card) 64%)}
 #view .dashCard.budgetHero.allDone{background-image:linear-gradient(150deg,var(--dashWin) 0%,var(--card) 64%)!important}
@@ -1098,7 +1098,7 @@ html{overflow-x:clip}
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t30';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t31';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

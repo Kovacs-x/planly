@@ -1,6 +1,6 @@
-const CACHE='planly-v2-721t-148';
-const VERSION='planly-v2-sw-721t-148';
-const APP_URL='./app-v3.2.0.js?v=721t30';
+const CACHE='planly-v2-721t-149';
+const VERSION='planly-v2-sw-721t-149';
+const APP_URL='./app-v3.2.0.js?v=721t31';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p09';
 const CORE_BUILD_URL='./core-build-v3.3c.js?v=724w01';
