@@ -59,6 +59,7 @@ The tests use port 8765, so run one at a time.
 | `budget-income-edit.test.mjs` | Editing a Household income: after typing, ‹ Budget still goes back; Save changes goes back to Budget with the new amount and lets go of the field; Delete income goes back too. |
 | `task-undo.test.mjs` | Task Undo bar: ticking a task straight after a delete takes the bar away (no stuck, dead Undo); Undo of a delete or a move puts back only that task and keeps tasks saved since, on the phone and the server (the write waits while its Undo bar is up); a second Inbox pop-up stays tappable for its whole time. |
 | `budget-safety.test.mjs` | Budget: a double tap on a bill tick (Budget or Today), Edit payment's or Edit category's Save, a payment's Delete or Delete category saves once with no false "changed on another device"; a save finishing after leaving Budget does not draw over the other tab; tapping Budget on a category, Add payment or Edit income (even after typing) goes back to the Budget home; Manage's Create starts with an empty name. |
+| `lists-projects-typing.test.mjs` | Lists: after adding an item the field stays ready; a sync landing while typing keeps the typing and cursor; quick adds save once each; closing Lists returns Home to its scroll position. Projects: a New project name survives leaving the app and coming back. |
 
 CI: `.github/workflows/browser-tests.yml` runs these on every pull request that touches `v2/` or `tests/browser/`.
 On a pull request it also runs them against the base branch for comparison; that run is informational, not a gate.
