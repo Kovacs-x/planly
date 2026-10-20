@@ -26,6 +26,8 @@ renderStage('budget',baseRender=>function(){
   renderBudgetStable(view);
   refreshProjectsIfOpen();refreshTimelineIfOpen();refreshTaskActionsIfOpen();
 });
+window.PlanlyBudgetShown=()=>state.tab==='budget';
+document.addEventListener('click',e=>{if(state.tab==='budget'&&e.target.closest?.('.nav button[data-tab="budget"]'))window.PlanlyBudgetUI?.home?.()},true);
 window.addEventListener('planly-budget-scope-changed',()=>{document.documentElement.dataset.budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal'});
 window.addEventListener('planly:budget-invalidated',()=>{budgetInvalidated=true;if(state.tab==='budget')render()});
 })();
