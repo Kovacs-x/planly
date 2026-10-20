@@ -715,6 +715,7 @@ function showUndoToast(message,undo,finalize){
   const p={undo,finalize,timer:null,hold};
   p.timer=setTimeout(()=>{if(showUndoToast._pending!==p)return;showUndoToast._pending=null;el.classList.remove('show');try{finalize?.()}catch{}},5000);
   showUndoToast._pending=p;
+  if(hold)document.dispatchEvent(new CustomEvent('planly:sync-status'));
   button.onclick=()=>{if(showUndoToast._pending!==p)return;clearTimeout(p.timer);showUndoToast._pending=null;el.classList.remove('show');try{undo?.()}catch{}};
 }
 /* What an action changed, so its Undo puts back only those tasks (by owner and id) and leaves anything saved since. */

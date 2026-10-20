@@ -1,7 +1,8 @@
 // Task Undo bar and swipes: a finished Undo takes its bar away (deleting one task, then ticking another, used to leave
 // "Task deleted · Undo" stuck on screen with a dead Undo); Undo puts back only what that action changed, so a task saved
 // in the meantime stays; swiping a done task springs back; a swipe on someone else's private task does nothing; the
-// next "Saved to Inbox" pop-up stays tappable for its whole time.
+// next "Saved to Inbox" pop-up stays tappable for its whole time; online or offline, a write held for its Undo bar is
+// not counted as waiting.
 // Run: node tests/browser/task-undo.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER,PARTNER,HOUSEHOLD} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -64,6 +65,18 @@ check('a second Inbox pop-up straight after is still tappable while it shows (th
 await W(1200);
 const gone=await page.evaluate(()=>{const e=document.getElementById('planlyToast');return {pe:e?.style.pointerEvents,op:e?.style.opacity}});
 check('…and once it fades it no longer catches taps',gone.op==='0'&&gone.pe==='none',JSON.stringify(gone));
+
+// Offline: a delete held for its Undo bar is not counted as waiting until the bar ends
+await addTask('Offline one');await W(1500);
+db.offline=true;await context.setOffline(true);await W(400);
+await rowAct(await page.evaluate(()=>[...document.querySelectorAll('.task[data-id]')].find(r=>r.querySelector('.taskTitle')?.textContent==='Offline one')?.dataset.id),'delete');await W(600);
+const chipHeld=await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim());
+check('offline, while the Undo bar is up the held delete is not counted as waiting',(await bar()).show&&chipHeld==='Offline',JSON.stringify({chipHeld,bar:await bar()}));
+await W(5600);
+const chipAfter=await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim());
+check('…once the bar ends it is counted as waiting',!(await bar()).show&&/^Offline · 1 waiting$/.test(chipAfter),chipAfter);
+db.offline=false;await context.setOffline(false);await W(3000);
+check('…and back online it is sent and the label says Synced',db.tables.planly_tasks.some(r=>r.data?.title==='Offline one'&&r.deleted_at)&&(await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim()))==='Synced',await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim()));
 
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`\n${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
