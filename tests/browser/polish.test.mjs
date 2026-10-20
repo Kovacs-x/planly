@@ -1,6 +1,6 @@
 // Smaller fixes: typing in Settings (a calendar name) survives leaving the app and coming back; the task actions sheet
 // keeps the page behind in place, has no double blur, swipes down to close (no blur while dragging) and returns the
-// page to where it was; a double tap on "Create invitation link" sends one request.
+// page to where it was; a double tap on "Create invitation link" or "Create household" sends one request.
 // Run: node tests/browser/polish.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -55,6 +55,18 @@ const tapped=await page.evaluate(()=>{const b=document.getElementById('planlyCre
 await W(2500);
 const sent=db.log.filter(l=>l.rpc==='planly_create_household_invite').length-before;
 check('a double tap on "Create invitation link" sends one request',tapped&&sent===1,JSON.stringify({tapped,sent,dialogs}));
+
+// Double tap on "Create household" (a phone with no household yet)
+const db2=makeDb();db2.tables.planly_household_members=[];db2.tables.planly_households=[];db2.delays.planly_create_household=900;
+const p2=await newPhone(browser,db2,OWNER);const page2=await openApp(p2.context,p2.errors);page2.on('dialog',x=>x.accept());
+await page2.evaluate(()=>document.getElementById('profileToggle')?.click());await W(500);await page2.evaluate(()=>document.querySelector('[data-profile-household]')?.click());await W(1500);
+await page2.evaluate(()=>document.querySelectorAll('#view details').forEach(d=>d.open=true));await W(200);
+await page2.evaluate(()=>{const i=document.getElementById('planlyHouseholdName');if(i){i.value='Home';i.dispatchEvent(new Event('input',{bubbles:true}))}});
+const hhTapped=await page2.evaluate(()=>{const b=document.getElementById('planlyCreateHouseholdBtn');if(!b)return false;b.click();b.click();return true});
+await W(2500);
+const hhSent=db2.log.filter(l=>l.rpc==='planly_create_household').length;
+check('a double tap on "Create household" sends one request',hhTapped&&hhSent===1,JSON.stringify({hhTapped,hhSent}));
+errors.push(...p2.errors);
 
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`\n${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
