@@ -12,7 +12,7 @@ permissions:
 jobs:
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS: '1'
     steps:
