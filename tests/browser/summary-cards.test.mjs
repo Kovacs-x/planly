@@ -1,6 +1,6 @@
-// Budget and Home summary cards: the same ring card as Today. Budget shows how much of the month's payments is paid,
-// what is left to plan, and paid / to pay / due soon; Home shows this week's chores done, who has done what, and
-// to do / late / done. Each turns green with 🎉 when everything is done, and Home plays its confetti once a week.
+// Budget and Home summary cards. Budget shows what is left to plan, what is still to pay and how many are due soon, a
+// pace bar of how much is paid with today marked, and On track / All paid 🎉; Home shows the same ring card as Today
+// with this week's chores done, who has done what, and to do / late / done. Each turns green with 🎉 when everything is done, and Home plays its confetti once a week.
 // Run: node tests/browser/summary-cards.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER,PARTNER,HOUSEHOLD} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -26,16 +26,18 @@ const card=sel=>page.evaluate(sel=>{const c=document.querySelector(sel);if(!c)re
 
 // Budget
 await nav('budget');await W(2800);
-let b=await card('#view .budgetHero');
-check('Budget card: a ring of how much is paid (£900 of £1,000 planned = 90%)',b?.pct==='90'&&b.ring==='90%',JSON.stringify(b));
-check('…what is left to plan this month, of what comes in',/Left to plan · [A-Za-z]+ \d{4} £1,100\.00 of £2,100\.00 coming in/.test(b?.head||''),b?.head);
-check('…and paid / to pay / due soon',JSON.stringify(b?.stats)===JSON.stringify(['✅ £900 paid','⏳ £100 to pay',`📅 ${inMonth?1:0} due soon`]),JSON.stringify(b?.stats));
+const glance=()=>page.evaluate(()=>{const c=document.querySelector('#view .budgetHero');if(!c)return null;const p=c.querySelector('.budgetPace');return {all:c.classList.contains('allDone'),head:[...c.querySelectorAll('.budgetHeroLabel,.budgetHeroBalance,.budgetHeroIncome')].map(e=>e.innerText.trim()).join(' '),line:c.querySelector('.budgetGlanceLine')?.innerText.trim(),pace:p?.getAttribute('aria-valuenow'),fill:c.querySelector('.budgetPaceFill')?.style.width,today:!!c.querySelector('.budgetPaceToday'),paid:c.querySelector('.budgetPaceRow span')?.innerText.trim(),status:c.querySelector('.budgetPaceStatus')?.innerText.trim()}});
+let b=await glance();
+check('Budget card: what is left to plan this month, of what comes in',/Left to plan · [A-Za-z]+ \d{4} £1,100\.00 of £2,100\.00 coming in/.test(b?.head||''),b?.head);
+check('…what is still to pay and how many are due soon',b?.line===`⏳ £100 still to pay · ${inMonth?1:0} due soon`,b?.line);
+check('…a pace bar of how much is paid (£900 of £1,000 = 90%) with today marked',b?.pace==='90'&&b.fill==='90%'&&b.today&&b.paid==='£900.00 of £1,000.00 paid',JSON.stringify(b));
+check('…and On track while nothing is overdue',b?.status==='On track',b?.status);
 await page.evaluate(()=>document.querySelector('#view .budgetHero [data-act="allocation"]').click());await W(900);
 check('+ Payment opens Add payment',await page.evaluate(()=>!!document.getElementById('budgetAllocationForm')));
 await page.evaluate(()=>document.querySelector('[data-act="back"]').click());await W(900);
 await page.evaluate(()=>document.querySelector('[data-budget-paid="b1000000-0000-4000-8000-000000000002"]')?.click());await W(2200);
-b=await card('#view .budgetHero');
-check('paying the last payment turns the Budget card green with 🎉',b?.all&&b.ring==='🎉'&&b.pct==='100',JSON.stringify(b));
+b=await glance();
+check('paying the last payment fills the bar and says All paid 🎉',b?.all&&b.pace==='100'&&b.status==='All paid 🎉',JSON.stringify(b));
 
 // Home
 await nav('home');await W(2200);

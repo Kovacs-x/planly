@@ -1053,15 +1053,15 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 <style id="planlyBudgetGlance">
 /* Budget at a glance: one big, light number on a soft gradient in the space's colour (Me amber, Household violet), a
    pace bar with today's mark and an On track / overdue note; small capital section labels over soft list cards. */
-#view .budgetHero.budgetGlance{display:grid;gap:6px;padding:22px 20px 18px!important;border-radius:28px!important;background:radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--budget) 26%,transparent) 0,transparent 58%),linear-gradient(160deg,color-mix(in srgb,var(--budget) 24%,var(--card)) 0%,color-mix(in srgb,var(--budget) 9%,var(--card)) 55%,color-mix(in srgb,var(--budget) 3%,var(--card)) 100%)!important;box-shadow:0 18px 40px color-mix(in srgb,var(--budget) 16%,transparent)!important}
+#view .budgetHero.budgetGlance{container-type:inline-size;display:grid;gap:6px;padding:22px 20px 18px!important;border-radius:28px!important;background:radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--budget) 26%,transparent) 0,transparent 58%),linear-gradient(160deg,color-mix(in srgb,var(--budget) 24%,var(--card)) 0%,color-mix(in srgb,var(--budget) 9%,var(--card)) 55%,color-mix(in srgb,var(--budget) 3%,var(--card)) 100%)!important;box-shadow:0 18px 40px color-mix(in srgb,var(--budget) 16%,transparent)!important}
 #view .budgetGlance .budgetHeroLabel{font-size:13px;font-weight:650;color:var(--muted);letter-spacing:.01em}
-#view .budgetGlance .budgetHeroBalance{font-size:54px!important;font-weight:300;letter-spacing:-.035em;line-height:1!important;margin:2px 0;font-variant-numeric:tabular-nums}
+#view .budgetGlance .budgetHeroBalance{font-size:min(54px,17cqw)!important;white-space:nowrap;font-weight:300;letter-spacing:-.035em;line-height:1!important;margin:2px 0;font-variant-numeric:tabular-nums}
 #view .budgetGlance .budgetHeroIncome{font-size:15px;color:var(--muted)}
 #view .budgetGlance .budgetGlanceLine{font-size:14px;font-weight:650;margin-top:6px}
 .budgetPace{position:relative;height:8px;margin-top:14px;border-radius:99px;background:color-mix(in srgb,var(--budget) 16%,transparent)}
 .budgetPaceFill{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--budget);min-width:8px}
 .budgetPaceToday{position:absolute;top:-5px;width:3px;height:18px;margin-left:-1.5px;border-radius:2px;background:var(--text)}
-.budgetPaceRow{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-top:4px}
+.budgetPaceRow{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px 10px;font-size:13px;color:var(--muted);margin-top:4px}
 .budgetPaceStatus{font-weight:720;white-space:nowrap}
 .budgetPaceStatus.ok,.budgetPaceStatus.done{color:var(--success,#15945f)}
 .budgetPaceStatus.ok:before{content:"✓ ";font-weight:800}

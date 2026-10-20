@@ -1,5 +1,6 @@
-// The paid / to pay / due soon pills on the Budget summary keep their text inside the pill, at a normal and a narrow
-// phone width, with ordinary and very large amounts (they used to run past the pill's edge).
+// Summary pills (Today, Home, project page) keep long text inside the pill, and the Budget summary card keeps its big
+// figure, still-to-pay line and pace row inside the card, at a normal and a narrow phone width, with ordinary and very
+// large amounts (pill text used to run past the pill's edge).
 // Run: node tests/browser/stat-pills.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
 let pass=0,fail=0;const check=(n,c,d='')=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' — '+d));c?pass++:fail++};
@@ -14,8 +15,11 @@ db.tables.planly_budget_targets=[];db.tables.planly_budget_entries=entries;
 for(const width of [390,320]){
 const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp(context,errors);await page.setViewportSize({width,height:844});
 await page.evaluate(()=>document.querySelector('.nav button[data-tab="budget"]').click());await W(2500);
-const r=await page.evaluate(()=>[...document.querySelectorAll('.dashStat')].map(e=>{const b=e.getBoundingClientRect(),rng=document.createRange();rng.selectNodeContents(e);const t=rng.getBoundingClientRect();return {text:e.innerText.replace(/\n/g,' / '),fits:t.left>=b.left-0.5&&t.right<=b.right+0.5&&e.scrollWidth<=e.clientWidth,h:Math.round(b.height)}}));
-check(`${label==='big'?'very large':'ordinary'} amounts at ${width}px: every pill's text stays inside the pill`,r.length===3&&r.every(x=>x.fits),JSON.stringify(r));
+const card=await page.evaluate(()=>{const c=document.querySelector('#view .budgetHero');if(!c)return null;const b=c.getBoundingClientRect();return [...c.querySelectorAll('.budgetHeroBalance,.budgetGlanceLine,.budgetPaceRow span')].map(e=>{const r=document.createRange();r.selectNodeContents(e);const t=r.getBoundingClientRect();return {text:e.innerText,fits:t.left>=b.left-0.5&&t.right<=b.right+0.5}})});
+check(`${label==='big'?'very large':'ordinary'} amounts at ${width}px: the Budget card's figure, line and pace row stay inside the card`,!!card&&card.length>=4&&card.every(x=>x.fits),JSON.stringify(card));
+await page.evaluate(()=>{const v=document.getElementById('view');v.insertAdjacentHTML('afterbegin','<div class="dashStats" id="pillProbe" style="margin:12px"><span class="dashStat done">✅ £12,346 paid</span><span class="dashStat late">⏳ £98,765 to pay</span><span class="dashStat open">📅 12 due soon</span></div>')});
+const r=await page.evaluate(()=>[...document.querySelectorAll('#pillProbe .dashStat')].map(e=>{const b=e.getBoundingClientRect(),rng=document.createRange();rng.selectNodeContents(e);const t=rng.getBoundingClientRect();return {text:e.innerText.replace(/\n/g,' / '),fits:t.left>=b.left-0.5&&t.right<=b.right+0.5&&e.scrollWidth<=e.clientWidth,h:Math.round(b.height)}}));
+check(`long pill text at ${width}px (${label}): every pill's text stays inside the pill`,r.length===3&&r.every(x=>x.fits),JSON.stringify(r));
 check(`…the three pills are the same height (${label}, ${width}px)`,new Set(r.map(x=>x.h)).size===1,JSON.stringify(r));
 check(`…no page errors (${label}, ${width}px)`,errors.length===0,errors.slice(0,2).join(' | '));
 await context.close()}}

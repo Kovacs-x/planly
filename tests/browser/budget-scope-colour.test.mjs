@@ -1,5 +1,5 @@
 // Me and Household look different: on the Budget tab, Me keeps the Budget amber and Household turns violet (the selected
-// tab, + Payment, the summary card's top line and the chips inside), and the title's Personal / Household label is a
+// tab, + Payment, the summary card's soft gradient and the chips inside), and the title's Personal / Household label is a
 // coloured badge with a person or house icon. Off the Budget tab nothing changes.
 // Run: node tests/browser/budget-scope-colour.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER,HOUSEHOLD} from './harness.mjs';
@@ -16,18 +16,18 @@ const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp
 const click=sel=>page.evaluate(sel=>{const e=document.querySelector(sel);e?.click();return !!e},sel);
 const look=()=>page.evaluate(()=>{const cs=(sel,p)=>{const e=document.querySelector(sel);return e?getComputedStyle(e)[p]:''};
   const eb=document.getElementById('eyebrow'),mask=eb?getComputedStyle(eb,'::before').webkitMaskImage||getComputedStyle(eb,'::before').maskImage:'';
-  return {badge:eb?.textContent||'',badgeBg:eb?getComputedStyle(eb).backgroundColor:'',badgeColor:eb?getComputedStyle(eb).color:'',icon:/circle/.test(decodeURIComponent(mask))?'person':/M3 11l9-7/.test(decodeURIComponent(mask))?'house':'none',pay:cs('[data-act="allocation"]','backgroundColor'),tab:cs('[data-budget-scope].active','color'),hero:cs('.budgetHero','boxShadow'),nav:cs('.nav button[data-section="budget"] .pIcon','color')}});
+  return {badge:eb?.textContent||'',badgeBg:eb?getComputedStyle(eb).backgroundColor:'',badgeColor:eb?getComputedStyle(eb).color:'',icon:/circle/.test(decodeURIComponent(mask))?'person':/M3 11l9-7/.test(decodeURIComponent(mask))?'house':'none',pay:cs('[data-act="allocation"]','backgroundColor'),tab:cs('[data-budget-scope].active','color'),hero:cs('.budgetHero','backgroundImage'),heroInk:(()=>{const h=document.querySelector('.budgetHero');if(!h)return '';const c=document.createElement('i');c.style.color='var(--budget)';h.appendChild(c);const v=getComputedStyle(c).color;c.remove();return v})(),nav:cs('.nav button[data-section="budget"] .pIcon','color')}});
 const is=(c,set)=>set.includes(c);
 
 await click('.nav button[data-section="budget"]');await W(2500);
 let s=await look();
 check('Me: + Payment and the selected tab are amber',is(s.pay,AMBER)&&is(s.tab,AMBER),JSON.stringify(s));
 check('Me: the title badge says Personal, amber, with a person icon',s.badge==='Personal'&&is(s.badgeColor,AMBER)&&s.icon==='person'&&s.badgeBg!=='rgba(0, 0, 0, 0)',JSON.stringify(s));
-check('Me: no top line on the summary card',!VIOLET.some(v=>s.hero.includes(v))&&!AMBER.some(v=>s.hero.includes(v)),s.hero);
+check('Me: the summary card is a soft amber gradient',/gradient/.test(s.hero)&&is(s.heroInk,AMBER),JSON.stringify({hero:s.hero.slice(0,80),ink:s.heroInk}));
 await click('[data-budget-scope="household"]');await W(2500);s=await look();
 check('Household: + Payment and the selected tab are violet',is(s.pay,VIOLET)&&is(s.tab,VIOLET),JSON.stringify(s));
 check('Household: the title badge says Household, violet, with a house icon',s.badge==='Household'&&is(s.badgeColor,VIOLET)&&s.icon==='house',JSON.stringify(s));
-check('Household: the summary card has a violet top line',VIOLET.some(v=>s.hero.includes(v)),s.hero);
+check('Household: the summary card is a soft violet gradient',/gradient/.test(s.hero)&&is(s.heroInk,VIOLET),JSON.stringify({hero:s.hero.slice(0,80),ink:s.heroInk}));
 await click('[data-act="allocation"]');await W(1000);await click('[data-due="15"]');await W(300);
 const chip=await page.evaluate(()=>getComputedStyle(document.querySelector('[data-due="15"]')).color);
 check('Household: a chosen chip inside is violet too',is(chip,VIOLET),chip);
