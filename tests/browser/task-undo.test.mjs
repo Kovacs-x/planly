@@ -34,8 +34,8 @@ check('…the delete and the tick both reach the server',!!serverRow('a')?.delet
 // 2. Delete, add a new task, then Undo: the deleted task returns and the new one stays
 await rowAct('c','delete');await W(400);
 await addTask('Brand new');
-const chip=await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim());
-check('while the Undo bar is up, the sync status does not say offline or not saved',!/offline|not saved|retry/i.test(chip),chip);
+await W(1000);const chip=await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim());
+check('while the Undo bar is up, the sync label still says Synced (the held delete is not shown as waiting)',chip==='Synced'&&(await bar()).show,JSON.stringify({chip,bar:await bar()}));
 check('saving a new task during the Undo window keeps the Undo bar for the delete',(await bar()).show&&(await bar()).text==='Task deleted',JSON.stringify(await bar()));
 await page.evaluate(()=>document.querySelector('#planlyUndoToast .undoButton').click());await W(1200);
 let t=await titles();
