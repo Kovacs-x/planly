@@ -92,6 +92,8 @@ jobs:
         run: node tests/browser/budget-safety.test.mjs
       - name: Lists and Projects keep typing, single saves, scroll position (candidate)
         run: node tests/browser/lists-projects-typing.test.mjs
+      - name: Polish — task actions sheet swipe and scroll lock, Settings typing, invite double tap (candidate)
+        run: node tests/browser/polish.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

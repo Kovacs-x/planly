@@ -69,4 +69,11 @@ window.PlanlyR1={renderHome:()=>{if(state.tab==='home')render()},choosePlanSegme
    Runs in capture before the tab handlers, then resets in the next frame (before paint) after their synchronous render. */
 function planlyScrollTop(smooth){const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;if(smooth&&!reduce){window.scrollTo({top:0,left:0,behavior:'smooth'});return}const top=()=>{if((window.scrollY||document.scrollingElement?.scrollTop||0)>0)window.scrollTo({top:0,left:0,behavior:'auto'})};top();requestAnimationFrame(()=>{top();requestAnimationFrame(top)})}
 document.addEventListener('click',e=>{const b=e.target.closest?.('.nav button[data-section]');if(!b)return;const same=b.dataset.section===sectionForTab(state.tab);requestAnimationFrame(()=>planlyScrollTop(same))},true);
+/* Settings: what is typed into a field (a calendar name or link, an invite email, a new name) survives a redraw that
+   nobody asked for (coming back to the app, a sync); tapping a button or sending a form uses it up. */
+const settingsTyping=new Map();
+document.addEventListener('input',e=>{const el=e.target;if(state.tab!=='settings'||!el?.id||!el.closest?.('#view')||!/^(INPUT|TEXTAREA)$/.test(el.tagName)||/checkbox|radio|file|hidden/.test(el.type))return;settingsTyping.set(el.id,el.value)},true);
+document.addEventListener('click',e=>{if(e.target.closest?.('#view button,.nav button'))settingsTyping.clear()},true);
+document.addEventListener('submit',()=>settingsTyping.clear(),true);
+renderStage('settings-typing',baseRender=>function(){if(state.tab!=='settings'){settingsTyping.clear();return baseRender.apply(this,arguments)}if(!settingsTyping.size)return baseRender.apply(this,arguments);const focus=document.activeElement?.id||'',open=[...document.querySelectorAll('#view details[id][open]')].map(d=>d.id),result=baseRender.apply(this,arguments);for(const id of open){const d=document.getElementById(id);if(d&&[...settingsTyping.keys()].some(k=>d.querySelector('#'+CSS.escape(k))))d.open=true}for(const [id,value] of settingsTyping){const el=document.getElementById(id);if(el?.closest('#view'))el.value=value}if(focus&&settingsTyping.has(focus))document.getElementById(focus)?.focus({preventScroll:true});return result});
 })();
