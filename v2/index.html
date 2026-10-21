@@ -467,10 +467,10 @@ body.welcomeOpen{overflow:hidden}
 /* Budget is amber so it stands apart from Home's green (was teal #0f766e / #76d5cb). Light #B45309 on tint #FFF3DC 4.57:1, on white 5.02:1; dark #FBBF24 on tint #3A2A10 8.28:1. */
 :root{--budget:#B45309;--budgetTint:#FFF3DC}
 :root[data-theme="dark"]{--budget:#FBBF24;--budgetTint:#3A2A10}
-/* Household Budget is violet (Planly's shared colour) so you can tell it from Me at a glance. Only while the Budget tab is open.
-   Light #5540B8 on tint #F1EDFF 7.3:1; dark #A18CF2 on tint #282142 6.3:1. */
-:root[data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--budget:#5540B8;--budgetTint:#F1EDFF;--sec:#5540B8;--secTint:#F1EDFF}
-:root[data-theme="dark"][data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--budget:#A18CF2;--budgetTint:#282142;--sec:#A18CF2;--secTint:#282142}
+/* Household Budget is rose so you can tell it from Me (amber), Today (blue) and Plan (violet) at a glance. Only while the
+   Budget tab is open. Light #B4235A on tint #FFE8F0 5.4:1, on white 6.3:1; dark #FF8FB5 on tint #3A1A28 7.3:1. */
+:root[data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--budget:#B4235A;--budgetTint:#FFE8F0;--sec:#B4235A;--secTint:#FFE8F0}
+:root[data-theme="dark"][data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--budget:#FF8FB5;--budgetTint:#3A1A28;--sec:#FF8FB5;--secTint:#3A1A28}
 :root[data-budget-scope="household"] body:has(.nav [data-section="budget"].active) .budgetHero{box-shadow:inset 0 3px 0 var(--budget)!important}
 /* The Budget title's Personal / Household label is a coloured badge with an icon (a person for Me, a house for Household). */
 body:has(.nav [data-section="budget"].active) #eyebrow{display:inline-flex;align-items:center;gap:5px;width:auto;background:var(--budgetTint);color:var(--budget);border-radius:999px;padding:3px 10px 3px 8px;font-weight:700;letter-spacing:0;text-transform:none}
@@ -814,41 +814,40 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 @media (prefers-reduced-motion:no-preference){.fitScanFrame span{animation:fitScanLine 1.8s ease-in-out infinite alternate}@keyframes fitScanLine{from{top:18%}to{top:82%}}}
 </style>
 <style id="planlyLookBand">
-/* Look: a soft colour glow behind every screen, and a band in the section's colour behind the page title. Both sit
+/* Look: a soft colour glow behind every screen, and a light wash in the section's own colour behind the page title, which
+   is written in that colour (Today blue, Plan violet, Home green, Budget amber, Household rose, Fitness teal). Both sit
    behind everything (z-index -1, no new stacking context), so no screen, sheet or overlay changes stacking. */
-:root{--band1:#2f4fd0;--band2:#5a3fc8;--glow1:#d9e1ff;--glow2:#f3e1ff;--glow3:#ddf3e8}
-:root[data-theme="dark"]{--band1:#26338a;--band2:#3f2a8c;--glow1:rgba(91,116,255,.20);--glow2:rgba(255,92,150,.12);--glow3:rgba(64,180,255,.11)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--band1:#26338a;--band2:#3f2a8c;--glow1:rgba(91,116,255,.20);--glow2:rgba(255,92,150,.12);--glow3:rgba(64,180,255,.11)}}
-body:has(.nav [data-section="plan"].active){--band1:#5a3fc8;--band2:#7a4fd8}
-body:has(.nav [data-section="home"].active){--band1:#1b7a4c;--band2:#2a9461}
-body:has(.nav [data-section="budget"].active){--band1:#a84b07;--band2:#c86a0c}
-:root[data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#5540B8;--band2:#7458d6}
-body:has(.nav [data-section="fitness"].active){--band1:#17738c;--band2:#2591aa}
-body:has(.nav [data-section="settings"].active){--band1:#4d5360;--band2:#6b7280}
-:root[data-theme="dark"] body:has(.nav [data-section="plan"].active){--band1:#3d2a8f;--band2:#55389e}
-:root[data-theme="dark"] body:has(.nav [data-section="home"].active){--band1:#145a39;--band2:#1d6f48}
-:root[data-theme="dark"] body:has(.nav [data-section="budget"].active){--band1:#7a3806;--band2:#94500a}
-:root[data-theme="dark"][data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#3d2d8a;--band2:#53409f}
-:root[data-theme="dark"] body:has(.nav [data-section="fitness"].active){--band1:#10586b;--band2:#187085}
-:root[data-theme="dark"] body:has(.nav [data-section="settings"].active){--band1:#33373f;--band2:#454a55}
-/* the same deeper bands when the phone is in dark mode and Planly has no theme of its own yet */
+:root{--band1:#2f4fd0;--wash:#dce5ff;--glow2:#f3e1ff;--glow3:#ddf3e8}
+:root[data-theme="dark"]{--band1:#9eb0ff;--wash:#1c2552;--glow2:rgba(255,92,150,.12);--glow3:rgba(64,180,255,.11)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--band1:#9eb0ff;--wash:#1c2552;--glow2:rgba(255,92,150,.12);--glow3:rgba(64,180,255,.11)}}
+body:has(.nav [data-section="plan"].active){--band1:#5a3fc8;--wash:#ebe2ff}
+body:has(.nav [data-section="home"].active){--band1:#1b7a4c;--wash:#d8f1e3}
+body:has(.nav [data-section="budget"].active){--band1:#a84b07;--wash:#ffe7cc}
+:root[data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#b4235a;--wash:#ffdfea}
+body:has(.nav [data-section="fitness"].active){--band1:#17738c;--wash:#d6f0f6}
+body:has(.nav [data-section="settings"].active){--band1:#4d5360;--wash:#e7e9ee}
+:root[data-theme="dark"] body:has(.nav [data-section="plan"].active){--band1:#b7a6ff;--wash:#2b2058}
+:root[data-theme="dark"] body:has(.nav [data-section="home"].active){--band1:#7ed3a6;--wash:#12382a}
+:root[data-theme="dark"] body:has(.nav [data-section="budget"].active){--band1:#fbbf24;--wash:#3d2a0c}
+:root[data-theme="dark"][data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#ff8fb5;--wash:#43172b}
+:root[data-theme="dark"] body:has(.nav [data-section="fitness"].active){--band1:#74d0e6;--wash:#0f3540}
+:root[data-theme="dark"] body:has(.nav [data-section="settings"].active){--band1:#c1c6d0;--wash:#262a31}
+/* the same when the phone is in dark mode and Planly has no theme of its own yet */
 @media (prefers-color-scheme:dark){
-:root:not([data-theme="light"]) body:has(.nav [data-section="plan"].active){--band1:#3d2a8f;--band2:#55389e}
-:root:not([data-theme="light"]) body:has(.nav [data-section="home"].active){--band1:#145a39;--band2:#1d6f48}
-:root:not([data-theme="light"]) body:has(.nav [data-section="budget"].active){--band1:#7a3806;--band2:#94500a}
-:root:not([data-theme="light"])[data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#3d2d8a;--band2:#53409f}
-:root:not([data-theme="light"]) body:has(.nav [data-section="fitness"].active){--band1:#10586b;--band2:#187085}
-:root:not([data-theme="light"]) body:has(.nav [data-section="settings"].active){--band1:#33373f;--band2:#454a55}
+:root:not([data-theme="light"]) body:has(.nav [data-section="plan"].active){--band1:#b7a6ff;--wash:#2b2058}
+:root:not([data-theme="light"]) body:has(.nav [data-section="home"].active){--band1:#7ed3a6;--wash:#12382a}
+:root:not([data-theme="light"]) body:has(.nav [data-section="budget"].active){--band1:#fbbf24;--wash:#3d2a0c}
+:root:not([data-theme="light"])[data-budget-scope="household"] body:has(.nav [data-section="budget"].active){--band1:#ff8fb5;--wash:#43172b}
+:root:not([data-theme="light"]) body:has(.nav [data-section="fitness"].active){--band1:#74d0e6;--wash:#0f3540}
+:root:not([data-theme="light"]) body:has(.nav [data-section="settings"].active){--band1:#c1c6d0;--wash:#262a31}
 }
 html body{background:transparent}
-body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 88% 4%,var(--glow1) 0,transparent 46%),radial-gradient(circle at 0% 46%,var(--glow2) 0,transparent 44%),radial-gradient(circle at 100% 92%,var(--glow3) 0,transparent 42%)}
-/* the band hangs from the header (whatever sits above it) down into the top of the first card */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 88% 4%,var(--wash) 0,transparent 46%),radial-gradient(circle at 0% 46%,var(--glow2) 0,transparent 44%),radial-gradient(circle at 100% 92%,var(--glow3) 0,transparent 42%)}
+/* the wash hangs from the very top (whatever sits above the header) and fades out just below the title */
 html{overflow-x:clip}
 .topbar{position:relative}
-.topbar::before{content:"";position:absolute;left:calc(50% - 50vw);width:100vw;top:-100vh;bottom:-46px;z-index:-1;pointer-events:none;background:linear-gradient(160deg,var(--band1),var(--band2));border-radius:0 0 30px 30px}
-.topbar #pageTitle,.topbar .title{color:#fff}
-.topbar .eyebrow{color:rgba(255,255,255,.86)}
-.topbar .syncChip{color:rgba(255,255,255,.92)}
+.topbar::before{content:"";position:absolute;left:calc(50% - 50vw);width:100vw;top:-100vh;bottom:-34px;z-index:-1;pointer-events:none;background:linear-gradient(to top,transparent 0,var(--wash) 72px);border-radius:0}
+.topbar #pageTitle,.topbar .title{color:var(--band1)}
 </style>
 <style id="planlyProjectPage">
 /* Project page: a band in the project's colour behind its header, emoji and "why"; a ring card; quick add; momentum */
@@ -1011,7 +1010,13 @@ html{overflow-x:clip}
 .dashRing{position:relative;flex:0 0 84px;width:84px;height:84px}
 .dashRing svg{display:block;width:84px;height:84px}
 .dashRingTrack{fill:none;stroke:var(--ringTrack,var(--todayTint));stroke-width:9}
-.dashRingFill{fill:none;stroke:var(--ringInk,var(--today));stroke-width:9;stroke-linecap:round;transition:stroke-dasharray .6s ease}
+.dashRingFill{fill:none;stroke:var(--ringInk,var(--today));stroke-width:9;stroke-linecap:round;transition:stroke-dasharray .65s cubic-bezier(.33,1,.68,1),stroke .35s ease}
+.dashRingTrack{transition:stroke .35s ease}
+/* at 0% the ring is empty: no dot from the rounded line end */
+.dashRingFill[stroke-dasharray^="0 "]:not([style]){stroke-opacity:0}
+/* while Today's ring is still filling to 100% it keeps its colour and holds the 🎉, the pop and the confetti until it gets there */
+.ringFilling.allDone .dashRingTrack{stroke:var(--ringTrack,var(--todayTint))}.ringFilling.allDone .dashRingFill{stroke:var(--ringInk,var(--today))}
+.ringFilling.allDone .dashRingText{font-size:19px}.ringFilling .dashConfetti{display:none}.celebrate.ringFilling .dashRing{animation:none}
 .dashRingText{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:780}
 .dashHead{display:grid;gap:3px;min-width:0}
 .dashEyebrow{font-size:13px;font-weight:650;color:var(--muted)}
@@ -1138,7 +1143,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t33';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t34';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
