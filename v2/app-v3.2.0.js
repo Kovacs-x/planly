@@ -719,7 +719,7 @@ function showUndoToast(message,undo,finalize){
   if(PLANLY_SILENT_UNDO.test(String(message||''))){try{finalize?.()}catch{}return}
   let el=document.getElementById('planlyUndoToast');
   if(!el){el=document.createElement('div');el.id='planlyUndoToast';el.className='undoToast';const label=document.createElement('span');label.className='undoLabel';const button=document.createElement('button');button.type='button';button.className='undoButton';button.textContent='Undo';el.append(label,button);document.body.appendChild(el)}
-  el.querySelector('.undoLabel').textContent=message;const button=el.querySelector('.undoButton');el.classList.add('show');
+  el.querySelector('.undoLabel').textContent=message;const button=el.querySelector('.undoButton');el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
   const p={undo,finalize,timer:null,hold};
   p.timer=setTimeout(()=>{if(showUndoToast._pending!==p)return;showUndoToast._pending=null;el.classList.remove('show');try{finalize?.()}catch{}},3000);
   showUndoToast._pending=p;

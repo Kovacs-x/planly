@@ -160,6 +160,10 @@ for(const x of ['function todayDeadlinesHtml(){','class="dashboardHero dashboard
 for(const x of ['class="dashboardHero dashboardCompact dashCard','class="dashRing" role="progressbar"','<span class="dashStat open">','planlyCelebrateUntil=Date.now()+4000','const target=allDone?220:dash,ring=planlyRingFrom(target),filling=ring.from!==target;','function planlyRingFill(run,from,target){'])if(!app.includes(x))fail('Today card invariant missing: '+x);
 if(!read('v2/index.html').includes('@media (prefers-reduced-motion:reduce){.dashConfetti{display:none}'))fail('Today confetti must respect reduced motion');
 if(!read('v2/index.html').includes('.ringFilling .dashConfetti{display:none}'))fail('Today ring must fill to the end before the confetti');
+// The Undo bar is glass like the tab bar and sits beside the + button; it stays 3 seconds.
+{const h=read('v2/index.html'),g=h.indexOf('<style id="planlyUndoGlass">');if(g<0||g<h.indexOf('<style id="planlyGlassNav">'))fail('Undo bar glass style missing or before the tab bar style');
+ for(const x of ['.undoToast{left:16px;right:88px;','bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom))','.undoToast.show::after{animation:undoTimeLeft 3s linear both}'])if(!h.includes(x))fail('Undo bar rule missing: '+x);
+ if(!read('v2/app-v3.2.0.js').includes("try{finalize?.()}catch{}},3000);"))fail('Undo bar must stay 3 seconds (and match its time-left line)')}
 if(!read('v2/index.html').includes('<style id="planlyRefineC">'))fail('refine stage C styles missing');}
 // Impeccable stage D: one design vocabulary (header, primary/secondary/quiet buttons, selected state, overlays), recorded in DESIGN.md.
 {const html=read('v2/index.html'),i=html.indexOf('<style id="planlyRefineD">');if(i<0)fail('refine stage D styles missing');else{const css=html.slice(i,html.indexOf('</style>',i));

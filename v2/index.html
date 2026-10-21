@@ -1055,6 +1055,23 @@ html{overflow-x:clip}
    screen edge, fading in at its top, so content scrolls away before it reaches the bar. */
 body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--planly-nav-h) + 40px + env(safe-area-inset-bottom));z-index:39;pointer-events:none;background:var(--bg);-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18px);mask-image:linear-gradient(to bottom,transparent 0,#000 18px)}
 </style>
+<style id="planlyUndoGlass">
+/* The Undo bar is frosted glass like the tab bar: a rounded card in the page's colours that sits beside the + button
+   (never over it), with Undo as a pill in the section's colour and a thin line that runs down for the time left. */
+.undoToast{left:16px;right:88px;width:auto;max-width:360px;bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom));transform:translateY(12px);min-height:56px;box-sizing:border-box;gap:10px;padding:6px 6px 6px 18px;border-radius:999px;overflow:hidden;
+  background:color-mix(in srgb,var(--card) 95%,transparent);color:var(--text);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);box-shadow:0 10px 30px rgba(20,24,40,.14),0 1px 2px rgba(20,24,40,.06)}
+.undoToast.show{transform:translateY(0);box-shadow:0 10px 30px rgba(20,24,40,.14),0 1px 2px rgba(20,24,40,.06)}
+.undoLabel{font-size:14px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.undoButton{flex:none;display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:0 16px;border-radius:999px;background:var(--secTint,var(--todayTint));color:var(--sec,var(--today));font-size:14px;font-weight:800;text-decoration:none}
+.undoButton::before{content:"↺";font-size:16px;line-height:1}
+.undoButton:active{transform:scale(.96)}
+.undoToast::after{content:"";position:absolute;left:18px;right:18px;bottom:0;height:2px;border-radius:2px;background:var(--sec,var(--today));opacity:.55;transform-origin:left;transform:scaleX(0)}
+.undoToast.show::after{animation:undoTimeLeft 3s linear both}
+@keyframes undoTimeLeft{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+:root[data-theme="dark"] .undoToast,:root[data-theme="dark"] .undoToast.show{box-shadow:0 10px 30px rgba(0,0,0,.45)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.undoToast{background:var(--card)}}
+@media (prefers-reduced-motion:reduce){.undoToast.show::after{animation:none;transform:scaleX(0)}}
+</style>
 <style id="planlyBudgetGlance">
 /* Budget at a glance: one big, light number on a soft gradient in the space's colour (Me amber, Household violet), a
    pace bar with today's mark and an On track / overdue note; small capital section labels over soft list cards. */
