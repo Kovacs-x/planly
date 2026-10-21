@@ -1097,6 +1097,20 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .budgetPaceStatus.behind,:root:not([data-theme="light"]) .budgetDueIn.soon{color:#fbbf24}}
 :root[data-theme="dark"] .budgetPaceStatus.behind,:root[data-theme="dark"] .budgetDueIn.soon{color:#fbbf24}
 </style>
+<style id="planlyBudgetFolds">
+/* Budget's Coming up, Categories and Money in open and close (like the chores on Home): the whole header row is the
+   button, a closed one shows how many and how much, and the chevron turns when it opens. */
+#view .budgetFoldHead{margin:-6px -4px 0;gap:6px}
+#view .budgetFoldToggle{flex:1;min-width:0;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0;padding:0 4px;border:0;background:transparent;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#view .budgetFoldSummary{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+#view .budgetFoldChevron{display:inline-block;font-size:20px;line-height:1;color:var(--muted);transition:transform .2s ease}
+#view .budgetFoldToggle[aria-expanded="true"] .budgetFoldChevron{transform:rotate(90deg)}
+#view .budgetFoldToggle[aria-expanded="false"]~.budgetLink{display:none}
+#view .budgetFoldCard:has(.budgetFoldToggle[aria-expanded="false"]){padding-bottom:10px!important}
+#view .budgetFoldCard:has(.budgetFoldToggle[aria-expanded="false"]) .budgetFoldHead{margin-bottom:0}
+#view .budgetFoldBody[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){#view .budgetFoldChevron{transition:none}}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -1160,7 +1174,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t35';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t36';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
