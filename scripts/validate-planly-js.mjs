@@ -76,7 +76,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r06'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-153'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-154'"))fail('R1 cache marker mismatch');
 // Household Budget is rose, Me amber: the Budget tab marks the scope on <html> and the colours follow it (Budget tab only).
 {const nav=read('v2/core-budget-nav-v4.0b1.js'),html=read('v2/index.html');
  if(!nav.includes("const budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal';document.documentElement.dataset.budgetScope=budgetScope;")||!nav.includes("window.addEventListener('planly-budget-scope-changed',"))fail('Budget scope colour: the Budget tab must mark its scope');
@@ -99,7 +99,7 @@ for(const x of ["async function reconcilePlanlyConflictGoogle(task,duplicateEven
 for(const x of ["function settlePlanlyPendingWrite(kind,id,mark,version,written=null)","settlePlanlyPendingWrite('task',id,mark,data.cloud_version,t);clearPlanlyConflict('task',id);return data}","planlyCloudSyncMeta.tasks.set(id,Number(data.cloud_version));settlePlanlyPendingWrite('task',id,mark,data.cloud_version,t);return data}","edits:Number(existing?.edits||0)+1","settlePlanlyPendingWrite('project',id,mark,data.cloud_version,p);clearPlanlyConflict('project',id);return data}","planlyCloudSyncMeta.projects.set(id,Number(data.cloud_version));settlePlanlyPendingWrite('project',id,mark,data.cloud_version,p);return data}","updatePlanlyPendingWrite(kind,id,{baseVersion:Number(version),baseData:written?JSON.parse(JSON.stringify(written)):null,status:'queued'})"])if(!app.includes(x))fail('in-flight task edit must stay queued: '+x.slice(0,70));
 // Budget categories: "+ Create category" straight from the Budget screen; Add payment / Add income never dead-end without a category.
 {const ui=read('v2/core-budget-ui-v4.0b.js');
-for(const x of ['data-act="create-category" data-kind="expense">+ Create category</button>',"${d.cats.length?'<button class=\"budgetLink\" data-act=\"manage\">Edit</button>':''}".replace(/\\"/g,'"'),'function createCategoryView()','id="budgetCategoryCreateForm"',
+for(const x of ['data-act="create-category" data-kind="expense">+ Create category</button>',"d.cats.length?'<button class=\"budgetLink\" data-act=\"manage\">Edit</button>':''".replace(/\\"/g,'"'),"foldHead('cats','Categories',",'function createCategoryView()','id="budgetCategoryCreateForm"',
  'id="allocNewCategory"',"chosen=d.a.addCategory({name:newCat.value,kind:'expense'",'id="incomeNewCategory"',"cat=d.a.addCategory({name:newCat.value,kind:'income'","else if(mode==='create-category')createCategoryView();"])if(!ui.includes(x))fail('Budget category flow invariant missing: '+x.slice(0,70));
 // Every Budget page change goes through navigate()/swapView() so the scroll module returns to the top (no mid-page carry-over).
 for(const x of ["selectedCategory=chosen;navigate('category',()=>categoryView(chosen))","navigate('dashboard',dashboard)};rendered()}","selectedCategory='';navigate('dashboard',dashboard)","function swapView(from,to,fn)","swapView(mode,'edit-payment',","swapView(mode,'edit-category',","swapView('edit-payment','category',","swapView('edit-category','category',","const from=mode;mode='dashboard';dashboard();if(from!=='dashboard')emitViewChange(from);return}"])if(!ui.includes(x))fail('Budget page change must reset scroll: '+x.slice(0,60));
@@ -160,6 +160,8 @@ for(const x of ['function todayDeadlinesHtml(){','class="dashboardHero dashboard
 for(const x of ['class="dashboardHero dashboardCompact dashCard','class="dashRing" role="progressbar"','<span class="dashStat open">','planlyCelebrateUntil=Date.now()+4000','const target=allDone?220:dash,ring=planlyRingFrom(target),filling=ring.from!==target;','function planlyRingFill(run,from,target){'])if(!app.includes(x))fail('Today card invariant missing: '+x);
 if(!read('v2/index.html').includes('@media (prefers-reduced-motion:reduce){.dashConfetti{display:none}'))fail('Today confetti must respect reduced motion');
 if(!read('v2/index.html').includes('.ringFilling .dashConfetti{display:none}'))fail('Today ring must fill to the end before the confetti');
+// Budget's Coming up, Categories and Money in open and close like the chores on Home, remembered per phone.
+{const ui=read('v2/core-budget-ui-v4.0b.js');for(const x of ["const BUDGET_FOLD_KEY='planly-budget-fold-v1',BUDGET_FOLD_DEFAULT={coming:false,cats:true,income:false};","foldHead('coming','Coming up',","foldHead('income','Money in',",'data-budget-fold="${k}" aria-expanded="${open}"'])if(!ui.includes(x))fail('Budget fold missing: '+x);if(!read('v2/index.html').includes('<style id="planlyBudgetFolds">'))fail('Budget fold style missing')}
 // The Undo bar is glass like the tab bar and sits beside the + button; it stays 3 seconds.
 {const h=read('v2/index.html'),g=h.indexOf('<style id="planlyUndoGlass">');if(g<0||g<h.indexOf('<style id="planlyGlassNav">'))fail('Undo bar glass style missing or before the tab bar style');
  for(const x of ['.undoToast{left:16px;right:88px;','bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom))','.undoToast.show::after{animation:undoTimeLeft 3s linear both}'])if(!h.includes(x))fail('Undo bar rule missing: '+x);
@@ -255,7 +257,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t35'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t36'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i04')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 

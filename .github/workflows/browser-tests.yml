@@ -102,6 +102,8 @@ jobs:
         run: node tests/browser/budget-glance.test.mjs
       - name: Today ring fills smoothly, then celebrates (candidate)
         run: node tests/browser/ring-fill.test.mjs
+      - name: Budget sections open and close (candidate)
+        run: node tests/browser/budget-folds.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
