@@ -98,6 +98,8 @@ jobs:
         run: node tests/browser/stat-pills.test.mjs
       - name: Glass tab bar floats with nothing showing under it (candidate)
         run: node tests/browser/glass-nav.test.mjs
+      - name: Budget at a glance — due-in, overdue, what is left, today marker (candidate)
+        run: node tests/browser/budget-glance.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |

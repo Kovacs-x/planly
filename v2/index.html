@@ -1050,6 +1050,31 @@ html{overflow-x:clip}
    screen edge, fading in at its top, so content scrolls away before it reaches the bar. */
 body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--planly-nav-h) + 40px + env(safe-area-inset-bottom));z-index:39;pointer-events:none;background:var(--bg);-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18px);mask-image:linear-gradient(to bottom,transparent 0,#000 18px)}
 </style>
+<style id="planlyBudgetGlance">
+/* Budget at a glance: one big, light number on a soft gradient in the space's colour (Me amber, Household violet), a
+   pace bar with today's mark and an On track / overdue note; small capital section labels over soft list cards. */
+#view .budgetHero.budgetGlance{container-type:inline-size;display:grid;gap:6px;padding:22px 20px 18px!important;border-radius:28px!important;background:radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--budget) 26%,transparent) 0,transparent 58%),linear-gradient(160deg,color-mix(in srgb,var(--budget) 24%,var(--card)) 0%,color-mix(in srgb,var(--budget) 9%,var(--card)) 55%,color-mix(in srgb,var(--budget) 3%,var(--card)) 100%)!important;box-shadow:0 18px 40px color-mix(in srgb,var(--budget) 16%,transparent)!important}
+#view .budgetGlance .budgetHeroLabel{font-size:13px;font-weight:650;color:var(--muted);letter-spacing:.01em}
+#view .budgetGlance .budgetHeroBalance{font-size:min(54px,17cqw)!important;white-space:nowrap;font-weight:300;letter-spacing:-.035em;line-height:1!important;margin:2px 0;font-variant-numeric:tabular-nums}
+#view .budgetGlance .budgetHeroIncome{font-size:15px;color:var(--muted)}
+#view .budgetGlance .budgetGlanceLine{font-size:14px;font-weight:650;margin-top:6px}
+.budgetPace{position:relative;height:8px;margin-top:14px;border-radius:99px;background:color-mix(in srgb,var(--budget) 16%,transparent)}
+.budgetPaceFill{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--budget);min-width:8px}
+.budgetPaceToday{position:absolute;top:-5px;width:3px;height:18px;margin-left:-1.5px;border-radius:2px;background:var(--text)}
+.budgetPaceRow{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px 10px;font-size:13px;color:var(--muted);margin-top:4px}
+.budgetPaceStatus{font-weight:720;white-space:nowrap}
+.budgetPaceStatus.ok,.budgetPaceStatus.done{color:var(--success,#15945f)}
+.budgetPaceStatus.ok:before{content:"✓ ";font-weight:800}
+.budgetPaceStatus.behind{color:#b45309}
+#view .budgetGlance .budgetActions{margin-top:12px}
+#view .budgetGlance~.budgetCard{border-radius:24px!important;box-shadow:0 10px 28px rgba(30,30,90,.07)!important}
+#view .budgetGlance~.budgetCard>.budgetSectionHead strong{font-size:12px;font-weight:760;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.budgetDueIn{color:var(--muted)}.budgetDueIn.soon{color:#b45309;font-weight:700}
+#view .budgetCatAmount{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:720;white-space:nowrap}
+#view .budgetCatAmount .budgetChevron{color:var(--muted);font-weight:500}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .budgetPaceStatus.behind,:root:not([data-theme="light"]) .budgetDueIn.soon{color:#fbbf24}}
+:root[data-theme="dark"] .budgetPaceStatus.behind,:root[data-theme="dark"] .budgetDueIn.soon{color:#fbbf24}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -1113,7 +1138,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t32';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t33';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
