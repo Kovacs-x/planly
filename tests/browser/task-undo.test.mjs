@@ -3,6 +3,7 @@
 // in the meantime stays; swiping a done task springs back; a swipe on someone else's private task does nothing; the
 // next "Saved to Inbox" pop-up stays tappable for its whole time; online or offline, a write held for its Undo bar is
 // not counted as waiting.
+// The Undo bar stays 3 seconds; it is a frosted rounded card with Undo as a pill in the section colour, beside the + button.
 // Run: node tests/browser/task-undo.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER,PARTNER,HOUSEHOLD} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -77,6 +78,19 @@ const chipAfter=await page.evaluate(()=>(document.querySelector('.syncChipText')
 check('…once the bar ends it is counted as waiting',!(await bar()).show&&/^Offline · 1 waiting$/.test(chipAfter),chipAfter);
 db.offline=false;await context.setOffline(false);await W(3000);
 check('…and back online it is sent and the label says Synced',db.tables.planly_tasks.some(r=>r.data?.title==='Offline one'&&r.deleted_at)&&(await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim()))==='Synced',await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim()));
+
+// 5. The Undo bar stays 3 seconds, then goes and the delete is sent
+await rowAct('d','delete');await W(2400);
+check('the Undo bar is still up after 2.4 seconds',(await bar()).show&&!serverRow('d')?.deleted_at,JSON.stringify({bar:await bar(),d:serverRow('d')?.deleted_at}));
+const look=await page.evaluate(()=>{const t=document.getElementById('planlyUndoToast'),ts=getComputedStyle(t),b=t.querySelector('.undoButton'),bs=getComputedStyle(b),r=t.getBoundingClientRect(),a=document.getElementById('addBtn')?.getBoundingClientRect(),n=document.querySelector('.nav').getBoundingClientRect();
+  const probe=document.createElement('i');probe.style.color='var(--card)';document.body.appendChild(probe);const card=getComputedStyle(probe).color;probe.style.color='var(--sec)';const sec=getComputedStyle(probe).color;probe.remove();
+  return {radius:parseFloat(ts.borderTopLeftRadius),h:r.height,blur:ts.backdropFilter,bg:ts.backgroundColor,card,text:ts.color,btnBg:bs.backgroundColor,btnInk:bs.color,sec,underline:bs.textDecorationLine,overAdd:!!a&&r.right>a.left&&r.bottom>a.top&&r.top<a.bottom,aboveNav:r.bottom<=n.top,line:getComputedStyle(t,'::after').animationName}});
+const rgb=c=>(c.match(/[\d.]+/g)||[]).slice(0,3).map(Number).map(v=>Math.round(c.startsWith('color(')?v*255:v)).join(',');
+check('the Undo bar looks like the app: a frosted rounded card in the page colours, not a black box',look.radius>=look.h/2-1&&/blur\(/.test(look.blur)&&rgb(look.bg)===rgb(look.card),JSON.stringify(look));
+check('…Undo is a pill in the section colour (no underline), with a line running down for the time left',look.btnInk===look.sec&&look.btnBg!=='rgba(0, 0, 0, 0)'&&look.underline==='none'&&look.line==='undoTimeLeft',JSON.stringify(look));
+check('…and it sits beside the + button and above the tab bar, covering neither',!look.overAdd&&look.aboveNav,JSON.stringify(look));
+await W(1300);
+check('…and is gone by 3.7 seconds, with the delete sent',!(await bar()).show&&!!serverRow('d')?.deleted_at,JSON.stringify({bar:await bar(),d:serverRow('d')?.deleted_at}));
 
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`\n${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
