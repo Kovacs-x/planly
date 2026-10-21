@@ -3,6 +3,7 @@
 // in the meantime stays; swiping a done task springs back; a swipe on someone else's private task does nothing; the
 // next "Saved to Inbox" pop-up stays tappable for its whole time; online or offline, a write held for its Undo bar is
 // not counted as waiting.
+// The Undo bar stays 3 seconds.
 // Run: node tests/browser/task-undo.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER,PARTNER,HOUSEHOLD} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -77,6 +78,12 @@ const chipAfter=await page.evaluate(()=>(document.querySelector('.syncChipText')
 check('…once the bar ends it is counted as waiting',!(await bar()).show&&/^Offline · 1 waiting$/.test(chipAfter),chipAfter);
 db.offline=false;await context.setOffline(false);await W(3000);
 check('…and back online it is sent and the label says Synced',db.tables.planly_tasks.some(r=>r.data?.title==='Offline one'&&r.deleted_at)&&(await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim()))==='Synced',await page.evaluate(()=>(document.querySelector('.syncChipText')?.textContent||'').trim()));
+
+// 5. The Undo bar stays 3 seconds, then goes and the delete is sent
+await rowAct('d','delete');await W(2400);
+check('the Undo bar is still up after 2.4 seconds',(await bar()).show&&!serverRow('d')?.deleted_at,JSON.stringify({bar:await bar(),d:serverRow('d')?.deleted_at}));
+await W(1300);
+check('…and is gone by 3.7 seconds, with the delete sent',!(await bar()).show&&!!serverRow('d')?.deleted_at,JSON.stringify({bar:await bar(),d:serverRow('d')?.deleted_at}));
 
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`\n${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
