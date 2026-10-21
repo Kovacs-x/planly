@@ -76,7 +76,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r06'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-154'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-155'"))fail('R1 cache marker mismatch');
 // Household Budget is rose, Me amber: the Budget tab marks the scope on <html> and the colours follow it (Budget tab only).
 {const nav=read('v2/core-budget-nav-v4.0b1.js'),html=read('v2/index.html');
  if(!nav.includes("const budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal';document.documentElement.dataset.budgetScope=budgetScope;")||!nav.includes("window.addEventListener('planly-budget-scope-changed',"))fail('Budget scope colour: the Budget tab must mark its scope');
@@ -162,6 +162,9 @@ if(!read('v2/index.html').includes('@media (prefers-reduced-motion:reduce){.dash
 if(!read('v2/index.html').includes('.ringFilling .dashConfetti{display:none}'))fail('Today ring must fill to the end before the confetti');
 // Budget's Coming up, Categories and Money in open and close like the chores on Home, remembered per phone.
 {const ui=read('v2/core-budget-ui-v4.0b.js');for(const x of ["const BUDGET_FOLD_KEY='planly-budget-fold-v1',BUDGET_FOLD_DEFAULT={coming:false,cats:true,income:false};","foldHead('coming','Coming up',","foldHead('income','Money in',",'data-budget-fold="${k}" aria-expanded="${open}"'])if(!ui.includes(x))fail('Budget fold missing: '+x);if(!read('v2/index.html').includes('<style id="planlyBudgetFolds">'))fail('Budget fold style missing')}
+// A repeating Google task asks Just this one / Delete all repeats; the Google delete waits for the Undo bar and only
+// ever targets Planly's own calendar (calendarBase()).
+{const app=read('v2/app-v3.2.0.js');for(const x of ["function planlyRepeatOnGoogle(t){","function googleInstanceId(t){","queueGoogleDelete(eventId);if(googleConnected())processPendingDeletes().catch(()=>{})});\n}\nfunction skipRepeatWithUndo(t){","queueGoogleDelete(instance);if(googleConnected())processPendingDeletes().catch(()=>{})});","if(action==='delete'){if(planlyRepeatOnGoogle(t)){closeTaskActions();openRepeatDeleteSheet(t);return}","if(id&&t&&planlyRepeatOnGoogle(t)){closeSheet();openRepeatDeleteSheet(t);return}","try{await googleRequest(calendarBase()+'/'+encodeURIComponent(id),{method:'DELETE'})}"])if(!app.includes(x))fail('Repeat delete invariant missing: '+x)}
 // The Undo bar is glass like the tab bar and sits beside the + button; it stays 3 seconds.
 {const h=read('v2/index.html'),g=h.indexOf('<style id="planlyUndoGlass">');if(g<0||g<h.indexOf('<style id="planlyGlassNav">'))fail('Undo bar glass style missing or before the tab bar style');
  for(const x of ['.undoToast{left:16px;right:88px;','bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom))','.undoToast.show::after{animation:undoTimeLeft 3s linear both}'])if(!h.includes(x))fail('Undo bar rule missing: '+x);
@@ -257,7 +260,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t36'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t37'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i04')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 

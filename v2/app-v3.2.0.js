@@ -282,7 +282,7 @@ function handleTaskActionClick(e){
   if(action==='tomorrow'){closeTaskActions();rescheduleTaskWithUndo(t,addDays(today,1),'Moved to tomorrow');return}
   if(action==='weekend'){closeTaskActions();rescheduleTaskWithUndo(t,thisWeekendKey(today),'Moved to this weekend');return}
   if(action==='nextweek'){closeTaskActions();rescheduleTaskWithUndo(t,addDays(startMonday(today),7),'Moved to next week');return}
-  if(action==='delete'){if(confirm('Delete this task?')){closeTaskActions();deleteTaskWithUndo(t)}return}
+  if(action==='delete'){if(planlyRepeatOnGoogle(t)){closeTaskActions();openRepeatDeleteSheet(t);return}if(confirm('Delete this task?')){closeTaskActions();deleteTaskWithUndo(t)}return}
 }
 function handleTaskActionChange(e){
   const stage=e.target.closest('#taskActionStage');if(stage){const t=taskActionTask();if(!t||t._planlyOwnedByMe===false||String(t.stageId||'')===stage.value)return;if(stage.value)t.stageId=stage.value;else delete t.stageId;t.updatedAt=Date.now();stageTaskMutation(t);save();queuePlanlyPendingReplay('Task synced');render();refreshTaskActionsIfOpen();if(typeof refreshProjectsIfOpen==='function')refreshProjectsIfOpen();return}
@@ -748,6 +748,37 @@ function deleteTaskWithUndo(t){
   const before=cloneTasks(),isRecurringGoogle=!!(t.googleEventId&&t.recurrence&&t.recurrence!=='none'),eventId=isRecurringGoogle?'':(t.googleEventId||'');
   state.tasks=state.tasks.filter(x=>planlyLocalTaskKey(x)!==planlyLocalTaskKey(t));const plan=taskUndoPlan(before),baseVersion=Number(planlyCloudSyncMeta.tasks.get(String(t.id))||0);if(planlyCloudWritesEnabled())stagePlanlyPendingWrite('task','delete',t.id,baseVersion);save();render();
   showUndoToast(isRecurringGoogle?'Task removed from Planly · Google series unchanged':'Task deleted',()=>{clearPlanlyPendingWrite('task',t.id);restoreTaskSnapshot(plan)},()=>{queuePlanlyPendingReplay('Task deletion synced');if(eventId)queueGoogleDelete(eventId);if(googleConnected())processPendingDeletes().catch(()=>{})});
+}
+// A repeating task that is also in Google Calendar asks how much to delete: "Just this one" skips this date (the task
+// moves to its next date and Google drops only that day), "Delete all repeats" removes the task and the whole repeating
+// event. Only Planly's own calendar is touched, and nothing reaches Google until the Undo bar has gone.
+function planlyRepeatOnGoogle(t){return !!(t&&t._planlyOwnedByMe!==false&&t.googleEventId&&t.recurrence&&t.recurrence!=='none'&&t.date&&!t.completed)}
+function googleInstanceId(t){if(!t?.googleEventId||!t.date)return '';const stamp=t.time?new Date(t.date+'T'+t.time+':00').toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,''):t.date.replace(/-/g,'');return t.googleEventId+'_'+stamp}
+function stageTaskDeletes(tasks){if(!planlyCloudWritesEnabled())return;tasks.forEach(x=>stagePlanlyPendingWrite('task','delete',x.id,Number(planlyCloudSyncMeta.tasks.get(String(x.id))||0)))}
+function deleteAllRepeatsWithUndo(t){
+  if(!t||t._planlyOwnedByMe===false)return;
+  const series=String(t.seriesId||t.id),eventId=t.googleEventId||'',gone=state.tasks.filter(x=>x._planlyOwnedByMe!==false&&!x.completed&&String(x.seriesId||x.id)===series);
+  if(!gone.includes(t))gone.push(t);
+  const before=cloneTasks(),keys=new Set(gone.map(planlyLocalTaskKey));state.tasks=state.tasks.filter(x=>!keys.has(planlyLocalTaskKey(x)));const plan=taskUndoPlan(before);stageTaskDeletes(gone);save();render();
+  showUndoToast('All repeats deleted',()=>{gone.forEach(x=>clearPlanlyPendingWrite('task',x.id));restoreTaskSnapshot(plan)},()=>{queuePlanlyPendingReplay('Task deletion synced');queueGoogleDelete(eventId);if(googleConnected())processPendingDeletes().catch(()=>{})});
+}
+function skipRepeatWithUndo(t){
+  if(!t||t._planlyOwnedByMe===false)return;
+  const cfg=recurrenceConfigForTask(t),occ=clampInt(t.occurrenceNumber,1,999999,1),instance=googleInstanceId(t);
+  let next=cfg?nextOccurrence(planlyRecurrenceBaseDate(t),t.recurrence,cfg):'';
+  if(next&&((cfg.endMode==='count'&&occ>=cfg.maxOccurrences)||(cfg.endMode==='date'&&cfg.endDate&&next>cfg.endDate)))next='';
+  const before=cloneTasks();let pendingIds=[];
+  if(next){t.date=next;t.occurrenceNumber=occ+1;t.updatedAt=Date.now();pendingIds=stageChangedTasksFromSnapshot(before)}
+  else{state.tasks=state.tasks.filter(x=>planlyLocalTaskKey(x)!==planlyLocalTaskKey(t));stageTaskDeletes([t]);pendingIds=[String(t.id)]}
+  const plan=taskUndoPlan(before);save();render();
+  showUndoToast(next?'Skipped · next '+fmt(next):'Last repeat deleted',()=>{clearPendingTaskIds(pendingIds);if(!next)clearPlanlyPendingWrite('task',t.id);restoreTaskSnapshot(plan)},()=>{queuePlanlyPendingReplay('Task synced');queueGoogleDelete(instance);if(googleConnected())processPendingDeletes().catch(()=>{})});
+}
+function openRepeatDeleteSheet(t){
+  let el=document.getElementById('planlyRepeatDeleteSheet');
+  if(!el){el=document.createElement('div');el.id='planlyRepeatDeleteSheet';el.className='intelligenceWhySheet repeatDeleteSheet';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');document.body.appendChild(el)}
+  el.innerHTML='<div class="intelligenceWhyCard"><h2>Delete “'+esc(t.title)+'”?</h2><div class="repeatDeleteChoices"><button type="button" data-repeat-delete="one">Just this one<small>'+esc(fmt(t.date))+'</small></button><button type="button" class="danger" data-repeat-delete="all">Delete all repeats</button><button type="button" data-repeat-delete="cancel">Cancel</button></div></div>';
+  el.classList.add('open');
+  el.onclick=e=>{if(!el.classList.contains('open'))return;const b=e.target.closest('[data-repeat-delete]');if(!b&&e.target!==el)return;el.classList.remove('open');const k=b?.dataset.repeatDelete||'cancel';if(k==='cancel')return;const cur=state.tasks.find(x=>x.id===t.id);if(!cur)return;if(k==='all')deleteAllRepeatsWithUndo(cur);else skipRepeatWithUndo(cur)};
 }
 function waitForGoogleIdentity(timeout=8000){
   return new Promise((resolve,reject)=>{
@@ -2201,7 +2232,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-721t-154';
+const PLANLY_RELEASE='planly-v2-721t-155';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -2583,7 +2614,7 @@ function handleViewClick(e){
 
   if(action==='today'){rescheduleTaskWithUndo(t,localKey(new Date()),'Moved to today');return}
   if(action==='tomorrow'){rescheduleTaskWithUndo(t,addDays(localKey(new Date()),1),'Moved to tomorrow');return}
-  if(action==='delete'){deleteTaskWithUndo(t);return}
+  if(action==='delete'){if(planlyRepeatOnGoogle(t))openRepeatDeleteSheet(t);else deleteTaskWithUndo(t);return}
   if(action==='expand-checklist'){toggleInlineChecklist(t);return}
   if(action==='toggle-subtask'){toggleTaskSubtask(t,actionEl.dataset.subtaskId);return}
   if(action==='checklist'){openChecklist(t);return}
@@ -3246,7 +3277,7 @@ document.addEventListener('change',e=>{if(e.target.id!=='planlyMigrationFile')re
 $('#duplicateTask').onclick=prepareDuplicateTask;
 $('#taskHouseholdControls')?.addEventListener('click',handleTaskSharingClick);$('#taskVisibility')?.addEventListener('change',handleTaskVisibilityChange);
 for(const ev of ['planly:household-ready','planly:household-remote-change','planly:foreground-resume','online'])window.addEventListener(ev,()=>setTimeout(refreshTaskSharingIfOpen,0));
-$('#deleteTask').onclick=()=>{const id=$('#taskId').value;const t=state.tasks.find(x=>x.id===id);if(id&&t&&confirm('Delete this task?')){closeSheet();deleteTaskWithUndo(t)}}
+$('#deleteTask').onclick=()=>{const id=$('#taskId').value;const t=state.tasks.find(x=>x.id===id);if(id&&t&&planlyRepeatOnGoogle(t)){closeSheet();openRepeatDeleteSheet(t);return}if(id&&t&&confirm('Delete this task?')){closeSheet();deleteTaskWithUndo(t)}}
 
 
 let top3Drag=null;
