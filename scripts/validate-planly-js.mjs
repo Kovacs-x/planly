@@ -76,7 +76,7 @@ const r1=read('v2/core-redesign-r1.js'),r1Html=read('v2/index.html');
 for(const x of ["data-section=\"today\"","data-section=\"plan\"","data-section=\"home\"","data-section=\"budget\"","data-section=\"settings\"",'id="planlySyncChip"','class="planSegments"','function renderHome()'])if(!(r1+r1Html).includes(x))fail('R1 navigation invariant missing: '+x);
 for(const old of ['<span class="navLabel">Upcoming</span>','<span class="navLabel">Month</span>','title="Household Dashboard">⌂','title="Lists">☑'])if(r1Html.includes(old))fail('R1 old primary navigation/header control remains: '+old);
 if(!s.sw.includes("const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r06'"))fail('R1 core runtime missing from service worker');
-if(!s.sw.includes("const CACHE='planly-v2-721t-149'"))fail('R1 cache marker mismatch');
+if(!s.sw.includes("const CACHE='planly-v2-721t-150'"))fail('R1 cache marker mismatch');
 // Household Budget is violet, Me amber: the Budget tab marks the scope on <html> and the colours follow it (Budget tab only).
 {const nav=read('v2/core-budget-nav-v4.0b1.js'),html=read('v2/index.html');
  if(!nav.includes("const budgetScope=window.PlanlyBudget?.getScopeType?.()==='household'?'household':'personal';document.documentElement.dataset.budgetScope=budgetScope;")||!nav.includes("window.addEventListener('planly-budget-scope-changed',"))fail('Budget scope colour: the Budget tab must mark its scope');
@@ -138,11 +138,13 @@ for(const x of ["function clearPlanlyHouseholdAutoCompleteFlag(ownerId,clientId)
 if((app3.match(/data-action="expand-checklist" role="button" tabindex="0"/g)||[]).length!==2)fail('checklist task rows must be keyboard-focusable in both densities');
 if(!app3.includes(`if(!body?.matches?.('.taskBody[role="button"][data-action]'))return;`))fail('checklist row Enter/Space handler missing');
 if(html.includes('planlyChecklistIn'))fail('unused planlyChecklistIn keyframes returned');}
-// Bottom tab bar is docked to the screen edge (safe-area aware), opaque, and is the last nav rule in the page.
+// Bottom tab bar: the docked, safe-area-aware base stays, and the glass bar (floating, rounded, frosted, with a solid
+// fallback and a page-coloured strip behind it so nothing shows under it) is layered on top as the last rule that places
+// the bar.
 {const html=read('v2/index.html'),i=html.indexOf('<style id="planlyDockedNav">');if(i<0)fail('docked bottom nav style missing');else{const css=html.slice(i,html.indexOf('</style>',i));
 for(const x of ['bottom:0!important','border-radius:0!important','calc(6px + env(safe-area-inset-bottom))','background:var(--bg)!important','#addBtn{bottom:calc(var(--planly-nav-h) + 12px + 16px + env(safe-area-inset-bottom))!important}'])if(!css.includes(x))fail('docked nav invariant missing: '+x);
 if(!css.includes('html{scroll-padding-bottom:'))fail('focused content must scroll clear of the docked nav');if(!read('v2/app-v3.2.0.js').includes(`document.querySelector('[data-inline-checklist="'+CSS.escape(String(t.id))+'"]')?.scrollIntoView({block:'nearest'`))fail('opened checklist must scroll clear of the docked nav');
-if(/\.nav\{[^}]*bottom:calc\(/.test(html.slice(i+css.length)))fail('a later rule floats the bottom nav again');}}
+const g=html.indexOf('<style id="planlyGlassNav">');if(g<i)fail('glass tab bar style missing (it must come after the docked base)');else{const glass=html.slice(g,html.indexOf('</style>',g));for(const x of ['bottom:calc(14px + env(safe-area-inset-bottom))!important','border-radius:999px!important','width:min(calc(100% - 48px),300px)!important','backdrop-filter:blur(22px) saturate(180%)!important','@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px)))','body::after{content:"";position:fixed;left:0;right:0;bottom:0;'])if(!glass.includes(x))fail('glass tab bar invariant missing: '+x);if(/\.nav\{[^}]*bottom:/.test(html.slice(g+glass.length)))fail('a later rule moves the glass tab bar again')}}}
 // Impeccable stage A: sheets above the tab bar, + hidden while a sheet is open, one selected date chip, no decorative glow/gradient.
 {const html=read('v2/index.html'),app=read('v2/app-v3.2.0.js'),i=html.indexOf('<style id="planlyRefineA">');if(i<0)fail('refine stage A styles missing');else{const css=html.slice(i,html.indexOf('</style>',i));
 for(const x of ['#sheetWrap{z-index:70!important}','body:has(#sheetWrap.open','.dashboardActions .primaryDash{background:var(--today)!important;background-image:none!important','.dashboardHero:after{display:none!important}'])if(!css.includes(x))fail('stage A invariant missing: '+x);}
@@ -248,7 +250,7 @@ if(/Date\s*\.|new\s+Date|Date\.now|Math\.random|fetch\s*\(|\.from\s*\(|document\
 for(const needle of ['window.PlanlyIntelligence.analyse(','id="intelligenceSuggestions"','id="intelligenceNightRest"'])if(!s.app.includes(needle))fail('Intelligence I1 composed UI invariant missing: '+needle);
 if(s.app.includes('.map(taskHtml)'))fail('Task renderer Array.map callback-index leakage returned');
 if(!read('v2/index.html').includes('id="pi-spark"'))fail('Intelligence spark sprite missing');
-if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t31'"))fail('Intelligence app runtime boot marker mismatch');
+if(!read('v2/index.html').includes("RUNTIME_URL='./app-v3.2.0.js?v=721t32'"))fail('Intelligence app runtime boot marker mismatch');
 const mods=manifest.modules||[];if(mods[mods.length-1]!=='./core-intelligence-v5.js?v=704i04')fail('Intelligence must be final runtime module');
 await import('./validate-intelligence-v5.mjs');
 

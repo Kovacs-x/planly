@@ -12,7 +12,7 @@ permissions:
 jobs:
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS: '1'
     steps:
@@ -96,6 +96,8 @@ jobs:
         run: node tests/browser/polish.test.mjs
       - name: Budget summary pills keep their text inside (candidate)
         run: node tests/browser/stat-pills.test.mjs
+      - name: Glass tab bar floats with nothing showing under it (candidate)
+        run: node tests/browser/glass-nav.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
