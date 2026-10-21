@@ -64,7 +64,7 @@ The tests use port 8765, so run one at a time.
 | `stat-pills.test.mjs` | Summary pills (Today, Home, project page) keep long text inside each pill with matching heights, and the Budget summary card keeps its big figure, still-to-pay line and pace row inside the card — at 390 px and 320 px, with ordinary and very large amounts. |
 | `glass-nav.test.mjs` | Glass tab bar: a compact capsule (centred, at most 300 px wide, 60 px tall) floating above the bottom, fully rounded and frosted; a page-coloured strip sits between the page and the bar so nothing shows under it; the + button stays above it; tabs still work — light, dark and 320 px. |
 | `budget-glance.test.mjs` | Budget at a glance: Coming up says "tomorrow" / "in 5 days" (amber within 3 days); the card says what is overdue or On track; categories say what is left; the pace bar marks today only on the current month; section labels are small capitals. |
-| `ring-fill.test.mjs` | Today's ring fills smoothly from the old % to the new one after a tick (the number counts with it), fills to the end before turning green with 🎉 and the confetti, runs back down on untick, carries on through a redraw, and just jumps with reduced motion. |
+| `ring-fill.test.mjs` | Today's ring fills smoothly from the old % to the new one after a tick (the number counts with it), fills to the end before turning green with 🎉 and the confetti, runs back down on untick, carries on through a redraw, just jumps with reduced motion, and shows no dot at 0% (Today and Home). |
 
 CI: `.github/workflows/browser-tests.yml` runs these on every pull request that touches `v2/` or `tests/browser/`.
 On a pull request it also runs them against the base branch for comparison; that run is informational, not a gate.

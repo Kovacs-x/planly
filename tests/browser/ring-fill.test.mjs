@@ -1,6 +1,6 @@
 // Today's ring moves: ticking a task fills it smoothly from where it was to the new % (the number counts up with it);
 // ticking the last one fills it to the end first, and only then it turns green with 🎉 and the confetti; unticking runs it
-// back down smoothly; a redraw part way through carries on; with reduced motion it just jumps.
+// back down smoothly; a redraw part way through carries on; with reduced motion it just jumps; at 0% there is no dot.
 // Run: node tests/browser/ring-fill.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -43,5 +43,12 @@ await page.emulateMedia({reducedMotion:'reduce'});await W(300);
 await W(1000);
 s=await page.evaluate(async()=>{const before=parseFloat(getComputedStyle(document.querySelector('.todayDashboard .dashRingFill')).strokeDasharray);document.querySelector('[data-id="d"] [data-action="toggle"]')?.click();await new Promise(r=>setTimeout(r,60));const c=document.querySelector('.todayDashboard .dashCard');return {before,v:parseFloat(getComputedStyle(c.querySelector('.dashRingFill')).strokeDasharray),filling:c.classList.contains('ringFilling'),text:c.querySelector('.dashRingText').textContent}});
 check('with reduced motion the ring just moves, with no fill',!s.filling&&Math.round(s.v)!==Math.round(s.before)&&/^\d+%$|🎉/.test(s.text),JSON.stringify(s));
+// nothing for today: the ring is empty, with no dot from the rounded line end (Today and Home)
+{const e=await newPhone(browser,makeDb(),OWNER);const p=await openApp(e.context,e.errors);
+  await p.evaluate(()=>document.querySelector('.nav button[data-section="today"]').click());await W(1500);
+  const t=await p.evaluate(()=>{const f=document.querySelector('.todayDashboard .dashRingFill');return f?getComputedStyle(f).strokeOpacity:null});
+  await p.evaluate(()=>document.querySelector('.nav button[data-section="home"]').click());await W(1800);
+  const h=await p.evaluate(()=>{const f=document.querySelector('#view .homeChoreCard .dashRingFill');return f?{pct:f.getAttribute('stroke-dasharray'),op:getComputedStyle(f).strokeOpacity}:null});
+  check('at 0% the ring shows no dot (Today and Home)',t==='0'&&(!h||!h.pct.startsWith('0 ')||h.op==='0'),JSON.stringify({t,h}));errors.push(...e.errors);await e.context.close()}
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);

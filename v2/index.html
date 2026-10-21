@@ -1012,6 +1012,8 @@ html{overflow-x:clip}
 .dashRingTrack{fill:none;stroke:var(--ringTrack,var(--todayTint));stroke-width:9}
 .dashRingFill{fill:none;stroke:var(--ringInk,var(--today));stroke-width:9;stroke-linecap:round;transition:stroke-dasharray .65s cubic-bezier(.33,1,.68,1),stroke .35s ease}
 .dashRingTrack{transition:stroke .35s ease}
+/* at 0% the ring is empty: no dot from the rounded line end */
+.dashRingFill[stroke-dasharray^="0 "]:not([style]){stroke-opacity:0}
 /* while Today's ring is still filling to 100% it keeps its colour and holds the 🎉, the pop and the confetti until it gets there */
 .ringFilling.allDone .dashRingTrack{stroke:var(--ringTrack,var(--todayTint))}.ringFilling.allDone .dashRingFill{stroke:var(--ringInk,var(--today))}
 .ringFilling.allDone .dashRingText{font-size:19px}.ringFilling .dashConfetti{display:none}.celebrate.ringFilling .dashRing{animation:none}
