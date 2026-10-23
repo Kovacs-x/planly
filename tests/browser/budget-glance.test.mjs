@@ -34,5 +34,11 @@ check('a category says what is left, with a ›',s.cat===`£${left.toFixed(2)} l
 check('the pace bar marks today on the current month',s.today);
 await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='›'&&b.closest('.budgetMonthBar'))?.click());await W(2000);
 check('…but not on another month',await page.evaluate(()=>!document.querySelector('.budgetPaceToday')&&!!document.querySelector('.budgetPace')));
+// A paid bill's tick sits in the middle of its green circle
+await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='‹'&&b.closest('.budgetMonthBar'))?.click());await W(1500);
+await page.evaluate(()=>[...document.querySelectorAll('[data-cat]')][0]?.click());await W(1200);
+await page.evaluate(()=>document.querySelectorAll('#view details').forEach(d=>d.open=true));await W(300);
+const tick=await page.evaluate(()=>{const b=document.querySelector('.budgetTick.paid');if(!b)return null;const a=getComputedStyle(b,'::after'),r=b.getBoundingClientRect();return {pos:getComputedStyle(b).position,apos:a.position,left:parseFloat(a.left),top:parseFloat(a.top),w:r.width,h:r.height,t:a.transform,content:a.content}});
+check('a paid bill\'s tick sits in the middle of its green circle',tick&&tick.pos==='relative'&&tick.apos==='absolute'&&Math.abs(tick.left-tick.w/2)<1&&Math.abs(tick.top-tick.h/2)<1&&/matrix\(1, 0, 0, 1, -6\.5, -6\.5\)/.test(tick.t),JSON.stringify(tick));
 check('no page errors',errors.length===0,errors.slice(0,2).join(' | '));
 console.log(`\n${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
