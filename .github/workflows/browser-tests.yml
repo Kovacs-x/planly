@@ -106,6 +106,8 @@ jobs:
         run: node tests/browser/budget-folds.test.mjs
       - name: Deleting a repeating Google task — just this one or all repeats (candidate)
         run: node tests/browser/repeat-delete.test.mjs
+      - name: Bill ticks respond at once (candidate)
+        run: node tests/browser/bill-tick.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
