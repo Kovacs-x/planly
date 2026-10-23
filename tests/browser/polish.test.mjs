@@ -1,6 +1,7 @@
 // Smaller fixes: typing in Settings (a calendar name) survives leaving the app and coming back; the task actions sheet
 // keeps the page behind in place, has no double blur, swipes down to close (no blur while dragging) and returns the
-// page to where it was; a double tap on "Create invitation link" or "Create household" sends one request.
+// page to where it was; a double tap on "Create invitation link" or "Create household" sends one request; the menu's
+// Done and the task form's Show on Today / Add to Google Calendar rows are easy (44px) taps.
 // Run: node tests/browser/polish.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -22,6 +23,8 @@ const y0=await page.evaluate(()=>Math.round(scrollY));
 await page.evaluate(()=>{const b=[...document.querySelectorAll('.task [data-action="actions"]')].find(x=>{const r=x.getBoundingClientRect();return r.top>80&&r.bottom<innerHeight-100});b?.click()});await W(500);
 let st=await page.evaluate(()=>({open:document.getElementById('taskActionWrap').classList.contains('open'),locked:document.body.classList.contains('sheetOpen'),backdropBlur:getComputedStyle(document.querySelector('.taskActionBackdrop')).backdropFilter}));
 check('opening the task actions keeps the page behind in place (locked, no scrolling behind)',st.open&&st.locked,JSON.stringify(st));
+const doneSize=await page.evaluate(()=>{const r=document.getElementById('taskActionClose').getBoundingClientRect();return [Math.round(r.width),Math.round(r.height)]});
+check('the menu\'s Done is an easy tap (at least 44px)',doneSize[0]>=44&&doneSize[1]>=44,JSON.stringify(doneSize));
 check('…with a single blur (the backdrop layer adds none)',st.backdropBlur==='none'||st.backdropBlur==='',JSON.stringify(st));
 const g=await page.evaluate(()=>{const r=document.querySelector('.taskActionSheet').getBoundingClientRect();return {x:Math.round(r.left+r.width/2),y:Math.round(r.top+40)}});
 await touch('touchStart',g.x,g.y);let mid=null;for(let i=1;i<=10;i++){await touch('touchMove',g.x,g.y+i*25);await W(16);if(i===5)mid=await page.evaluate(()=>({dragging:document.getElementById('taskActionWrap').classList.contains('dragging'),blur:getComputedStyle(document.getElementById('taskActionWrap')).backdropFilter}))}
@@ -67,6 +70,17 @@ await W(2500);
 const hhSent=db2.log.filter(l=>l.rpc==='planly_create_household').length;
 check('a double tap on "Create household" sends one request',hhTapped&&hhSent===1,JSON.stringify({hhTapped,hhSent}));
 errors.push(...p2.errors);
+
+// The task form's Show on Today / Add to Google Calendar rows are easy taps, and a tap anywhere on the row works
+await page.evaluate(()=>document.querySelector('.nav button[data-tab="today"]').click());await W(1200);await page.evaluate(()=>document.querySelector('.task .taskBody,.task [data-action="edit"]')?.click());await W(800);
+const rows=await page.evaluate(()=>['taskShowToday','taskCalendar'].map(id=>{const i=document.getElementById(id),l=i?.closest('label'),r=l?.getBoundingClientRect();return r&&r.width?{id,h:Math.round(r.height),w:Math.round(r.width)}:null}).filter(Boolean));
+const showBefore=await page.evaluate(()=>document.getElementById("taskShowToday")?.checked);
+await page.evaluate(()=>{const l=document.getElementById('taskShowToday')?.closest('label'),r=l.getBoundingClientRect();l.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:r.right-20,clientY:r.top+r.height/2}))});
+const showAfter=await page.evaluate(()=>document.getElementById("taskShowToday")?.checked);
+check('Show on Today / Add to Google Calendar rows are at least 44px tall, and tapping the row flips it',rows.length>=1&&rows.every(r=>r.h>=44)&&showBefore!==showAfter,JSON.stringify({rows,showBefore,showAfter}));
+await page.evaluate(()=>{const i=document.getElementById('taskShowToday');if(i)i.checked=!i.checked});
+await page.evaluate(()=>document.querySelector('#closeSheet,[data-close-sheet]')?.click());await W(600);
+
 
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
 console.log(`\n${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
