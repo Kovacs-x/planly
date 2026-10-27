@@ -8,7 +8,7 @@ for(const marker of ['planly_budget_entries_update_authorized',"s.scope_type = '
 for(const marker of ['readScopePreference(owner)',"switchScope('household')",'bootstrap:bootstrapWithPreference'])if(!core.includes(marker))fail(`Missing Budget state hardening marker: ${marker}`);
 if(lifecycle.includes('decorateCategory(')||lifecycle.includes('data-life-quick-delete'))fail('Duplicate/index-mapped expense actions remain reachable');
 const budgetUi=read('v2/core-budget-ui-v4.0b.js');
-if(!budgetUi.includes("up.map(x=>paymentRow(x)).join('')"))fail('Coming up must render through an explicit unary paymentRow callback');
+if(!budgetUi.includes("up.map(x=>paymentRow(x,false,d.cats.find(c=>c.id===x.category_id))).join('')"))fail('Coming up must render through an explicit paymentRow callback (not the map index), with each bill\'s category tag');
 if(budgetUi.includes('up.map(paymentRow)'))fail('Coming up leaks Array.map index into paymentRow manage flag');
 const comingUpProbe=[{id:'one'},{id:'two'}].map(x=>({row:x,manage:false}));
 if(comingUpProbe.some(x=>x.manage!==false)||comingUpProbe.length!==2)fail('Coming up two-row action-isolation probe failed');

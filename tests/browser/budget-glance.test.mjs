@@ -1,6 +1,6 @@
 // Budget at a glance: Coming up says how soon each bill is due ("tomorrow", "in 3 days"), in amber within 3 days; the
 // summary card says what is overdue (or On track); categories say what is left; the pace bar marks today only on the
-// current month; section labels are small capitals.
+// current month; section labels are small capitals; each Coming up bill has a tag with its category.
 // Run: node tests/browser/budget-glance.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -22,11 +22,13 @@ const {context,errors}=await newPhone(browser,db,OWNER);const page=await openApp
 await page.evaluate(()=>document.querySelector('.nav button[data-tab="budget"]').click());await W(2600);
 const s=await page.evaluate(()=>{const coming=[...document.querySelectorAll('#view .budgetCard')].find(c=>/Coming up/i.test(c.querySelector('.budgetSectionHead strong')?.textContent||''));
   const due=coming?[...coming.querySelectorAll('.budgetPaymentRow')].map(r=>({name:r.querySelector('strong')?.textContent,due:r.querySelector('.budgetDueIn')?.textContent||'',soon:!!r.querySelector('.budgetDueIn.soon')})):[];
+  const tags=coming?[...coming.querySelectorAll('.budgetPaymentRow')].map(r=>r.querySelector('.budgetCatTag')?.textContent.trim()||''):[];
   const label=coming?.querySelector('.budgetSectionHead strong');
-  return {due,caps:label?getComputedStyle(label).textTransform:'',status:document.querySelector('.budgetPaceStatus')?.textContent.trim(),today:!!document.querySelector('.budgetPaceToday'),cat:document.querySelector('[data-cat] .budgetCatAmount')?.innerText.replace(/\s+/g,' ').trim()}});
+  return {due,tags,caps:label?getComputedStyle(label).textTransform:'',status:document.querySelector('.budgetPaceStatus')?.textContent.trim(),today:!!document.querySelector('.budgetPaceToday'),cat:document.querySelector('[data-cat] .budgetCatAmount')?.innerText.replace(/\s+/g,' ').trim()}});
 const phone=s.due.find(x=>x.name==='Phone'),gym=s.due.find(x=>x.name==='Gym');
 if(inMonth(dd(1)))check('a bill due tomorrow says "tomorrow", in amber',phone?.due==='tomorrow'&&phone.soon,JSON.stringify(s.due));
 if(inMonth(dd(5)))check('a bill due in 5 days says "in 5 days", not amber',gym?.due==='in 5 days'&&!gym.soon,JSON.stringify(s.due));
+check('each bill in Coming up shows its category as a tag',s.tags.length>0&&s.tags.every(t=>t==='🧾 Bills'),JSON.stringify(s.tags));
 check('section labels are small capitals',s.caps==='uppercase',s.caps);
 check(inMonth(late)?'an unpaid bill from 2 days ago shows as overdue':'with nothing overdue the card says On track',inMonth(late)?s.status==='£32 overdue':s.status==='On track',s.status);
 const left=rows.filter(r=>r.kind==='expense'&&inMonth(r.entry_date)&&r.allocation_status!=='paid').reduce((a,r)=>a+r.amount_minor,0)/100;
@@ -38,6 +40,7 @@ check('…but not on another month',await page.evaluate(()=>!document.querySelec
 await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='‹'&&b.closest('.budgetMonthBar'))?.click());await W(1500);
 await page.evaluate(()=>[...document.querySelectorAll('[data-cat]')][0]?.click());await W(1200);
 await page.evaluate(()=>document.querySelectorAll('#view details').forEach(d=>d.open=true));await W(300);
+check('…but not inside the category itself (no repeat of its own name)',await page.evaluate(()=>!document.querySelector('#view .budgetCatTag')));
 const tick=await page.evaluate(()=>{const b=document.querySelector('.budgetTick.paid');if(!b)return null;const a=getComputedStyle(b,'::after'),r=b.getBoundingClientRect();return {pos:getComputedStyle(b).position,apos:a.position,left:parseFloat(a.left),top:parseFloat(a.top),w:r.width,h:r.height,t:a.transform,content:a.content}});
 check('a paid bill\'s tick sits in the middle of its green circle',tick&&tick.pos==='relative'&&tick.apos==='absolute'&&Math.abs(tick.left-tick.w/2)<1&&Math.abs(tick.top-tick.h/2)<1&&/matrix\(1, 0, 0, 1, -6\.5, -6\.5\)/.test(tick.t),JSON.stringify(tick));
 check('no page errors',errors.length===0,errors.slice(0,2).join(' | '));
