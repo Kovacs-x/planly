@@ -15,6 +15,26 @@
 --   * source/external_id are for a later smart-scale link (Withings); external_id is unique per person so the same
 --     weigh-in can never be stored twice.
 -- Deleting the auth user deletes their rows (on delete cascade). No other table or data is changed.
+--
+-- Also fixes 054's planly_protect_food_identity(): it read new.id in one IF together with the table-name test, and
+-- planly_food_profile has no id column, so every UPDATE of a profile failed ("record new has no field id") — targets
+-- could be saved once but never changed, and a goal weight could not be saved. The rules are unchanged (owner never
+-- changes; id/client_id never change on entries and favourites); the id check now only runs for tables that have it.
+
+create or replace function public.planly_protect_food_identity()
+returns trigger language plpgsql set search_path = pg_catalog, public as $$
+begin
+  if new.owner_id is distinct from old.owner_id then
+    raise exception 'Food row owner is immutable';
+  end if;
+  if tg_table_name <> 'planly_food_profile' then
+    if new.id is distinct from old.id or new.client_id is distinct from old.client_id then
+      raise exception 'Food row identity is immutable';
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function public.planly_protect_food_identity() from public, anon, authenticated;
 
 create table if not exists public.planly_body_weights (
   id uuid primary key,
