@@ -2,7 +2,7 @@
 // about it shows; not linked shows "Connect Apple Health", which makes an import key and shows it once with the
 // address, each with a Copy button; linked shows "Apple Health connected" with the last import time; readings that came
 // in show as tiles (body fat, lean mass; numbers and trends only) and as "Apple Health" in Recent; Disconnect removes
-// the key and shows Connect again.
+// the key and shows Connect again. An empty Body (no weigh-ins yet) shows the same Connect / connected bar and Manage.
 // Run: node tests/browser/fitness-apple-health.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -40,4 +40,25 @@ check('…and as "Apple Health" in Recent',await page.evaluate(()=>/Apple Health
 await page.evaluate(()=>document.querySelector('.fitScaleBar').click());await W(400);await page.evaluate(()=>document.querySelector('.fitSheet [data-off]').click());await W(1500);
 check('Disconnect removes the key and shows Connect again',calls.some(c=>c.action==='remove-key')&&await page.evaluate(()=>!!document.querySelector('.fitScaleConnect')&&!document.querySelector('.fitScaleBar')));
 check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));
+await context.close();
+// An empty Body (no weigh-ins yet) that connects keeps the connected bar and its Manage controls after a reload.
+{const db=mk();db.tables.planly_body_weights=[];const {context,errors}=await newPhone(browser,db,OWNER);let on=false;const got=[];
+ await context.route('**/functions/v1/body-import',async r=>{const b=JSON.parse(r.request().postData()||'{}');got.push(b.action);
+  const ok=o=>r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(o)});
+  if(b.action==='status')return ok({linked:on,lastUsedAt:null});
+  if(b.action==='create-key'){on=true;return ok({key:'pk_'+'B'.repeat(43),url:'https://sb.test/functions/v1/body-import'})}
+  if(b.action==='remove-key'){on=false;return ok({linked:false})}
+  return ok({})});
+ const page=await openApp(context,errors);page.on('dialog',d=>d.accept());await body(page);
+ check('empty Body, not linked: the first-weight card and Connect',await page.evaluate(()=>!!document.querySelector('.fitBodyEmpty')&&!!document.querySelector('.fitScaleConnect')));
+ await page.evaluate(()=>document.querySelector('.fitScaleConnect').click());await W(800);await page.evaluate(()=>document.querySelector('.fitSheet .fitSheetDone').click());await W(500);
+ check('empty Body, linked: "Apple Health connected" with Manage',await page.evaluate(()=>/Apple Health connected.*Manage/.test(document.querySelector('.fitBodyEmpty')?.closest('.fitView')?.querySelector('.fitScaleBar')?.textContent||'')));
+ await page.reload();await W(2500);await body(page);
+ check('…still there after a reload',await page.evaluate(()=>!!document.querySelector('.fitBodyEmpty')&&/Apple Health connected/.test(document.querySelector('.fitScaleBar')?.textContent||'')&&!document.querySelector('.fitScaleConnect')));
+ await page.evaluate(()=>document.querySelector('.fitScaleBar').click());await W(400);await page.evaluate(()=>document.querySelector('.fitSheet [data-new]').click());await W(800);
+ check('…Manage › New import key makes and shows a new key',got.filter(a=>a==='create-key').length===2&&await page.evaluate(()=>document.querySelector('.fitSheet [data-key]')?.value==='pk_'+'B'.repeat(43)));
+ await page.evaluate(()=>document.querySelector('.fitSheet .fitSheetDone').click());await W(500);
+ await page.evaluate(()=>document.querySelector('.fitScaleBar').click());await W(400);await page.evaluate(()=>document.querySelector('.fitSheet [data-off]').click());await W(1500);
+ check('…and Disconnect removes the key and shows Connect again',got.includes('remove-key')&&await page.evaluate(()=>!!document.querySelector('.fitScaleConnect')&&!document.querySelector('.fitScaleBar')&&!!document.querySelector('.fitBodyEmpty')));
+ check('…with no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
