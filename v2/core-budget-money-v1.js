@@ -40,7 +40,8 @@ const monthsUntil=(from,to)=>{const [y1,m1]=from.split('-').map(Number),[y2,m2]=
 function rank(d,b,month){const zero=d.zero_until&&String(d.zero_until)>=month+'-01'?String(d.zero_until):'',short=zero&&Number(d.minimum_minor||0)*Math.max(0,monthsUntil(month,zero.slice(0,7))+1)<b;
   if(short&&monthsUntil(month,zero.slice(0,7))<=6)return [0,zero];if(Number(d.apr_bp||0)>0&&!zero)return [1,-Number(d.apr_bp)];if(short)return [2,zero];return [3,b]}
 function orderAt(list,balOf,month){const r=new Map(list.map(d=>[d.id,rank(d,balOf(d),month)]));return [...list].sort((a,b)=>{const x=r.get(a.id),y=r.get(b.id);return x[0]-y[0]||(x[1]<y[1]?-1:x[1]>y[1]?1:0)||String(a.name).localeCompare(String(b.name))})}
-function order(list,s=state()){return orderAt(list,d=>debtBalance(d,s),today().slice(0,7))}
+// the month on screen, as the plan uses: the list, Pay off next, the split and the plan always agree
+function order(list,s=state()){return orderAt(list,d=>debtBalance(d,s),viewedMonth())}
 
 /* The plan from the viewed month on: each month adds interest (outside a 0% period), pays every minimum, then puts the
    rest of the month's debt money on the first debt in the order still open. The month's debt money is what this

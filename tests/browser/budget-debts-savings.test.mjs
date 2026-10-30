@@ -122,6 +122,19 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  check('smart order: a deal ending soon first, then 40%, 33%, the later deal, then smallest interest-free first',JSON.stringify(names)===JSON.stringify(['Deal soon','Card 40%','Card 33%','Later deal','Deal covered','Small 0%','Big 0%']),JSON.stringify(names));
  check('Pay off next follows it',/Deal soon/.test(await page.evaluate(()=>document.querySelector('.budgetMoneyFocus')?.innerText||'')));
  await page.evaluate(()=>document.querySelector('[data-money="add-debt"]').click());await W(600);
+ // the order is worked out for the month on screen, the same month as the plan: a deal ending in 8 months is not yet
+ // urgent this month, but is when looking 3 months ahead (then it beats the 40% card in the list, Pay off next and the plan)
+ {const db2=mk({money:false});const in8=new Date();in8.setDate(1);in8.setMonth(in8.getMonth()+8);
+  db2.tables.planly_budget_debts=[D('Card 40%',97000,{apr_bp:3990}),D('Deal in 8 months',300000,{zero_until:key(in8)})];
+  const p2=await household(browser,db2,OWNER);const pg=await openApp(p2.context,p2.errors);await budget(pg);
+  const look=()=>pg.evaluate(()=>({list:[...document.querySelectorAll('.budgetMoneyItem .top span:first-child')].map(x=>x.firstChild.textContent),focus:document.querySelector('.budgetMoneyFocus strong')?.textContent}));
+  const planFirst=async()=>{await pg.evaluate(()=>document.querySelector('[data-money="plan"]').click());await W(700);const t=await pg.evaluate(()=>{const m=document.querySelector('.budgetMoneyMonth');return m.querySelector('.budgetMoneyChip')?.textContent||''});await pg.evaluate(()=>document.querySelector('[data-money="list"]').click());await W(500);return t};
+  await tab(pg,'Debts');const now1=await look(),plan1=await planFirst();
+  check('this month: the 40% card comes first in the list, Pay off next and the plan',now1.list[0]==='Card 40%'&&now1.focus==='Card 40%'&&/^Card 40%/.test(plan1),JSON.stringify([now1,plan1]));
+  await tab(pg,'Month');for(let i=0;i<3;i++){await pg.evaluate(()=>document.querySelector('.budgetMonthBar [data-month-next]').click());await W(900)}
+  await tab(pg,'Debts');const later=await look(),plan2=await planFirst();
+  check('3 months ahead: the deal ending soon comes first in all three',later.list[0]==='Deal in 8 months'&&later.focus==='Deal in 8 months'&&/^Deal in 8 months/.test(plan2),JSON.stringify([later,plan2]));
+  await p2.context.close()}
  check('the debt form has no order box to fill in',await page.evaluate(()=>!document.querySelector('#moneyOrder')));
  check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
