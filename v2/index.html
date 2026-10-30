@@ -852,6 +852,20 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitWeighInKg{font-weight:750;font-variant-numeric:tabular-nums}
 .fitBodyEmpty{display:grid;gap:12px;text-align:center;padding:24px 16px}
 .fitPair{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fitScaleBar{width:100%;display:flex;align-items:center;gap:8px;min-height:44px;margin:12px 0 0;padding:0 14px;border:0;border-radius:16px;background:var(--card);color:var(--text);font:inherit;font-size:13px;text-align:left}
+.fitScaleBar span:not(.fitScaleDot){color:var(--muted)}.fitScaleBar .fitScaleManage{margin-left:auto;color:var(--sec);font-weight:700}
+.fitScaleDot{flex:none;width:8px;height:8px;border-radius:50%;background:#2fbf71}
+.fitScaleConnect{margin:12px 0 0}
+.fitGroupHead{margin:18px 4px 8px}
+.fitMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fitMetric{display:grid;gap:2px;min-width:0;padding:14px;border:0;border-radius:20px;background:var(--card);box-shadow:0 8px 22px rgba(30,30,90,.06);color:var(--text);font:inherit;text-align:left}
+.fitMetricTop{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;font-weight:700}
+.fitMetricVal strong{font-size:26px;font-weight:780;letter-spacing:-.01em;font-variant-numeric:tabular-nums}.fitMetricVal small{color:var(--muted);font-size:13px;font-weight:650}
+.fitMetricChange{color:var(--muted);font-size:12px;font-weight:700}
+.fitSpark{display:block;width:100%;height:24px;margin-top:6px}.fitSpark path{fill:none;stroke:var(--sec);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.fitRangeCenter{justify-content:center;margin-bottom:8px}
+.fitMetricChart{height:130px}
+.fitMetricRow{display:flex;justify-content:space-between;align-items:center;min-height:46px;border-top:1px solid color-mix(in srgb,var(--line) 75%,transparent)}.fitMetricRow strong{font-weight:650}.fitMetricRow span{font-weight:750;font-variant-numeric:tabular-nums}
 </style>
 <style id="planlyLookBand">
 /* Look: a soft colour glow behind every screen, and a light wash in the section's own colour behind the page title, which
@@ -1226,7 +1240,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t42';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t43';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

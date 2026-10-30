@@ -14,7 +14,7 @@ const ACTIVITY=[['sedentary','Mostly sitting',1.2],['light','Lightly active',1.3
 const OFF_FAST='https://search.openfoodfacts.org/search',OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl',OFF_PRODUCT='https://world.openfoodfacts.org/api/v2/product/';
 // ZXing 0.23.0 (Apache-2.0), vendored byte for byte from npm and loaded only when the scanner opens (iPhone has no built-in reader)
 const ZXING_URL='./vendor/zxing-library-0.23.0.min.js';
-let camera=null,scanRun=0,zxingLoad=null,inflight='',sb=null,userId='',profile=null,entries=[],favourites=[],weights=[],pending=[],failures=[],loadedFrom='',dayKey=todayKey(),syncing=false,sheet=null,fitInvalid=true,section='food',range=30;
+let camera=null,scanRun=0,zxingLoad=null,inflight='',sb=null,userId='',profile=null,entries=[],favourites=[],weights=[],pending=[],failures=[],loadedFrom='',dayKey=todayKey(),syncing=false,sheet=null,fitInvalid=true,section='food',range=30,scale={linked:null,lastSync:null,busy:false,checkedAt:0};
 const uuid=()=>crypto.randomUUID(),now=()=>Date.now();
 function todayKey(){return localKey(new Date())}
 function shiftDay(key,n){const d=new Date(key+'T12:00:00');d.setDate(d.getDate()+n);return localKey(d)}
@@ -296,11 +296,12 @@ ${fails}${setup}
 }
 function amountText(x){const a=num(x.amount);if(x.source==='quick')return '';if(x.unit==='serving')return a===1?'1 serving':`${r1(a)} servings`;return `${r1(a)} ${x.unit}`}
 function renderFitness(view){
+  if(section==='body')scaleRefresh();
   setHeader('Fitness',new Date(dayKey+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'}));
   view.innerHTML=viewHtml();fitInvalid=false;
 }
 function handleClick(e){
-  const b=e.target.closest('[data-fit],[data-entry],[data-weight]');if(!b||!e.currentTarget.contains(b)||state.tab!=='fitness')return;
+  const b=e.target.closest('[data-fit],[data-entry],[data-weight],[data-metric]');if(!b||!e.currentTarget.contains(b)||state.tab!=='fitness')return;
   const a=b.dataset.fit;
   if(b.dataset.entry){const row=entries.find(x=>x.id===b.dataset.entry);if(row)openEdit(row);return}
   if(a==='prev'){dayKey=shiftDay(dayKey,-1);invalidate();render();if(dayKey<loadedFrom||!loadedFrom)refresh(dayKey);return}
@@ -310,10 +311,13 @@ function handleClick(e){
   if(a==='scan')return openScan(defaultMeal());
   if(a==='targets')return openTargets();
   if(a==='dismiss'){failures=[];persist();invalidate();render()}
-  if(a==='section'){const next=b.dataset.section==='body'?'body':'food';if(next!==section){section=next;persist();invalidate();render()}return}
+  if(a==='section'){const next=b.dataset.section==='body'?'body':'food';if(next!==section){section=next;persist();invalidate();render()}if(next==='body')scaleRefresh();return}
   if(a==='range'){range=Number(b.dataset.range)||30;invalidate();render();return}
   if(a==='log-weight')return openWeight();
   if(a==='goal')return openGoal();
+  if(a==='scale-connect')return scaleConnect();
+  if(a==='scale')return openScale();
+  if(b.dataset.metric)return openMetric(b.dataset.metric);
   if(b.dataset.weight){const row=weights.find(x=>x.id===b.dataset.weight);if(row)openWeight(row)}
 }
 
@@ -337,7 +341,7 @@ function weightChart(list,goal){
 function bodyHtml(){
   const list=weighIns(),latest=list.at(-1),goal=num(profile?.goal_weight_kg),height=num(profile?.height_cm);
   const fails=failures.length?`<div class="fitNotice" role="status"><span>${failures.length===1?'1 change':failures.length+' changes'} couldn't be saved and ${failures.length===1?'was':'were'} replaced by the latest saved version.</span><button type="button" data-fit="dismiss">OK</button></div>`:'';
-  if(!latest)return `<div class="fitView">${segmentsHtml()}${fails}<section class="fitCard fitBodyEmpty"><strong>Log your first weight</strong><button type="button" class="fitPrimary" data-fit="log-weight">+ Log weight</button></section></div>`;
+  if(!latest)return `<div class="fitView">${segmentsHtml()}${fails}${scale.linked===false?'<button type="button" class="fitSecondary fitWide fitScaleConnect" data-fit="scale-connect">Connect Withings scale</button>':''}<section class="fitCard fitBodyEmpty"><strong>Log your first weight</strong><button type="button" class="fitPrimary" data-fit="log-weight">+ Log weight</button></section></div>`;
   const month=list.length>1?num(latest.weight_kg)-num(weightAt(list,daysAgo(30)).weight_kg):null;
   const start=num(list[0].weight_kg),cur=num(latest.weight_kg),toGo=goal>0?Math.round(Math.abs(cur-goal)*10)/10:0;
   const reached=goal>0&&(start>=goal?cur<=goal:cur>=goal),done=goal>0?(reached?1:clamp((start-cur)/((start-goal)||1),0,1)):0;
@@ -345,14 +349,87 @@ function bodyHtml(){
   const week=list.filter(x=>x.measured_at>=daysAgo(7)),days=new Set(week.map(x=>localKey(new Date(x.measured_at)))).size,weekChange=list.length>1?cur-num(weightAt(list,daysAgo(7)).weight_kg):null;
   const bmi=height>0?Math.round(cur/((height/100)**2)*10)/10:null;
   const recent=list.slice(-8).reverse().map(x=>{const d=new Date(x.measured_at);return `<button type="button" class="fitWeighIn" data-weight="${esc(x.id)}"><span><strong>${esc(d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))}</strong><small>${esc(d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}))}${x.source==='withings'?' · Scale':''}</small></span><span class="fitWeighInKg">${kg(x.weight_kg)} kg</span></button>`}).join('');
-  return `<div class="fitView">${segmentsHtml()}${fails}
+  const scaleBar=scale.linked?`<button type="button" class="fitScaleBar" data-fit="scale"><span class="fitScaleDot" aria-hidden="true"></span><strong>Scale connected</strong><span>${scale.lastSync?'· synced '+esc(new Date(scale.lastSync).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})):''}</span><span class="fitScaleManage">Manage</span></button>`:scale.linked===false?`<button type="button" class="fitSecondary fitWide fitScaleConnect" data-fit="scale-connect">Connect Withings scale</button>`:'';
+  return `<div class="fitView">${segmentsHtml()}${fails}${scaleBar}
 <section class="fitCard fitWeightCard"><div class="fitBodyHead"><span class="fitBodyLabel">Weight</span><span class="fitRange" role="group" aria-label="Chart range">${[[30,'1M'],[90,'3M'],[365,'1Y']].map(([d,l])=>`<button type="button" data-fit="range" data-range="${d}" aria-pressed="${range===d}" class="${range===d?'on':''}">${l}</button>`).join('')}</span></div>
 <div class="fitWeightNow"><strong>${kg(cur)}<small> kg</small></strong>${changePill(month,'30 days')}</div>
 ${weightChart(list,goal)}${goalRow}
 <div class="fitActions fitBodyActions"><button type="button" class="fitPrimary" data-fit="log-weight">+ Log weight</button><button type="button" class="fitSecondary" data-fit="goal">${goal>0?'Edit goal':'Set goal'}</button></div></section>
+${metricsHtml(list)}
 <section class="fitCard"><div class="fitBodyHead"><span class="fitBodyLabel">This week</span></div><div class="fitBodyStats"><div><strong>${days} of 7</strong><small>days logged</small></div><div><strong>${weekChange==null?'–':(weekChange<0?'↓ ':weekChange>0?'↑ ':'')+kg(Math.abs(weekChange))}</strong><small>kg this week</small></div>${bmi?`<div><strong>${bmi.toLocaleString('en-GB')}</strong><small>BMI</small></div>`:`<button type="button" data-fit="goal"><strong>BMI</strong><small>Add height</small></button>`}</div></section>
 <section class="fitCard"><div class="fitBodyHead"><span class="fitBodyLabel">Recent</span></div>${recent}</section>
 </div>`;
+}
+// ---------- scale (Withings) ----------
+// Planly's withings function holds the tokens; the app only asks it to start a sign-in, to sync, for the status, or to
+// disconnect. Coming back from the Withings sign-in, the address carries ?code=…&state=pw.… which is handed straight to
+// the function (it must be exchanged within 30 seconds), then removed from the address.
+async function scaleCall(action,extra={}){
+  const c=window.PLANLY_SUPABASE_CONFIG,tok=sb?(await sb.auth.getSession())?.data?.session?.access_token:'';
+  const r=await fetch(c.url+'/functions/v1/withings',{method:'POST',headers:{...(tok?{Authorization:'Bearer '+tok}:{}),apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action,...extra})});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'The scale link is not responding.');return d;
+}
+async function scaleRefresh(force){
+  if(!userId||!navigator.onLine||scale.busy)return;if(!force&&Date.now()-scale.checkedAt<5*60*1000)return;
+  scale.busy=true;scale.checkedAt=Date.now();
+  try{const st=await scaleCall('status');scale.linked=!!st.linked;scale.lastSync=st.lastSync||null;
+    if(scale.linked){const r=await scaleCall('sync');if(r.reconnect){scale.linked=false;showToast('Reconnect your scale')}else if(r.saved){await pull().catch(()=>{})}const st2=await scaleCall('status');scale.lastSync=st2.lastSync||scale.lastSync}}
+  catch(e){console.warn('Planly scale',e)}finally{scale.busy=false;invalidate();if(state.tab==='fitness'&&section==='body')render()}
+}
+async function scaleConnect(){try{const r=await scaleCall('start');if(r.url)location.href=r.url}catch(e){showToast(e.message)}}
+async function scaleReturn(){
+  const q=new URLSearchParams(location.search),code=q.get('code'),st=q.get('state')||'';
+  if(!code||!st.startsWith('pw.'))return;
+  history.replaceState(null,'',location.pathname+location.hash);
+  section='body';persist();
+  try{const r=await scaleCall('exchange',{code,state:st});scale.linked=true;scale.checkedAt=0;showToast(r.imported?`Scale connected · ${r.imported} weigh-in${r.imported===1?'':'s'} added`:'Scale connected');await pull().catch(()=>{})}
+  catch(e){showToast(e.message)}
+  invalidate();document.querySelector('.nav button[data-tab="fitness"]')?.click();
+}
+function openScale(){
+  const last=scale.lastSync?new Date(scale.lastSync).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'}):'–';
+  const body=showSheet('Withings scale',`<p class="fitBodyHint">Last synced ${esc(last)}</p><button type="button" class="fitPrimary fitWide" data-sync>Sync now</button><button type="button" class="fitQuiet fitWide fitDanger" data-off>Disconnect</button>`);
+  body.querySelector('[data-sync]').onclick=()=>{closeSheet();scaleRefresh(true)};
+  body.querySelector('[data-off]').onclick=async()=>{if(!confirm('Disconnect your Withings scale? Weigh-ins already saved stay.'))return;closeSheet();try{await scaleCall('disconnect');scale.linked=false;scale.lastSync=null}catch(e){showToast(e.message)}invalidate();render()};
+}
+// Body composition, heart and metabolism from scale readings: one tile per reading the scale has sent, with the change
+// since the previous reading and a small trend; a tile opens its own chart and history.
+const METRICS=[
+  ['fat','Body composition','Body fat','%',x=>num(x.fat_ratio_pct,NaN),1],
+  ['muscle','Body composition','Muscle','kg',x=>num(x.muscle_mass_kg,NaN),1],
+  ['water','Body composition','Water','%',x=>x.hydration_kg!=null&&num(x.weight_kg)?num(x.hydration_kg)/num(x.weight_kg)*100:NaN,1],
+  ['bone','Body composition','Bone','kg',x=>num(x.bone_mass_kg,NaN),1],
+  ['visceral','Body composition','Visceral fat','',x=>num(x.visceral_fat,NaN),0],
+  ['heart','Heart','Heart rate','bpm',x=>num(x.heart_rate_bpm,NaN),0],
+  ['bmr','Metabolism','Metabolic rate','kcal',x=>num(x.bmr_kcal,NaN),0],
+  ['age','Metabolism','Metabolic age','yrs',x=>num(x.metabolic_age,NaN),0]];
+const metricSeries=(m,list)=>list.map(x=>({t:x.measured_at,v:m[4](x)})).filter(p=>Number.isFinite(p.v));
+const metricText=(m,v)=>Number(v).toLocaleString('en-GB',{minimumFractionDigits:m[5],maximumFractionDigits:m[5]});
+function spark(series){const pts=series.slice(-12);if(pts.length<2)return '';const vs=pts.map(p=>p.v),lo=Math.min(...vs),hi=Math.max(...vs),w=100,h=24,span=hi-lo||1;return `<svg class="fitSpark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${pts.map((p,i)=>(i?'L':'M')+(i*w/(pts.length-1)).toFixed(1)+' '+(h-2-(p.v-lo)/span*(h-4)).toFixed(1)).join(' ')}"/></svg>`}
+function metricsHtml(list){
+  const groups=[];
+  for(const m of METRICS){const ser=metricSeries(m,list);if(!ser.length)continue;const cur=ser.at(-1).v,prev=ser.length>1?ser.at(-2).v:null,d=prev==null?null:cur-prev;
+    const g=groups.find(x=>x.name===m[1])||(groups.push({name:m[1],tiles:[]}),groups.at(-1));
+    g.tiles.push(`<button type="button" class="fitMetric" data-metric="${esc(m[0])}"><span class="fitMetricTop"><span>${esc(m[2])}</span><span aria-hidden="true">›</span></span><span class="fitMetricVal"><strong>${metricText(m,cur)}</strong>${m[3]?`<small> ${esc(m[3])}</small>`:''}</span><span class="fitMetricChange">${d==null||Math.abs(d)<Math.pow(10,-m[5])/2?'—':(d<0?'↓ ':'↑ ')+metricText(m,Math.abs(d))}</span>${spark(ser)}</button>`)}
+  return groups.map(g=>`<div class="fitBodyHead fitGroupHead"><span class="fitBodyLabel">${esc(g.name)}</span></div><div class="fitMetrics">${g.tiles.join('')}</div>`).join('');
+}
+function openMetric(key){
+  const m=METRICS.find(x=>x[0]===key);if(!m)return;let r=30;
+  const draw=()=>{
+    const all=metricSeries(m,weighIns()),pts=all.filter(p=>p.t>=daysAgo(r)),cur=all.at(-1),first=pts[0];
+    const d=cur&&first&&pts.length>1?cur.v-first.v:null;
+    let chart='<p class="fitBodyHint">Not enough readings for this range yet.</p>';
+    if(pts.length>1){const w=300,h=110,vs=pts.map(p=>p.v),lo=Math.min(...vs),hi=Math.max(...vs),span=(hi-lo)||1,t0=new Date(pts[0].t).getTime(),t1=Math.max(new Date(pts.at(-1).t).getTime(),t0+1);
+      const line=pts.map((p,i)=>(i?'L':'M')+((new Date(p.t).getTime()-t0)/(t1-t0)*w).toFixed(1)+' '+(h-6-(p.v-lo)/span*(h-12)).toFixed(1)).join(' ');
+      chart=`<svg class="fitWeightChart fitMetricChart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(m[2])} over time"><path class="fitWeightLine" d="${line}"/></svg>`}
+    const extraLine=key==='fat'&&weighIns().at(-1)?.fat_mass_kg!=null?`<p class="fitBodyHint">${kg(weighIns().at(-1).fat_mass_kg)} kg fat mass${weighIns().at(-1).fat_free_mass_kg!=null?' · '+kg(weighIns().at(-1).fat_free_mass_kg)+' kg lean mass':''}</p>`:'';
+    const hist=all.slice(-10).reverse().map(p=>`<div class="fitMetricRow"><strong>${esc(new Date(p.t).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))}</strong><span>${metricText(m,p.v)}${m[3]?' '+esc(m[3]):''}</span></div>`).join('');
+    const body=showSheet(m[2],`<div class="fitRange fitRangeCenter" role="group" aria-label="Chart range">${[[30,'1M'],[90,'3M'],[365,'1Y']].map(([dd,l])=>`<button type="button" data-r="${dd}" aria-pressed="${r===dd}" class="${r===dd?'on':''}">${l}</button>`).join('')}</div>
+<div class="fitWeightNow"><strong>${cur?metricText(m,cur.v):'–'}${m[3]?`<small> ${esc(m[3])}</small>`:''}</strong>${d==null?'':`<span class="fitWeightChange flat">${d<0?'↓ ':d>0?'↑ ':''}${metricText(m,Math.abs(d))}${m[3]?' '+esc(m[3]):''}</span>`}</div>${extraLine}${chart}
+<div class="fitBodyHead fitGroupHead"><span class="fitBodyLabel">History</span></div>${hist}`);
+    body.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{r=Number(b.dataset.r);draw()});
+  };
+  draw();
 }
 function openWeight(row){
   const at=row?new Date(row.measured_at):new Date(),day=localKey(at);
@@ -585,6 +662,8 @@ async function init(){
   const {data}=await sb.auth.getSession();userId=data?.session?.user?.id||'';restore();invalidate();
   sb.auth.onAuthStateChange((_e,s)=>{const next=s?.user?.id||'';if(next===userId)return;userId=next;restore();invalidate();closeSheet();if(userId)refresh();else if(state.tab==='fitness')render()});
   if(userId&&navigator.onLine)refresh();else if(state.tab==='fitness')render();
+  // the Withings sign-in may come back in a browser where Planly is not signed in: the signed state names the person
+  scaleReturn().catch(e=>console.warn('Planly scale',e));
 }
 window.PlanlyFitness={rankFoods,strictOrClose,validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,weights,pending,failures,dayKey,section}),suggestTargets,nutrientsFor,offProduct};
 setTimeout(()=>init().catch(e=>console.warn('Planly fitness',e)),0);
