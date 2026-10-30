@@ -1,4 +1,5 @@
-// Planly 5.1 — Fitness › Food: a private calorie and macro counter (tables from migration 054). Runs inside the Planly
+// Planly 5.1 — Fitness › Food and Body: a private calorie and macro counter (tables from migration 054) and a private
+// weight log (migration 056). Runs inside the Planly
 // app closure as the Fitness tab. Every row belongs to the signed-in person only (RLS: owner_id = auth.uid()); the
 // browser never chooses whose data it reads, it only sends its own rows. Works offline: changes are kept on the phone
 // and sent in order when online, each guarded by cloud_version so a change made on another device is never overwritten.
@@ -13,7 +14,7 @@ const ACTIVITY=[['sedentary','Mostly sitting',1.2],['light','Lightly active',1.3
 const OFF_FAST='https://search.openfoodfacts.org/search',OFF_SEARCH='https://world.openfoodfacts.org/cgi/search.pl',OFF_PRODUCT='https://world.openfoodfacts.org/api/v2/product/';
 // ZXing 0.23.0 (Apache-2.0), vendored byte for byte from npm and loaded only when the scanner opens (iPhone has no built-in reader)
 const ZXING_URL='./vendor/zxing-library-0.23.0.min.js';
-let camera=null,scanRun=0,zxingLoad=null,inflight='',sb=null,userId='',profile=null,entries=[],favourites=[],pending=[],failures=[],loadedFrom='',dayKey=todayKey(),syncing=false,sheet=null,fitInvalid=true;
+let camera=null,scanRun=0,zxingLoad=null,inflight='',sb=null,userId='',profile=null,entries=[],favourites=[],weights=[],pending=[],failures=[],loadedFrom='',dayKey=todayKey(),syncing=false,sheet=null,fitInvalid=true,section='food',range=30;
 const uuid=()=>crypto.randomUUID(),now=()=>Date.now();
 function todayKey(){return localKey(new Date())}
 function shiftDay(key,n){const d=new Date(key+'T12:00:00');d.setDate(d.getDate()+n);return localKey(d)}
@@ -24,8 +25,8 @@ const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 const withinLimits=(amount,n)=>amount>0&&amount<=10000&&n.kcal<=10000&&n.protein_g<=1000&&n.carbs_g<=1000&&n.fat_g<=1000;
 
 // ---------- local storage (per account) ----------
-function persist(){if(!userId)return;try{localStorage.setItem(STORE+userId,JSON.stringify({v:1,profile,entries,favourites,pending,failures,loadedFrom}))}catch{}}
-function restore(){profile=null;entries=[];favourites=[];pending=[];failures=[];loadedFrom='';if(!userId)return;try{const x=JSON.parse(localStorage.getItem(STORE+userId)||'null');if(x?.v===1){profile=x.profile||null;entries=Array.isArray(x.entries)?x.entries:[];favourites=Array.isArray(x.favourites)?x.favourites:[];pending=Array.isArray(x.pending)?x.pending:[];failures=Array.isArray(x.failures)?x.failures:[];loadedFrom=String(x.loadedFrom||'')}}catch{}}
+function persist(){if(!userId)return;try{localStorage.setItem(STORE+userId,JSON.stringify({v:1,profile,entries,favourites,weights,pending,failures,loadedFrom,section}))}catch{}}
+function restore(){profile=null;entries=[];favourites=[];weights=[];pending=[];failures=[];loadedFrom='';section='food';if(!userId)return;try{const x=JSON.parse(localStorage.getItem(STORE+userId)||'null');if(x?.v===1){profile=x.profile||null;entries=Array.isArray(x.entries)?x.entries:[];favourites=Array.isArray(x.favourites)?x.favourites:[];weights=Array.isArray(x.weights)?x.weights:[];section=x.section==='body'?'body':'food';pending=Array.isArray(x.pending)?x.pending:[];failures=Array.isArray(x.failures)?x.failures:[];loadedFrom=String(x.loadedFrom||'')}}catch{}}
 
 // ---------- sync ----------
 // One queued change per row. A row not yet on the server stays an insert; later edits fold into it. A change that is
@@ -38,7 +39,7 @@ function queue(table,kind,row){
   persist();invalidate();sync();
 }
 const isNetwork=e=>!navigator.onLine||e?.name==='AbortError'||/failed to fetch|networkerror|network request|load failed|offline/i.test(String(e?.message||e||''));
-function storeRow(table,row){if(table==='planly_food_profile'){profile=row;return}const list=table==='planly_food_entries'?entries:favourites,i=list.findIndex(x=>x.id===row.id);if(row.deleted_at){if(i>=0)list.splice(i,1)}else if(i>=0)list[i]=row;else list.push(row)}
+function storeRow(table,row){if(table==='planly_food_profile'){profile=row;return}const list=table==='planly_food_entries'?entries:table==='planly_body_weights'?weights:favourites,i=list.findIndex(x=>x.id===row.id);if(row.deleted_at){if(i>=0)list.splice(i,1)}else if(i>=0)list[i]=row;else list.push(row)}
 async function sendOne(op){
   const t=sb.from(op.table);
   if(op.kind==='insert'){const res=await t.insert(op.row).select('*').single();if(res.error)throw res.error;return res.data}
@@ -66,13 +67,14 @@ async function sync(){
 async function pull(day){
   if(!sb||!userId||!navigator.onLine||pending.length)return;
   const base=shiftDay(todayKey(),-35);let from=loadedFrom&&loadedFrom<base?loadedFrom:base;if(day&&day<from)from=day;
-  const [p,e,f]=await Promise.all([
+  const [p,e,f,w]=await Promise.all([
     sb.from('planly_food_profile').select('*').eq('owner_id',userId).maybeSingle(),
     sb.from('planly_food_entries').select('*').eq('owner_id',userId).is('deleted_at',null).gte('entry_date',from).order('client_created_at'),
-    sb.from('planly_food_favourites').select('*').eq('owner_id',userId).is('deleted_at',null)]);
-  if(p.error||e.error||f.error)throw p.error||e.error||f.error;
+    sb.from('planly_food_favourites').select('*').eq('owner_id',userId).is('deleted_at',null),
+    sb.from('planly_body_weights').select('*').eq('owner_id',userId).is('deleted_at',null).order('measured_at')]);
+  if(p.error||e.error||f.error||w.error)throw p.error||e.error||f.error||w.error;
   if(pending.length)return; // something was changed while loading: keep the local copy until it is sent
-  profile=p.data||null;entries=(e.data||[]).filter(x=>x.entry_date>=from);favourites=f.data||[];loadedFrom=from;persist();invalidate();
+  profile=p.data||null;entries=(e.data||[]).filter(x=>x.entry_date>=from);favourites=f.data||[];weights=w.data||[];loadedFrom=from;persist();invalidate();
 }
 async function refresh(day){try{await sync();await pull(day)}catch(e){console.warn('Planly fitness',e)}if(state.tab==='fitness')render()}
 
@@ -275,13 +277,15 @@ function invalidate(){fitInvalid=true}
 function dayLabel(key){const t=todayKey();if(key===t)return 'Today';if(key===shiftDay(t,-1))return 'Yesterday';return new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}
 function ring(left,target){const R=52,C=2*Math.PI*R,used=clamp(1-left/Math.max(target,1),0,1),over=left<0;return `<svg class="fitRing" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="${R}" class="fitRingTrack"/>${used>0?`<circle cx="60" cy="60" r="${R}" class="fitRingFill${over?' over':''}" stroke-dasharray="${(C*used).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 60 60)"/>`:''}</svg>`}
 function macroRow(label,cls,val,target){return `<div class="fitMacro ${cls}"><div class="fitMacroTop"><strong>${label}</strong><span>${fmt(val)} / ${fmt(target)} g</span></div><div class="fitBar"><span style="width:${(clamp(val/Math.max(target,1),0,1)*100).toFixed(1)}%"></span></div></div>`}
+function segmentsHtml(){const tab=(id,label)=>`<button type="button" role="tab" data-fit="section" data-section="${id}" aria-selected="${section===id}" class="${section===id?'active':''}">${label}</button>`;return `<div class="fitSegments" role="tablist" aria-label="Fitness sections">${tab('food','Food')}<button type="button" disabled aria-disabled="true">Gym <small>Soon</small></button>${tab('body','Body')}</div>`}
 function viewHtml(){
+  if(section==='body')return bodyHtml();
   const t=targets(),list=dayEntries(dayKey),tot=totals(list),left=t.kcal-tot.kcal,avg=weekAverage(),isToday=dayKey===todayKey();
   const setup=!profile?`<section class="fitCard fitSetup"><div><strong>Set your daily targets</strong></div><button type="button" class="fitPrimary" data-fit="targets">Set targets</button></section>`:'';
   const fails=failures.length?`<div class="fitNotice" role="status"><span>${failures.length===1?'1 change':failures.length+' changes'} couldn't be saved and ${failures.length===1?'was':'were'} replaced by the latest saved version.</span><button type="button" data-fit="dismiss">OK</button></div>`:'';
   const meals=MEALS.map(([id,label])=>{const rows=list.filter(x=>x.meal===id);const kc=totals(rows).kcal;return `<section class="fitMeal" data-meal="${id}"><div class="fitMealHead"><h3>${label}</h3><span>${rows.length?fmt(kc)+' kcal':''}</span></div>${rows.map(x=>`<button type="button" class="fitEntry" data-entry="${esc(x.id)}"><span class="fitEntryText"><strong>${esc(x.name)}</strong><small>${esc([x.brand,amountText(x)].filter(Boolean).join(' · '))}</small></span><span class="fitEntryKcal">${fmt(x.kcal)}</span></button>`).join('')}<button type="button" class="fitQuiet" data-fit="search" data-meal="${id}">+ Add food</button></section>`}).join('');
   return `<div class="fitView">
-<div class="fitSegments" role="tablist" aria-label="Fitness sections"><button type="button" class="active" role="tab" aria-selected="true">Food</button><button type="button" disabled aria-disabled="true">Gym <small>Soon</small></button><button type="button" disabled aria-disabled="true">Body <small>Soon</small></button></div>
+${segmentsHtml()}
 <div class="fitDayBar"><button type="button" data-fit="prev" aria-label="Previous day">‹</button><strong>${esc(dayLabel(dayKey))}</strong><button type="button" data-fit="next" aria-label="Next day" ${isToday?'disabled':''}>›</button></div>
 ${fails}${setup}
 <section class="fitCard fitSummary"><div class="fitSummaryTop"><div class="fitRingWrap">${ring(left,t.kcal)}<div class="fitRingText"><strong class="${left<0?'over':''}">${fmt(Math.abs(left))}</strong><span>${left<0?'kcal over':'kcal left'}</span></div></div><div class="fitMacros">${macroRow('Protein','protein',tot.protein,t.protein)}${macroRow('Carbs','carbs',tot.carbs,t.carbs)}${macroRow('Fat','fat',tot.fat,t.fat)}</div></div>
@@ -296,7 +300,7 @@ function renderFitness(view){
   view.innerHTML=viewHtml();fitInvalid=false;
 }
 function handleClick(e){
-  const b=e.target.closest('[data-fit],[data-entry]');if(!b||!e.currentTarget.contains(b)||state.tab!=='fitness')return;
+  const b=e.target.closest('[data-fit],[data-entry],[data-weight]');if(!b||!e.currentTarget.contains(b)||state.tab!=='fitness')return;
   const a=b.dataset.fit;
   if(b.dataset.entry){const row=entries.find(x=>x.id===b.dataset.entry);if(row)openEdit(row);return}
   if(a==='prev'){dayKey=shiftDay(dayKey,-1);invalidate();render();if(dayKey<loadedFrom||!loadedFrom)refresh(dayKey);return}
@@ -306,6 +310,83 @@ function handleClick(e){
   if(a==='scan')return openScan(defaultMeal());
   if(a==='targets')return openTargets();
   if(a==='dismiss'){failures=[];persist();invalidate();render()}
+  if(a==='section'){const next=b.dataset.section==='body'?'body':'food';if(next!==section){section=next;persist();invalidate();render()}return}
+  if(a==='range'){range=Number(b.dataset.range)||30;invalidate();render();return}
+  if(a==='log-weight')return openWeight();
+  if(a==='goal')return openGoal();
+  if(b.dataset.weight){const row=weights.find(x=>x.id===b.dataset.weight);if(row)openWeight(row)}
+}
+
+// ---------- body (weight) ----------
+// A private weight log in kg (migration 056): a trend chart, progress to an optional goal, this week and BMI (from the
+// height in the Food profile). Weigh-ins are typed in here; source/external_id are kept for a later smart-scale link.
+const kg=n=>(Math.round(num(n)*10)/10).toLocaleString('en-GB',{minimumFractionDigits:1,maximumFractionDigits:1});
+const weighIns=()=>weights.filter(x=>!x.deleted_at).slice().sort((a,b)=>String(a.measured_at).localeCompare(String(b.measured_at)));
+const daysAgo=n=>new Date(Date.now()-n*864e5).toISOString();
+// the reading at or just before a moment (or the earliest one after it, when nothing is that old)
+function weightAt(list,iso){let hit=null;for(const x of list){if(x.measured_at<=iso)hit=x;else break}return hit||list[0]||null}
+function changePill(diff,label){if(diff==null||!Number.isFinite(diff))return '';const d=Math.round(diff*10)/10,cls=d<0?'down':d>0?'up':'flat';return `<span class="fitWeightChange ${cls}">${d<0?'↓ ':d>0?'↑ ':''}${kg(Math.abs(d))} kg · ${label}</span>`}
+function weightChart(list,goal){
+  const pts=list.filter(x=>x.measured_at>=daysAgo(range));
+  if(pts.length<2)return `<p class="fitBodyHint">Log a few weigh-ins to see your trend.</p>`;
+  const vals=pts.map(x=>num(x.weight_kg)),g=num(goal),w=300,h=90;let lo=Math.min(...vals),hi=Math.max(...vals);if(g>0){lo=Math.min(lo,g);hi=Math.max(hi,g)}lo-=0.5;hi+=0.5;
+  const t0=new Date(pts[0].measured_at).getTime(),t1=Math.max(new Date(pts.at(-1).measured_at).getTime(),t0+1),x=v=>((new Date(v.measured_at).getTime()-t0)/(t1-t0)*w).toFixed(1),y=v=>(h-(v-lo)/(hi-lo)*h).toFixed(1);
+  const line=pts.map((p,i)=>(i?'L':'M')+x(p)+' '+y(num(p.weight_kg))).join(' '),last=pts.at(-1);
+  return `<svg class="fitWeightChart" viewBox="0 -8 ${w} ${h+14}" role="img" aria-label="Weight over the last ${range===30?'month':range===90?'3 months':'year'}">${g>0?`<line class="fitWeightGoal" x1="0" x2="${w}" y1="${y(g)}" y2="${y(g)}"/><text class="fitWeightGoalText" x="${w}" y="${(Number(y(g))-6).toFixed(1)}" text-anchor="end">Goal ${kg(g)} kg</text>`:''}<path class="fitWeightArea" d="${line} L ${x(last)} ${h} L 0 ${h} Z"/><path class="fitWeightLine" d="${line}"/><circle class="fitWeightDot" cx="${x(last)}" cy="${y(num(last.weight_kg))}" r="5.5"/></svg>`;
+}
+function bodyHtml(){
+  const list=weighIns(),latest=list.at(-1),goal=num(profile?.goal_weight_kg),height=num(profile?.height_cm);
+  const fails=failures.length?`<div class="fitNotice" role="status"><span>${failures.length===1?'1 change':failures.length+' changes'} couldn't be saved and ${failures.length===1?'was':'were'} replaced by the latest saved version.</span><button type="button" data-fit="dismiss">OK</button></div>`:'';
+  if(!latest)return `<div class="fitView">${segmentsHtml()}${fails}<section class="fitCard fitBodyEmpty"><strong>Log your first weight</strong><button type="button" class="fitPrimary" data-fit="log-weight">+ Log weight</button></section></div>`;
+  const month=list.length>1?num(latest.weight_kg)-num(weightAt(list,daysAgo(30)).weight_kg):null;
+  const start=num(list[0].weight_kg),cur=num(latest.weight_kg),toGo=goal>0?Math.round(Math.abs(cur-goal)*10)/10:0;
+  const reached=goal>0&&(start>=goal?cur<=goal:cur>=goal),done=goal>0?(reached?1:clamp((start-cur)/((start-goal)||1),0,1)):0;
+  const goalRow=goal>0?`<div class="fitWeightGoalRow"><span>Start ${kg(start)} · Goal ${kg(goal)}</span><span>${reached?'Goal reached 🎉':kg(toGo)+' kg to go'}</span></div><div class="fitBar fitWeightBar"><span style="width:${(done*100).toFixed(1)}%"></span></div>`:'';
+  const week=list.filter(x=>x.measured_at>=daysAgo(7)),days=new Set(week.map(x=>localKey(new Date(x.measured_at)))).size,weekChange=list.length>1?cur-num(weightAt(list,daysAgo(7)).weight_kg):null;
+  const bmi=height>0?Math.round(cur/((height/100)**2)*10)/10:null;
+  const recent=list.slice(-8).reverse().map(x=>{const d=new Date(x.measured_at);return `<button type="button" class="fitWeighIn" data-weight="${esc(x.id)}"><span><strong>${esc(d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))}</strong><small>${esc(d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}))}${x.source==='withings'?' · Scale':''}</small></span><span class="fitWeighInKg">${kg(x.weight_kg)} kg</span></button>`}).join('');
+  return `<div class="fitView">${segmentsHtml()}${fails}
+<section class="fitCard fitWeightCard"><div class="fitBodyHead"><span class="fitBodyLabel">Weight</span><span class="fitRange" role="group" aria-label="Chart range">${[[30,'1M'],[90,'3M'],[365,'1Y']].map(([d,l])=>`<button type="button" data-fit="range" data-range="${d}" aria-pressed="${range===d}" class="${range===d?'on':''}">${l}</button>`).join('')}</span></div>
+<div class="fitWeightNow"><strong>${kg(cur)}<small> kg</small></strong>${changePill(month,'30 days')}</div>
+${weightChart(list,goal)}${goalRow}
+<div class="fitActions fitBodyActions"><button type="button" class="fitPrimary" data-fit="log-weight">+ Log weight</button><button type="button" class="fitSecondary" data-fit="goal">${goal>0?'Edit goal':'Set goal'}</button></div></section>
+<section class="fitCard"><div class="fitBodyHead"><span class="fitBodyLabel">This week</span></div><div class="fitBodyStats"><div><strong>${days} of 7</strong><small>days logged</small></div><div><strong>${weekChange==null?'–':(weekChange<0?'↓ ':weekChange>0?'↑ ':'')+kg(Math.abs(weekChange))}</strong><small>kg this week</small></div>${bmi?`<div><strong>${bmi.toLocaleString('en-GB')}</strong><small>BMI</small></div>`:`<button type="button" data-fit="goal"><strong>BMI</strong><small>Add height</small></button>`}</div></section>
+<section class="fitCard"><div class="fitBodyHead"><span class="fitBodyLabel">Recent</span></div>${recent}</section>
+</div>`;
+}
+function openWeight(row){
+  const at=row?new Date(row.measured_at):new Date(),day=localKey(at);
+  const body=showSheet(row?'Edit weight':'Log weight',`<label class="fitField"><span>Weight kg</span><input name="weight" type="number" inputmode="decimal" step="0.1" min="25" max="400" value="${row?esc(r1(row.weight_kg)):''}" placeholder="e.g. 82.4"></label>
+<label class="fitField"><span>Date</span><input name="day" type="date" max="${todayKey()}" value="${day}"></label>
+<p class="fitStatus" data-err role="alert"></p>
+<button type="button" class="fitPrimary fitWide" data-save>${row?'Save':'Log weight'}</button>${row?'<button type="button" class="fitQuiet fitWide fitDanger" data-delete>Delete</button>':''}`);
+  const input=body.querySelector('[name="weight"]');setTimeout(()=>input.focus(),60);
+  const save=()=>{
+    const w=Math.round(num(input.value)*100)/100,d=body.querySelector('[name="day"]').value||todayKey(),err=body.querySelector('[data-err]');
+    if(!(w>=25&&w<=400)){err.textContent='Enter a weight between 25 and 400 kg.';return}
+    if(d>todayKey()){err.textContent='Pick today or an earlier day.';return}
+    // keep the time of day: now for a new reading today, the original time when only the weight changes, midday otherwise
+    const when=row&&localKey(new Date(row.measured_at))===d?row.measured_at:d===todayKey()?new Date().toISOString():new Date(d+'T12:00:00').toISOString();
+    const t=now();
+    if(row){const next={...row,weight_kg:w,measured_at:when,client_updated_at:t};storeRow('planly_body_weights',next);queue('planly_body_weights','update',next)}
+    else{const next={id:uuid(),owner_id:userId,client_id:uuid(),measured_at:when,weight_kg:w,source:'manual',client_created_at:t,client_updated_at:t,cloud_version:0};weights.push(next);queue('planly_body_weights','insert',next)}
+    closeSheet();
+  };
+  body.querySelector('[data-save]').onclick=save;input.addEventListener('keydown',e=>{if(e.key==='Enter')save()});
+  const del=body.querySelector('[data-delete]');if(del)del.onclick=()=>{const next={...row,deleted_at:new Date().toISOString(),client_updated_at:now()};weights=weights.filter(x=>x.id!==row.id);queue('planly_body_weights',pending.some(p=>p.table==='planly_body_weights'&&p.key===row.id&&p.kind==='insert')?'delete':'update',next);closeSheet()};
+}
+function openGoal(){
+  const body=showSheet('Goal and height',`<div class="fitTriple fitPair"><label class="fitField"><span>Goal weight kg</span><input name="goal" type="number" inputmode="decimal" step="0.1" min="25" max="400" value="${profile?.goal_weight_kg!=null?esc(r1(profile.goal_weight_kg)):''}"></label><label class="fitField"><span>Height cm</span><input name="height" type="number" inputmode="decimal" min="80" max="250" value="${profile?.height_cm!=null?esc(r1(profile.height_cm)):''}"></label></div>
+<p class="fitStatus" data-err role="alert"></p>
+<button type="button" class="fitPrimary fitWide" data-save>Save</button>${profile?.goal_weight_kg!=null?'<button type="button" class="fitQuiet fitWide" data-clear>Remove goal</button>':''}`);
+  const val=n=>body.querySelector(`[name="${n}"]`).value;
+  body.querySelector('[data-save]').onclick=()=>{
+    const g=val('goal')?r1(val('goal')):null,h=val('height')?r1(val('height')):null,err=body.querySelector('[data-err]');
+    if(g!=null&&(g<25||g>400)){err.textContent='Goal weight must be between 25 and 400 kg.';return}
+    if(h!=null&&(h<80||h>250)){err.textContent='Height must be between 80 and 250 cm.';return}
+    saveProfile({goal_weight_kg:g,height_cm:h});closeSheet();
+  };
+  const clear=body.querySelector('[data-clear]');if(clear)clear.onclick=()=>{saveProfile({goal_weight_kg:null});closeSheet()};
 }
 
 // ---------- sheets ----------
@@ -505,6 +586,6 @@ async function init(){
   sb.auth.onAuthStateChange((_e,s)=>{const next=s?.user?.id||'';if(next===userId)return;userId=next;restore();invalidate();closeSheet();if(userId)refresh();else if(state.tab==='fitness')render()});
   if(userId&&navigator.onLine)refresh();else if(state.tab==='fitness')render();
 }
-window.PlanlyFitness={rankFoods,strictOrClose,validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,pending,failures,dayKey}),suggestTargets,nutrientsFor,offProduct};
+window.PlanlyFitness={rankFoods,strictOrClose,validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,weights,pending,failures,dayKey,section}),suggestTargets,nutrientsFor,offProduct};
 setTimeout(()=>init().catch(e=>console.warn('Planly fitness',e)),0);
 })();

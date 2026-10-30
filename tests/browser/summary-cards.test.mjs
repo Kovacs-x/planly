@@ -13,7 +13,8 @@ const monday=key(new Date(n.getFullYear(),n.getMonth(),n.getDate()-((n.getDay()+
 const C=(owner,id,title,date,done,who)=>({owner_id:owner,client_id:id,data:{id,title,date,time:'',category:'Home',durationMinutes:30,priority:'normal',completed:done,recurrence:'none',reminder:'none',notes:'',subtasks:[],createdAt:1,updatedAt:1,visibility:'household',householdId:HOUSEHOLD,assigneeId:owner,completedBy:done?who:null,completedAt:done?now:null},visibility:'household',household_id:HOUSEHOLD,assignee_id:owner,completed_by:done?who:null,completed_at:done?now:null,cloud_version:1,deleted_at:null,task_date:date});
 const P='11111111-0000-4000-8000-000000000001',BILLS='a1000000-0000-4000-8000-000000000001',PAY='a1000000-0000-4000-8000-000000000009';
 const E=(i,name,amt,kind,status,due)=>({id:`b1000000-0000-4000-8000-00000000000${i}`,scope_id:P,category_id:kind==='income'?PAY:BILLS,owner_id:OWNER,client_id:'e'+i,kind,amount_minor:amt,entry_date:ym+'-'+String(due).padStart(2,'0'),description:name,notes:'',allocation_status:status,due_day:due,recurring_monthly:kind!=='income',show_on_today:false,today_lead_days:2,created_at:now,updated_at:now,deleted_at:null,cloud_version:1});
-const soon=Math.min(28,n.getDate()+1),inMonth=soon>=n.getDate();
+// due tomorrow, or today from the 28th on, so it is never in the past (it used to land on the 28th, overdue on the 29th–31st)
+const soon=n.getDate()<28?n.getDate()+1:n.getDate(),inMonth=soon>=n.getDate();
 const db=makeDb();
 db.tables.planly_tasks.push(C(OWNER,'b','Bathroom',lateDay||today,false),C(OWNER,'k','Kitchen',today,false),C(OWNER,'h','Hall',today,true,OWNER),C(OWNER,'s','Stairs',today,true,OWNER),C(PARTNER,'bi','Bins',today,true,PARTNER));
 db.tables.planly_budget_scopes=[{id:P,owner_id:OWNER,scope_type:'personal',household_id:null,name:'Me',currency:'GBP',created_at:now,updated_at:now,deleted_at:null,cloud_version:1}];

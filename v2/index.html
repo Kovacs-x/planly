@@ -817,6 +817,42 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitScanMiss{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.fitScanMiss[hidden]{display:none}.fitScanMiss button{padding:0 6px;font-size:14px}
 @media (prefers-reduced-motion:no-preference){.fitScanFrame span{animation:fitScanLine 1.8s ease-in-out infinite alternate}@keyframes fitScanLine{from{top:18%}to{top:82%}}}
 </style>
+<style id="planlyFitBody">
+/* Fitness › Body: weight card (latest, 30-day change, trend chart, goal progress), this week, recent weigh-ins */
+.fitBodyHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.fitBodyLabel{font-size:12px;font-weight:760;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fitRange{display:flex;gap:2px}
+.fitRange button{min-height:36px;min-width:44px;padding:0 10px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-size:13px;font-weight:700}
+.fitRange button.on{background:var(--secTint);color:var(--sec)}
+.fitWeightCard{background:linear-gradient(160deg,color-mix(in srgb,var(--sec) 14%,var(--card)),var(--card))}
+.fitWeightNow{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 10px;margin-top:4px}
+.fitWeightNow strong{font-size:44px;line-height:1.1;font-weight:780;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.fitWeightNow strong small{font-size:18px;font-weight:650;color:var(--muted)}
+.fitWeightChange{padding:3px 9px;border-radius:999px;font-size:13px;font-weight:750;white-space:nowrap;background:var(--line);color:var(--muted)}
+.fitWeightChange.down{background:color-mix(in srgb,#2fbf71 16%,transparent);color:#1a8f50}
+.fitWeightChange.up{background:color-mix(in srgb,#e0405a 14%,transparent);color:#c0344c}
+:root[data-theme="dark"] .fitWeightChange.down{color:#5fd896}:root[data-theme="dark"] .fitWeightChange.up{color:#ff8a9b}
+.fitWeightChart{display:block;width:100%;height:104px;margin-top:8px;overflow:visible}
+.fitWeightLine{fill:none;stroke:var(--sec);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.fitWeightArea{fill:var(--sec);fill-opacity:.12}
+.fitWeightDot{fill:var(--card);stroke:var(--sec);stroke-width:3}
+.fitWeightGoal{stroke:var(--muted);stroke-opacity:.6;stroke-dasharray:4 5}
+.fitWeightGoalText{fill:var(--muted);font-size:11px;font-weight:700}
+.fitBodyHint{margin:12px 0 4px;color:var(--muted);font-size:14px}
+.fitWeightGoalRow{display:flex;justify-content:space-between;gap:8px;margin-top:12px;color:var(--muted);font-size:13px;font-weight:650}
+.fitWeightBar{height:8px;background:var(--secTint)}.fitWeightBar span{background:var(--sec)}
+.fitBodyActions{grid-template-columns:1fr 1fr;margin-top:16px}
+.fitBodyStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px;text-align:center}
+.fitBodyStats>*{display:grid;gap:2px;padding:12px 4px;border:0;border-radius:16px;background:var(--secTint);color:inherit;font:inherit}
+.fitBodyStats strong{font-size:20px;color:var(--sec);font-variant-numeric:tabular-nums}
+.fitBodyStats small{color:var(--muted);font-weight:650;font-size:12px}
+.fitWeighIn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:6px 0;border:0;background:transparent;color:var(--text);text-align:left}
+.fitWeighIn+.fitWeighIn{border-top:1px solid color-mix(in srgb,var(--line) 75%,transparent)}
+.fitWeighIn span:first-child{display:grid;gap:1px}.fitWeighIn small{color:var(--muted);font-size:13px}
+.fitWeighInKg{font-weight:750;font-variant-numeric:tabular-nums}
+.fitBodyEmpty{display:grid;gap:12px;text-align:center;padding:24px 16px}
+.fitPair{grid-template-columns:repeat(2,minmax(0,1fr))}
+</style>
 <style id="planlyLookBand">
 /* Look: a soft colour glow behind every screen, and a light wash in the section's own colour behind the page title, which
    is written in that colour (Today blue, Plan violet, Home green, Budget amber, Household rose, Fitness teal). Both sit
@@ -1190,7 +1226,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t41';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t42';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};

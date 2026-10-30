@@ -91,7 +91,11 @@ function foodProblems(m54){
  const problems=foodProblems(m54);if(problems.length)fail(problems[0]);
  const otherSql=fs.readdirSync(migrationDir).filter(f=>f.endsWith('.sql')&&!f.startsWith('054_')).map(f=>read(`supabase/migrations/${f}`)).join('\n;\n');
  const later=foodPolicyProblems(otherSql,false);if(later.length)fail('Other migration: '+later[0]);
- for(const st of sqlStatements(otherSql))if((/planly_food_/.test(st)||/planly_protect_food_identity/.test(st))&&(/^(create (or replace )?function|alter function|drop function( if exists)?) (public\.)?planly_protect_food_identity\b/.test(st)||/\bgrant\b/.test(st)||/disable row level security|no force row level security|security definer/.test(st)))fail('Other migration weakens food tables: '+st.slice(0,160));
+ // Migration 056 replaces the guard with this exact text only (054's one-IF version read new.id on planly_food_profile,
+ // which has no id column, so every profile update failed). The rules are the same; any other redefinition still fails.
+ const foodGuardFixed="create or replace function public.planly_protect_food_identity() returns trigger language plpgsql set search_path = pg_catalog, public as $$ begin if new.owner_id is distinct from old.owner_id then raise exception 'food row owner is immutable'; end if; if tg_table_name <> 'planly_food_profile' then if new.id is distinct from old.id or new.client_id is distinct from old.client_id then raise exception 'food row identity is immutable'; end if; end if; return new; end $$";
+ if(!sqlStatements(read('supabase/migrations/056_fitness_body_weight.sql')).includes(foodGuardFixed))fail('Migration 056 must carry the reviewed food guard fix');
+ for(const st of sqlStatements(otherSql))if(st!==foodGuardFixed&&(/planly_food_/.test(st)||/planly_protect_food_identity/.test(st))&&(/^(create (or replace )?function|alter function|drop function( if exists)?) (public\.)?planly_protect_food_identity\b/.test(st)||/\bgrant\b/.test(st)||/disable row level security|no force row level security|security definer/.test(st)))fail('Other migration weakens food tables: '+st.slice(0,160));
  // Mutation self-test: each weakened copy of the migration must be caught.
  const upd='create policy planly_food_entries_update_owner on public.planly_food_entries for update to authenticated using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));';
  const mutants={
