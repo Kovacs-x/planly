@@ -108,6 +108,8 @@ jobs:
         run: node tests/browser/repeat-delete.test.mjs
       - name: Bill ticks respond at once (candidate)
         run: node tests/browser/bill-tick.test.mjs
+      - name: Fitness Body weight log (candidate)
+        run: node tests/browser/fitness-body.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
