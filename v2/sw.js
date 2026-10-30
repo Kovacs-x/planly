@@ -8,7 +8,7 @@ const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=718s01';
 const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=713n01';
 const CORE_HOUSEHOLD_CALENDAR_URL='./core-household-calendar-v3.3c.js?v=712c02';
 const CORE_BUDGET_NAV_URL='./core-budget-nav-v4.0b1.js?v=726n02';
-const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=721t14';
+const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=721t15';
 const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r06';
 const BUDGET_RUNTIME_URL='./core-budget-v4.0b.js?v=730k02';
 const BUDGET_UI_URL='./core-budget-ui-v4.0b.js?v=730b10';

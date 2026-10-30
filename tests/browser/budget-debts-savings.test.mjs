@@ -33,6 +33,7 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
 // 1. Adding a debt from scratch
 {const db=mk({money:false});const {context,errors}=await household(browser,db,OWNER);const page=await openApp(context,errors);page.on('dialog',d=>d.accept());await budget(page);
  const t0=await page.evaluate(()=>({tabs:[...document.querySelectorAll('.budgetMoneyTabs button')].map(b=>b.textContent.trim()+':'+b.getAttribute('aria-selected')).join(','),month:!!document.querySelector('.budgetMonthBar'),hero:!!document.querySelector('.budgetHero')}));
+ check('the tabs are easy to tap (44px) and sit above the month',await page.evaluate(()=>{const t=document.querySelector('.budgetMoneyTabs'),b=t?.querySelector('button');return !!b&&b.getBoundingClientRect().height>=44&&!!(t.compareDocumentPosition(document.querySelector('.budgetMonthBar'))&Node.DOCUMENT_POSITION_FOLLOWING)}));
  check('Budget has Month / Debts / Savings tabs, on Month with the month bar',t0.tabs==='Month:true,Debts:false,Savings:false'&&t0.month&&t0.hero,JSON.stringify(t0));
  await tab(page,'Debts');
  check('Debts with nothing added: Owed £0.00 and + Add debt',/Owed £0\.00/i.test(await text(page))&&await page.evaluate(()=>!!document.querySelector('[data-money="add-debt"]')&&!document.querySelector('.budgetMonthBar')));

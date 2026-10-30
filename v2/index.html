@@ -743,11 +743,11 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitView{display:grid;gap:12px;padding-bottom:12px}
 .fitCard{background:var(--card);border-radius:var(--rSurface,16px);padding:16px}
 .fitSegments{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:var(--rSurface,16px);background:var(--card)}
-.fitSegments button{min-height:40px;border:0;border-radius:var(--rControl,12px);background:transparent;color:var(--muted);font-weight:600}
+.fitSegments button{min-height:44px;border:0;border-radius:var(--rControl,12px);background:transparent;color:var(--muted);font-weight:600}
 .fitSegments button.active{background:var(--secTint);color:var(--sec)}
 .fitSegments button:disabled{cursor:default;opacity:.75}.fitSegments small{font-size:11px;font-weight:500}
 .fitDayBar{display:flex;align-items:center;justify-content:space-between}
-.fitDayBar button{width:44px;height:40px;border:0;background:transparent;color:var(--sec);font-size:24px;font-weight:600;border-radius:var(--rControl,12px)}
+.fitDayBar button{width:44px;height:44px;border:0;background:transparent;color:var(--sec);font-size:24px;font-weight:600;border-radius:var(--rControl,12px)}
 .fitDayBar button:disabled{color:var(--line);cursor:default}.fitDayBar strong{font-size:15px;font-weight:600}
 .fitSetup{display:grid;gap:12px}.fitSetup div{display:grid;gap:3px}.fitSetup strong{font-size:16px}.fitSetup span{color:var(--muted);font-size:14px;line-height:1.35}
 .fitSummary{padding:0}.fitSummaryTop{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;padding:18px 16px}
@@ -761,7 +761,7 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitMacro.protein .fitBar span{background:var(--protein)}.fitMacro.carbs .fitBar span{background:var(--carbs)}.fitMacro.fat .fitBar span{background:var(--fat)}
 .fitSummaryFoot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding:11px 16px;font-size:13px;color:var(--muted)}
 .fitSummaryFoot strong{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
-.fitTargetBtn{border:0;background:transparent;color:var(--muted);font-size:13px;padding:6px 4px;min-height:36px}.fitTargetBtn strong{color:var(--sec)}
+.fitTargetBtn{border:0;background:transparent;color:var(--muted);font-size:13px;padding:6px 4px;min-height:44px}.fitTargetBtn strong{color:var(--sec)}
 .fitActions{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px}.fitActions .fitPrimary,.fitActions .fitSecondary{padding:0 8px;gap:6px;white-space:nowrap}
 .fitPrimary,.fitSecondary{min-height:48px;border-radius:var(--rControl,12px);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px}
 .fitPrimary{border:0;background:var(--sec);color:var(--bg)}.fitPrimary:disabled{opacity:.45;cursor:default}
@@ -791,7 +791,7 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitSearchForm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 .fitSheet input:not([type=checkbox]),.fitSheet select{width:100%;min-height:46px;border:1px solid var(--line);border-radius:var(--rControl,12px);background:var(--bg);color:var(--text);padding:0 12px;min-width:0}
 .fitChips{display:flex;flex-wrap:wrap;gap:6px}
-.fitChips button,.fitSeg button,.fitUnit button{min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font-weight:600;font-size:14px}
+.fitChips button,.fitSeg button,.fitUnit button{min-height:44px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font-weight:600;font-size:14px}
 .fitChips button.on,.fitSeg button.on,.fitUnit button.on{background:var(--secTint);color:var(--sec);border-color:transparent}
 .fitSeg,.fitUnit{display:flex;flex-wrap:wrap;gap:6px}
 .fitGroup{margin:4px 0 -4px;font-size:13px;color:var(--muted);font-weight:600}
@@ -822,7 +822,7 @@ body:has(.nav [data-section="fitness"].active){--sec:var(--fitness);--secTint:va
 .fitBodyHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
 .fitBodyLabel{font-size:12px;font-weight:760;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .fitRange{display:flex;gap:2px}
-.fitRange button{min-height:36px;min-width:44px;padding:0 10px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-size:13px;font-weight:700}
+.fitRange button{min-height:44px;min-width:44px;padding:0 10px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-size:13px;font-weight:700}
 .fitRange button.on{background:var(--secTint);color:var(--sec)}
 .fitWeightCard{background:linear-gradient(160deg,color-mix(in srgb,var(--sec) 14%,var(--card)),var(--card))}
 .fitWeightNow{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 10px;margin-top:4px}
@@ -1177,6 +1177,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 #view .budgetFoldBody[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){#view .budgetFoldChevron{transition:none}}
 </style>
+<style id="planlyTapFloor">/* Every tap target at least 44px (night audit 30 Oct). */.budgetUndo button{min-width:44px}.budgetFoldCard .budgetLink,.budgetSectionHead .budgetLink{min-width:44px!important}.budgetRowActions button{min-width:44px}</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
