@@ -42,9 +42,9 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  const opts=await page.evaluate(()=>({who:[...document.querySelectorAll('#moneyWho option')].map(o=>o.textContent).join(','),bills:[...document.querySelectorAll('#moneyBill option')].map(o=>o.textContent).join('|')}));
  check('the form offers whose (Shared, Musti, Laki) and this month\'s bills',opts.who==='Shared,Musti,Laki'&&/Amex · £100/.test(opts.bills)&&/Rent · £1,000/.test(opts.bills),JSON.stringify(opts));
  const amexBill=db.tables.planly_budget_entries.find(x=>x.description==='Amex'&&x.entry_date.slice(0,7)===ym).id;
- await fill(page,{'#moneyName':'Amex','#moneyWho':OWNER,'#moneyBalance':'1,327.39','#moneyApr':'33.2','#moneyMin':'100','#moneyBill':amexBill,'#moneyOrder':'1'});await submit(page);
+ await fill(page,{'#moneyName':'Amex','#moneyWho':OWNER,'#moneyBalance':'1,327.39','#moneyApr':'33.2','#moneyMin':'100','#moneyBill':amexBill});await submit(page);
  const row=db.tables.planly_budget_debts[0]||{};
- check('saved to the shared Household budget with the right numbers',db.tables.planly_budget_debts.length===1&&row.scope_id===H&&row.owner_id===OWNER&&row.person_id===OWNER&&row.balance_minor===132739&&row.start_minor===132739&&row.apr_bp===3320&&row.minimum_minor===10000&&row.priority===1,JSON.stringify(row));
+ check('saved to the shared Household budget with the right numbers',db.tables.planly_budget_debts.length===1&&row.scope_id===H&&row.owner_id===OWNER&&row.person_id===OWNER&&row.balance_minor===132739&&row.start_minor===132739&&row.apr_bp===3320&&row.minimum_minor===10000,JSON.stringify(row));
  check('…and its monthly bill is linked to it',db.tables.planly_budget_entries.find(x=>x.id===amexBill)?.debt_id===row.id);
  check('…and so is next month\'s copy of that bill',db.tables.planly_budget_entries.find(x=>x.description==='Amex'&&x.entry_date.slice(0,7)===nextYm)?.debt_id===row.id);
  const t1=await text(page);check('the debt page shows the balance, 33.2% and about £37 a month interest',/£1,327\.39/.test(t1)&&/33\.2%/.test(t1)&&/£36\.72 \/ month/.test(t1),t1.slice(0,300));
@@ -111,5 +111,18 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  // Laki sees the same shared debts
  const p2=await household(browser,db,PARTNER);const page2=await openApp(p2.context,p2.errors);await budget(page2);await tab(page2,'Debts');const t2=await text(page2);
  check('Laki sees the same shared debts',/Vanquis/.test(t2)&&/Amex/.test(t2)&&/Musti/.test(t2),t2.slice(0,300));await p2.context.close()}
+
+// 3. Smart order: deadlines that the minimum will not meet, then highest interest, then later deadlines, then the
+//    smallest interest-free balances; whatever order numbers were saved
+{const db=mk({money:false});const soon=new Date();soon.setMonth(soon.getMonth()+2);const far=new Date();far.setMonth(far.getMonth()+20);
+ const D=(name,bal,more)=>({id:crypto.randomUUID(),scope_id:H,owner_id:OWNER,client_id:'d-'+name,name,person_id:null,start_minor:bal,balance_minor:bal,balance_on:ym+'-01',apr_bp:null,zero_until:null,minimum_minor:5000,priority:1,notes:'',closed_on:null,client_created_at:1,client_updated_at:1,cloud_version:1,created_at:now,updated_at:now,deleted_at:null,...more});
+ db.tables.planly_budget_debts=[D('Big 0%',500000,{apr_bp:0}),D('Small 0%',10000,{apr_bp:0}),D('Card 33%',130000,{apr_bp:3320}),D('Later deal',430000,{zero_until:key(far),minimum_minor:10000}),D('Card 40%',97000,{apr_bp:3990}),D('Deal soon',80000,{zero_until:key(soon)}),D('Deal covered',10000,{zero_until:key(soon),minimum_minor:10000})];
+ const {context,errors}=await household(browser,db,OWNER);const page=await openApp(context,errors);await budget(page);await tab(page,'Debts');
+ const names=await page.evaluate(()=>[...document.querySelectorAll('.budgetMoneyItem .top span:first-child')].map(x=>x.firstChild.textContent));
+ check('smart order: a deal ending soon first, then 40%, 33%, the later deal, then smallest interest-free first',JSON.stringify(names)===JSON.stringify(['Deal soon','Card 40%','Card 33%','Later deal','Deal covered','Small 0%','Big 0%']),JSON.stringify(names));
+ check('Pay off next follows it',/Deal soon/.test(await page.evaluate(()=>document.querySelector('.budgetMoneyFocus')?.innerText||'')));
+ await page.evaluate(()=>document.querySelector('[data-money="add-debt"]').click());await W(600);
+ check('the debt form has no order box to fill in',await page.evaluate(()=>!document.querySelector('#moneyOrder')));
+ check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
