@@ -42,9 +42,9 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  const opts=await page.evaluate(()=>({who:[...document.querySelectorAll('#moneyWho option')].map(o=>o.textContent).join(','),bills:[...document.querySelectorAll('#moneyBill option')].map(o=>o.textContent).join('|')}));
  check('the form offers whose (Shared, Musti, Laki) and this month\'s bills',opts.who==='Shared,Musti,Laki'&&/Amex · £100/.test(opts.bills)&&/Rent · £1,000/.test(opts.bills),JSON.stringify(opts));
  const amexBill=db.tables.planly_budget_entries.find(x=>x.description==='Amex'&&x.entry_date.slice(0,7)===ym).id;
- await fill(page,{'#moneyName':'Amex','#moneyWho':OWNER,'#moneyBalance':'1,327.39','#moneyApr':'33.2','#moneyMin':'100','#moneyBill':amexBill,'#moneyOrder':'1'});await submit(page);
+ await fill(page,{'#moneyName':'Amex','#moneyWho':OWNER,'#moneyBalance':'1,327.39','#moneyApr':'33.2','#moneyMin':'100','#moneyBill':amexBill});await submit(page);
  const row=db.tables.planly_budget_debts[0]||{};
- check('saved to the shared Household budget with the right numbers',db.tables.planly_budget_debts.length===1&&row.scope_id===H&&row.owner_id===OWNER&&row.person_id===OWNER&&row.balance_minor===132739&&row.start_minor===132739&&row.apr_bp===3320&&row.minimum_minor===10000&&row.priority===1,JSON.stringify(row));
+ check('saved to the shared Household budget with the right numbers',db.tables.planly_budget_debts.length===1&&row.scope_id===H&&row.owner_id===OWNER&&row.person_id===OWNER&&row.balance_minor===132739&&row.start_minor===132739&&row.apr_bp===3320&&row.minimum_minor===10000,JSON.stringify(row));
  check('…and its monthly bill is linked to it',db.tables.planly_budget_entries.find(x=>x.id===amexBill)?.debt_id===row.id);
  check('…and so is next month\'s copy of that bill',db.tables.planly_budget_entries.find(x=>x.description==='Amex'&&x.entry_date.slice(0,7)===nextYm)?.debt_id===row.id);
  const t1=await text(page);check('the debt page shows the balance, 33.2% and about £37 a month interest',/£1,327\.39/.test(t1)&&/33\.2%/.test(t1)&&/£36\.72 \/ month/.test(t1),t1.slice(0,300));
@@ -111,5 +111,31 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  // Laki sees the same shared debts
  const p2=await household(browser,db,PARTNER);const page2=await openApp(p2.context,p2.errors);await budget(page2);await tab(page2,'Debts');const t2=await text(page2);
  check('Laki sees the same shared debts',/Vanquis/.test(t2)&&/Amex/.test(t2)&&/Musti/.test(t2),t2.slice(0,300));await p2.context.close()}
+
+// 3. Smart order: deadlines that the minimum will not meet, then highest interest, then later deadlines, then the
+//    smallest interest-free balances; whatever order numbers were saved
+{const db=mk({money:false});const soon=new Date();soon.setMonth(soon.getMonth()+2);const far=new Date();far.setMonth(far.getMonth()+20);
+ const D=(name,bal,more)=>({id:crypto.randomUUID(),scope_id:H,owner_id:OWNER,client_id:'d-'+name,name,person_id:null,start_minor:bal,balance_minor:bal,balance_on:ym+'-01',apr_bp:null,zero_until:null,minimum_minor:5000,priority:1,notes:'',closed_on:null,client_created_at:1,client_updated_at:1,cloud_version:1,created_at:now,updated_at:now,deleted_at:null,...more});
+ db.tables.planly_budget_debts=[D('Big 0%',500000,{apr_bp:0}),D('Small 0%',10000,{apr_bp:0}),D('Card 33%',130000,{apr_bp:3320}),D('Later deal',430000,{zero_until:key(far),minimum_minor:10000}),D('Card 40%',97000,{apr_bp:3990}),D('Deal soon',80000,{zero_until:key(soon)}),D('Deal covered',10000,{zero_until:key(soon),minimum_minor:10000})];
+ const {context,errors}=await household(browser,db,OWNER);const page=await openApp(context,errors);await budget(page);await tab(page,'Debts');
+ const names=await page.evaluate(()=>[...document.querySelectorAll('.budgetMoneyItem .top span:first-child')].map(x=>x.firstChild.textContent));
+ check('smart order: a deal ending soon first, then 40%, 33%, the later deal, then smallest interest-free first',JSON.stringify(names)===JSON.stringify(['Deal soon','Card 40%','Card 33%','Later deal','Deal covered','Small 0%','Big 0%']),JSON.stringify(names));
+ check('Pay off next follows it',/Deal soon/.test(await page.evaluate(()=>document.querySelector('.budgetMoneyFocus')?.innerText||'')));
+ await page.evaluate(()=>document.querySelector('[data-money="add-debt"]').click());await W(600);
+ // the order is worked out for the month on screen, the same month as the plan: a deal ending in 8 months is not yet
+ // urgent this month, but is when looking 3 months ahead (then it beats the 40% card in the list, Pay off next and the plan)
+ {const db2=mk({money:false});const in8=new Date();in8.setDate(1);in8.setMonth(in8.getMonth()+8);
+  db2.tables.planly_budget_debts=[D('Card 40%',97000,{apr_bp:3990}),D('Deal in 8 months',300000,{zero_until:key(in8)})];
+  const p2=await household(browser,db2,OWNER);const pg=await openApp(p2.context,p2.errors);await budget(pg);
+  const look=()=>pg.evaluate(()=>({list:[...document.querySelectorAll('.budgetMoneyItem .top span:first-child')].map(x=>x.firstChild.textContent),focus:document.querySelector('.budgetMoneyFocus strong')?.textContent}));
+  const planFirst=async()=>{await pg.evaluate(()=>document.querySelector('[data-money="plan"]').click());await W(700);const t=await pg.evaluate(()=>{const m=document.querySelector('.budgetMoneyMonth');return m.querySelector('.budgetMoneyChip')?.textContent||''});await pg.evaluate(()=>document.querySelector('[data-money="list"]').click());await W(500);return t};
+  await tab(pg,'Debts');const now1=await look(),plan1=await planFirst();
+  check('this month: the 40% card comes first in the list, Pay off next and the plan',now1.list[0]==='Card 40%'&&now1.focus==='Card 40%'&&/^Card 40%/.test(plan1),JSON.stringify([now1,plan1]));
+  await tab(pg,'Month');for(let i=0;i<3;i++){await pg.evaluate(()=>document.querySelector('.budgetMonthBar [data-month-next]').click());await W(900)}
+  await tab(pg,'Debts');const later=await look(),plan2=await planFirst();
+  check('3 months ahead: the deal ending soon comes first in all three',later.list[0]==='Deal in 8 months'&&later.focus==='Deal in 8 months'&&/^Deal in 8 months/.test(plan2),JSON.stringify([later,plan2]));
+  await p2.context.close()}
+ check('the debt form has no order box to fill in',await page.evaluate(()=>!document.querySelector('#moneyOrder')));
+ check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
