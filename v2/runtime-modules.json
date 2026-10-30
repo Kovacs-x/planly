@@ -1,5 +1,5 @@
 {
-  "version": 61,
+  "version": 62,
   "modules": [
     "./core-budget-v4.0b.js?v=730k02",
     "./core-budget-ui-v4.0b.js?v=730b11",
@@ -9,7 +9,7 @@
     "./core-budget-month-state-v4.0f.js?v=721f01",
     "./core-budget-actions-v4.0l.js?v=730l02",
     "./core-budget-scroll-v4.0m.js?v=721m01",
-    "./core-budget-money-v1.js?v=730y03",
+    "./core-budget-money-v1.js?v=730y04",
     "./core-lists-v4.1.js?v=610l02",
     "./core-household-dashboard-v4.2.js?v=420a04",
     "./core-update-v4.3.js?v=702u01",

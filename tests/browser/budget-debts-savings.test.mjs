@@ -79,6 +79,11 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  await page.fill('#moneyBuffer','500');await W(300);
  const pre2=await page.evaluate(()=>({amount:document.querySelector('#moneyAmount')?.value,split:document.querySelector('[data-money-split]')?.textContent}));
  check('keeping back £500 lowers it to £1,050 (all on Vanquis)',pre2.amount==='1050.00'&&pre2.split==='Vanquis £1,050.00',JSON.stringify(pre2));
+ const saved=await page.evaluate(()=>{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/draft/i.test(k))return localStorage.getItem(k)}return ''});
+ check('the saved draft holds the new amount with the new Keep back',/"moneyAmount":"1050\.00"/.test(saved)&&/"moneyBuffer":"500"/.test(saved),saved);
+ await page.evaluate(()=>document.querySelector('.nav button[data-tab="today"]').click());await W(1200);await budget(page);
+ const back=await page.evaluate(()=>({keep:document.querySelector('#moneyBuffer')?.value,amount:document.querySelector('#moneyAmount')?.value,split:document.querySelector('[data-money-split]')?.textContent}));
+ check('after leaving Budget and coming back, Keep back £500 and its £1,050 are both kept',back.keep==='500'&&back.amount==='1050.00'&&back.split==='Vanquis £1,050.00',JSON.stringify(back));
  await page.fill('#moneyAmount','1200');await W(300);
  check('typing an amount shows where it goes',await page.evaluate(()=>document.querySelector('[data-money-split]')?.textContent)==='Vanquis £1,055.11 · Amex £144.89');
  await submit(page);
