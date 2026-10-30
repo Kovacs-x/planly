@@ -9,7 +9,7 @@ const monthly=read('v2/core-budget-monthly-v4.0e.js');
 const monthState=read('v2/core-budget-month-state-v4.0f.js');
 const migration=read('supabase/migrations/041_collaborative_household_budget_entries.sql');
 const fail=m=>{throw new Error(m)};
-for(const marker of ["const versionBucket=k=>({category:'categories',target:'targets',entry:'entries'})[k]||null",'function acceptServer(op,server)','rows[i]={...rows[i],...server}','clearPending(op);clearConflict(op.kind,op.id)'])if(!core.includes(marker))fail('Authoritative create reconciliation invariant missing: '+marker);
+for(const marker of ["const versionBucket=k=>({category:'categories',target:'targets',entry:'entries',debt:'debts',saving:'savings'})[k]||null",'function acceptServer(op,server)','rows[i]={...rows[i],...server}','clearPending(op);clearConflict(op.kind,op.id)'])if(!core.includes(marker))fail('Authoritative create reconciliation invariant missing: '+marker);
 if(core.includes("const bucket=k+'s'"))fail('Legacy misspelled Budget version bucket derivation is still active');
 // The viewer-role label lived only in the "Household Budget · owner/member" explainer, which was removed so the Household budget mirrors Me.
 if(/isOwner\?'owner':'member'|budgetSharedNote/.test(scope))fail('Household Budget explainer must stay removed');

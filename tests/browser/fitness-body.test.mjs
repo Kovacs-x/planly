@@ -26,6 +26,11 @@ check('this week: days logged, change and BMI from the profile height',s.stats[0
 check('recent weigh-ins, newest first, a scale reading marked',s.recent.length===7&&/82\.4 kg$/.test(s.recent[0])&&/Scale/.test(s.recent[0]),JSON.stringify(s.recent.slice(0,2)));
 await page.evaluate(()=>document.querySelector('[data-fit="range"][data-range="90"]').click());await W(300);s=await look();
 check('the chart switches to 3 months',s.range==='3M'&&s.chart,JSON.stringify(s));
+// sheets: the page behind holds still, and dragging the sheet down closes it
+await page.evaluate(()=>document.querySelector('[data-fit="log-weight"]').click());await W(500);
+check('with a sheet open the page behind is held still',await page.evaluate(()=>getComputedStyle(document.body).position==='fixed'));
+check('dragging the sheet down closes it and frees the page',await page.evaluate(async()=>{const p=document.querySelector('.fitSheet'),r=p.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+30,T=yy=>new Touch({identifier:1,target:p,clientX:x,clientY:yy});p.dispatchEvent(new TouchEvent('touchstart',{touches:[T(y)],bubbles:true}));for(let i=1;i<=10;i++){p.dispatchEvent(new TouchEvent('touchmove',{touches:[T(y+i*20)],bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,16))}p.dispatchEvent(new TouchEvent('touchend',{touches:[],bubbles:true}));await new Promise(r=>setTimeout(r,500));return !document.querySelector('.fitSheetWrap.open')&&getComputedStyle(document.body).position!=='fixed'}));
+check('Body buttons are easy to tap (44px)',await page.evaluate(()=>[...document.querySelectorAll('.fitSegments button,.fitRange button')].every(b=>b.getBoundingClientRect().height>=44)));
 // log a weight
 await page.evaluate(()=>document.querySelector('[data-fit="log-weight"]').click());await W(500);
 await page.fill('.fitSheet [name="weight"]','500');await page.evaluate(()=>document.querySelector('.fitSheet [data-save]').click());await W(200);
