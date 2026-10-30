@@ -135,5 +135,5 @@ function composedRenderTab(target){let run=renderTab;for(const s of budgetStages
 function stage(name,run){if(typeof run!=='function'||budgetStages.some(s=>s.name===name))return;budgetStages.push({name,run})}
 /* Tapping Budget while on a Budget page (a category, a form) goes back to the Budget home, like the other tabs. */
 function home(){if(host&&budgetShown()&&mode==='dashboard'&&window.PlanlyBudgetMoney?.home?.())return;if(!host||!budgetShown()||(mode==='dashboard'&&!host.querySelector('form.budgetForm')))return;const from=host.querySelector('form.budgetForm')?'form':mode;document.activeElement?.blur?.();if(formOpen())clearDraft();host.querySelector('form.budgetForm')?.remove();mode='dashboard';selectedCategory='';dashboard();window.dispatchEvent(new CustomEvent('planly:budget-view-changed',{detail:{from,to:'dashboard',categoryId:''}}))}
-window.PlanlyBudgetUI={renderTab:composedRenderTab,stage,stages:()=>budgetStages.map(s=>s.name),home,refresh:()=>refreshVisible()};
+window.PlanlyBudgetUI={renderTab:composedRenderTab,stage,stages:()=>budgetStages.map(s=>s.name),home,refresh:()=>refreshVisible(),clearDraft};
 })();

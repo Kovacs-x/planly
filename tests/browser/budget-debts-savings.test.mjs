@@ -46,6 +46,15 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  check('saved to the shared Household budget with the right numbers',db.tables.planly_budget_debts.length===1&&row.scope_id===H&&row.owner_id===OWNER&&row.person_id===OWNER&&row.balance_minor===132739&&row.start_minor===132739&&row.apr_bp===3320&&row.minimum_minor===10000&&row.priority===1,JSON.stringify(row));
  check('…and its monthly bill is linked to it',db.tables.planly_budget_entries.find(x=>x.id===amexBill)?.debt_id===row.id);
  const t1=await text(page);check('the debt page shows the balance, 33.2% and about £37 a month interest',/£1,327\.39/.test(t1)&&/33\.2%/.test(t1)&&/£36\.72 \/ month/.test(t1),t1.slice(0,300));
+ // a second debt starts empty, even after leaving Budget and coming back; half-typed details are kept
+ await tap(page,'‹ Debts');await tap(page,'+ Add debt');
+ const away=async()=>{await page.evaluate(()=>document.querySelector('.nav button[data-tab="today"]').click());await W(1200);await budget(page)};
+ await away();
+ check('a new debt form is empty after saving one (also after leaving Budget)',await page.evaluate(()=>document.querySelector('#moneyName')?.value===''&&document.querySelector('#moneyBalance')?.value===''),await page.evaluate(()=>document.querySelector('#moneyName')?.value));
+ await page.fill('#moneyName','Barc');await away();
+ check('…but what you had typed is still there when you come back',await page.evaluate(()=>document.querySelector('#moneyName')?.value==='Barc'));
+ await tap(page,'‹ Debts');await tap(page,'+ Add debt');
+ check('…and going back out of the form clears it',await page.evaluate(()=>document.querySelector('#moneyName')?.value===''));
  check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
 // 2. Debts and savings with their bills
