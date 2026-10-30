@@ -10,13 +10,14 @@ const W=ms=>new Promise(r=>setTimeout(r,ms));
 const pad=n=>String(n).padStart(2,'0'),key=x=>x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate()),now=new Date().toISOString(),ym=key(new Date()).slice(0,7);
 const H='22222222-0000-4000-8000-000000000001',BILLS='a2000000-0000-4000-8000-000000000001',SAVE='a2000000-0000-4000-8000-000000000002',INC='a2000000-0000-4000-8000-000000000003';
 const V='d2000000-0000-4000-8000-000000000001',A='d2000000-0000-4000-8000-000000000002',HG='e2000000-0000-4000-8000-000000000001';
+const nx=new Date();nx.setDate(1);nx.setMonth(nx.getMonth()+1);const nextYm=key(nx).slice(0,7);
 const later=new Date();later.setMonth(later.getMonth()+3);const zero=key(later);
 function mk({money=true}={}){const db=makeDb();let n=0;
   const E=(cat,kind,desc,amt,day,more={})=>({id:'b2000000-0000-4000-8000-0000000000'+pad(++n),scope_id:H,category_id:cat,owner_id:OWNER,client_id:'e'+n,kind,amount_minor:amt,entry_date:ym+'-'+pad(day),description:desc,notes:'',allocation_status:'planned',due_day:day,recurring_monthly:true,show_on_today:false,today_lead_days:0,debt_id:null,saving_id:null,created_at:now,updated_at:now,deleted_at:null,cloud_version:1,...more});
   db.tables.planly_budget_scopes=[{id:H,owner_id:OWNER,scope_type:'household',household_id:HOUSEHOLD,name:'Household Budget',currency:'GBP',client_id:'h',created_at:now,updated_at:now,deleted_at:null,cloud_version:1}];
   const C=(id,name,kind,i)=>({id,scope_id:H,owner_id:OWNER,client_id:'c'+i,kind,name,icon_key:'🧾',color_key:'violet',archived:false,sort_order:i,created_at:now,updated_at:now,deleted_at:null,cloud_version:1});
   db.tables.planly_budget_categories=[C(BILLS,'Bills','expense',1),C(SAVE,'Savings','expense',2),C(INC,'Income','income',3)];db.tables.planly_budget_targets=[];
-  db.tables.planly_budget_entries=[E(INC,'income','Musti Work',300000,1),E(BILLS,'expense','Vanquis',10000,10,money?{debt_id:V}:{}),E(BILLS,'expense','Amex',10000,12,money?{debt_id:A}:{}),E(SAVE,'expense','Hagbad 2',25000,14,money?{saving_id:HG}:{}),E(BILLS,'expense','Rent',100000,2)];
+  db.tables.planly_budget_entries=[{...E(BILLS,'expense','Amex',10000,12),id:'b2000000-0000-4000-8000-000000000099',client_id:'enext',entry_date:nextYm+'-12'},E(INC,'income','Musti Work',300000,1),E(BILLS,'expense','Vanquis',10000,10,money?{debt_id:V}:{}),E(BILLS,'expense','Amex',10000,12,money?{debt_id:A}:{}),E(SAVE,'expense','Hagbad 2',25000,14,money?{saving_id:HG}:{}),E(BILLS,'expense','Rent',100000,2)];
   const D=(id,name,bal,more)=>({id,scope_id:H,owner_id:OWNER,client_id:'d-'+name,name,person_id:OWNER,start_minor:bal,balance_minor:bal,balance_on:ym+'-01',apr_bp:null,zero_until:null,minimum_minor:10000,priority:50,notes:'',closed_on:null,client_created_at:1,client_updated_at:1,cloud_version:1,created_at:now,updated_at:now,deleted_at:null,...more});
   db.tables.planly_budget_debts=money?[D(V,'Vanquis',115511,{zero_until:zero,priority:1}),D(A,'Amex',132739,{apr_bp:3320,priority:2})]:[];
   db.tables.planly_budget_savings=money?[{id:HG,scope_id:H,owner_id:OWNER,client_id:'s-hg',name:'Hagbad 2',person_id:null,kind:'circle',balance_minor:50000,balance_on:ym+'-01',goal_minor:null,paused:false,sort_order:1,notes:'',client_created_at:1,client_updated_at:1,cloud_version:1,created_at:now,updated_at:now,deleted_at:null}]:[];
@@ -40,11 +41,12 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  await tap(page,'+ Add debt');
  const opts=await page.evaluate(()=>({who:[...document.querySelectorAll('#moneyWho option')].map(o=>o.textContent).join(','),bills:[...document.querySelectorAll('#moneyBill option')].map(o=>o.textContent).join('|')}));
  check('the form offers whose (Shared, Musti, Laki) and this month\'s bills',opts.who==='Shared,Musti,Laki'&&/Amex · £100/.test(opts.bills)&&/Rent · £1,000/.test(opts.bills),JSON.stringify(opts));
- const amexBill=db.tables.planly_budget_entries.find(x=>x.description==='Amex').id;
+ const amexBill=db.tables.planly_budget_entries.find(x=>x.description==='Amex'&&x.entry_date.slice(0,7)===ym).id;
  await fill(page,{'#moneyName':'Amex','#moneyWho':OWNER,'#moneyBalance':'1,327.39','#moneyApr':'33.2','#moneyMin':'100','#moneyBill':amexBill,'#moneyOrder':'1'});await submit(page);
  const row=db.tables.planly_budget_debts[0]||{};
  check('saved to the shared Household budget with the right numbers',db.tables.planly_budget_debts.length===1&&row.scope_id===H&&row.owner_id===OWNER&&row.person_id===OWNER&&row.balance_minor===132739&&row.start_minor===132739&&row.apr_bp===3320&&row.minimum_minor===10000&&row.priority===1,JSON.stringify(row));
  check('…and its monthly bill is linked to it',db.tables.planly_budget_entries.find(x=>x.id===amexBill)?.debt_id===row.id);
+ check('…and so is next month\'s copy of that bill',db.tables.planly_budget_entries.find(x=>x.description==='Amex'&&x.entry_date.slice(0,7)===nextYm)?.debt_id===row.id);
  const t1=await text(page);check('the debt page shows the balance, 33.2% and about £37 a month interest',/£1,327\.39/.test(t1)&&/33\.2%/.test(t1)&&/£36\.72 \/ month/.test(t1),t1.slice(0,300));
  // a second debt starts empty, even after leaving Budget and coming back; half-typed details are kept
  await tap(page,'‹ Debts');await tap(page,'+ Add debt');
@@ -72,11 +74,24 @@ const text=page=>page.evaluate(()=>document.getElementById('view').innerText.rep
  check('…and Vanquis is £100 lower (£1,055.11), Owed £2,382.50',/£1,055\.11/.test(t)&&/Owed £2,382\.50/i.test(t),t.slice(0,400));
  // extra payment
  await page.evaluate(()=>document.querySelector('.budgetMoneyFocus [data-money="extra"]').click());await W(800);
- await fill(page,{'#moneyAmount':'444'});await submit(page);
- const extra=db.tables.planly_budget_entries.find(x=>x.description==='Vanquis extra');
- check('an extra payment is added to this month as a one-off bill linked to Vanquis',!!extra&&extra.amount_minor===44400&&extra.debt_id===V&&extra.recurring_monthly===false&&extra.allocation_status==='planned'&&extra.entry_date.slice(0,7)===ym,JSON.stringify(extra));
+ const pre=await page.evaluate(()=>({amount:document.querySelector('#moneyAmount')?.value,keep:document.querySelector('#moneyBuffer')?.value,split:document.querySelector('[data-money-split]')?.textContent}));
+ check('the extra is what is left to plan minus £150 kept back, split down the order',pre.amount==='1400.00'&&pre.keep==='150.00'&&pre.split==='Vanquis £1,055.11 · Amex £344.89',JSON.stringify(pre));
+ await page.fill('#moneyBuffer','500');await W(300);
+ const pre2=await page.evaluate(()=>({amount:document.querySelector('#moneyAmount')?.value,split:document.querySelector('[data-money-split]')?.textContent}));
+ check('keeping back £500 lowers it to £1,050 (all on Vanquis)',pre2.amount==='1050.00'&&pre2.split==='Vanquis £1,050.00',JSON.stringify(pre2));
+ const saved=await page.evaluate(()=>{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/draft/i.test(k))return localStorage.getItem(k)}return ''});
+ check('the saved draft holds the new amount with the new Keep back',/"moneyAmount":"1050\.00"/.test(saved)&&/"moneyBuffer":"500"/.test(saved),saved);
+ await page.evaluate(()=>document.querySelector('.nav button[data-tab="today"]').click());await W(1200);await budget(page);
+ const back=await page.evaluate(()=>({keep:document.querySelector('#moneyBuffer')?.value,amount:document.querySelector('#moneyAmount')?.value,split:document.querySelector('[data-money-split]')?.textContent}));
+ check('after leaving Budget and coming back, Keep back £500 and its £1,050 are both kept',back.keep==='500'&&back.amount==='1050.00'&&back.split==='Vanquis £1,050.00',JSON.stringify(back));
+ await page.fill('#moneyAmount','1200');await W(300);
+ check('typing an amount shows where it goes',await page.evaluate(()=>document.querySelector('[data-money-split]')?.textContent)==='Vanquis £1,055.11 · Amex £144.89');
+ await submit(page);
+ const extra=db.tables.planly_budget_entries.find(x=>x.description==='Vanquis extra'),extra2=db.tables.planly_budget_entries.find(x=>x.description==='Amex extra');
+ check('saving adds one-off bills linked to each debt: Vanquis £1,055.11 and Amex £144.89',!!extra&&extra.amount_minor===105511&&extra.debt_id===V&&extra.recurring_monthly===false&&extra.allocation_status==='planned'&&extra.entry_date.slice(0,7)===ym&&extra2?.amount_minor===14489&&extra2.debt_id===A,JSON.stringify([extra,extra2]));
+ check('the amount kept back is remembered',await page.evaluate(()=>localStorage.getItem('planly-budget-extra-buffer-v1'))==='50000');
  // plan
- await tap(page,'‹ Vanquis');await tap(page,'‹ Debts');await tap(page,'Plan');t=await text(page);
+ await tap(page,'Plan');t=await text(page);
  check('the plan shows each month and when each debt is cleared',/Plan/i.test(t)&&/Vanquis cleared|Vanquis, Amex cleared/.test(t)&&/Amex cleared|Vanquis, Amex cleared/.test(t),t.slice(0,500));
  // update balance from a statement
  await tap(page,'‹ Debts');await page.evaluate(id=>document.querySelector(`[data-money="debt"][data-id="${id}"]`).click(),A);await W(800);await tap(page,'Update balance');
