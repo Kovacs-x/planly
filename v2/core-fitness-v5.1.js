@@ -301,7 +301,7 @@ function renderFitness(view){
   view.innerHTML=viewHtml();fitInvalid=false;
 }
 function handleClick(e){
-  const b=e.target.closest('[data-fit],[data-entry],[data-weight],[data-metric]');if(!b||!e.currentTarget.contains(b)||state.tab!=='fitness')return;
+  const b=e.target.closest('[data-fit],[data-entry],[data-weight],[data-metric],[data-day]');if(!b||!e.currentTarget.contains(b)||state.tab!=='fitness')return;
   const a=b.dataset.fit;
   if(b.dataset.entry){const row=entries.find(x=>x.id===b.dataset.entry);if(row)openEdit(row);return}
   if(a==='prev'){dayKey=shiftDay(dayKey,-1);invalidate();render();if(dayKey<loadedFrom||!loadedFrom)refresh(dayKey);return}
@@ -312,118 +312,169 @@ function handleClick(e){
   if(a==='targets')return openTargets();
   if(a==='dismiss'){failures=[];persist();invalidate();render()}
   if(a==='section'){const next=b.dataset.section==='body'?'body':'food';if(next!==section){section=next;persist();invalidate();render()}if(next==='body')scaleRefresh();return}
-  if(a==='range'){range=Number(b.dataset.range)||30;invalidate();render();return}
+  if(a==='range'){const r=Number(b.dataset.range);range=Number.isFinite(r)?r:30;invalidate();render();return}
+  if(a==='history')return openHistory();
   if(a==='log-weight')return openWeight();
   if(a==='goal')return openGoal();
-  if(a==='scale-connect')return scaleConnect();
-  if(a==='scale')return openScale();
   if(b.dataset.metric)return openMetric(b.dataset.metric);
+  if(b.dataset.day)return openDay(b.dataset.day);
   if(b.dataset.weight){const row=weights.find(x=>x.id===b.dataset.weight);if(row)openWeight(row)}
 }
 
 // ---------- body (weight) ----------
-// A private weight log in kg (migration 056): a trend chart, progress to an optional goal, this week and BMI (from the
-// height in the Food profile). Weigh-ins are typed in here or arrive from a smart scale through Apple Health.
+// A private weight log in kg (migration 056). The chart takes the first weigh-in of each day (the morning one, the most
+// comparable) as the day's weight, with a 7-day trend line through it; the goal, body composition from the scale and a
+// short history sit below, and the full history and each reading open in sheets. Weight going down shows green.
 const kg=n=>(Math.round(num(n)*10)/10).toLocaleString('en-GB',{minimumFractionDigits:1,maximumFractionDigits:1});
 const weighIns=()=>weights.filter(x=>!x.deleted_at).slice().sort((a,b)=>String(a.measured_at).localeCompare(String(b.measured_at)));
 const daysAgo=n=>new Date(Date.now()-n*864e5).toISOString();
+const dayOf=x=>localKey(new Date(x.measured_at));
+const RANGES=[[7,'1W'],[30,'1M'],[90,'3M'],[365,'1Y'],[0,'All']];
+// one point per day: that day's first reading (list is oldest first)
+function daily(list){const seen=new Set(),out=[];for(const x of list){const k=dayOf(x);if(!seen.has(k)){seen.add(k);out.push(x)}}return out}
 // the reading at or just before a moment (or the earliest one after it, when nothing is that old)
 function weightAt(list,iso){let hit=null;for(const x of list){if(x.measured_at<=iso)hit=x;else break}return hit||list[0]||null}
-function changePill(diff,label){if(diff==null||!Number.isFinite(diff))return '';const d=Math.round(diff*10)/10,cls=d<0?'down':d>0?'up':'flat';return `<span class="fitWeightChange ${cls}">${d<0?'↓ ':d>0?'↑ ':''}${kg(Math.abs(d))} kg · ${label}</span>`}
-function weightChart(list,goal){
-  const pts=list.filter(x=>x.measured_at>=daysAgo(range));
+// 7-day average of the daily values ending at each point
+function trendOf(pts){return pts.map((p,i)=>{const end=new Date(p.t).getTime(),win=pts.slice(0,i+1).filter(q=>end-new Date(q.t).getTime()<7*864e5);return {t:p.t,v:win.reduce((a,q)=>a+q.v,0)/win.length}})}
+function changePill(diff,label,good='down',unit=' kg'){if(diff==null||!Number.isFinite(diff))return '';const d=Math.round(diff*10)/10,cls=d===0?'flat':(d<0)===(good==='down')?'down':'up',dir=d<0?'↓ ':d>0?'↑ ':'';return `<span class="fitWeightChange ${cls}">${dir}${kg(Math.abs(d))}${unit} · ${label}</span>`}
+const whenText=iso=>{const d=new Date(iso),k=localKey(d),t=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});return (k===todayKey()?'Today':k===shiftDay(todayKey(),-1)?'Yesterday':d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))+' '+t};
+const dayText=k=>k===todayKey()?'Today':k===shiftDay(todayKey(),-1)?'Yesterday':new Date(k+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+const sourceText=x=>x.source==='apple_health'?'Apple Health':x.source==='withings'?'Scale':'Typed in';
+// tick step that gives 3 to 5 gridlines
+function niceStep(span){for(const s of [0.1,0.2,0.5,1,2,5,10,20,50])if(span/s<=4.5)return s;return 100}
+/* One chart for weight and for each body reading: kg (or %) gridlines with labels, dates along the bottom, a dot for each
+   day, the 7-day trend as a line over a soft fill, the latest point ringed, and the goal when it is near the data. */
+function trendChart(pts,{goal=null,decimals=1,label='Chart',color=''}={}){
   if(pts.length<2)return `<p class="fitBodyHint">Log a few weigh-ins to see your trend.</p>`;
-  const vals=pts.map(x=>num(x.weight_kg)),g=num(goal),w=300,h=90;let lo=Math.min(...vals),hi=Math.max(...vals);if(g>0){lo=Math.min(lo,g);hi=Math.max(hi,g)}lo-=0.5;hi+=0.5;
-  const t0=new Date(pts[0].measured_at).getTime(),t1=Math.max(new Date(pts.at(-1).measured_at).getTime(),t0+1),x=v=>((new Date(v.measured_at).getTime()-t0)/(t1-t0)*w).toFixed(1),y=v=>(h-(v-lo)/(hi-lo)*h).toFixed(1);
-  const line=pts.map((p,i)=>(i?'L':'M')+x(p)+' '+y(num(p.weight_kg))).join(' '),last=pts.at(-1);
-  return `<svg class="fitWeightChart" viewBox="0 -8 ${w} ${h+14}" role="img" aria-label="Weight over the last ${range===30?'month':range===90?'3 months':'year'}">${g>0?`<line class="fitWeightGoal" x1="0" x2="${w}" y1="${y(g)}" y2="${y(g)}"/><text class="fitWeightGoalText" x="${w}" y="${(Number(y(g))-6).toFixed(1)}" text-anchor="end">Goal ${kg(g)} kg</text>`:''}<path class="fitWeightArea" d="${line} L ${x(last)} ${h} L 0 ${h} Z"/><path class="fitWeightLine" d="${line}"/><circle class="fitWeightDot" cx="${x(last)}" cy="${y(num(last.weight_kg))}" r="5.5"/></svg>`;
+  const W=330,H=180,L=34,R=8,T=10,B=22,pw=W-L-R,ph=H-T-B,tr=trendOf(pts);
+  const vals=pts.map(p=>p.v);let lo=Math.min(...vals),hi=Math.max(...vals);const near=goal!=null&&goal>0&&goal>=lo-Math.max(3,hi-lo)&&goal<=hi+Math.max(3,hi-lo);if(near){lo=Math.min(lo,goal);hi=Math.max(hi,goal)}
+  const step=niceStep(Math.max(hi-lo,0.4));lo=Math.floor((lo-step*0.2)/step)*step;hi=Math.ceil((hi+step*0.2)/step)*step;
+  const t0=new Date(pts[0].t).getTime(),t1=Math.max(new Date(pts.at(-1).t).getTime(),t0+1),x=t=>(L+(new Date(t).getTime()-t0)/(t1-t0)*pw).toFixed(1),y=v=>(T+(hi-v)/(hi-lo)*ph).toFixed(1);
+  let grid='';for(let v=lo;v<=hi+step/2;v+=step){const vv=Math.round(v*100)/100;grid+=`<line class="fitChartGrid" x1="${L}" x2="${W-R}" y1="${y(vv)}" y2="${y(vv)}"/><text class="fitChartAxis" x="${L-6}" y="${(Number(y(vv))+3.5).toFixed(1)}" text-anchor="end">${vv.toLocaleString('en-GB',{minimumFractionDigits:step<1?1:0,maximumFractionDigits:step<1?1:0})}</text>`}
+  const dl=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short'}),mid=pts[Math.floor((pts.length-1)/2)];
+  const dates=`<text class="fitChartAxis" x="${L}" y="${H-5}">${esc(dl(pts[0].t))}</text>${pts.length>2?`<text class="fitChartAxis" x="${x(mid.t)}" y="${H-5}" text-anchor="middle">${esc(dl(mid.t))}</text>`:''}<text class="fitChartAxis" x="${W-R}" y="${H-5}" text-anchor="end">${esc(dl(pts.at(-1).t))}</text>`;
+  const line=tr.map((p,i)=>(i?'L':'M')+x(p.t)+' '+y(p.v)).join(' '),last=pts.at(-1);
+  const goalLine=near?`<line class="fitWeightGoal" x1="${L}" x2="${W-R}" y1="${y(goal)}" y2="${y(goal)}"/><text class="fitWeightGoalText" x="${W-R}" y="${(Number(y(goal))-5).toFixed(1)}" text-anchor="end">Goal ${kg(goal)}</text>`:'';
+  return `<svg class="fitWeightChart fitTrendChart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}"${color?` style="--chart:${color}"`:''}>${grid}${dates}${goalLine}<path class="fitWeightArea" d="${line} L ${x(last.t)} ${T+ph} L ${L} ${T+ph} Z"/>${pts.map(p=>`<circle class="fitChartDot" cx="${x(p.t)}" cy="${y(p.v)}" r="2.3"/>`).join('')}<path class="fitWeightLine" d="${line}"/><circle class="fitWeightDot" cx="${x(last.t)}" cy="${y(last.v)}" r="5"/></svg>`;
 }
+function statsHtml(pts,count,decimals=1){if(!pts.length)return '';const vs=pts.map(p=>p.v),f=v=>Number(v).toLocaleString('en-GB',{minimumFractionDigits:decimals,maximumFractionDigits:decimals});return `<div class="fitChartStats"><div><strong>${f(Math.min(...vs))}</strong><small>Lowest</small></div><div><strong>${f(Math.max(...vs))}</strong><small>Highest</small></div><div><strong>${f(vs.reduce((a,b)=>a+b,0)/vs.length)}</strong><small>Average</small></div><div><strong>${count}</strong><small>${count===1?'Reading':'Readings'}</small></div></div>`}
+const inRange=(t,r)=>!r||t>=daysAgo(r);
+const rangeButtons=(cur,attr='data-fit="range"')=>`<span class="fitRange" role="group" aria-label="Chart range">${RANGES.map(([d,l])=>`<button type="button" ${attr} data-range="${d}" aria-pressed="${cur===d}" class="${cur===d?'on':''}">${l}</button>`).join('')}</span>`;
+// kg per week from the trend over the last 4 weeks (needs two weeks of weigh-ins)
+function weeklyRate(days){if(days.length<2)return null;const pts=trendOf(days.map(x=>({t:x.measured_at,v:num(x.weight_kg)}))),end=pts.at(-1),from=new Date(new Date(end.t).getTime()-28*864e5).toISOString(),start=pts.find(p=>p.t>=from)||pts[0],weeks=(new Date(end.t)-new Date(start.t))/(7*864e5);return weeks>=2?(end.v-start.v)/weeks:null}
 function bodyHtml(){
   const list=weighIns(),latest=list.at(-1),goal=num(profile?.goal_weight_kg),height=num(profile?.height_cm);
   const fails=failures.length?`<div class="fitNotice" role="status"><span>${failures.length===1?'1 change':failures.length+' changes'} couldn't be saved and ${failures.length===1?'was':'were'} replaced by the latest saved version.</span><button type="button" data-fit="dismiss">OK</button></div>`:'';
-  const scaleBar=scale.linked?`<button type="button" class="fitScaleBar" data-fit="scale"><span class="fitScaleDot" aria-hidden="true"></span><strong>Apple Health connected</strong><span>${scale.lastUsedAt?'· last import '+esc(new Date(scale.lastUsedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})):''}</span><span class="fitScaleManage">Manage</span></button>`:scale.linked===false?`<button type="button" class="fitSecondary fitWide fitScaleConnect" data-fit="scale-connect">Connect Apple Health</button>`:'';
-  if(!latest)return `<div class="fitView">${segmentsHtml()}${fails}${scaleBar}<section class="fitCard fitBodyEmpty"><strong>Log your first weight</strong><button type="button" class="fitPrimary" data-fit="log-weight">+ Log weight</button></section></div>`;
-  const month=list.length>1?num(latest.weight_kg)-num(weightAt(list,daysAgo(30)).weight_kg):null;
-  const start=num(list[0].weight_kg),cur=num(latest.weight_kg),toGo=goal>0?Math.round(Math.abs(cur-goal)*10)/10:0;
-  const reached=goal>0&&(start>=goal?cur<=goal:cur>=goal),done=goal>0?(reached?1:clamp((start-cur)/((start-goal)||1),0,1)):0;
-  const goalRow=goal>0?`<div class="fitWeightGoalRow"><span>Start ${kg(start)} · Goal ${kg(goal)}</span><span>${reached?'Goal reached 🎉':kg(toGo)+' kg to go'}</span></div><div class="fitBar fitWeightBar"><span style="width:${(done*100).toFixed(1)}%"></span></div>`:'';
-  const week=list.filter(x=>x.measured_at>=daysAgo(7)),days=new Set(week.map(x=>localKey(new Date(x.measured_at)))).size,weekChange=list.length>1?cur-num(weightAt(list,daysAgo(7)).weight_kg):null;
-  const bmi=height>0?Math.round(cur/((height/100)**2)*10)/10:null;
-  const recent=list.slice(-8).reverse().map(x=>{const d=new Date(x.measured_at);return `<button type="button" class="fitWeighIn" data-weight="${esc(x.id)}"><span><strong>${esc(d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))}</strong><small>${esc(d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}))}${x.source==='withings'?' · Scale':x.source==='apple_health'?' · Apple Health':''}</small></span><span class="fitWeighInKg">${kg(x.weight_kg)} kg</span></button>`}).join('');
-  return `<div class="fitView">${segmentsHtml()}${fails}${scaleBar}
-<section class="fitCard fitWeightCard"><div class="fitBodyHead"><span class="fitBodyLabel">Weight</span><span class="fitRange" role="group" aria-label="Chart range">${[[30,'1M'],[90,'3M'],[365,'1Y']].map(([d,l])=>`<button type="button" data-fit="range" data-range="${d}" aria-pressed="${range===d}" class="${range===d?'on':''}">${l}</button>`).join('')}</span></div>
-<div class="fitWeightNow"><strong>${kg(cur)}<small> kg</small></strong>${changePill(month,'30 days')}</div>
-${weightChart(list,goal)}${goalRow}
-<div class="fitActions fitBodyActions"><button type="button" class="fitPrimary" data-fit="log-weight">+ Log weight</button><button type="button" class="fitSecondary" data-fit="goal">${goal>0?'Edit goal':'Set goal'}</button></div></section>
-${metricsHtml(list)}
-<section class="fitCard"><div class="fitBodyHead"><span class="fitBodyLabel">This week</span></div><div class="fitBodyStats"><div><strong>${days} of 7</strong><small>days logged</small></div><div><strong>${weekChange==null?'–':(weekChange<0?'↓ ':weekChange>0?'↑ ':'')+kg(Math.abs(weekChange))}</strong><small>kg this week</small></div>${bmi?`<div><strong>${bmi.toLocaleString('en-GB')}</strong><small>BMI</small></div>`:`<button type="button" data-fit="goal"><strong>BMI</strong><small>Add height</small></button>`}</div></section>
-<section class="fitCard"><div class="fitBodyHead"><span class="fitBodyLabel">Recent</span></div>${recent}</section>
-</div>`;
+  if(!latest)return `<div class="fitView">${segmentsHtml()}${fails}<section class="fitCard fitBodyEmpty"><strong>Log your first weight</strong><button type="button" class="fitPrimary" data-fit="log-weight">+ Log weight</button></section></div>`;
+  const days=daily(list),pts=days.filter(x=>inRange(x.measured_at,range)).map(x=>({t:x.measured_at,v:num(x.weight_kg)}));
+  const lastDay=days.at(-1),cur=num(latest.weight_kg),trendNow=trendOf(days.map(x=>({t:x.measured_at,v:num(x.weight_kg)}))).at(-1).v;
+  const ch=n=>days.length>1?num(lastDay.weight_kg)-num(weightAt(days,daysAgo(n)).weight_kg):null,rate=weeklyRate(days);
+  const label=range?`Weight over the last ${RANGES.find(r=>r[0]===range)[1]}`:'Weight since the first weigh-in';
+  const weight=`<section class="fitCard fitWeightCard"><div class="fitBodyHead"><span class="fitBodyLabel">Weight</span>${rangeButtons(range)}</div>
+<div class="fitWeightNow"><strong>${kg(cur)}<small> kg</small></strong><span class="fitWeightWhen">${esc(whenText(latest.measured_at))} · trend ${kg(trendNow)} kg</span></div>
+<div class="fitPills">${changePill(ch(7),'7 days')}${changePill(ch(30),'30 days')}${rate==null?'':`<span class="fitWeightChange flat">${rate<0?'−':rate>0?'+':''}${kg(Math.abs(rate))} kg / week</span>`}</div>
+${trendChart(pts,{goal:goal>0?goal:null,label})}<div class="fitChartKey"><span><i class="dot"></i>Daily</span><span><i class="line"></i>7-day trend</span></div>${statsHtml(pts,list.filter(x=>inRange(x.measured_at,range)).length)}</section>`;
+  const start=num(list[0].weight_kg),toGo=goal>0?Math.round(Math.abs(cur-goal)*10)/10:0,reached=goal>0&&(start>=goal?cur<=goal:cur>=goal),done=goal>0?(reached?1:clamp((start-cur)/((start-goal)||1),0,1)):0;
+  const eta=goal>0&&!reached&&rate&&Math.abs(rate)>=0.05&&(goal<cur)===(rate<0)?new Date(Date.now()+Math.abs(cur-goal)/Math.abs(rate)*7*864e5).toLocaleDateString('en-GB',{month:'short',year:'numeric'}):'';
+  const goalCard=goal>0?`<button type="button" class="fitCard fitGoalCard" data-fit="goal"><span class="fitBodyHead"><span class="fitBodyLabel">Goal</span><span class="fitGoalTo">${kg(goal)} kg ›</span></span><span class="fitBar fitWeightBar"><span style="width:${(done*100).toFixed(1)}%"></span></span><span class="fitWeightGoalRow"><span>Start ${kg(start)} · ${kg(Math.abs(start-cur))} kg ${cur<=start?'down':'up'}</span><span>${reached?'Goal reached 🎉':kg(toGo)+' kg to go'}</span></span>${eta?`<span class="fitPills"><span class="fitWeightChange fit">At this rate: ${esc(eta)}</span></span>`:''}</button>`:`<button type="button" class="fitCard fitGoalCard fitGoalEmpty" data-fit="goal"><span class="fitBodyLabel">Goal</span><span>Set a goal ›</span></button>`;
+  const recent=daily(list).slice(-4).reverse().map(x=>dayRow(dayOf(x),list)).join('');
+  const history=`<section class="fitCard fitHistoryCard"><div class="fitBodyHead"><span class="fitBodyLabel">History</span><button type="button" class="fitLinkBtn" data-fit="log-weight">+ Log weight</button></div>${recent}${days.length>4?'<button type="button" class="fitSecondary fitWide" data-fit="history">See all history ›</button>':''}</section>`;
+  return `<div class="fitView">${segmentsHtml()}${fails}${weight}${goalCard}${compositionHtml(list,height)}${history}</div>`;
 }
-// ---------- scale via Apple Health ----------
+// a day in the history: its first weigh-in, the change from the day before, and how many weigh-ins it had
+function dayRow(k,list){const all=list.filter(x=>dayOf(x)===k),first=all[0],ds=daily(list),i=ds.findIndex(x=>dayOf(x)===k),prev=i>0?ds[i-1]:null,d=prev?num(first.weight_kg)-num(prev.weight_kg):null;
+  const sub=all.length>1?`${all.length} weigh-ins · ${all.map(x=>new Date(x.measured_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})).join(', ')}`:`${new Date(first.measured_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · ${sourceText(first)}`;
+  return `<button type="button" class="fitWeighIn fitDayRow" data-day="${esc(k)}"><span><strong>${esc(dayText(k))}</strong><small>${esc(sub)}</small></span><span class="fitWeighInKg">${kg(first.weight_kg)} kg</span><span class="fitDayDiff ${d==null||Math.abs(d)<0.05?'':d<0?'down':'up'}">${d==null||Math.abs(d)<0.05?'':(d<0?'↓ ':'↑ ')+kg(Math.abs(d))}</span></button>`}
+function openDay(k,onBack){const list=weighIns(),all=list.filter(x=>dayOf(x)===k);if(!all.length)return onBack?onBack():closeSheet();
+  const body=showSheet(dayText(k),`${all.map(x=>`<button type="button" class="fitWeighIn" data-edit="${esc(x.id)}"><span><strong>${esc(new Date(x.measured_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}))}</strong><small>${esc(sourceText(x))}${x.fat_ratio_pct!=null?' · '+metricText(METRICS[0],num(x.fat_ratio_pct))+' % fat':''}</small></span><span class="fitWeighInKg">${kg(x.weight_kg)} kg</span><span class="fitDayDiff">›</span></button>`).join('')}`,onBack);
+  body.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const row=weights.find(x=>x.id===b.dataset.edit);if(row)openWeight(row)})}
+function openHistory(months=3){const list=weighIns(),ds=daily(list).reverse(),byMonth=new Map();for(const x of ds){const m=dayOf(x).slice(0,7);if(!byMonth.has(m))byMonth.set(m,[]);byMonth.get(m).push(x)}
+  const keys=[...byMonth.keys()],shown=keys.slice(0,months);
+  const body=showSheet('History',shown.map(m=>{const rows=byMonth.get(m),vs=rows.map(x=>num(x.weight_kg)),avg=vs.reduce((a,b)=>a+b,0)/vs.length,chg=rows.length>1?num(rows[0].weight_kg)-num(rows.at(-1).weight_kg):null;
+    return `<div class="fitBodyHead fitGroupHead"><span class="fitBodyLabel">${esc(new Date(m+'-01T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'}))}</span><span class="fitMonthMeta">avg ${kg(avg)}${chg==null||Math.abs(chg)<0.05?'':' · '+(chg<0?'↓ ':'↑ ')+kg(Math.abs(chg))}</span></div>${rows.map(x=>dayRow(dayOf(x),list)).join('')}`}).join('')+(keys.length>months?'<button type="button" class="fitSecondary fitWide" data-more>Show earlier</button>':''));
+  body.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>openDay(b.dataset.day,()=>openHistory(months)));
+  body.querySelector('[data-more]')?.addEventListener('click',()=>openHistory(months+3))}
+// ---------- scale via Apple Health (Settings › Fitness) ----------
 // The scale's app (e.g. RENPHO Health) writes each weigh-in to Apple Health; an iPhone Shortcut sends recent readings to
-// Planly's body-import function with a private import key. Here the person makes or removes that key (shown once; only
-// its hash is kept server-side) and sees when it was last used; new weigh-ins arrive like any other row.
+// Planly's body-import function with a private import key. Settings › Fitness makes or removes that key (shown once; only
+// its hash is kept server-side) and shows when it was last used; new weigh-ins arrive like any other row.
+let settingsHost=null;
 async function scaleCall(action){
   const c=window.PLANLY_SUPABASE_CONFIG,tok=sb?(await sb.auth.getSession())?.data?.session?.access_token:'';
   const r=await fetch(c.url+'/functions/v1/body-import',{method:'POST',headers:{...(tok?{Authorization:'Bearer '+tok}:{}),apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action})});
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'The Apple Health link is not responding.');return d;
 }
 async function scaleRefresh(force){
-  if(!userId||!navigator.onLine||scale.busy)return;if(!force&&Date.now()-scale.checkedAt<5*60*1000)return;
+  if(!userId||scale.busy)return drawSettings();
+  // offline: say so (the last known link stays as it was) and check again when back online
+  if(!navigator.onLine){scale.error=true;return drawSettings()}
+  if(!force&&Date.now()-scale.checkedAt<5*60*1000)return drawSettings();
   scale.busy=true;scale.checkedAt=Date.now();const before=scale.lastUsedAt;
-  try{const st=await scaleCall('status');scale.linked=!!st.linked;scale.lastUsedAt=st.lastUsedAt||null;if(scale.lastUsedAt&&scale.lastUsedAt!==before)await pull().catch(()=>{})}
-  catch(e){console.warn('Planly scale',e)}finally{scale.busy=false;invalidate();if(state.tab==='fitness'&&section==='body')render()}
+  try{const st=await scaleCall('status');scale.error=false;scale.linked=!!st.linked;scale.lastUsedAt=st.lastUsedAt||null;if(scale.lastUsedAt&&scale.lastUsedAt!==before)await pull().catch(()=>{})}
+  catch(e){scale.error=true;console.warn('Planly scale',e)}finally{scale.busy=false;invalidate();if(state.tab==='fitness'&&section==='body')render();drawSettings()}
 }
 function showKey(d){
   const body=showSheet('Apple Health',`<label class="fitField"><span>Import key</span><input readonly value="${esc(d.key)}" data-key></label><button type="button" class="fitSecondary fitWide" data-copy="key">Copy key</button>
 <label class="fitField"><span>Address</span><input readonly value="${esc(d.url)}" data-url></label><button type="button" class="fitSecondary fitWide" data-copy="url">Copy address</button>`);
   body.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{const v=body.querySelector(b.dataset.copy==='key'?'[data-key]':'[data-url]').value;try{await navigator.clipboard.writeText(v);showToast('Copied')}catch{body.querySelector(b.dataset.copy==='key'?'[data-key]':'[data-url]').select()}});
 }
-async function scaleConnect(){try{const d=await scaleCall('create-key');scale.linked=true;scale.lastUsedAt=null;invalidate();render();showKey(d)}catch(e){showToast(e.message)}}
-function openScale(){
-  const last=scale.lastUsedAt?new Date(scale.lastUsedAt).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'}):'–';
-  const body=showSheet('Apple Health',`<p class="fitBodyHint">Last import ${esc(last)}</p><button type="button" class="fitSecondary fitWide" data-new>New import key</button><button type="button" class="fitQuiet fitWide fitDanger" data-off>Disconnect</button>`);
-  body.querySelector('[data-new]').onclick=async()=>{if(!confirm('Make a new import key? The old one stops working, so update your Shortcut.'))return;try{showKey(await scaleCall('create-key'))}catch(e){showToast(e.message)}};
-  body.querySelector('[data-off]').onclick=async()=>{if(!confirm('Disconnect Apple Health? Weigh-ins already saved stay.'))return;closeSheet();try{await scaleCall('remove-key');scale.linked=false;scale.lastUsedAt=null}catch(e){showToast(e.message)}invalidate();render()};
-}
-// Body composition, heart and metabolism from scale readings: one tile per reading the scale has sent, with the change
-// since the previous reading and a small trend; a tile opens its own chart and history.
+async function scaleConnect(){try{const d=await scaleCall('create-key');scale.linked=true;scale.lastUsedAt=null;invalidate();drawSettings();showKey(d)}catch(e){showToast(e.message)}}
+async function scaleNewKey(){if(!confirm('Make a new import key? The old one stops working, so update your Shortcut.'))return;try{showKey(await scaleCall('create-key'))}catch(e){showToast(e.message)}}
+async function scaleDisconnect(){if(!confirm('Disconnect Apple Health? Weigh-ins already saved stay.'))return;try{await scaleCall('remove-key');scale.linked=false;scale.lastUsedAt=null}catch(e){showToast(e.message)}invalidate();drawSettings()}
+// Settings › Fitness › Apple Health: drawn into the card Settings gives it; nothing shows until the link has answered
+function drawSettings(){const host=settingsHost;if(!host||!host.isConnected)return;
+  if(!userId){host.innerHTML='<p class="fitBodyHint">Sign in to connect Apple Health.</p>';return}
+  if(scale.linked==null){host.innerHTML=`<p class="fitBodyHint">${scale.error?'Apple Health can’t be reached right now.':'Checking…'}</p>`;return}
+  const note=scale.error?'<p class="fitBodyHint">Apple Health can’t be reached right now.</p>':'',off=scale.error?' disabled':'';
+  if(!scale.linked){host.innerHTML=scale.error?note:'<button type="button" class="fitPrimary fitWide" data-scale="connect">Connect Apple Health</button>';host.querySelector('[data-scale]')?.addEventListener('click',scaleConnect);return}
+  const recent=weighIns().filter(x=>x.source==='apple_health'&&x.measured_at>=daysAgo(30)),has=f=>recent.some(f),tick=ok=>ok?'✓':'–';
+  host.innerHTML=`${note}<div class="fitSettingsRows"><div><span class="fitScaleDot" aria-hidden="true"></span><strong>Connected</strong><small>${scale.lastUsedAt?'Last import '+esc(whenText(scale.lastUsedAt)):'No imports yet'}</small></div><div><span>Weight</span><small>${tick(recent.length)}</small></div><div><span>Body fat</span><small>${tick(has(x=>x.fat_ratio_pct!=null))}</small></div><div><span>Lean mass</span><small>${tick(has(x=>x.fat_free_mass_kg!=null))}</small></div></div><button type="button" class="fitSecondary fitWide" data-scale="new"${off}>New import key</button><button type="button" class="fitQuiet fitWide fitDanger" data-scale="off"${off}>Disconnect</button>`;
+  host.querySelector('[data-scale="new"]').onclick=scaleNewKey;host.querySelector('[data-scale="off"]').onclick=scaleDisconnect}
+function renderSettings(host){settingsHost=host||null;drawSettings();scaleRefresh(true)}
+// the Settings page on screen follows the signal: offline shows the note and holds the buttons, online checks again
+window.addEventListener('offline',()=>{if(settingsHost?.isConnected)scaleRefresh()});
+window.addEventListener('online',()=>{if(settingsHost?.isConnected)scaleRefresh(true)});
+// ---------- body composition ----------
+// One tile per reading the scale has sent (and fat mass and BMI worked out from them), with the change over 30 days in the
+// colour of its good direction and a small trend; a tile opens its own chart and readings.
 const METRICS=[
-  ['fat','Body composition','Body fat','%',x=>num(x.fat_ratio_pct,NaN),1],
-  ['muscle','Body composition','Muscle','kg',x=>num(x.muscle_mass_kg,NaN),1],
-  ['lean','Body composition','Lean mass','kg',x=>num(x.fat_free_mass_kg,NaN),1],
-  ['water','Body composition','Water','%',x=>x.hydration_kg!=null&&num(x.weight_kg)?num(x.hydration_kg)/num(x.weight_kg)*100:NaN,1],
-  ['bone','Body composition','Bone','kg',x=>num(x.bone_mass_kg,NaN),1],
-  ['visceral','Body composition','Visceral fat','',x=>num(x.visceral_fat,NaN),0],
-  ['heart','Heart','Heart rate','bpm',x=>num(x.heart_rate_bpm,NaN),0],
-  ['bmr','Metabolism','Metabolic rate','kcal',x=>num(x.bmr_kcal,NaN),0],
-  ['age','Metabolism','Metabolic age','yrs',x=>num(x.metabolic_age,NaN),0]];
-const metricSeries=(m,list)=>list.map(x=>({t:x.measured_at,v:m[4](x)})).filter(p=>Number.isFinite(p.v));
+  ['fat','Body composition','Body fat','%',x=>num(x.fat_ratio_pct,NaN),1,'down'],
+  ['fatkg','Body composition','Fat mass','kg',x=>x.fat_mass_kg!=null?num(x.fat_mass_kg):x.fat_ratio_pct!=null?num(x.weight_kg)*num(x.fat_ratio_pct)/100:NaN,1,'down'],
+  ['lean','Body composition','Lean mass','kg',x=>x.fat_free_mass_kg!=null?num(x.fat_free_mass_kg):x.fat_ratio_pct!=null?num(x.weight_kg)*(1-num(x.fat_ratio_pct)/100):NaN,1,'up'],
+  ['muscle','Body composition','Muscle','kg',x=>num(x.muscle_mass_kg,NaN),1,'up'],
+  ['water','Body composition','Water','%',x=>x.hydration_kg!=null&&num(x.weight_kg)?num(x.hydration_kg)/num(x.weight_kg)*100:NaN,1,'up'],
+  ['bone','Body composition','Bone','kg',x=>num(x.bone_mass_kg,NaN),1,'up'],
+  ['visceral','Body composition','Visceral fat','',x=>num(x.visceral_fat,NaN),0,'down'],
+  ['bmi','Body composition','BMI','',x=>{const h=num(profile?.height_cm);return h>0?num(x.weight_kg)/((h/100)**2):NaN},1,'down'],
+  ['heart','Heart','Heart rate','bpm',x=>num(x.heart_rate_bpm,NaN),0,''],
+  ['bmr','Metabolism','Metabolic rate','kcal',x=>num(x.bmr_kcal,NaN),0,''],
+  ['age','Metabolism','Metabolic age','yrs',x=>num(x.metabolic_age,NaN),0,'down']];
+// a reading's series: the first reading of each day that has it
+const metricSeries=(m,list)=>{const seen=new Set(),out=[];for(const x of list){const v=m[4](x);if(!Number.isFinite(v))continue;const k=dayOf(x);if(seen.has(k))continue;seen.add(k);out.push({t:x.measured_at,v})}return out};
 const metricText=(m,v)=>Number(v).toLocaleString('en-GB',{minimumFractionDigits:m[5],maximumFractionDigits:m[5]});
-function spark(series){const pts=series.slice(-12);if(pts.length<2)return '';const vs=pts.map(p=>p.v),lo=Math.min(...vs),hi=Math.max(...vs),w=100,h=24,span=hi-lo||1;return `<svg class="fitSpark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${pts.map((p,i)=>(i?'L':'M')+(i*w/(pts.length-1)).toFixed(1)+' '+(h-2-(p.v-lo)/span*(h-4)).toFixed(1)).join(' ')}"/></svg>`}
-function metricsHtml(list){
-  const groups=[];
-  for(const m of METRICS){const ser=metricSeries(m,list);if(!ser.length)continue;const cur=ser.at(-1).v,prev=ser.length>1?ser.at(-2).v:null,d=prev==null?null:cur-prev;
-    const g=groups.find(x=>x.name===m[1])||(groups.push({name:m[1],tiles:[]}),groups.at(-1));
-    g.tiles.push(`<button type="button" class="fitMetric" data-metric="${esc(m[0])}"><span class="fitMetricTop"><span>${esc(m[2])}</span><span aria-hidden="true">›</span></span><span class="fitMetricVal"><strong>${metricText(m,cur)}</strong>${m[3]?`<small> ${esc(m[3])}</small>`:''}</span><span class="fitMetricChange">${d==null||Math.abs(d)<Math.pow(10,-m[5])/2?'—':(d<0?'↓ ':'↑ ')+metricText(m,Math.abs(d))}</span>${spark(ser)}</button>`)}
-  return groups.map(g=>`<div class="fitBodyHead fitGroupHead"><span class="fitBodyLabel">${esc(g.name)}</span></div><div class="fitMetrics">${g.tiles.join('')}</div>`).join('');
+function spark(series){const pts=series.slice(-14);if(pts.length<2)return '';const vs=pts.map(p=>p.v),lo=Math.min(...vs),hi=Math.max(...vs),w=100,h=24,span=hi-lo||1;return `<svg class="fitSpark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${pts.map((p,i)=>(i?'L':'M')+(i*w/(pts.length-1)).toFixed(1)+' '+(h-2-(p.v-lo)/span*(h-4)).toFixed(1)).join(' ')}"/></svg>`}
+function metricChange(m,ser){if(ser.length<2)return '';const cur=ser.at(-1),from=new Date(new Date(cur.t).getTime()-30*864e5).toISOString();let base=ser[0];for(const p of ser)if(p.t<=from)base=p;const d=cur.v-base.v;if(Math.abs(d)<Math.pow(10,-m[5])/2)return '<span class="fitMetricChange">—</span>';const good=m[6]?((d<0)===(m[6]==='down')?'down':'up'):'flat';return `<span class="fitMetricChange ${good}">${d<0?'↓ ':'↑ '}${metricText(m,Math.abs(d))}</span>`}
+function compositionHtml(list,height){
+  const latest=list.at(-1),fatPct=[...list].reverse().find(x=>x.fat_ratio_pct!=null),groups=[];
+  for(const m of METRICS){const ser=metricSeries(m,list);if(!ser.length)continue;    const g=groups.find(x=>x.name===m[1])||(groups.push({name:m[1],tiles:[]}),groups.at(-1));
+    g.tiles.push(`<button type="button" class="fitMetric" data-metric="${esc(m[0])}"><span class="fitMetricTop"><span>${esc(m[2])}</span><span aria-hidden="true">›</span></span><span class="fitMetricVal"><strong>${metricText(m,ser.at(-1).v)}</strong>${m[3]?`<small> ${esc(m[3])}</small>`:''}</span>${spark(ser)}<span class="fitMetricFoot"><span>30 days</span>${metricChange(m,ser)}</span></button>`)}
+  if(!groups.length)return height>0?'':`<button type="button" class="fitCard fitGoalCard fitGoalEmpty" data-fit="goal"><span class="fitBodyLabel">BMI</span><span>Add height ›</span></button>`;
+  let split='';if(fatPct){const p=clamp(num(fatPct.fat_ratio_pct),0,100),w=num(fatPct.weight_kg);split=`<div class="fitSplit" role="img" aria-label="Fat ${metricText(METRICS[0],p)}% and lean ${metricText(METRICS[0],100-p)}% of weight"><i class="fat" style="width:${p.toFixed(1)}%"></i><i class="lean" style="width:${(100-p).toFixed(1)}%"></i></div><div class="fitChartKey"><span><i class="fat"></i>Fat ${kg(w*p/100)} kg</span><span><i class="lean"></i>Lean ${kg(w*(1-p/100))} kg</span></div>`}
+  return groups.map((g,i)=>`<section class="fitCard fitCompCard"><div class="fitBodyHead"><span class="fitBodyLabel">${esc(g.name)}</span>${i===0&&fatPct?`<span class="fitWeightWhen">${esc(whenText(fatPct.measured_at))}</span>`:''}</div>${i===0?split:''}<div class="fitMetrics">${g.tiles.join('')}</div></section>`).join('');
 }
 function openMetric(key){
   const m=METRICS.find(x=>x[0]===key);if(!m)return;let r=30;
   const draw=()=>{
-    const all=metricSeries(m,weighIns()),pts=all.filter(p=>p.t>=daysAgo(r)),cur=all.at(-1),first=pts[0];
-    const d=cur&&first&&pts.length>1?cur.v-first.v:null;
-    let chart='<p class="fitBodyHint">Not enough readings for this range yet.</p>';
-    if(pts.length>1){const w=300,h=110,vs=pts.map(p=>p.v),lo=Math.min(...vs),hi=Math.max(...vs),span=(hi-lo)||1,t0=new Date(pts[0].t).getTime(),t1=Math.max(new Date(pts.at(-1).t).getTime(),t0+1);
-      const line=pts.map((p,i)=>(i?'L':'M')+((new Date(p.t).getTime()-t0)/(t1-t0)*w).toFixed(1)+' '+(h-6-(p.v-lo)/span*(h-12)).toFixed(1)).join(' ');
-      chart=`<svg class="fitWeightChart fitMetricChart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(m[2])} over time"><path class="fitWeightLine" d="${line}"/></svg>`}
-    const extraLine=key==='fat'&&weighIns().at(-1)?.fat_mass_kg!=null?`<p class="fitBodyHint">${kg(weighIns().at(-1).fat_mass_kg)} kg fat mass${weighIns().at(-1).fat_free_mass_kg!=null?' · '+kg(weighIns().at(-1).fat_free_mass_kg)+' kg lean mass':''}</p>`:'';
-    const hist=all.slice(-10).reverse().map(p=>`<div class="fitMetricRow"><strong>${esc(new Date(p.t).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))}</strong><span>${metricText(m,p.v)}${m[3]?' '+esc(m[3]):''}</span></div>`).join('');
-    const body=showSheet(m[2],`<div class="fitRange fitRangeCenter" role="group" aria-label="Chart range">${[[30,'1M'],[90,'3M'],[365,'1Y']].map(([dd,l])=>`<button type="button" data-r="${dd}" aria-pressed="${r===dd}" class="${r===dd?'on':''}">${l}</button>`).join('')}</div>
-<div class="fitWeightNow"><strong>${cur?metricText(m,cur.v):'–'}${m[3]?`<small> ${esc(m[3])}</small>`:''}</strong>${d==null?'':`<span class="fitWeightChange flat">${d<0?'↓ ':d>0?'↑ ':''}${metricText(m,Math.abs(d))}${m[3]?' '+esc(m[3]):''}</span>`}</div>${extraLine}${chart}
-<div class="fitBodyHead fitGroupHead"><span class="fitBodyLabel">History</span></div>${hist}`);
-    body.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{r=Number(b.dataset.r);draw()});
+    const list=weighIns(),all=metricSeries(m,list),pts=all.filter(p=>inRange(p.t,r)),cur=all.at(-1);
+    const d=pts.length>1?cur.v-pts[0].v:null,good=m[6]?(d==null?'':(d<0)===(m[6]==='down')?'down':'up'):'flat';
+    const masses=key==='fat'||key==='fatkg'||key==='lean'?(()=>{const f=metricSeries(METRICS[1],list).filter(p=>inRange(p.t,r)),l=metricSeries(METRICS[2],list).filter(p=>inRange(p.t,r));return f.length>1?`<div class="fitBodyHead fitGroupHead"><span class="fitBodyLabel">Fat mass</span></div>${trendChart(f,{label:'Fat mass over time',color:'var(--fitFat)'})}<div class="fitBodyHead fitGroupHead"><span class="fitBodyLabel">Lean mass</span></div>${trendChart(l,{label:'Lean mass over time',color:'var(--fitLean)'})}`:''})():'';
+    const hist=all.slice(-10).reverse().map((p,i,arr)=>{const nx=arr[i+1],dd=nx?p.v-nx.v:null;return `<div class="fitMetricRow"><strong>${esc(dayText(localKey(new Date(p.t))))}</strong><span>${metricText(m,p.v)}${m[3]?' '+esc(m[3]):''}</span><span class="fitDayDiff ${dd==null||Math.abs(dd)<Math.pow(10,-m[5])/2||!m[6]?'':(dd<0)===(m[6]==='down')?'down':'up'}">${dd==null||Math.abs(dd)<Math.pow(10,-m[5])/2?'':(dd<0?'↓ ':'↑ ')+metricText(m,Math.abs(dd))}</span></div>`}).join('');
+    const body=showSheet(m[2],`${rangeButtons(r,'data-r')}
+<div class="fitWeightNow"><strong>${cur?metricText(m,cur.v):'–'}${m[3]?`<small> ${esc(m[3])}</small>`:''}</strong>${cur?`<span class="fitWeightWhen">${esc(whenText(cur.t))}</span>`:''}</div>
+${d==null?'':`<div class="fitPills"><span class="fitWeightChange ${good}">${d<0?'↓ ':d>0?'↑ ':''}${metricText(m,Math.abs(d))}${m[3]?' '+esc(m[3]):''} · ${esc(r?RANGES.find(x=>x[0]===r)[1]:'all')}</span></div>`}
+${trendChart(pts,{decimals:m[5],label:m[2]+' over time',color:key==='fat'||key==='fatkg'?'var(--fitFat)':key==='lean'||key==='muscle'?'var(--fitLean)':''})}${statsHtml(pts,pts.length,m[5])}${key==='fat'?masses:''}
+<div class="fitBodyHead fitGroupHead"><span class="fitBodyLabel">Readings</span></div>${hist}`);
+    body.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{r=Number(b.dataset.range);draw()});
   };
   draw();
 }
@@ -665,6 +716,6 @@ async function init(){
   sb.auth.onAuthStateChange((_e,s)=>{const next=s?.user?.id||'';if(next===userId)return;userId=next;restore();invalidate();closeSheet();if(userId)refresh();else if(state.tab==='fitness')render()});
   if(userId&&navigator.onLine)refresh();else if(state.tab==='fitness')render();
 }
-window.PlanlyFitness={rankFoods,strictOrClose,validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,weights,pending,failures,dayKey,section}),suggestTargets,nutrientsFor,offProduct};
+window.PlanlyFitness={renderSettings,rankFoods,strictOrClose,validBarcode,barcodeCandidates,refresh,getState:()=>structuredClone({profile,entries,favourites,weights,pending,failures,dayKey,section}),suggestTargets,nutrientsFor,offProduct};
 setTimeout(()=>init().catch(e=>console.warn('Planly fitness',e)),0);
 })();
