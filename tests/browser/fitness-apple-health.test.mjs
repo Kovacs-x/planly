@@ -69,6 +69,17 @@ const tap=(page,sel)=>page.evaluate(s=>document.querySelector(s)?.click(),sel);
  check('…and back online the note goes and the buttons work',!/can’t be reached/.test(await panel(page))&&await page.evaluate(()=>[...document.querySelectorAll('#planlyFitnessSettings [data-scale]')].every(b=>!b.disabled)));
  check('…with no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
+// Settings › Fitness already open when the signal drops: it notices without leaving the page
+{const db=mk();const {context,errors}=await newPhone(browser,db,OWNER);const calls=[];await fakeLink(context,calls,true);
+ const page=await openApp(context,errors);await settings(page);
+ check('open and connected: Connected with working buttons',/^Connected/.test(await panel(page))&&await page.evaluate(()=>[...document.querySelectorAll('#planlyFitnessSettings [data-scale]')].every(b=>!b.disabled)));
+ await context.setOffline(true);await page.evaluate(()=>window.dispatchEvent(new Event('offline')));await W(600);
+ const off=await panel(page),dis=await page.evaluate(()=>[...document.querySelectorAll('#planlyFitnessSettings [data-scale]')].map(b=>b.disabled));
+ check('…signal drops while the page is open: the note appears, Connected stays, both buttons wait',/can’t be reached.*Connected/.test(off)&&dis.length===2&&dis.every(Boolean),JSON.stringify({off,dis}));
+ await context.setOffline(false);await page.evaluate(()=>window.dispatchEvent(new Event('online')));await W(2000);
+ check('…signal back: the note goes and the buttons work again',!/can’t be reached/.test(await panel(page))&&/^Connected/.test(await panel(page))&&await page.evaluate(()=>[...document.querySelectorAll('#planlyFitnessSettings [data-scale]')].every(b=>!b.disabled)));
+ check('…with no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
+
 // no weigh-ins yet: the connection is still there to manage
 {const db=mk({rows:false});const {context,errors}=await newPhone(browser,db,OWNER);const calls=[];await fakeLink(context,calls);
  const page=await openApp(context,errors);page.on('dialog',d=>d.accept());await settings(page);

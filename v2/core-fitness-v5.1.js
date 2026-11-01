@@ -431,6 +431,8 @@ function drawSettings(){const host=settingsHost;if(!host||!host.isConnected)retu
   host.innerHTML=`${note}<div class="fitSettingsRows"><div><span class="fitScaleDot" aria-hidden="true"></span><strong>Connected</strong><small>${scale.lastUsedAt?'Last import '+esc(whenText(scale.lastUsedAt)):'No imports yet'}</small></div><div><span>Weight</span><small>${tick(recent.length)}</small></div><div><span>Body fat</span><small>${tick(has(x=>x.fat_ratio_pct!=null))}</small></div><div><span>Lean mass</span><small>${tick(has(x=>x.fat_free_mass_kg!=null))}</small></div></div><button type="button" class="fitSecondary fitWide" data-scale="new"${off}>New import key</button><button type="button" class="fitQuiet fitWide fitDanger" data-scale="off"${off}>Disconnect</button>`;
   host.querySelector('[data-scale="new"]').onclick=scaleNewKey;host.querySelector('[data-scale="off"]').onclick=scaleDisconnect}
 function renderSettings(host){settingsHost=host||null;drawSettings();scaleRefresh(true)}
+// the Settings page on screen follows the signal: offline shows the note and holds the buttons, online checks again
+window.addEventListener('offline',()=>{if(settingsHost?.isConnected)scaleRefresh()});
 window.addEventListener('online',()=>{if(settingsHost?.isConnected)scaleRefresh(true)});
 // ---------- body composition ----------
 // One tile per reading the scale has sent (and fat mass and BMI worked out from them), with the change over 30 days in the
