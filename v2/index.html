@@ -259,7 +259,7 @@ body{font-size:15px;line-height:1.45}.title{letter-spacing:-.035em}.sectionHead 
 <style id="planlyStage4Part3a">
 /* Part 3a: grouped Profile & Settings. Every control stays rendered; only the chosen page is shown. */
 .settingsPaged [data-sp]{display:none}
-.settingsPaged[data-page="appearance"] [data-sp~="appearance"],.settingsPaged[data-page="planning"] [data-sp~="planning"],.settingsPaged[data-page="intelligence"] [data-sp~="intelligence"],.settingsPaged[data-page="calendars"] [data-sp~="calendars"],.settingsPaged[data-page="household"] [data-sp~="household"],.settingsPaged[data-page="account"] [data-sp~="account"],.settingsPaged[data-page="data"] [data-sp~="data"],.settingsPaged[data-page="notifications"] [data-sp~="notifications"]{display:block}
+.settingsPaged[data-page="appearance"] [data-sp~="appearance"],.settingsPaged[data-page="planning"] [data-sp~="planning"],.settingsPaged[data-page="intelligence"] [data-sp~="intelligence"],.settingsPaged[data-page="calendars"] [data-sp~="calendars"],.settingsPaged[data-page="household"] [data-sp~="household"],.settingsPaged[data-page="account"] [data-sp~="account"],.settingsPaged[data-page="data"] [data-sp~="data"],.settingsPaged[data-page="notifications"] [data-sp~="notifications"],.settingsPaged[data-page="fitness"] [data-sp~="fitness"]{display:block}
 .settingsPaged:not([data-page="hub"]) .settingsGroupHead{display:none}
 .settingsHub{display:grid}
 .settingsHubIdentity{display:flex;align-items:center;gap:14px;width:100%;text-align:left}
@@ -418,7 +418,7 @@ body.welcomeOpen{overflow:hidden}
 .set-appearance{background:linear-gradient(180deg,#6E6CF0,#4F46E5)}
 .set-planning{background:linear-gradient(180deg,#F97316,#DD4F0B)}
 .set-intelligence{background:linear-gradient(180deg,#A855F7,#7E22CE)}
-.set-calendars{background:linear-gradient(180deg,#F43F5E,#D61F45)}
+.set-calendars{background:linear-gradient(180deg,#F43F5E,#D61F45)}.set-fitness{background:linear-gradient(180deg,#38BDF8,#0E8FB8)}
 .set-household{background:linear-gradient(180deg,#22A86A,#15803D)}
 .set-account{background:linear-gradient(180deg,#3B82F6,#2257D6)}
 .set-data{background:linear-gradient(180deg,#7B8494,#5B6372)}
@@ -1178,6 +1178,51 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 @media (prefers-reduced-motion:reduce){#view .budgetFoldChevron{transition:none}}
 </style>
 <style id="planlyTapFloor">/* Every tap target at least 44px (night audit 30 Oct). */.budgetUndo button{min-width:44px}.budgetFoldCard .budgetLink,.budgetSectionHead .budgetLink{min-width:44px!important}.budgetRowActions button{min-width:44px}</style>
+<style id="planlyFitBodyV2">/* Body redesign (1 Nov): trend chart with axes, goal card, body composition, short history. */
+:root{--fitFat:#e9a23b;--fitLean:#3fb67a}
+[data-theme="dark"]{--fitFat:#f2b45a;--fitLean:#79d3a2}
+.fitWeightNow{display:grid;gap:2px;align-items:start}
+.fitWeightWhen{color:var(--muted);font-size:13px;font-weight:500}
+.fitPills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.fitWeightChange.flat{background:color-mix(in srgb,var(--muted) 14%,transparent);color:var(--muted)}
+.fitWeightChange.fit{background:var(--secTint);color:var(--sec)}
+.fitTrendChart{height:auto!important;margin-top:10px;overflow:visible}
+.fitTrendChart .fitWeightLine{stroke:var(--chart,var(--sec));stroke-width:2.6}
+.fitTrendChart .fitWeightArea{fill:var(--chart,var(--sec));fill-opacity:.1}
+.fitTrendChart .fitWeightDot{stroke:var(--chart,var(--sec));stroke-width:2.6}
+.fitChartDot{fill:var(--chart,var(--sec));fill-opacity:.45}
+.fitChartGrid{stroke:var(--line);stroke-width:1}
+.fitChartAxis{fill:var(--muted);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums}
+.fitChartKey{display:flex;gap:14px;margin-top:6px;color:var(--muted);font-size:12px}
+.fitChartKey i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle;background:var(--sec)}
+.fitChartKey i.dot{opacity:.45;border-radius:50%}.fitChartKey i.fat{background:var(--fitFat)}.fitChartKey i.lean{background:var(--fitLean)}
+.fitChartStats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.fitChartStats div{background:var(--cardSoft,var(--line));border-radius:12px;padding:8px 4px;text-align:center;display:grid;gap:1px}
+.fitChartStats strong{font-size:15px;font-variant-numeric:tabular-nums}.fitChartStats small{color:var(--muted);font-size:11px}
+.fitRange{display:flex;gap:2px;flex-wrap:nowrap}.fitRange button{padding:0 6px!important;min-width:44px}
+.fitRangeCenter,.fitSheetBody>.fitRange{justify-content:center}
+.fitWeightCard>.fitBodyHead{flex-wrap:wrap;row-gap:6px}.fitView,.fitView>*{min-width:0}
+.fitGoalCard{display:grid;gap:8px;width:100%;text-align:left;border:0;color:var(--text);font:inherit;min-height:44px}
+.fitGoalCard .fitWeightGoalRow{margin-top:0}
+.fitGoalTo{color:var(--muted);font-size:13px;font-weight:650}
+.fitGoalEmpty{display:flex;justify-content:space-between;align-items:center;color:var(--sec);font-weight:650}
+.fitSplit{display:flex;gap:2px;height:10px;border-radius:99px;overflow:hidden;margin-top:4px}
+.fitSplit i{display:block;height:100%}.fitSplit i.fat{background:var(--fitFat)}.fitSplit i.lean{background:var(--fitLean)}
+.fitMetricFoot{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
+.fitMetricChange.down,.fitDayDiff.down{color:#2fa866}.fitMetricChange.up,.fitDayDiff.up{color:#d8475f}
+[data-theme="dark"] .fitMetricChange.down,[data-theme="dark"] .fitDayDiff.down{color:#5fd896}[data-theme="dark"] .fitMetricChange.up,[data-theme="dark"] .fitDayDiff.up{color:#ff8a9b}
+.fitDayRow{display:grid;grid-template-columns:1fr auto 52px}
+.fitDayDiff{font-size:12.5px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.fitLinkBtn{min-height:44px;min-width:44px;border:0;background:transparent;color:var(--sec);font:inherit;font-weight:700;font-size:14px;padding:0 4px}
+.fitHistoryCard>.fitSecondary{margin-top:8px}
+.fitMonthMeta{color:var(--muted);font-size:12.5px;font-weight:600}
+.fitMetricRow{display:grid;grid-template-columns:1fr auto 56px;gap:8px;align-items:center}
+.fitSettingsRows{display:grid;margin-bottom:10px}
+.fitSettingsRows>div{display:flex;align-items:center;gap:8px;min-height:48px;border-top:1px solid var(--line)}
+.fitSettingsRows>div:first-child{border-top:0}.fitSettingsRows>div>small{margin-left:auto;color:var(--muted);font-size:13.5px}
+.fitSettingsRows .fitScaleDot{width:9px;height:9px;border-radius:50%;background:#2fbf71}
+#planlyFitnessSettings .fitPrimary,#planlyFitnessSettings .fitSecondary,#planlyFitnessSettings .fitQuiet{margin-top:8px}
+</style>
 </head>
 <body>
 <div id="planlyStatusShield" class="planlyStatusShield" aria-hidden="true"></div>
@@ -1241,7 +1286,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 <script>
 (()=>{
   'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t50';
+  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t51';
   const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
   const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
   const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
