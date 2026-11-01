@@ -405,7 +405,10 @@ async function scaleCall(action){
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'The Apple Health link is not responding.');return d;
 }
 async function scaleRefresh(force){
-  if(!userId||!navigator.onLine||scale.busy)return;if(!force&&Date.now()-scale.checkedAt<5*60*1000)return;
+  if(!userId||scale.busy)return drawSettings();
+  // offline: say so (the last known link stays as it was) and check again when back online
+  if(!navigator.onLine){scale.error=true;return drawSettings()}
+  if(!force&&Date.now()-scale.checkedAt<5*60*1000)return drawSettings();
   scale.busy=true;scale.checkedAt=Date.now();const before=scale.lastUsedAt;
   try{const st=await scaleCall('status');scale.error=false;scale.linked=!!st.linked;scale.lastUsedAt=st.lastUsedAt||null;if(scale.lastUsedAt&&scale.lastUsedAt!==before)await pull().catch(()=>{})}
   catch(e){scale.error=true;console.warn('Planly scale',e)}finally{scale.busy=false;invalidate();if(state.tab==='fitness'&&section==='body')render();drawSettings()}
@@ -420,12 +423,15 @@ async function scaleNewKey(){if(!confirm('Make a new import key? The old one sto
 async function scaleDisconnect(){if(!confirm('Disconnect Apple Health? Weigh-ins already saved stay.'))return;try{await scaleCall('remove-key');scale.linked=false;scale.lastUsedAt=null}catch(e){showToast(e.message)}invalidate();drawSettings()}
 // Settings › Fitness › Apple Health: drawn into the card Settings gives it; nothing shows until the link has answered
 function drawSettings(){const host=settingsHost;if(!host||!host.isConnected)return;
+  if(!userId){host.innerHTML='<p class="fitBodyHint">Sign in to connect Apple Health.</p>';return}
   if(scale.linked==null){host.innerHTML=`<p class="fitBodyHint">${scale.error?'Apple Health can’t be reached right now.':'Checking…'}</p>`;return}
-  if(!scale.linked){host.innerHTML='<button type="button" class="fitPrimary fitWide" data-scale="connect">Connect Apple Health</button>';host.querySelector('[data-scale]').onclick=scaleConnect;return}
+  const note=scale.error?'<p class="fitBodyHint">Apple Health can’t be reached right now.</p>':'',off=scale.error?' disabled':'';
+  if(!scale.linked){host.innerHTML=scale.error?note:'<button type="button" class="fitPrimary fitWide" data-scale="connect">Connect Apple Health</button>';host.querySelector('[data-scale]')?.addEventListener('click',scaleConnect);return}
   const recent=weighIns().filter(x=>x.source==='apple_health'&&x.measured_at>=daysAgo(30)),has=f=>recent.some(f),tick=ok=>ok?'✓':'–';
-  host.innerHTML=`<div class="fitSettingsRows"><div><span class="fitScaleDot" aria-hidden="true"></span><strong>Connected</strong><small>${scale.lastUsedAt?'Last import '+esc(whenText(scale.lastUsedAt)):'No imports yet'}</small></div><div><span>Weight</span><small>${tick(recent.length)}</small></div><div><span>Body fat</span><small>${tick(has(x=>x.fat_ratio_pct!=null))}</small></div><div><span>Lean mass</span><small>${tick(has(x=>x.fat_free_mass_kg!=null))}</small></div></div><button type="button" class="fitSecondary fitWide" data-scale="new">New import key</button><button type="button" class="fitQuiet fitWide fitDanger" data-scale="off">Disconnect</button>`;
+  host.innerHTML=`${note}<div class="fitSettingsRows"><div><span class="fitScaleDot" aria-hidden="true"></span><strong>Connected</strong><small>${scale.lastUsedAt?'Last import '+esc(whenText(scale.lastUsedAt)):'No imports yet'}</small></div><div><span>Weight</span><small>${tick(recent.length)}</small></div><div><span>Body fat</span><small>${tick(has(x=>x.fat_ratio_pct!=null))}</small></div><div><span>Lean mass</span><small>${tick(has(x=>x.fat_free_mass_kg!=null))}</small></div></div><button type="button" class="fitSecondary fitWide" data-scale="new"${off}>New import key</button><button type="button" class="fitQuiet fitWide fitDanger" data-scale="off"${off}>Disconnect</button>`;
   host.querySelector('[data-scale="new"]').onclick=scaleNewKey;host.querySelector('[data-scale="off"]').onclick=scaleDisconnect}
 function renderSettings(host){settingsHost=host||null;drawSettings();scaleRefresh(true)}
+window.addEventListener('online',()=>{if(settingsHost?.isConnected)scaleRefresh(true)});
 // ---------- body composition ----------
 // One tile per reading the scale has sent (and fat mass and BMI worked out from them), with the change over 30 days in the
 // colour of its good direction and a small trend; a tile opens its own chart and readings.

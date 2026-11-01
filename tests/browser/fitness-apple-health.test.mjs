@@ -51,6 +51,24 @@ const tap=(page,sel)=>page.evaluate(s=>document.querySelector(s)?.click(),sel);
  check('Disconnect removes the key and shows Connect again',calls.some(c=>c.action==='remove-key')&&/Connect Apple Health/.test(await panel(page)));
  check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
+// offline: Settings › Fitness says it can't be reached (not stuck on Checking), and checks again once back online
+{const db=mk();const {context,errors}=await newPhone(browser,db,OWNER);const calls=[];await fakeLink(context,calls,true);
+ const page=await openApp(context,errors);await W(500);
+ await context.setOffline(true);await page.evaluate(()=>window.dispatchEvent(new Event('offline')));
+ await settings(page);await W(1500);
+ const off=await panel(page);
+ check('offline: Settings › Fitness says Apple Health can’t be reached, not Checking…',/can’t be reached/.test(off)&&!/Checking/.test(off),off);
+ await context.setOffline(false);await page.evaluate(()=>window.dispatchEvent(new Event('online')));await W(2000);
+ const on=await panel(page);
+ check('…and once back online it shows the connection again',/^Connected/.test(on),on);
+ // already connected, then offline: the connection stays shown with the note, and its buttons wait for the network
+ await context.setOffline(true);await page.evaluate(()=>window.dispatchEvent(new Event('offline')));await settings(page);await W(1200);
+ const known=await panel(page),dis=await page.evaluate(()=>[...document.querySelectorAll('#planlyFitnessSettings [data-scale]')].every(b=>b.disabled));
+ check('…already connected and offline: still Connected, with the note and its buttons waiting',/can’t be reached.*Connected/.test(known)&&dis,known);
+ await context.setOffline(false);await page.evaluate(()=>window.dispatchEvent(new Event('online')));await W(2000);
+ check('…and back online the note goes and the buttons work',!/can’t be reached/.test(await panel(page))&&await page.evaluate(()=>[...document.querySelectorAll('#planlyFitnessSettings [data-scale]')].every(b=>!b.disabled)));
+ check('…with no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
+
 // no weigh-ins yet: the connection is still there to manage
 {const db=mk({rows:false});const {context,errors}=await newPhone(browser,db,OWNER);const calls=[];await fakeLink(context,calls);
  const page=await openApp(context,errors);page.on('dialog',d=>d.accept());await settings(page);
