@@ -2232,7 +2232,7 @@ async function removePlanlyCalendarSource(sourceId,eventCount=0){
 async function refreshPlanlyCalendarSource(sourceId,btn){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const original=btn?.textContent||'Refresh';if(btn){btn.disabled=true;btn.textContent='Refreshing…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',sourceId})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be refreshed.');await loadPlanlyCalendarData();showToast('Imported '+Number(body.eventCount||0)+' calendar events');render();return body}finally{if(btn){btn.disabled=false;btn.textContent=original}}}
 async function addPlanlyCalendarSource(){if(!planlySession?.access_token)throw new Error('Sign in to Planly first.');const name=$('#planlyCalendarName')?.value.trim(),feedUrl=$('#planlyCalendarUrl')?.value.trim();if(!name||!feedUrl)throw new Error('Enter a calendar name and iCalendar subscription link.');const btn=$('#planlyAddCalendarBtn');if(btn){btn.disabled=true;btn.textContent='Connecting…'}try{const c=window.PLANLY_SUPABASE_CONFIG,res=await fetch(c.url+'/functions/v1/calendar-source-create',{method:'POST',headers:{Authorization:'Bearer '+planlySession.access_token,apikey:c.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({name,feedUrl,colour:'#E78AA7',showToday:true,showMonth:true,showTimeline:true})});const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||'Calendar could not be connected.');if($('#planlyCalendarName'))$('#planlyCalendarName').value='';if($('#planlyCalendarUrl'))$('#planlyCalendarUrl').value='';await loadPlanlyCalendarData();showToast('Calendar connected securely');render()}finally{if(btn){btn.disabled=false;btn.textContent='Add calendar'}}}
 let settingsPage='';
-const PLANLY_RELEASE='planly-v2-721t-172';
+const PLANLY_RELEASE='planly-v2-721t-173';
 const PLANLY_SETTINGS_PAGES=[['appearance','Appearance','Theme, task rows, Show on Today'],['planning','Planning','Task defaults and planning hours'],['intelligence','Suggestions','Suggestions, chore balance, night rest'],['calendars','Calendars','Rota feeds and Google Calendar'],['fitness','Fitness','Apple Health and your scale'],['household','Household','Members, names and invites'],['notifications','Notifications','Reminders, morning summary, chores'],['account','Account','Sign-in and cloud sync'],['data','Data & backup','Export, import and diagnostics']];
 const PLANLY_SETTINGS_ICONS={appearance:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',planning:'<use href="#pi-clock"/>',intelligence:'<use href="#pi-spark"/>',calendars:'<use href="#pi-plan"/>',fitness:'<path d="M6.5 8v8M17.5 8v8M3.5 10v4M20.5 10v4M6.5 12h11"/>',household:'<use href="#pi-home"/>',account:'<circle cx="12" cy="8.5" r="3.6"/><path d="M5 19.5c1.2-3.4 4-5 7-5s5.8 1.6 7 5"/>',data:'<rect x="4" y="4.5" width="16" height="5" rx="1.5"/><path d="M5.5 9.5v8.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5M10 13h4"/>',notifications:'<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14zM10 20.5a2 2 0 0 0 4 0"/>',logout:'<path d="M14 4.5H7.5A1.5 1.5 0 0 0 6 6v12a1.5 1.5 0 0 0 1.5 1.5H14M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>'};
 function planlySettingsIcon(id){return '<span class="setIcon set-'+id+'" aria-hidden="true"><svg class="pIcon" viewBox="0 0 24 24">'+(PLANLY_SETTINGS_ICONS[id]||'')+'</svg></span>'}
@@ -2264,6 +2264,7 @@ function planlyPushIsIos(){return /iP(hone|ad|od)/.test(navigator.userAgent)||(n
 function planlyPushStandalone(){return window.matchMedia?.('(display-mode: standalone)')?.matches||navigator.standalone===true}
 function planlyPushKeyBytes(s){const pad='='.repeat((4-s.length%4)%4),bin=atob((s+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(bin,c=>c.charCodeAt(0))}
 function planlyPushTimeOptions(sel){let h='';for(let m=7*60;m<=10*60;m+=15){const v=String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');h+='<option value="'+v+'"'+(v===sel?' selected':'')+'>'+v+'</option>'}return h}
+function planlyPushClockOptions(sel,avoid){const v=[];for(let m=0;m<24*60;m+=30)v.push(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'));if(sel&&!v.includes(sel))v.push(sel),v.sort();return v.map(x=>'<option value="'+x+'"'+(x===sel?' selected':'')+(x===avoid?' disabled':'')+'>'+x+'</option>').join('')}
 function planlyPushPanelHtml(){
   const st=planlyPushState,p=st.prefs,note=st.note?'<p class="muted settingsHelp" role="status">'+esc(st.note)+'</p>':'';
   if(!planlySession?.user)return '<p class="muted settingsHelp">Sign in to use notifications.</p>';
@@ -2276,7 +2277,8 @@ function planlyPushPanelHtml(){
     +row('planlyPushSummary','Morning summary','',p.notify_summary)
     +(p.notify_summary?'<label class="muted smallLabel" for="planlyPushSummaryTime">Summary time</label><select id="planlyPushSummaryTime" class="select"'+(st.busy?' disabled':'')+'>'+planlyPushTimeOptions(p.summary_time||'07:30')+'</select>':'')
     +row('planlyPushChores','New chores','',p.notify_chores)
-    
+    +('notify_deals' in p?row('planlyPushDeals','0% deals ending','',p.notify_deals):'')
+    +('quiet_on' in p?row('planlyPushQuiet','Quiet hours','',p.quiet_on)+(p.quiet_on?'<div class="planlyPushQuietTimes"><label><span class="muted smallLabel">From</span><select id="planlyPushQuietStart" class="select"'+(st.busy?' disabled':'')+'>'+planlyPushClockOptions(p.quiet_start||'22:00',p.quiet_end)+'</select></label><label><span class="muted smallLabel">Until</span><select id="planlyPushQuietEnd" class="select"'+(st.busy?' disabled':'')+'>'+planlyPushClockOptions(p.quiet_end||'07:00',p.quiet_start)+'</select></label></div>':''):'')
     +'<div class="planlyPushActions"><button type="button" class="secondaryBtn" id="planlyPushTest"'+(st.busy?' disabled':'')+'>Send a test</button><button type="button" class="secondaryBtn" id="planlyPushDisable"'+(st.busy?' disabled':'')+'>Turn off on this phone</button></div>'+note}
 function planlyPushRender(){const el=document.getElementById('planlyPushPanel');if(el){el.innerHTML=planlyPushPanelHtml();planlyPushBind()}}
 async function planlyPushCurrent(){const reg=await navigator.serviceWorker.ready;return reg.pushManager.getSubscription()}
@@ -2286,9 +2288,12 @@ async function planlyPushCheck(){
     if(sub&&Notification.permission==='granted'){const {data,error}=await planlySupabase.rpc('planly_get_push_subscription',{p_endpoint:sub.endpoint});planlyPushState.prefs=error?null:(data||null)}else planlyPushState.prefs=null}
   catch{planlyPushState.prefs=null}
   planlyPushState.checked=true;planlyPushRender()}
+// The quiet-hours and 0% deal settings (migration 061) are only sent once the server has returned them, so this keeps
+// working against a server without 061.
+function planlyPushExtraArgs(p){const o={};if(typeof p.notify_deals==='boolean')o.p_notify_deals=p.notify_deals;if(typeof p.quiet_on==='boolean')o.p_quiet_on=p.quiet_on;if(p.quiet_start)o.p_quiet_start=p.quiet_start;if(p.quiet_end)o.p_quiet_end=p.quiet_end;return o}
 async function planlyPushSave(sub,prefs){
   const j=sub.toJSON(),tz=(Intl.DateTimeFormat().resolvedOptions().timeZone)||'Europe/London';
-  const {data,error}=await planlySupabase.rpc('planly_save_push_subscription',{p_endpoint:j.endpoint,p_p256dh:j.keys?.p256dh||'',p_auth:j.keys?.auth||'',p_time_zone:tz,p_notify_tasks:prefs.notify_tasks!==false,p_notify_chores:prefs.notify_chores!==false,p_notify_summary:prefs.notify_summary!==false,p_summary_time:prefs.summary_time||'07:30'});
+  const {data,error}=await planlySupabase.rpc('planly_save_push_subscription',{p_endpoint:j.endpoint,p_p256dh:j.keys?.p256dh||'',p_auth:j.keys?.auth||'',p_time_zone:tz,p_notify_tasks:prefs.notify_tasks!==false,p_notify_chores:prefs.notify_chores!==false,p_notify_summary:prefs.notify_summary!==false,p_summary_time:prefs.summary_time||'07:30',...planlyPushExtraArgs(prefs)});
   if(error)throw error;planlyPushState.prefs=data;planlyPushState.endpoint=j.endpoint}
 async function planlyPushRun(work){if(planlyPushState.busy)return;planlyPushState.busy=true;planlyPushState.note='';planlyPushRender();try{await work()}catch(err){planlyPushState.note=err?.message||'Something went wrong. Please try again.';if(document.getElementById('planlyPushPrompt'))showToast(planlyPushState.note)}finally{planlyPushState.busy=false;planlyPushRender();if(document.getElementById('planlyPushPrompt'))render()}}
 const PLANLY_PUSH_PROMPT_KEY='planly-push-prompt-v1';
@@ -2319,7 +2324,11 @@ function planlyPushBind(){
   on('planlyPushSummary','change',e=>planlyPushUpdate({notify_summary:e.target.checked}));
   on('planlyPushChores','change',e=>planlyPushUpdate({notify_chores:e.target.checked}));
   on('planlyPushSummaryTime','change',e=>planlyPushUpdate({summary_time:e.target.value}));
-  on('planlyPushTest','click',()=>planlyPushRun(async()=>{const {data,error}=await planlySupabase.rpc('planly_queue_test_push');if(error)throw error;planlyPushState.note=data?'Test sent. It should arrive within 5 minutes.':'A test was just sent. Please wait a minute before sending another.'}));
+  on('planlyPushDeals','change',e=>planlyPushUpdate({notify_deals:e.target.checked}));
+  on('planlyPushQuiet','change',e=>planlyPushUpdate({quiet_on:e.target.checked}));
+  on('planlyPushQuietStart','change',e=>planlyPushUpdate({quiet_start:e.target.value}));
+  on('planlyPushQuietEnd','change',e=>planlyPushUpdate({quiet_end:e.target.value}));
+  on('planlyPushTest','click',()=>planlyPushRun(async()=>{const {data,error}=await planlySupabase.rpc('planly_queue_test_push');if(error)throw error;planlyPushState.note=data?'Test sent. It should arrive in a moment.':'A test was just sent. Please wait a minute before sending another.'}));
   on('planlyPushDisable','click',()=>planlyPushRun(async()=>{const sub=await planlyPushCurrent();if(sub){const {error}=await planlySupabase.rpc('planly_revoke_push_subscription',{p_endpoint:sub.endpoint});if(error)throw error;await sub.unsubscribe().catch(()=>{})}planlyPushState.prefs=null;planlyPushPromptSave({optedOut:true});showToast('Notifications are off for this phone')}))}
 // ---- Suggestions (replaces Plan my day / Plan my week / Day check). Engine: PlanlyIntelligence.suggest (pure). ----
 const PLANLY_SUGGEST_DISMISSED_KEY='planly-suggest-dismissed-v1',PLANLY_SUGGEST_FEEDBACK_KEY='planly-suggest-feedback-v1';
