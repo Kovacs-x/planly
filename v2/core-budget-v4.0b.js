@@ -12,11 +12,16 @@ const uuid=()=>crypto.randomUUID(),now=()=>Date.now(),localDateKey=d=>{const x=n
    calendar month, as before. Days 26-31 of a month belong to the next month's budget. */
 const cycleTwo=n=>String(n).padStart(2,'0'),cycleShift=(m,n)=>{const [y,mo]=String(m).split('-').map(Number),i=y*12+(mo-1)+Number(n||0);return `${Math.floor(i/12)}-${cycleTwo(((i%12)+12)%12+1)}`},cycleClamp=(m,d)=>{const [y,mo]=m.split('-').map(Number),last=new Date(y,mo,0).getDate();return `${m}-${cycleTwo(Math.min(Math.max(Math.floor(Number(d))||1,1),last))}`},cycleDayBefore=k=>{const [y,m,d]=k.split('-').map(Number);return localDateKey(new Date(y,m-1,d-1))};
 const cycleStartDay=()=>{const v=Math.floor(Number(state?.scope?.month_start_day||1));return v>=1&&v<=28?v:1};
-const PlanlyBudgetCycle={startDay:cycleStartDay,shift:cycleShift,
-  keyOf(date,sd=cycleStartDay()){const v=String(date||'').slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(v))return v.slice(0,7);const m=v.slice(0,7);return sd>1&&Number(v.slice(8))>=sd?cycleShift(m,1):m},
+/* Payday moves to the Friday before when the start day falls on a Saturday, Sunday or Monday (Musti's and Laki's
+   employers pay that way), so a month runs from one real payday to the day before the next. */
+const cycleAddDays=(k,n)=>{const [y,m,d]=k.split('-').map(Number);return localDateKey(new Date(y,m-1,d+n))},cyclePayday=(key,sd)=>{if(sd<=1)return `${key}-01`;const nominal=cycleClamp(cycleShift(key,-1),sd),[y,m,d]=nominal.split('-').map(Number),wd=new Date(y,m-1,d).getDay();return cycleAddDays(nominal,-({6:1,0:2,1:3}[wd]||0))};
+const PlanlyBudgetCycle={startDay:cycleStartDay,shift:cycleShift,payday:(key,sd=cycleStartDay())=>cyclePayday(key,sd),
+  keyOf(date,sd=cycleStartDay()){const v=String(date||'').slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(v))return v.slice(0,7);let k=v.slice(0,7);if(sd<=1)return k;for(let i=0;i<4&&v>=cyclePayday(cycleShift(k,1),sd);i++)k=cycleShift(k,1);for(let i=0;i<4&&v<cyclePayday(k,sd);i++)k=cycleShift(k,-1);return k},
   current(sd=cycleStartDay()){return PlanlyBudgetCycle.keyOf(localDateKey(new Date()),sd)},
-  range(key,sd=cycleStartDay()){const start=sd>1?`${cycleShift(key,-1)}-${cycleTwo(sd)}`:`${key}-01`,next=sd>1?`${key}-${cycleTwo(sd)}`:`${cycleShift(key,1)}-01`;return {start,end:cycleDayBefore(next),next}},
-  dateFor(key,day,sd=cycleStartDay()){const d=Math.floor(Number(day))||1;return sd>1&&d>=sd?cycleClamp(cycleShift(key,-1),d):cycleClamp(key,d)},
+  range(key,sd=cycleStartDay()){const start=cyclePayday(key,sd),next=cyclePayday(cycleShift(key,1),sd);return {start,end:cycleDayBefore(next),next}},
+  /* Every date in this month that a bill due on `day` falls on (none, one, or two when paydays move). */
+  datesFor(key,day,sd=cycleStartDay()){const r=PlanlyBudgetCycle.range(key,sd);return [...new Set([-1,0].map(n=>cycleClamp(cycleShift(key,n),day)))].filter(x=>x>=r.start&&x<r.next)},
+  dateFor(key,day,sd=cycleStartDay()){const d=Math.floor(Number(day))||1,hit=PlanlyBudgetCycle.datesFor(key,d,sd);return hit.length?hit[hit.length-1]:(sd>1&&d>=sd?cycleClamp(cycleShift(key,-1),d):cycleClamp(key,d))},
   label(key,sd=cycleStartDay()){if(sd<=1)return '';const r=PlanlyBudgetCycle.range(key,sd),f=k=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short'}).format(new Date(k+'T12:00:00'));return `${f(r.start)} – ${f(r.end)}`}};
 window.PlanlyBudgetCycle=PlanlyBudgetCycle;
 const readKey=(k,f)=>{if(!k)return f;try{return JSON.parse(localStorage.getItem(k)||'null')??f}catch{return f}},writeKey=(k,v)=>{if(k)localStorage.setItem(k,JSON.stringify(v))};

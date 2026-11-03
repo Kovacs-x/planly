@@ -1,8 +1,10 @@
 // Budget months that start on payday (migration 062, month_start_day = 26). Today is fixed at 3 Nov 2026.
-// "November" runs 26 Oct – 25 Nov: it holds the pay dated 1 Nov, the bills dated 28 Oct and 1 Nov, not the bills dated
-// 28 Nov, which belong to December (26 Nov – 25 Dec). Carry forward puts each bill on its due day inside the new
+// "November" runs 23 Oct (26 Oct was a Monday, so payday was the Friday before) – 25 Nov: it holds the pay dated 1 Nov, the bills dated 28 Oct and 1 Nov, not the bills dated
+// 28 Nov, which belong to December (26 Nov – 24 Dec). Carry forward puts each bill on its due day inside the new
 // month and the pay on payday. The household owner can change payday; changing it to the 1st goes back to calendar
-// months. Laki sees the payday but can't change it. On 27 Nov the budget opens on December. A server without 062 still
+// months. When the 26th is a Saturday, Sunday or Monday, payday (and the month) starts the Friday before: 26 Dec 2026
+// is a Saturday, so December is 26 Nov – 24 Dec and January starts Fri 25 Dec; a bill due on the 25th then falls in
+// January twice and December not at all. Laki sees the payday but can't change it. On 27 Nov the budget opens on December. A server without 062 still
 // shows calendar months.
 // Run: node tests/browser/budget-payday.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER,PARTNER,HOUSEHOLD} from './harness.mjs';
@@ -21,7 +23,7 @@ function mk({sd=26}={}){const db=makeDb();let n=0;
   db.tables.planly_budget_entries=[
     E(INC,'income','Musti Work',285800,'2026-10-01',null),E(INC,'income','Musti Work',285800,'2026-11-01',null),
     E(BILLS,'expense','Rent',106200,'2026-10-30',31,{allocation_status:'paid'}),E(BILLS,'expense','Rent',106200,'2026-11-30',31),
-    E(BILLS,'expense','Groceries',40000,'2026-11-01',1),E(BILLS,'expense','Spotify',599,'2026-10-19',19,{allocation_status:'paid'}),E(BILLS,'expense','Spotify',599,'2026-11-19',19)];
+    E(BILLS,'expense','Groceries',40000,'2026-11-01',1),E(BILLS,'expense','Phone',2000,'2026-11-25',25),E(BILLS,'expense','Spotify',599,'2026-10-19',19,{allocation_status:'paid'}),E(BILLS,'expense','Spotify',599,'2026-11-19',19)];
   db.tables.planly_budget_debts=[];db.tables.planly_budget_savings=[];
   return db}
 const phone=async (db,user,when)=>{const p=await newPhone(browser,db,user);await p.context.addInitScript(u=>{try{localStorage.setItem('planly-budget-active-scope-v1:'+u,'"household"');const k='sb-dtniwcwjucepsjzoojuc-auth-token',s=JSON.parse(localStorage.getItem(k)||'null');if(s){s.expires_at=Math.floor(Date.parse('2027-06-01')/1000);localStorage.setItem(k,JSON.stringify(s))}}catch{}},user);
@@ -34,38 +36,41 @@ const dates=(db,desc)=>db.tables.planly_budget_entries.filter(x=>x.description==
 // Musti on 3 Nov: November is 26 Oct – 25 Nov
 {const db=mk();const {context,errors,page}=await phone(db,OWNER,'2026-11-03T12:00:00');await budget(page);
  let v=await view(page);
- check('opens on November, shown as 26 Oct – 25 Nov',v.label==='November 2026 26 Oct – 25 Nov',v.label);
- check('November holds the pay dated 1 Nov and rent paid 30 Oct + groceries + Spotify (£1,467.99), not the rent due 30 Nov',/Musti Work 1 Nov \+£2,858\.00/.test(v.text)&&/£1,062\.00 of £1,467\.99 paid · 3 bills/.test(v.text)&&/£1,390\.01 of £2,858\.00 coming in/.test(v.text),v.text.slice(0,600));
+ check('opens on November, shown as 23 Oct – 25 Nov (26 Oct was a Monday)',v.label==='November 2026 23 Oct – 25 Nov',v.label);
+ check('November holds the pay dated 1 Nov and rent paid 30 Oct + groceries + Spotify + phone due 25 Nov (£1,487.99), not the rent due 30 Nov',/Musti Work 1 Nov \+£2,858\.00/.test(v.text)&&/£1,062\.00 of £1,487\.99 paid · 4 bills/.test(v.text)&&/£1,370\.01 of £2,858\.00 coming in/.test(v.text),v.text.slice(0,600));
  check('the owner sees Payday set to the 26th',v.payday==='26',JSON.stringify(v));
  await go(page,1);v=await view(page);
- check('December is 26 Nov – 25 Dec and holds the rent due 30 Nov (£1,062, 1 bill)',v.label==='December 2026 26 Nov – 25 Dec'&&/£0\.00 of £1,062\.00 paid · 1 bill/.test(v.text),v.label+' | '+v.text.slice(0,400));
+ check('December is 26 Nov – 24 Dec (26 Dec is a Saturday) and holds the rent due 30 Nov (£1,062, 1 bill)',v.label==='December 2026 26 Nov – 24 Dec'&&/£0\.00 of £1,062\.00 paid · 1 bill/.test(v.text),v.label+' | '+v.text.slice(0,400));
  check('…December has no pay yet, so it offers to carry forward',/recurring items? ready/.test(v.text),v.text.slice(0,300));
  await page.evaluate(()=>document.querySelector('[data-month-carry]')?.click());await W(2500);
- check('carry forward: pay lands on payday (26 Nov), groceries on 1 Dec, Spotify on 19 Dec, and rent is not doubled',dates(db,'Musti Work').includes('2026-11-26')&&dates(db,'Groceries').includes('2026-12-01')&&dates(db,'Spotify').includes('2026-12-19')&&dates(db,'Rent').length===2,JSON.stringify({p:dates(db,'Musti Work'),g:dates(db,'Groceries'),s:dates(db,'Spotify'),r:dates(db,'Rent')}));
- await go(page,1);await page.evaluate(()=>document.querySelector('[data-month-carry]')?.click());await W(2500);
- check('January carry forward puts rent on 31 Dec (due 31st, inside 26 Dec – 25 Jan)',dates(db,'Rent').includes('2026-12-31'),JSON.stringify(dates(db,'Rent')));
+ check('carry forward: pay lands on payday (26 Nov), groceries on 1 Dec, Spotify on 19 Dec, no phone (its 25th is in January), rent not doubled',dates(db,'Musti Work').includes('2026-11-26')&&dates(db,'Groceries').includes('2026-12-01')&&dates(db,'Spotify').includes('2026-12-19')&&dates(db,'Phone').length===1&&dates(db,'Rent').length===2,JSON.stringify({p:dates(db,'Musti Work'),g:dates(db,'Groceries'),s:dates(db,'Spotify'),ph:dates(db,'Phone'),r:dates(db,'Rent')}));
+ await go(page,1);v=await view(page);
+ check('January starts on Friday 25 Dec',v.label==='January 2027 25 Dec – 25 Jan',v.label);
+ await page.evaluate(()=>document.querySelector('[data-month-carry]')?.click());await W(2500);
+ check('January carry forward: pay on Fri 25 Dec, and the phone twice (25 Dec and 25 Jan), taken from November',dates(db,'Musti Work').includes('2026-12-25')&&JSON.stringify(dates(db,'Phone'))==='["2026-11-25","2026-12-25","2027-01-25"]',JSON.stringify({p:dates(db,'Musti Work'),ph:dates(db,'Phone')}));
+ check('January carry forward puts rent on 31 Dec (due 31st, inside 25 Dec – 25 Jan)',dates(db,'Rent').includes('2026-12-31'),JSON.stringify(dates(db,'Rent')));
  await go(page,-1);await go(page,-1);
  // change payday back to the 1st: calendar months
  await page.evaluate(()=>{const s=document.getElementById('budgetPayday');s.value='1';s.dispatchEvent(new Event('change',{bubbles:true}))});await W(2500);
  v=await view(page);
  check('changing payday to the 1st saves it on the budget',db.tables.planly_budget_scopes[0].month_start_day===1&&db.log.some(l=>l.table==='planly_budget_scopes'&&l.method==='PATCH'),JSON.stringify(db.tables.planly_budget_scopes[0].month_start_day));
- check('…and the budget goes back to calendar November: rent due 30 Nov + groceries + Spotify, both pays dated in November, no date range',v.label==='November 2026'&&/£0\.00 of £1,467\.99 paid · 3 bills/.test(v.text)&&/of £5,716\.00 coming in/.test(v.text),v.label+' | '+v.text.slice(0,300));
+ check('…and the budget goes back to calendar November: rent due 30 Nov + groceries + Spotify + phone, both pays dated in November, no date range',v.label==='November 2026'&&/£0\.00 of £1,487\.99 paid · 4 bills/.test(v.text)&&/of £5,716\.00 coming in/.test(v.text),v.label+' | '+v.text.slice(0,300));
  check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
 // Laki: sees the payday, can't change it
 {const db=mk();const {context,errors,page}=await phone(db,PARTNER,'2026-11-03T12:00:00');await budget(page);const v=await view(page);
- check('Laki sees November as 26 Oct – 25 Nov',v.label==='November 2026 26 Oct – 25 Nov',v.label);
+ check('Laki sees November as 23 Oct – 25 Nov',v.label==='November 2026 23 Oct – 25 Nov',v.label);
  check('…and Payday 26th, without a picker',v.payday===null&&v.paydayRow==='Payday 26th',JSON.stringify(v.paydayRow));
  check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
 // 27 Nov: the new pay month has started
 {const db=mk();const {context,errors,page}=await phone(db,OWNER,'2026-11-27T09:00:00');await budget(page);const v=await view(page);
- check('on 27 Nov the budget opens on December (26 Nov – 25 Dec)',v.label==='December 2026 26 Nov – 25 Dec',v.label);
+ check('on 27 Nov the budget opens on December (26 Nov – 24 Dec)',v.label==='December 2026 26 Nov – 24 Dec',v.label);
  check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
 // a server without 062: calendar months, nothing breaks
 {const db=mk({sd:null});const {context,errors,page}=await phone(db,OWNER,'2026-11-03T12:00:00');await budget(page);const v=await view(page);
- check('without the payday column: calendar November (rent due 30 Nov + groceries + Spotify), payday shows the 1st',v.label==='November 2026'&&/£0\.00 of £1,467\.99 paid · 3 bills/.test(v.text)&&v.payday==='1',JSON.stringify({l:v.label,p:v.payday,t:v.text.slice(0,300)}));
+ check('without the payday column: calendar November (rent due 30 Nov + groceries + Spotify + phone), payday shows the 1st',v.label==='November 2026'&&/£0\.00 of £1,487\.99 paid · 4 bills/.test(v.text)&&v.payday==='1',JSON.stringify({l:v.label,p:v.payday,t:v.text.slice(0,300)}));
  check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
 console.log(`${pass} passed, ${fail} failed`);await browser.close();server.close();process.exit(fail?1:0);
