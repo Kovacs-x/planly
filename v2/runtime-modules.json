@@ -1,11 +1,11 @@
 {
-  "version": 68,
+  "version": 69,
   "modules": [
-    "./core-budget-v4.0b.js?v=730k04",
-    "./core-budget-ui-v4.0b.js?v=730b12",
+    "./core-budget-v4.0b.js?v=730k05",
+    "./core-budget-ui-v4.0b.js?v=730b13",
     "./core-budget-scope-v4.0c.js?v=721c01",
     "./core-budget-lifecycle-v4.0d.js?v=722d03",
-    "./core-budget-monthly-v4.0e.js?v=730e04",
+    "./core-budget-monthly-v4.0e.js?v=730e05",
     "./core-budget-month-state-v4.0f.js?v=721f02",
     "./core-budget-actions-v4.0l.js?v=730l03",
     "./core-budget-scroll-v4.0m.js?v=721m01",

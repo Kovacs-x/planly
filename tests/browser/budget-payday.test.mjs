@@ -13,7 +13,7 @@ let pass=0,fail=0;const check=(n,c,d='')=>{console.log((c?'PASS ':'FAIL ')+n+(c?
 const W=ms=>new Promise(r=>setTimeout(r,ms));
 const pad=n=>String(n).padStart(2,'0'),now='2026-11-01T09:00:00.000Z';
 const H='22222222-0000-4000-8000-000000000001',BILLS='a2000000-0000-4000-8000-000000000001',INC='a2000000-0000-4000-8000-000000000003';
-function mk({sd=26}={}){const db=makeDb();let n=0;
+function mk({sd=26,extra=[]}={}){const db=makeDb();let n=0;
   const E=(cat,kind,desc,amt,date,day,more={})=>({id:'b2000000-0000-4000-8000-0000000000'+pad(++n),scope_id:H,category_id:cat,owner_id:OWNER,client_id:'e'+n,kind,amount_minor:amt,entry_date:date,description:desc,notes:'',allocation_status:'planned',due_day:day,recurring_monthly:true,show_on_today:false,today_lead_days:0,debt_id:null,saving_id:null,created_at:now,updated_at:now,deleted_at:null,cloud_version:1,...more});
   const scope={id:H,owner_id:OWNER,scope_type:'household',household_id:HOUSEHOLD,name:'Household Budget',currency:'GBP',client_id:'h',created_at:now,updated_at:now,deleted_at:null,cloud_version:1};
   if(sd!==null)scope.month_start_day=sd;
@@ -23,7 +23,8 @@ function mk({sd=26}={}){const db=makeDb();let n=0;
   db.tables.planly_budget_entries=[
     E(INC,'income','Musti Work',285800,'2026-10-01',null),E(INC,'income','Musti Work',285800,'2026-11-01',null),
     E(BILLS,'expense','Rent',106200,'2026-10-30',31,{allocation_status:'paid'}),E(BILLS,'expense','Rent',106200,'2026-11-30',31),
-    E(BILLS,'expense','Groceries',40000,'2026-11-01',1),E(BILLS,'expense','Phone',2000,'2026-11-25',25),E(BILLS,'expense','Spotify',599,'2026-10-19',19,{allocation_status:'paid'}),E(BILLS,'expense','Spotify',599,'2026-11-19',19)];
+    E(BILLS,'expense','Groceries',40000,'2026-11-01',1),E(BILLS,'expense','Phone',2000,'2026-11-25',25),
+    ...extra.map(x=>E(x.cat==='inc'?INC:BILLS,x.kind||'expense',x.desc,x.amt,x.date,x.day,x.more||{})),E(BILLS,'expense','Spotify',599,'2026-10-19',19,{allocation_status:'paid'}),E(BILLS,'expense','Spotify',599,'2026-11-19',19)];
   db.tables.planly_budget_debts=[];db.tables.planly_budget_savings=[];
   return db}
 const phone=async (db,user,when)=>{const p=await newPhone(browser,db,user);await p.context.addInitScript(u=>{try{localStorage.setItem('planly-budget-active-scope-v1:'+u,'"household"');const k='sb-dtniwcwjucepsjzoojuc-auth-token',s=JSON.parse(localStorage.getItem(k)||'null');if(s){s.expires_at=Math.floor(Date.parse('2027-06-01')/1000);localStorage.setItem(k,JSON.stringify(s))}}catch{}},user);
@@ -66,6 +67,25 @@ const dates=(db,desc)=>db.tables.planly_budget_entries.filter(x=>x.description==
 // 27 Nov: the new pay month has started
 {const db=mk();const {context,errors,page}=await phone(db,OWNER,'2026-11-27T09:00:00');await budget(page);const v=await view(page);
  check('on 27 Nov the budget opens on December (26 Nov – 24 Dec)',v.label==='December 2026 26 Nov – 24 Dec',v.label);
+ check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
+
+// review #313: a payday change made on another phone is not overwritten by a stale one
+{const db=mk();const {context,errors,page}=await phone(db,OWNER,'2026-11-03T12:00:00');await budget(page);
+ Object.assign(db.tables.planly_budget_scopes[0],{month_start_day:25,cloud_version:2});
+ await page.evaluate(()=>{const s=document.getElementById('budgetPayday');s.value='1';s.dispatchEvent(new Event('change',{bubbles:true}))});await W(2500);
+ const v=await view(page),patch=db.log.filter(l=>l.table==='planly_budget_scopes'&&l.method==='PATCH');
+ check('stale phone: the payday update is sent with the version it loaded',patch.length===1&&/cloud_version=eq\.1/.test(decodeURIComponent(patch[0].query)),JSON.stringify(patch.map(x=>decodeURIComponent(x.query))));
+ check('…the other phone’s payday (25th) is kept, not overwritten',db.tables.planly_budget_scopes[0].month_start_day===25,String(db.tables.planly_budget_scopes[0].month_start_day));
+ check('…it says payday was changed on another phone and shows the 25th',/changed on another phone/.test(v.text)&&v.payday==='25',JSON.stringify({p:v.payday,t:v.text.slice(-200)}));
+ check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
+
+// review #313: carry forward checks each due date, not how many entries there are
+{const db=mk({extra:[{desc:'Phone',amt:2000,date:'2026-12-25',day:25},{desc:'Phone',amt:2000,date:'2026-12-25',day:25},{desc:'Groceries',amt:40000,date:'2026-12-02',day:2}]});
+ const {context,errors,page}=await phone(db,OWNER,'2026-11-03T12:00:00');await budget(page);
+ await go(page,1);await page.evaluate(()=>document.querySelector('[data-month-carry]')?.click());await W(2500);
+ check('a bill already moved to another day this month is not added again',JSON.stringify(dates(db,'Groceries'))==='["2026-11-01","2026-12-02"]',JSON.stringify(dates(db,'Groceries')));
+ await go(page,1);await page.evaluate(()=>document.querySelector('[data-month-carry]')?.click());await W(2500);
+ check('January already has the phone twice on 25 Dec: carry forward still adds 25 Jan, once',JSON.stringify(dates(db,'Phone'))==='["2026-11-25","2026-12-25","2026-12-25","2027-01-25"]',JSON.stringify(dates(db,'Phone')));
  check('no page errors',errors.length===0,errors.slice(0,3).join(' | '));await context.close()}
 
 // a server without 062: calendar months, nothing breaks
