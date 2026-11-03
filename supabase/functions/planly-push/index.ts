@@ -1,4 +1,4 @@
-// planly-push: called every 5 minutes by pg_cron (see migration 050). Not called by the browser.
+// planly-push: called every minute by pg_cron, and straight away when a chore alert or test message is queued (migrations 050, 061). Not called by the browser.
 // 1. Checks the shared cron secret (stored in Supabase Vault).
 // 2. Asks the database what is due (planly_push_worklist claims each message once, so nothing is sent twice).
 // 3. Sends each message with Web Push (VAPID keys from Vault) and reports the result per phone.

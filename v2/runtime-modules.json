@@ -1,5 +1,5 @@
 {
-  "version": 64,
+  "version": 66,
   "modules": [
     "./core-budget-v4.0b.js?v=730k02",
     "./core-budget-ui-v4.0b.js?v=730b11",
