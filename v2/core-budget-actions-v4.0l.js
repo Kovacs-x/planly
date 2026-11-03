@@ -15,7 +15,7 @@ async function persistedDelete(id){return mutate('entry',id,{}, {remove:true})}
 async function persistedCategoryUpdate(id,patch){return mutate('category',id,patch)}
 async function persistedCategoryArchive(id){return persistedCategoryUpdate(id,{archived:true})}
 function seriesKey(x){return [x.owner_id,x.kind,x.category_id||'',String(x.description||'').trim().toLowerCase()].join('|')}
-function repeatingSources(row){const s=api().getState(),key=seriesKey(row),month=String(row.entry_date||'').slice(0,7);return (s.entries||[]).filter(x=>x.id!==row.id&&!x.deleted_at&&x.recurring_monthly&&x.owner_id===row.owner_id&&seriesKey(x)===key&&String(x.entry_date||'').slice(0,7)<=month)}
+function repeatingSources(row){const s=api().getState(),key=seriesKey(row),month=window.PlanlyBudgetCycle.keyOf(row.entry_date);return (s.entries||[]).filter(x=>x.id!==row.id&&!x.deleted_at&&x.recurring_monthly&&x.owner_id===row.owner_id&&seriesKey(x)===key&&window.PlanlyBudgetCycle.keyOf(x.entry_date)<=month)}
 async function deleteEntryFlow(row){if(!row)return false;const label=String(row.description||'').trim()||(row.kind==='income'?'this income':'this payment'),sources=repeatingSources(row),repeats=!!row.recurring_monthly||sources.length>0;
 if(!confirm(repeats?'“'+label+'” repeats every month.\n\nDelete it and stop it repeating? Earlier months stay in your history.':'Delete “'+label+'”?'))return false;
 await mutate('entry',row.id,{}, {remove:true});
