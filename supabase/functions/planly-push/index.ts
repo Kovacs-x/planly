@@ -6,13 +6,24 @@
 import { sendPush } from './webpush.js'
 
 const SB = Deno.env.get('SUPABASE_URL')!
-const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+// API keys: the new publishable/secret keys (SUPABASE_PUBLISHABLE_KEYS / SUPABASE_SECRET_KEYS, the key named "default"),
+// falling back to the legacy anon/service_role keys while both exist. New keys go on the apikey header only.
+function namedKey(list: string, legacy: string) {
+  try {
+    const all = JSON.parse(Deno.env.get(list) || '{}')
+    if (typeof all?.default === 'string' && all.default) return all.default as string
+  } catch { /* not set */ }
+  return Deno.env.get(legacy) || ''
+}
+const SERVICE = namedKey('SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY')
+const serviceAuth = (): Record<string, string> =>
+  SERVICE.startsWith('eyJ') ? { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } : { apikey: SERVICE }
 const SUBJECT = 'https://kovacs-x.github.io/planly/'
 
 function rpc(name: string, args: Record<string, unknown> = {}) {
   return fetch(`${SB}/rest/v1/rpc/${name}`, {
     method: 'POST',
-    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' },
+    headers: { ...serviceAuth(), 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
   })
 }

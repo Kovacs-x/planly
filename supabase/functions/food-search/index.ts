@@ -1,3 +1,5 @@
+// Deploy with verify_jwt = false: the platform's built-in check only understands the legacy JWT keys. This function checks
+// the user's sign-in itself (Authorization header → /auth/v1/user) before doing anything.
 // Planly 5.1 — food-search: asks Open Food Facts on behalf of the Planly app.
 //
 // Why: on iPhone the browser will not let Planly read Open Food Facts' answers directly ("could not connect"), although
@@ -23,7 +25,16 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } })
 
 const SB = Deno.env.get('SUPABASE_URL')!
-const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
+// API keys: the new publishable/secret keys (SUPABASE_PUBLISHABLE_KEYS / SUPABASE_SECRET_KEYS, the key named "default"),
+// falling back to the legacy anon/service_role keys while both exist. New keys go on the apikey header only.
+function namedKey(list: string, legacy: string) {
+  try {
+    const all = JSON.parse(Deno.env.get(list) || '{}')
+    if (typeof all?.default === 'string' && all.default) return all.default as string
+  } catch { /* not set */ }
+  return Deno.env.get(legacy) || ''
+}
+const ANON = namedKey('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY')
 
 const OFF_FAST = 'https://search.openfoodfacts.org/search'
 const OFF_SEARCH = 'https://world.openfoodfacts.org/cgi/search.pl'
