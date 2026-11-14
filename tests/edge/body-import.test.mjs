@@ -3,16 +3,19 @@
 // body fat as % or fraction; weight, body fat and lean mass at the same minute merged into one weigh-in; impossible,
 // future, unparseable and weightless readings dropped); the same weigh-in sent again is not stored twice; an unknown,
 // malformed or removed key saves nothing.
+// Keys: with the new secret key (SUPABASE_SECRET_KEYS) the database calls carry it on apikey only; with only the legacy
+// service_role key (a JWT) they carry it on apikey and Authorization, as before.
 // Run: node --experimental-strip-types tests/edge/body-import.test.mjs
 let pass=0,fail=0;const check=(n,c,d='')=>{console.log((c?'PASS ':'FAIL ')+n+(c?'':' — '+d));c?pass++:fail++};
-const ENV={SUPABASE_URL:'https://sb.test',SUPABASE_ANON_KEY:'anon',SUPABASE_SERVICE_ROLE_KEY:'service'};
+const ENV={SUPABASE_URL:'https://sb.test',SUPABASE_ANON_KEY:'eyJanon',SUPABASE_SERVICE_ROLE_KEY:'eyJservice',SUPABASE_PUBLISHABLE_KEYS:JSON.stringify({default:'sb_publishable_test'}),SUPABASE_SECRET_KEYS:JSON.stringify({default:'sb_secret_test'})};
+const seen=[];
 globalThis.Deno={env:{get:k=>ENV[k]}};
 const MUSTI='7836ad26-05a7-4d91-b749-abdc32b65462';
 const db={keys:{},rows:[]};
 globalThis.fetch=async(url,opts={})=>{const u=String(url),body=opts.body;
  const res=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:{'Content-Type':'application/json'}});
  if(u==='https://sb.test/auth/v1/user')return opts.headers?.Authorization==='Bearer musti-session'?res({id:MUSTI}):res({},401);
- if(u.startsWith('https://sb.test/rest/v1/rpc/')){if(opts.headers.Authorization!=='Bearer service')return res({},401);const name=u.split('/').pop(),a=JSON.parse(body);
+ if(u.startsWith('https://sb.test/rest/v1/rpc/')){const h=opts.headers||{};seen.push(h.apikey+'|'+(h.Authorization||'-'));const okNew=h.apikey==='sb_secret_test'&&!h.Authorization,okLegacy=h.apikey==='eyJservice'&&h.Authorization==='Bearer eyJservice';if(!okNew&&!okLegacy)return res({},401);const name=u.split('/').pop(),a=JSON.parse(body);
   if(name==='planly_body_import_key_set'){db.keys[a.p_user]={hash:a.p_key_hash,created_at:new Date().toISOString(),last_used_at:null};return new Response(null,{status:204})}
   if(name==='planly_body_import_key_use'){const e=Object.entries(db.keys).find(([,k])=>k.hash===a.p_key_hash);if(!e)return res(null);e[1].last_used_at=new Date().toISOString();return res(e[0])}
   if(name==='planly_body_import_key_status'){const k=db.keys[a.p_user];return res(k?[k]:[])}
@@ -48,4 +51,8 @@ r=await j(await app({action:'create-key'},'musti-session'));const key2=r.body.ke
 r=await j(await shortcut(sent,key));check('making a new key stops the old one',r.status===401&&key2!==key);
 await app({action:'remove-key'},'musti-session');r=await j(await shortcut(sent,key2));
 check('removing the key stops the Shortcut',r.status===401&&!db.keys[MUSTI]);
+check('new keys: every database call used the secret key on apikey only',seen.length>0&&seen.every(x=>x==='sb_secret_test|-'),[...new Set(seen)].join());
+delete ENV.SUPABASE_SECRET_KEYS;delete ENV.SUPABASE_PUBLISHABLE_KEYS;seen.length=0;
+r=await j(await app({action:'status'},'musti-session'));
+check('legacy keys only: it still works, with the service_role key on apikey and Authorization',r.status===200&&seen.length>0&&seen.every(x=>x==='eyJservice|Bearer eyJservice'),JSON.stringify({s:r.status,seen}));
 console.log(`${pass} passed, ${fail} failed`);process.exit(fail?1:0);
