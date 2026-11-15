@@ -156,4 +156,12 @@ function foodProblems(m54){
  // redirects are never followed (each fetch call, up to its closing bracket, says redirect: 'manual'), and the body is only read through the byte-counting reader
  for(const m of fn.matchAll(/\bfetch\(/g)){const call=fn.slice(m.index,fn.indexOf('\n',m.index));if(!call.includes("redirect: 'manual'"))fail('food-search fetch must not follow redirects: '+call.slice(0,80))}
  if(/req\.(text|json|arrayBuffer|formData|blob)\(/.test(fn))fail('food-search must read the body only through readLimited');}
+// calendar-source-create: feeds are fetched DNS-rebinding safe. The only fetch() calls go to Supabase (SB + ...); the feed
+// itself goes through publicAddresses() (one lookup, every address checked) and pinnedGet() (TCP to that IP, TLS for the
+// original host name), and redirects are checked again hop by hop.
+{const fn=read('supabase/functions/calendar-source-create/index.ts');
+ for(const m of fn.matchAll(/\bfetch\(([^,)]*)/g))if(!/^\s*SB\s*\+/.test(m[1]))fail('calendar-source-create may only fetch() Supabase; feeds go through pinnedGet: fetch('+m[1].trim()+')');
+ for(const needle of ['export async function publicAddresses(url: URL)','Deno.resolveDns(host, \'A\')','Deno.connect({ hostname: ip, port: opts.port ?? 443 })','Deno.startTls(tcp, { hostname: url.hostname','const addresses = await publicAddresses(url)','result = await pinnedGet(url, ip)','if (!addresses.length || addresses.some((ip) => blockedIp(ip)))','redirect === MAX_REDIRECTS'])
+  if(!fn.includes(needle))fail('calendar-source-create DNS-rebinding guard missing: '+needle);
+ if((fn.match(/Deno\.resolveDns\(/g)||[]).length!==2)fail('calendar-source-create must resolve DNS only in publicAddresses (A and AAAA)')}
 console.log('Planly security regression checks passed.');

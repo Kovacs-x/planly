@@ -81,27 +81,53 @@ function blockedIpv4(host: string) {
     (a === 203 && b === 0 && d === 113)
 }
 
+// IPv6 written as its eight 16-bit groups, so mapped/compatible IPv4 in hex form (::ffff:7f00:1) is caught too.
+function ipv6Groups(h: string): number[] | null {
+  let x = h
+  const v4 = x.match(/(\d+\.\d+\.\d+\.\d+)$/)
+  if (v4) {
+    const p = v4[1].split('.').map(Number)
+    if (p.length !== 4 || p.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null
+    x = x.slice(0, -v4[1].length) + ((p[0] << 8) | p[1]).toString(16) + ':' + ((p[2] << 8) | p[3]).toString(16)
+  }
+  const halves = x.split('::')
+  if (halves.length > 2) return null
+  const head = halves[0] ? halves[0].split(':') : [], tail = halves.length === 2 && halves[1] ? halves[1].split(':') : []
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0
+  if (fill < 0 || (halves.length === 1 && head.length !== 8)) return null
+  const groups = [...head, ...Array(fill).fill('0'), ...tail].map((g) => /^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN)
+  return groups.length === 8 && groups.every((g) => !Number.isNaN(g)) ? groups : null
+}
+
 function blockedIp(host: string) {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '')
   if (blockedIpv4(h)) return true
   if (!h.includes(':')) return false
-  if (h === '::' || h === '::1') return true
-  if (h.startsWith('fc') || h.startsWith('fd')) return true
-  if (/^fe[89ab]/.test(h)) return true
-  const mapped = h.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
-  return mapped ? blockedIpv4(mapped[1]) : false
+  const g = ipv6Groups(h)
+  if (!g) return true // not a valid address: refuse rather than guess
+  if (g.every((x) => x === 0) || (g.slice(0, 7).every((x) => x === 0) && g[7] === 1)) return true // :: and ::1
+  if ((g[0] & 0xfe00) === 0xfc00) return true // fc00::/7 unique local
+  if ((g[0] & 0xffc0) === 0xfe80) return true // fe80::/10 link local
+  if ((g[0] & 0xff00) === 0xff00) return true // ff00::/8 multicast
+  const v4 = (hi: number, lo: number) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`
+  if (g.slice(0, 5).every((x) => x === 0) && (g[5] === 0xffff || g[5] === 0)) return blockedIpv4(v4(g[6], g[7])) // ::ffff:a.b.c.d and ::a.b.c.d
+  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) return blockedIpv4(v4(g[6], g[7])) // NAT64 64:ff9b::/96
+  if (g[0] === 0x2002) return blockedIpv4(v4(g[1], g[2])) // 6to4 2002::/16
+  return false
 }
 
-async function assertPublicHttpsUrl(url: URL) {
+// DNS-rebinding safe: the host is resolved ONCE here, every address is checked, and the request is then made to one of
+// these exact addresses (pinnedGet), so a second lookup can never swap in a private address.
+export async function publicAddresses(url: URL): Promise<string[]> {
   if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Unsafe calendar URL')
   if (url.port && url.port !== '443') throw new Error('Unsafe calendar port')
-  const host = url.hostname.toLowerCase().replace(/\.$/, '')
+  const host = url.hostname.toLowerCase().replace(/\.$/, '').replace(/^\[|\]$/g, '')
   if (!host || host === 'localhost' || host.endsWith('.localhost') ||
       host.endsWith('.local') || host.endsWith('.internal') ||
       host.endsWith('.lan') || blockedIp(host)) {
     throw new Error('Private calendar destination')
   }
-  if (/^[\d.]+$/.test(host) || host.includes(':')) return
+  if (/^[\d.]+$/.test(host) || host.includes(':')) return [host]
   const results = await Promise.allSettled([
     Deno.resolveDns(host, 'A'),
     Deno.resolveDns(host, 'AAAA'),
@@ -110,61 +136,121 @@ async function assertPublicHttpsUrl(url: URL) {
   if (!addresses.length || addresses.some((ip) => blockedIp(ip))) {
     throw new Error('Calendar destination is not public')
   }
+  return addresses
 }
 
-async function readLimitedText(response: Response) {
-  const declared = Number(response.headers.get('content-length') || 0)
-  if (declared > MAX_FEED_BYTES) throw new Error('Calendar feed is too large')
-  if (!response.body) return ''
-  const reader = response.body.getReader()
-  const chunks: Uint8Array[] = []
-  let total = 0
+const HEADER_MAX = 32_768
+const encoder = new TextEncoder()
+
+function indexOfCrlfCrlf(b: Uint8Array) {
+  for (let i = 0; i + 3 < b.length; i += 1) if (b[i] === 13 && b[i + 1] === 10 && b[i + 2] === 13 && b[i + 3] === 10) return i
+  return -1
+}
+
+function dechunk(b: Uint8Array, maxBytes: number) {
+  const out: Uint8Array[] = []
+  let i = 0, total = 0
   while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    if (!value) continue
-    total += value.byteLength
-    if (total > MAX_FEED_BYTES) {
-      await reader.cancel()
-      throw new Error('Calendar feed is too large')
-    }
-    chunks.push(value)
+    let j = i
+    while (j + 1 < b.length && !(b[j] === 13 && b[j + 1] === 10)) j += 1
+    if (j + 1 >= b.length) throw new Error('Calendar feed was cut short')
+    const size = parseInt(new TextDecoder().decode(b.subarray(i, j)).split(';')[0].trim(), 16)
+    if (!Number.isFinite(size) || size < 0) throw new Error('Calendar feed is malformed')
+    i = j + 2
+    if (size === 0) break
+    if (i + size > b.length) throw new Error('Calendar feed was cut short')
+    total += size
+    if (total > maxBytes) throw new Error('Calendar feed is too large')
+    out.push(b.subarray(i, i + size))
+    i += size + 2
   }
-  const bytes = new Uint8Array(total)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return new TextDecoder().decode(bytes)
+  const all = new Uint8Array(total)
+  let o = 0
+  for (const c of out) { all.set(c, o); o += c.byteLength }
+  return all
 }
 
-async function fetchCalendarFeed(input: string | URL) {
+// One GET over a TCP connection to the validated address, with TLS for the original host name (so the certificate is
+// still checked against it) and the original Host header. HTTP/1.1, Connection: close, identity encoding, bounded size.
+export async function pinnedGet(
+  url: URL,
+  ip: string,
+  opts: { port?: number; caCerts?: string[]; timeoutMs?: number; maxBytes?: number } = {},
+): Promise<{ status: number; headers: Headers; body: Uint8Array }> {
+  const maxBytes = opts.maxBytes ?? MAX_FEED_BYTES
+  const tcp = await Deno.connect({ hostname: ip, port: opts.port ?? 443 })
+  let conn: Deno.Conn = tcp
+  let timedOut = false
+  const timer = setTimeout(() => { timedOut = true; try { conn.close() } catch { /* closed */ } }, opts.timeoutMs ?? FEED_TIMEOUT_MS)
+  try {
+    conn = await Deno.startTls(tcp, { hostname: url.hostname.replace(/^\[|\]$/g, ''), caCerts: opts.caCerts })
+    const request = encoder.encode(
+      `GET ${url.pathname || '/'}${url.search} HTTP/1.1\r\nHost: ${url.host}\r\n` +
+      'Accept: text/calendar,text/plain;q=0.9,*/*;q=0.1\r\nAccept-Encoding: identity\r\n' +
+      'User-Agent: Planly-Calendar/1.2\r\nConnection: close\r\n\r\n',
+    )
+    for (let sent = 0; sent < request.length;) sent += await conn.write(request.subarray(sent))
+    const cap = HEADER_MAX + maxBytes + 65_536
+    const chunks: Uint8Array[] = []
+    let total = 0
+    const buf = new Uint8Array(32_768)
+    while (true) {
+      const n = await conn.read(buf)
+      if (n === null) break
+      total += n
+      if (total > cap) throw new Error('Calendar feed is too large')
+      chunks.push(buf.slice(0, n))
+    }
+    const raw = new Uint8Array(total)
+    let o = 0
+    for (const c of chunks) { raw.set(c, o); o += c.byteLength }
+    const end = indexOfCrlfCrlf(raw)
+    if (end < 0 || end > HEADER_MAX) throw new Error('Calendar server sent no valid response')
+    const lines = new TextDecoder().decode(raw.subarray(0, end)).split('\r\n')
+    const statusMatch = lines[0].match(/^HTTP\/1\.[01] (\d{3})/)
+    if (!statusMatch) throw new Error('Calendar server sent no valid response')
+    const headers = new Headers()
+    for (const line of lines.slice(1)) {
+      const k = line.indexOf(':')
+      if (k > 0) headers.append(line.slice(0, k).trim(), line.slice(k + 1).trim())
+    }
+    let body = raw.subarray(end + 4)
+    if (/\bchunked\b/i.test(headers.get('transfer-encoding') || '')) body = dechunk(body, maxBytes)
+    else if (headers.has('content-length')) {
+      const len = Number(headers.get('content-length'))
+      if (!Number.isFinite(len) || len < 0 || len > maxBytes) throw new Error('Calendar feed is too large')
+      if (body.length < len) throw new Error('Calendar feed was cut short')
+      body = body.subarray(0, len)
+    }
+    if (body.length > maxBytes) throw new Error('Calendar feed is too large')
+    return { status: Number(statusMatch[1]), headers, body }
+  } catch (err) {
+    if (timedOut) throw new Error('Calendar feed timed out')
+    throw err
+  } finally {
+    clearTimeout(timer)
+    try { conn.close() } catch { /* closed */ }
+  }
+}
+
+export async function fetchCalendarFeed(input: string | URL) {
   let url = input instanceof URL ? new URL(input.toString()) : new URL(String(input))
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
-    await assertPublicHttpsUrl(url)
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS)
-    let response: Response
-    try {
-      response = await fetch(url, {
-        redirect: 'manual',
-        signal: controller.signal,
-        headers: {
-          Accept: 'text/calendar,text/plain;q=0.9,*/*;q=0.1',
-          'User-Agent': 'Planly-Calendar/1.1',
-        },
-      })
-    } finally {
-      clearTimeout(timer)
+    const addresses = await publicAddresses(url)
+    let result: { status: number; headers: Headers; body: Uint8Array } | null = null
+    let lastError: unknown = null
+    for (const ip of addresses) {
+      try { result = await pinnedGet(url, ip); break } catch (err) { lastError = err }
     }
-    if ([301, 302, 303, 307, 308].includes(response.status)) {
-      const location = response.headers.get('location')
+    if (!result) throw lastError instanceof Error ? lastError : new Error('Calendar feed could not be reached')
+    if ([301, 302, 303, 307, 308].includes(result.status)) {
+      const location = result.headers.get('location')
       if (!location || redirect === MAX_REDIRECTS) throw new Error('Unsafe calendar redirect')
       url = new URL(location, url)
       continue
     }
-    return { response, text: await readLimitedText(response), finalUrl: url }
+    const response = new Response(null, { status: result.status, headers: result.headers })
+    return { response, text: new TextDecoder().decode(result.body), finalUrl: url }
   }
   throw new Error('Too many calendar redirects')
 }
