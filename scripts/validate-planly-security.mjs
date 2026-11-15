@@ -164,4 +164,27 @@ function foodProblems(m54){
  for(const needle of ['export async function publicAddresses(url: URL)','Deno.resolveDns(host, \'A\')','Deno.connect({ hostname: ip, port: opts.port ?? 443 })','Deno.startTls(tcp, { hostname: url.hostname','const addresses = await publicAddresses(url)','result = await pinnedGet(url, ip)','if (!addresses.length || addresses.some((ip) => blockedIp(ip)))','redirect === MAX_REDIRECTS'])
   if(!fn.includes(needle))fail('calendar-source-create DNS-rebinding guard missing: '+needle);
  if((fn.match(/Deno\.resolveDns\(/g)||[]).length!==2)fail('calendar-source-create must resolve DNS only in publicAddresses (A and AAAA)')}
+// Content-Security-Policy (v2/index.html; GitHub Pages cannot send headers, so it is a meta tag): first thing after the
+// charset, strict scripts (no inline, no eval, exact external script URLs), and every origin the app fetches allowed.
+{const html=read('v2/index.html'),m=html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/);
+ if(!m)fail('index.html must set a Content-Security-Policy meta tag');
+ if(html.indexOf(m[0])>html.search(/<script|<link|<style/))fail('the CSP meta tag must come before any script, link or style');
+ const csp=Object.fromEntries(m[1].split(';').map(x=>x.trim().split(/\s+/)).filter(x=>x[0]).map(([k,...v])=>[k,v]));
+ const need={'default-src':["'self'"],'object-src':["'none'"],'base-uri':["'self'"],'form-action':["'self'"],'img-src':["'self'",'data:'],'font-src':["'self'"],'style-src':["'self'","'unsafe-inline'"]};
+ for(const [k,v] of Object.entries(need))if(JSON.stringify(csp[k])!==JSON.stringify(v))fail(`CSP ${k} must be exactly ${v.join(' ')}: ${(csp[k]||[]).join(' ')}`);
+ for(const [k,v] of Object.entries(csp))for(const src of v)if(src==='*'||src.includes('*')||(k!=='img-src'&&/^(data|blob|http):/.test(src))||/'unsafe-eval'|'unsafe-hashes'|'wasm-unsafe-eval'/.test(src)||(k==='script-src'&&src==="'unsafe-inline'"))fail(`CSP ${k} must not allow ${src}`);
+ const scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+ for(const [,attrs,body] of scripts){if(!/\ssrc="/.test(attrs)||body.trim())fail('index.html must not contain inline <script> blocks (CSP)');const src=attrs.match(/src="([^"]+)"/)[1];
+  if(/^https?:/.test(src)&&!csp['script-src'].includes(src))fail('CSP script-src must list the exact external script '+src)}
+ if(/\son[a-z]+\s*=\s*["']/i.test(html.replace(/<style[\s\S]*?<\/style>/g,'')))fail('index.html must not use inline event handlers (CSP)');
+ if(/href\s*=\s*["']javascript:/i.test(html))fail('index.html must not use javascript: links (CSP)');
+ const runtime=fs.readdirSync(path.join(root,'v2')).filter(f=>/\.js$/.test(f)&&f!=='sw.js').map(f=>read('v2/'+f)).join('\n');
+ if(/\bnew Function\s*\(|\beval\s*\(|setTimeout\(\s*['"`]|setInterval\(\s*['"`]/.test(runtime))fail('app code must not evaluate strings (CSP has no unsafe-eval)');
+ if(/\son(click|load|error|change|input|submit|key\w+|focus|blur|touch\w+|mouse\w+)\s*=\s*\\?["']/i.test(runtime))fail('app code must not render inline event handlers (CSP)');
+ // every https/wss origin named in the app code is reachable under the CSP, unless it is only a name (an XML namespace, a
+ // redirect address, an OAuth scope)
+ const notFetched=new Set(['http://www.w3.org','https://kovacs-x.github.io']),allowed=new Set([...csp['connect-src'],...csp['script-src']].map(x=>x.replace(/^(https?:\/\/[^/]+).*$/,'$1')));
+ for(const o of new Set(runtime.match(/(?:https?|wss?):\/\/[a-z0-9.-]+/gi)||[]))if(!notFetched.has(o)&&!allowed.has(o))fail('origin used by the app is not in the CSP: '+o);
+ const sdk=html.match(/<script src="(https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@[^"]+)"/)?.[1];if(!sdk||!csp['script-src'].includes(sdk))fail('CSP must allow exactly the pinned supabase-js URL');
+ for(const o of ['https://dtniwcwjucepsjzoojuc.supabase.co','wss://dtniwcwjucepsjzoojuc.supabase.co'])if(!csp['connect-src'].includes(o))fail('CSP connect-src must allow '+o)}
 console.log('Planly security regression checks passed.');

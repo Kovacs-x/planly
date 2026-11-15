@@ -126,6 +126,8 @@ jobs:
         run: node tests/browser/budget-payday.test.mjs
       - name: Not syncing when the server refuses requests (candidate)
         run: node tests/browser/sync-health.test.mjs
+      - name: Content-Security-Policy enforced; sign-in, sync, realtime and calendar still work (candidate)
+        run: node tests/browser/csp.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
