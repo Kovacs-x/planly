@@ -1,7 +1,8 @@
 // The header chip says "Not syncing" when Planly's server refuses or fails its data requests while the phone is online
 // (as on 7–14 Nov 2026, when every request got 401 and the chip still said "Synced"). Three failures in a row turn it on;
 // the next request that works turns it off. A single failed request does not. Offline still says "Offline". Tapping
-// "Not syncing" explains it in one line.
+// "Not syncing" explains it in one line. A 403 (a permission denial such as row-level security) is an answer from a
+// working server, so it never raises the alarm.
 // Run: node tests/browser/sync-health.test.mjs (see tests/browser/README.md).
 import {startServer,launchBrowser,makeDb,newPhone,openApp,OWNER} from './harness.mjs';
 const server=await startServer();const browser=await launchBrowser();
@@ -20,6 +21,13 @@ let once=true;db.fail=()=>{if(once){once=false;return [500,{message:'boom'}]}ret
 await nav(page,'budget');await W(1500);await nav(page,'today');await W(1500);
 c=await chip(page);
 check('a single failed request: still Synced',c.text==='Synced'&&!c.trouble,JSON.stringify(c));
+
+// review #315: 403 is a permission answer (a row-level security denial), so the server is working: no alarm
+db.fail=()=>[403,{code:'42501',message:'new row violates row-level security policy'}];
+await page.reload();await W(4000);
+c=await chip(page);
+check('403 permission denials (row-level security) are not an outage: still Synced',c.text==='Synced'&&!c.trouble,JSON.stringify(c));
+db.fail=null;await page.reload();await W(3000);
 
 // the server refuses everything (expired keys / 401), while the phone is online
 db.fail=()=>[401,{code:'PGRST301',message:'JWT invalid'}];
