@@ -1,7 +1,8 @@
-const CACHE='planly-v2-721t-180';
+const CACHE='planly-v2-721t-182';
 const VERSION='planly-v2-sw-721t-172';
-const APP_URL='./app-v3.2.0.js?v=721t58';
+const APP_URL='./app-v3.2.0.js?v=721t59';
 const RUNTIME_MANIFEST_URL='./runtime-modules.json';
+const BOOT_HEAD_URL='./boot-head.js?v=721t59',BOOT_URL='./boot.js?v=721t59';
 const CORE_PROJECTS_URL='./core-projects-v3.3c.js?v=717p10';
 const CORE_BUILD_URL='./core-build-v3.3c.js?v=724w01';
 const CORE_ASSIGNMENT_URL='./core-assignment-v3.3c.js?v=718s01';
@@ -9,7 +10,7 @@ const CORE_PROJECT_PLANNING_URL='./core-project-planning-v3.3c.js?v=713n01';
 const CORE_HOUSEHOLD_CALENDAR_URL='./core-household-calendar-v3.3c.js?v=712c02';
 const CORE_BUDGET_NAV_URL='./core-budget-nav-v4.0b1.js?v=726n02';
 const CORE_FITNESS_URL='./core-fitness-v5.1.js?v=721t19';
-const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r07';
+const CORE_REDESIGN_R1_URL='./core-redesign-r1.js?v=721r08';
 const BUDGET_RUNTIME_URL='./core-budget-v4.0b.js?v=730k05';
 const BUDGET_UI_URL='./core-budget-ui-v4.0b.js?v=730b13';
 const BUDGET_SCOPE_URL='./core-budget-scope-v4.0c.js?v=721c01';
@@ -26,7 +27,7 @@ const UPDATE_RUNTIME_URL='./core-update-v4.3.js?v=702u01';
 const SAFARI_DIAGNOSTICS_URL='./core-safari-diagnostics-v4.3b.js?v=430b01';
 const CORE_URLS=[CORE_PROJECTS_URL,CORE_BUILD_URL,CORE_ASSIGNMENT_URL,CORE_PROJECT_PLANNING_URL,CORE_HOUSEHOLD_CALENDAR_URL,CORE_BUDGET_NAV_URL,CORE_FITNESS_URL,CORE_REDESIGN_R1_URL];
 const APPEND_URLS=[BUDGET_RUNTIME_URL,BUDGET_UI_URL,BUDGET_SCOPE_URL,BUDGET_LIFECYCLE_URL,BUDGET_MONTHLY_URL,BUDGET_MONTH_STATE_URL,BUDGET_ACTIONS_URL,BUDGET_SCROLL_URL,BUDGET_MONEY_URL,LISTS_RUNTIME_URL,HOUSEHOLD_DASHBOARD_URL,UPDATE_RUNTIME_URL,SAFARI_DIAGNOSTICS_URL,INTELLIGENCE_RUNTIME_URL];
-const REQUIRED=['./index.html',APP_URL,RUNTIME_MANIFEST_URL,...CORE_URLS,...APPEND_URLS,'./supabase-config.js','./manifest.webmanifest'];
+const REQUIRED=['./index.html',BOOT_HEAD_URL,BOOT_URL,APP_URL,RUNTIME_MANIFEST_URL,...CORE_URLS,...APPEND_URLS,'./supabase-config.js','./manifest.webmanifest'];
 const OPTIONAL=['./','./vendor/zxing-library-0.23.0.min.js','../icon-180.png','../icon-192.png','../icon-512.png','./fonts/outfit-400.woff2','./fonts/outfit-500.woff2','./fonts/outfit-600.woff2','./fonts/outfit-700.woff2'];
 const FETCH_TIMEOUT=8000;
 function timedFetch(input,init={}){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),FETCH_TIMEOUT);return fetch(input,{...init,signal:controller.signal}).finally(()=>clearTimeout(timer))}
