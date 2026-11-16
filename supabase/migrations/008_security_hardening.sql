@@ -1,7 +1,12 @@
 -- Security Audit 1.0 hardening
 -- Trigger-only helper functions must not be callable through PostgREST.
 revoke execute on function public.handle_new_planly_user() from public, anon, authenticated;
-revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+-- rls_auto_enable() was a legacy helper that existed only in the original production database and is created by no
+-- migration. Guard its revoke so a clean replay onto a fresh database (e.g. a staging project) does not fail with
+-- "function does not exist"; where the function is present (production) the revoke still runs.
+do $$ begin
+  revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+exception when undefined_function then null; end $$;
 revoke execute on function public.bump_planly_cloud_version() from public, anon, authenticated;
 revoke execute on function public.touch_planly_updated_at() from public, anon, authenticated;
 
