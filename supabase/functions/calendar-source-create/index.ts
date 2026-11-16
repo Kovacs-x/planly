@@ -74,6 +74,7 @@ function blockedIpv4(host: string) {
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 0) ||
+    (a === 192 && b === 88 && d === 99) ||
     (a === 192 && b === 168) ||
     (a === 192 && b === 0 && d === 2) ||
     (a === 198 && (b === 18 || b === 19)) ||
@@ -94,25 +95,25 @@ function ipv6Groups(h: string): number[] | null {
   if (halves.length > 2) return null
   const head = halves[0] ? halves[0].split(':') : [], tail = halves.length === 2 && halves[1] ? halves[1].split(':') : []
   const fill = halves.length === 2 ? 8 - head.length - tail.length : 0
-  if (fill < 0 || (halves.length === 1 && head.length !== 8)) return null
+  if (halves.length === 2 ? fill < 1 : head.length !== 8) return null // a '::' stands for at least one group
   const groups = [...head, ...Array(fill).fill('0'), ...tail].map((g) => /^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN)
   return groups.length === 8 && groups.every((g) => !Number.isNaN(g)) ? groups : null
 }
 
+// IPv6 is public only inside global unicast 2000::/3 and outside its special-purpose and transition ranges. Everything
+// else (loopback, IPv4-mapped/compatible, NAT64, unique/link local, multicast, discard, SRv6, unassigned) is refused, as
+// is anything that does not parse as exactly eight groups.
 function blockedIp(host: string) {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '')
   if (blockedIpv4(h)) return true
   if (!h.includes(':')) return false
   const g = ipv6Groups(h)
   if (!g) return true // not a valid address: refuse rather than guess
-  if (g.every((x) => x === 0) || (g.slice(0, 7).every((x) => x === 0) && g[7] === 1)) return true // :: and ::1
-  if ((g[0] & 0xfe00) === 0xfc00) return true // fc00::/7 unique local
-  if ((g[0] & 0xffc0) === 0xfe80) return true // fe80::/10 link local
-  if ((g[0] & 0xff00) === 0xff00) return true // ff00::/8 multicast
-  const v4 = (hi: number, lo: number) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`
-  if (g.slice(0, 5).every((x) => x === 0) && (g[5] === 0xffff || g[5] === 0)) return blockedIpv4(v4(g[6], g[7])) // ::ffff:a.b.c.d and ::a.b.c.d
-  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) return blockedIpv4(v4(g[6], g[7])) // NAT64 64:ff9b::/96
-  if (g[0] === 0x2002) return blockedIpv4(v4(g[1], g[2])) // 6to4 2002::/16
+  if ((g[0] & 0xe000) !== 0x2000) return true // outside 2000::/3 global unicast
+  if (g[0] === 0x2001 && g[1] < 0x0200) return true // 2001::/23 IETF assignments: Teredo, benchmarking, ORCHID, ...
+  if (g[0] === 0x2001 && g[1] === 0x0db8) return true // 2001:db8::/32 documentation
+  if (g[0] === 0x2002) return true // 2002::/16 6to4
+  if (g[0] === 0x3fff && g[1] < 0x1000) return true // 3fff::/20 documentation
   return false
 }
 
@@ -147,23 +148,42 @@ function indexOfCrlfCrlf(b: Uint8Array) {
   return -1
 }
 
+// Reads the line that starts at i (up to CRLF). Returns the text and where the next line starts, or null if no CRLF.
+function lineAt(b: Uint8Array, i: number): { text: string; next: number } | null {
+  for (let j = i; j + 1 < b.length; j += 1) {
+    if (b[j] === 13 && b[j + 1] === 10) return { text: new TextDecoder().decode(b.subarray(i, j)), next: j + 2 }
+  }
+  return null
+}
+
+// A chunked body read strictly: hex size (optionally ;extensions), exactly that many bytes, CRLF; a 0 chunk, optional
+// trailer header lines, a final CRLF, and nothing after it. Anything else is refused rather than half-read.
 function dechunk(b: Uint8Array, maxBytes: number) {
   const out: Uint8Array[] = []
   let i = 0, total = 0
   while (true) {
-    let j = i
-    while (j + 1 < b.length && !(b[j] === 13 && b[j + 1] === 10)) j += 1
-    if (j + 1 >= b.length) throw new Error('Calendar feed was cut short')
-    const size = parseInt(new TextDecoder().decode(b.subarray(i, j)).split(';')[0].trim(), 16)
-    if (!Number.isFinite(size) || size < 0) throw new Error('Calendar feed is malformed')
-    i = j + 2
+    const line = lineAt(b, i)
+    if (!line) throw new Error('Calendar feed was cut short')
+    const m = line.text.match(/^([0-9a-fA-F]{1,8})[ \t]*(?:;[^\r\n]*)?$/)
+    if (!m) throw new Error('Calendar feed is malformed')
+    const size = parseInt(m[1], 16)
+    i = line.next
     if (size === 0) break
-    if (i + size > b.length) throw new Error('Calendar feed was cut short')
+    if (i + size + 2 > b.length) throw new Error('Calendar feed was cut short')
+    if (b[i + size] !== 13 || b[i + size + 1] !== 10) throw new Error('Calendar feed is malformed')
     total += size
     if (total > maxBytes) throw new Error('Calendar feed is too large')
     out.push(b.subarray(i, i + size))
     i += size + 2
   }
+  while (true) { // trailer section, then the final empty line
+    const line = lineAt(b, i)
+    if (!line) throw new Error('Calendar feed was cut short')
+    i = line.next
+    if (line.text === '') break
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+:/.test(line.text)) throw new Error('Calendar feed is malformed')
+  }
+  if (i !== b.length) throw new Error('Calendar feed is malformed')
   const all = new Uint8Array(total)
   let o = 0
   for (const c of out) { all.set(c, o); o += c.byteLength }
@@ -178,59 +198,82 @@ export async function pinnedGet(
   opts: { port?: number; caCerts?: string[]; timeoutMs?: number; maxBytes?: number } = {},
 ): Promise<{ status: number; headers: Headers; body: Uint8Array }> {
   const maxBytes = opts.maxBytes ?? MAX_FEED_BYTES
-  const tcp = await Deno.connect({ hostname: ip, port: opts.port ?? 443 })
-  let conn: Deno.Conn = tcp
-  let timedOut = false
-  const timer = setTimeout(() => { timedOut = true; try { conn.close() } catch { /* closed */ } }, opts.timeoutMs ?? FEED_TIMEOUT_MS)
+  // One deadline for the whole request: TCP connect, TLS handshake, sending and reading. On expiry the socket is closed;
+  // a connection that only opens after the deadline is closed as soon as it does.
+  let conn: Deno.Conn | null = null
+  let expired = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expiry = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      expired = true
+      try { conn?.close() } catch { /* closed */ }
+      reject(new Error('Calendar feed timed out'))
+    }, opts.timeoutMs ?? FEED_TIMEOUT_MS)
+  })
+  const work = (async () => {
+    const tcp = await Deno.connect({ hostname: ip, port: opts.port ?? 443 })
+    if (expired) { try { tcp.close() } catch { /* closed */ } throw new Error('Calendar feed timed out') }
+    conn = tcp
+    const tls = await Deno.startTls(tcp, { hostname: url.hostname.replace(/^\[|\]$/g, ''), caCerts: opts.caCerts })
+    if (expired) { try { tls.close() } catch { /* closed */ } throw new Error('Calendar feed timed out') }
+    conn = tls
+    return await exchange(tls, url, maxBytes)
+  })()
   try {
-    conn = await Deno.startTls(tcp, { hostname: url.hostname.replace(/^\[|\]$/g, ''), caCerts: opts.caCerts })
-    const request = encoder.encode(
-      `GET ${url.pathname || '/'}${url.search} HTTP/1.1\r\nHost: ${url.host}\r\n` +
-      'Accept: text/calendar,text/plain;q=0.9,*/*;q=0.1\r\nAccept-Encoding: identity\r\n' +
-      'User-Agent: Planly-Calendar/1.2\r\nConnection: close\r\n\r\n',
-    )
-    for (let sent = 0; sent < request.length;) sent += await conn.write(request.subarray(sent))
-    const cap = HEADER_MAX + maxBytes + 65_536
-    const chunks: Uint8Array[] = []
-    let total = 0
-    const buf = new Uint8Array(32_768)
-    while (true) {
-      const n = await conn.read(buf)
-      if (n === null) break
-      total += n
-      if (total > cap) throw new Error('Calendar feed is too large')
-      chunks.push(buf.slice(0, n))
-    }
-    const raw = new Uint8Array(total)
-    let o = 0
-    for (const c of chunks) { raw.set(c, o); o += c.byteLength }
-    const end = indexOfCrlfCrlf(raw)
-    if (end < 0 || end > HEADER_MAX) throw new Error('Calendar server sent no valid response')
-    const lines = new TextDecoder().decode(raw.subarray(0, end)).split('\r\n')
-    const statusMatch = lines[0].match(/^HTTP\/1\.[01] (\d{3})/)
-    if (!statusMatch) throw new Error('Calendar server sent no valid response')
-    const headers = new Headers()
-    for (const line of lines.slice(1)) {
-      const k = line.indexOf(':')
-      if (k > 0) headers.append(line.slice(0, k).trim(), line.slice(k + 1).trim())
-    }
-    let body = raw.subarray(end + 4)
-    if (/\bchunked\b/i.test(headers.get('transfer-encoding') || '')) body = dechunk(body, maxBytes)
-    else if (headers.has('content-length')) {
-      const len = Number(headers.get('content-length'))
-      if (!Number.isFinite(len) || len < 0 || len > maxBytes) throw new Error('Calendar feed is too large')
-      if (body.length < len) throw new Error('Calendar feed was cut short')
-      body = body.subarray(0, len)
-    }
-    if (body.length > maxBytes) throw new Error('Calendar feed is too large')
-    return { status: Number(statusMatch[1]), headers, body }
-  } catch (err) {
-    if (timedOut) throw new Error('Calendar feed timed out')
-    throw err
+    return await Promise.race([work, expiry])
   } finally {
     clearTimeout(timer)
-    try { conn.close() } catch { /* closed */ }
+    work.catch(() => { /* already reported, or cut off by the deadline */ })
+    try { (conn as Deno.Conn | null)?.close() } catch { /* closed */ }
   }
+}
+
+async function exchange(conn: Deno.Conn, url: URL, maxBytes: number): Promise<{ status: number; headers: Headers; body: Uint8Array }> {
+  const request = encoder.encode(
+    `GET ${url.pathname || '/'}${url.search} HTTP/1.1\r\nHost: ${url.host}\r\n` +
+    'Accept: text/calendar,text/plain;q=0.9,*/*;q=0.1\r\nAccept-Encoding: identity\r\n' +
+    'User-Agent: Planly-Calendar/1.2\r\nConnection: close\r\n\r\n',
+  )
+  for (let sent = 0; sent < request.length;) sent += await conn.write(request.subarray(sent))
+  const cap = HEADER_MAX + maxBytes + 65_536
+  const chunks: Uint8Array[] = []
+  let total = 0
+  const buf = new Uint8Array(32_768)
+  while (true) {
+    const n = await conn.read(buf)
+    if (n === null) break
+    total += n
+    if (total > cap) throw new Error('Calendar feed is too large')
+    chunks.push(buf.slice(0, n))
+  }
+  const raw = new Uint8Array(total)
+  let o = 0
+  for (const c of chunks) { raw.set(c, o); o += c.byteLength }
+  const end = indexOfCrlfCrlf(raw)
+  if (end < 0 || end > HEADER_MAX) throw new Error('Calendar server sent no valid response')
+  const lines = new TextDecoder().decode(raw.subarray(0, end)).split('\r\n')
+  const statusMatch = lines[0].match(/^HTTP\/1\.[01] (\d{3})/)
+  if (!statusMatch) throw new Error('Calendar server sent no valid response')
+  const headers = new Headers()
+  for (const line of lines.slice(1)) {
+    const k = line.indexOf(':')
+    if (k > 0) headers.append(line.slice(0, k).trim(), line.slice(k + 1).trim())
+  }
+  let body = raw.subarray(end + 4)
+  const te = headers.get('transfer-encoding')
+  if (te !== null) {
+    if (te.trim().toLowerCase() !== 'chunked') throw new Error('Calendar feed is malformed') // identity was asked for
+    body = dechunk(body, maxBytes)
+  } else if (headers.has('content-length')) {
+    const cl = (headers.get('content-length') || '').trim()
+    if (!/^\d{1,10}$/.test(cl)) throw new Error('Calendar feed is malformed')
+    const len = Number(cl)
+    if (len > maxBytes) throw new Error('Calendar feed is too large')
+    if (body.length < len) throw new Error('Calendar feed was cut short')
+    body = body.subarray(0, len)
+  }
+  if (body.length > maxBytes) throw new Error('Calendar feed is too large')
+  return { status: Number(statusMatch[1]), headers, body }
 }
 
 export async function fetchCalendarFeed(input: string | URL) {

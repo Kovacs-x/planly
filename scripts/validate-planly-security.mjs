@@ -163,7 +163,14 @@ function foodProblems(m54){
  for(const m of fn.matchAll(/\bfetch\(([^,)]*)/g))if(!/^\s*SB\s*\+/.test(m[1]))fail('calendar-source-create may only fetch() Supabase; feeds go through pinnedGet: fetch('+m[1].trim()+')');
  for(const needle of ['export async function publicAddresses(url: URL)','Deno.resolveDns(host, \'A\')','Deno.connect({ hostname: ip, port: opts.port ?? 443 })','Deno.startTls(tcp, { hostname: url.hostname','const addresses = await publicAddresses(url)','result = await pinnedGet(url, ip)','if (!addresses.length || addresses.some((ip) => blockedIp(ip)))','redirect === MAX_REDIRECTS'])
   if(!fn.includes(needle))fail('calendar-source-create DNS-rebinding guard missing: '+needle);
- if((fn.match(/Deno\.resolveDns\(/g)||[]).length!==2)fail('calendar-source-create must resolve DNS only in publicAddresses (A and AAAA)')}
+ if((fn.match(/Deno\.resolveDns\(/g)||[]).length!==2)fail('calendar-source-create must resolve DNS only in publicAddresses (A and AAAA)')
+ // review of #316: IPv6 is public only inside global unicast 2000::/3 (allow-list, not block-list); one deadline covers the
+ // TCP connect and TLS as well as reading; chunked framing is checked exactly.
+ for(const needle of ["if ((g[0] & 0xe000) !== 0x2000) return true","if (g[0] === 0x2001 && g[1] < 0x0200) return true","if (g[0] === 0x2001 && g[1] === 0x0db8) return true","if (g[0] === 0x2002) return true","if (g[0] === 0x3fff && g[1] < 0x1000) return true","if (halves.length === 2 ? fill < 1 : head.length !== 8) return null","return await Promise.race([work, expiry])","if (b[i + size] !== 13 || b[i + size + 1] !== 10) throw new Error('Calendar feed is malformed')","if (i !== b.length) throw new Error('Calendar feed is malformed')"])
+  if(!fn.includes(needle))fail('calendar-source-create hardening missing: '+needle);
+ {const work=fn.slice(fn.indexOf('const expiry = new Promise<never>'),fn.indexOf('return await Promise.race([work, expiry])'));
+  if(!work.includes('Deno.connect(')||!work.includes('Deno.startTls('))fail('calendar-source-create: Deno.connect and Deno.startTls must run inside the request deadline')}
+ if(/parseInt\([^)]*decode/.test(fn))fail('calendar-source-create: chunk sizes must be matched as hex digits, not parseInt of raw text')}
 // Content-Security-Policy (v2/index.html; GitHub Pages cannot send headers, so it is a meta tag): first thing after the
 // charset, strict scripts (no inline, no eval, exact external script URLs), and every origin the app fetches allowed.
 {const html=read('v2/index.html'),m=html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/);
