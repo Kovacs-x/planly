@@ -161,13 +161,17 @@ function foodProblems(m54){
 // original host name), and redirects are checked again hop by hop.
 {const fn=read('supabase/functions/calendar-source-create/index.ts');
  for(const m of fn.matchAll(/\bfetch\(([^,)]*)/g))if(!/^\s*SB\s*\+/.test(m[1]))fail('calendar-source-create may only fetch() Supabase; feeds go through pinnedGet: fetch('+m[1].trim()+')');
- for(const needle of ['export async function publicAddresses(url: URL)','Deno.resolveDns(host, \'A\')','Deno.connect({ hostname: ip, port: opts.port ?? 443 })','Deno.startTls(tcp, { hostname: url.hostname','const addresses = await publicAddresses(url)','result = await pinnedGet(url, ip)','if (!addresses.length || addresses.some((ip) => blockedIp(ip)))','redirect === MAX_REDIRECTS'])
+ for(const needle of ['export async function publicAddresses(url: URL, signal?: AbortSignal)','Deno.resolveDns(host, \'A\', { signal })','Deno.connect({ hostname: ip, port: opts.port ?? 443 })','Deno.startTls(tcp, { hostname: url.hostname','const addresses = await publicAddresses(url, dnsAbort.signal)','result = await pinnedGet(url, ip, { timeoutMs: Math.min(opts.attemptMs ?? FEED_TIMEOUT_MS, left) })','if (!addresses.length || addresses.some((ip) => blockedIp(ip)))','redirect === MAX_REDIRECTS'])
   if(!fn.includes(needle))fail('calendar-source-create DNS-rebinding guard missing: '+needle);
  if((fn.match(/Deno\.resolveDns\(/g)||[]).length!==2)fail('calendar-source-create must resolve DNS only in publicAddresses (A and AAAA)')
  // review of #316: IPv6 is public only inside global unicast 2000::/3 (allow-list, not block-list); one deadline covers the
  // TCP connect and TLS as well as reading; chunked framing is checked exactly.
  for(const needle of ["if ((g[0] & 0xe000) !== 0x2000) return true","if (g[0] === 0x2001 && g[1] < 0x0200) return true","if (g[0] === 0x2001 && g[1] === 0x0db8) return true","if (g[0] === 0x2002) return true","if (g[0] === 0x3fff && g[1] < 0x1000) return true","if (halves.length === 2 ? fill < 1 : head.length !== 8) return null","return await Promise.race([work, expiry])","if (b[i + size] !== 13 || b[i + size + 1] !== 10) throw new Error('Calendar feed is malformed')","if (i !== b.length) throw new Error('Calendar feed is malformed')"])
   if(!fn.includes(needle))fail('calendar-source-create hardening missing: '+needle);
+ // review 2 of #316: a pending Deno.connect cannot be cancelled on Deno 2.1.4, so unanswered connects are capped per
+ // request, one deadline covers the whole request, and DNS lookups are aborted at that deadline.
+ for(const needle of ["const MAX_UNANSWERED_CONNECTS = 2","if (left <= 0 || unanswered >= MAX_UNANSWERED_CONNECTS)","if ((err as { connectPending?: boolean })?.connectPending) unanswered += 1","Deno.resolveDns(host, 'A', { signal })","Deno.resolveDns(host, 'AAAA', { signal })","connectPending: !connected"])
+  if(!fn.includes(needle))fail('calendar-source-create connect bound missing: '+needle);
  {const work=fn.slice(fn.indexOf('const expiry = new Promise<never>'),fn.indexOf('return await Promise.race([work, expiry])'));
   if(!work.includes('Deno.connect(')||!work.includes('Deno.startTls('))fail('calendar-source-create: Deno.connect and Deno.startTls must run inside the request deadline')}
  if(/parseInt\([^)]*decode/.test(fn))fail('calendar-source-create: chunk sizes must be matched as hex digits, not parseInt of raw text')}

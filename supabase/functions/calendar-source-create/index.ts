@@ -63,7 +63,14 @@ function serviceFetch(path: string, init: RequestInit = {}) {
 
 const MAX_FEED_BYTES = 2_000_000
 const MAX_REDIRECTS = 3
-const FEED_TIMEOUT_MS = 12_000
+const FEED_TIMEOUT_MS = 12_000 // one connection attempt (connect, TLS, send, read)
+const FEED_TOTAL_MS = 20_000 // the whole feed request: every DNS lookup, redirect hop and address tried
+// Deno 2.1.4 (Supabase Edge Runtime 1.79.1) has no way to cancel a pending Deno.connect: the op takes no signal, and
+// node:net's destroy() leaves it pending too. The only real cancel, terminating a Worker, is not available on Supabase
+// Edge Functions. So a connect that gets no answer stays pending until the kernel gives up (~2 min with the default 6 SYN
+// retries) or the worker is stopped (wall-clock limit: 150 s on the Free plan), whichever comes first. To keep that
+// bounded, at most this many connects per feed request may be left unanswered; then no further address is tried.
+const MAX_UNANSWERED_CONNECTS = 2
 
 function blockedIpv4(host: string) {
   const p = host.split('.').map(Number)
@@ -119,7 +126,7 @@ function blockedIp(host: string) {
 
 // DNS-rebinding safe: the host is resolved ONCE here, every address is checked, and the request is then made to one of
 // these exact addresses (pinnedGet), so a second lookup can never swap in a private address.
-export async function publicAddresses(url: URL): Promise<string[]> {
+export async function publicAddresses(url: URL, signal?: AbortSignal): Promise<string[]> {
   if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Unsafe calendar URL')
   if (url.port && url.port !== '443') throw new Error('Unsafe calendar port')
   const host = url.hostname.toLowerCase().replace(/\.$/, '').replace(/^\[|\]$/g, '')
@@ -130,9 +137,10 @@ export async function publicAddresses(url: URL): Promise<string[]> {
   }
   if (/^[\d.]+$/.test(host) || host.includes(':')) return [host]
   const results = await Promise.allSettled([
-    Deno.resolveDns(host, 'A'),
-    Deno.resolveDns(host, 'AAAA'),
+    Deno.resolveDns(host, 'A', { signal }),
+    Deno.resolveDns(host, 'AAAA', { signal }),
   ])
+  if (signal?.aborted) throw new Error('Calendar feed timed out')
   const addresses = results.flatMap((r) => r.status === 'fulfilled' ? r.value : [])
   if (!addresses.length || addresses.some((ip) => blockedIp(ip))) {
     throw new Error('Calendar destination is not public')
@@ -200,18 +208,22 @@ export async function pinnedGet(
   const maxBytes = opts.maxBytes ?? MAX_FEED_BYTES
   // One deadline for the whole request: TCP connect, TLS handshake, sending and reading. On expiry the socket is closed;
   // a connection that only opens after the deadline is closed as soon as it does.
+  // A timeout while the connect is still pending is marked connectPending: that connect cannot be cancelled (see
+  // MAX_UNANSWERED_CONNECTS) and is closed as soon as it opens.
   let conn: Deno.Conn | null = null
   let expired = false
+  let connected = false
   let timer: ReturnType<typeof setTimeout> | undefined
   const expiry = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       expired = true
       try { conn?.close() } catch { /* closed */ }
-      reject(new Error('Calendar feed timed out'))
+      reject(Object.assign(new Error('Calendar feed timed out'), { connectPending: !connected }))
     }, opts.timeoutMs ?? FEED_TIMEOUT_MS)
   })
   const work = (async () => {
     const tcp = await Deno.connect({ hostname: ip, port: opts.port ?? 443 })
+    connected = true
     if (expired) { try { tcp.close() } catch { /* closed */ } throw new Error('Calendar feed timed out') }
     conn = tcp
     const tls = await Deno.startTls(tcp, { hostname: url.hostname.replace(/^\[|\]$/g, ''), caCerts: opts.caCerts })
@@ -276,26 +288,45 @@ async function exchange(conn: Deno.Conn, url: URL, maxBytes: number): Promise<{ 
   return { status: Number(statusMatch[1]), headers, body }
 }
 
-export async function fetchCalendarFeed(input: string | URL) {
+export async function fetchCalendarFeed(
+  input: string | URL,
+  opts: { attemptMs?: number; totalMs?: number } = {},
+) {
   let url = input instanceof URL ? new URL(input.toString()) : new URL(String(input))
-  for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
-    const addresses = await publicAddresses(url)
-    let result: { status: number; headers: Headers; body: Uint8Array } | null = null
-    let lastError: unknown = null
-    for (const ip of addresses) {
-      try { result = await pinnedGet(url, ip); break } catch (err) { lastError = err }
+  const deadline = Date.now() + (opts.totalMs ?? FEED_TOTAL_MS)
+  const dnsAbort = new AbortController()
+  const dnsTimer = setTimeout(() => dnsAbort.abort(), opts.totalMs ?? FEED_TOTAL_MS)
+  let unanswered = 0
+  try {
+    for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
+      const addresses = await publicAddresses(url, dnsAbort.signal)
+      let result: { status: number; headers: Headers; body: Uint8Array } | null = null
+      let lastError: unknown = null
+      for (const ip of addresses) {
+        const left = deadline - Date.now()
+        if (left <= 0 || unanswered >= MAX_UNANSWERED_CONNECTS) { lastError = new Error('Calendar feed timed out'); break }
+        try {
+          result = await pinnedGet(url, ip, { timeoutMs: Math.min(opts.attemptMs ?? FEED_TIMEOUT_MS, left) })
+          break
+        } catch (err) {
+          lastError = err
+          if ((err as { connectPending?: boolean })?.connectPending) unanswered += 1
+        }
+      }
+      if (!result) throw lastError instanceof Error ? lastError : new Error('Calendar feed could not be reached')
+      if ([301, 302, 303, 307, 308].includes(result.status)) {
+        const location = result.headers.get('location')
+        if (!location || redirect === MAX_REDIRECTS) throw new Error('Unsafe calendar redirect')
+        url = new URL(location, url)
+        continue
+      }
+      const response = new Response(null, { status: result.status, headers: result.headers })
+      return { response, text: new TextDecoder().decode(result.body), finalUrl: url }
     }
-    if (!result) throw lastError instanceof Error ? lastError : new Error('Calendar feed could not be reached')
-    if ([301, 302, 303, 307, 308].includes(result.status)) {
-      const location = result.headers.get('location')
-      if (!location || redirect === MAX_REDIRECTS) throw new Error('Unsafe calendar redirect')
-      url = new URL(location, url)
-      continue
-    }
-    const response = new Response(null, { status: result.status, headers: result.headers })
-    return { response, text: new TextDecoder().decode(result.body), finalUrl: url }
+    throw new Error('Too many calendar redirects')
+  } finally {
+    clearTimeout(dnsTimer)
   }
-  throw new Error('Too many calendar redirects')
 }
 
 function unfold(value: string) {

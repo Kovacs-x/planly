@@ -124,4 +124,32 @@ out=await within(pinnedGet(u,'93.184.216.34',{timeoutMs:150}),1500);
 check('a server that never sends anything is cut off by the timeout',/timed out/.test(out)&&Date.now()-t0<600&&closed.includes('stall'),out+' '+JSON.stringify(closed));
 Deno.connect=realConnect;Deno.startTls=realTls;
 
+// review 2 of #316: Deno 2.1.4 (Supabase Edge Runtime 1.79.1) cannot cancel a pending Deno.connect, so the number of
+// unanswered connects per feed request is capped at 2, one overall deadline covers DNS + every hop + every address, and
+// DNS lookups (which can be cancelled) are aborted at that deadline.
+{const hangs=[];Deno.connect=a=>{hangs.push(a.hostname);return new Promise(()=>{})};Deno.startTls=async c=>c;
+ dns={'many.example.org':{A:['93.184.216.34','93.184.216.35','93.184.216.36','93.184.216.37','93.184.216.38'],AAAA:[]}};let t0=Date.now();
+ let out=await within(fetchCalendarFeed('https://many.example.org/x.ics',{attemptMs:80,totalMs:2000}),3000);
+ check('five addresses that never answer: at most 2 connects are left unanswered, then it stops',/timed out/.test(out)&&hangs.length===2,JSON.stringify({out,hangs}));
+ check('…and it gives up after those two attempts, not after all five',Date.now()-t0<400,(Date.now()-t0)+'ms');
+ let e=null;try{await pinnedGet(u,'93.184.216.34',{timeoutMs:50})}catch(x){e=x}
+ check('a timeout while connecting is marked as leaving a connect unanswered',e?.connectPending===true,JSON.stringify(e&&{m:e.message,p:e.connectPending}));
+ let rel;Deno.connect=async()=>({close(){rel?.()},read:()=>new Promise(r=>{rel=()=>r(null)}),write:async b=>b.length});e=null;
+ try{await pinnedGet(u,'93.184.216.34',{timeoutMs:50})}catch(x){e=x}
+ check('a timeout after connecting (socket closed) is not',e&&/timed out/.test(e.message)&&e.connectPending===false,JSON.stringify(e&&{m:e.message,p:e.connectPending}));
+ // one deadline for the whole request: four slow hops of 120 ms each cannot run past a 300 ms budget
+ Deno.connect=realConnect;Deno.startTls=realTls;
+ dns={'h.example.org':{A:['93.184.216.34'],AAAA:[]}};let hop=0;
+ servers={'93.184.216.34':()=>{hop++;return `HTTP/1.1 302 Found\r\nLocation: https://h.example.org/${hop}\r\nContent-Length: 0\r\n\r\n`}};
+ const slowRead=Deno.connect;Deno.connect=async a=>{await new Promise(r=>setTimeout(r,120));return slowRead(a)};t0=Date.now();
+ out=await within(fetchCalendarFeed('https://h.example.org/0',{attemptMs:5000,totalMs:300}),3000);
+ check('one deadline covers every redirect hop',/timed out/.test(out)&&Date.now()-t0<600,out+' after '+(Date.now()-t0)+'ms');
+ Deno.connect=realConnect;
+ // DNS can be cancelled: the lookup gets the deadline's abort signal
+ const realDns=Deno.resolveDns;let sawSignal=false;
+ Deno.resolveDns=(h,t,o)=>new Promise((res,rej)=>{if(o?.signal){sawSignal=true;o.signal.addEventListener('abort',()=>rej(new Error('aborted')))}});t0=Date.now();
+ out=await within(fetchCalendarFeed('https://slowdns.example.org/x.ics',{attemptMs:5000,totalMs:150}),3000);
+ check('a DNS lookup that never answers is cancelled at the deadline',sawSignal&&/timed out|not public/.test(out)&&Date.now()-t0<600,JSON.stringify({sawSignal,out,ms:Date.now()-t0}));
+ Deno.resolveDns=realDns}
+
 console.log(`${pass} passed, ${fail} failed`);process.exit(fail?1:0);
