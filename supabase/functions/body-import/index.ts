@@ -19,9 +19,21 @@ const cors = {
 }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 const env = (k: string) => Deno.env.get(k) || ''
-const SB = () => env('SUPABASE_URL'), ANON = () => env('SUPABASE_ANON_KEY'), SERVICE = () => env('SUPABASE_SERVICE_ROLE_KEY')
+// API keys: the new publishable/secret keys (SUPABASE_PUBLISHABLE_KEYS / SUPABASE_SECRET_KEYS, the key named "default"),
+// falling back to the legacy anon/service_role keys while both exist. New keys go on the apikey header only.
+function namedKey(list: string, legacy: string) {
+  try {
+    const all = JSON.parse(Deno.env.get(list) || '{}')
+    if (typeof all?.default === 'string' && all.default) return all.default as string
+  } catch { /* not set */ }
+  return Deno.env.get(legacy) || ''
+}
+const SB = () => env('SUPABASE_URL'), ANON = () => namedKey('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY'), SERVICE = () => namedKey('SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY')
 
-const sbHeaders = () => ({ apikey: SERVICE(), Authorization: `Bearer ${SERVICE()}`, 'Content-Type': 'application/json' })
+const sbHeaders = (): Record<string, string> => {
+  const key = SERVICE()
+  return key.startsWith('eyJ') ? { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' } : { apikey: key, 'Content-Type': 'application/json' }
+}
 async function rpc(name: string, args: Record<string, unknown>) {
   const r = await fetch(`${SB()}/rest/v1/rpc/${name}`, { method: 'POST', headers: sbHeaders(), body: JSON.stringify(args) })
   if (!r.ok) throw new Error('db ' + name + ' ' + r.status)

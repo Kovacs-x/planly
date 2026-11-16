@@ -23,8 +23,19 @@ function json(body: unknown, status = 200) {
 }
 
 const SB = Deno.env.get('SUPABASE_URL')!
-const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
-const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+// API keys: the new publishable/secret keys (SUPABASE_PUBLISHABLE_KEYS / SUPABASE_SECRET_KEYS, the key named "default"),
+// falling back to the legacy anon/service_role keys while both exist. New keys go on the apikey header only.
+function namedKey(list: string, legacy: string) {
+  try {
+    const all = JSON.parse(Deno.env.get(list) || '{}')
+    if (typeof all?.default === 'string' && all.default) return all.default as string
+  } catch { /* not set */ }
+  return Deno.env.get(legacy) || ''
+}
+const ANON = namedKey('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY')
+const SERVICE = namedKey('SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY')
+const serviceAuth = (): Record<string, string> =>
+  SERVICE.startsWith('eyJ') ? { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } : { apikey: SERVICE }
 
 function callerFetch(path: string, auth: string, init: RequestInit = {}) {
   return fetch(SB + path, {
@@ -42,8 +53,7 @@ function serviceFetch(path: string, init: RequestInit = {}) {
   return fetch(SB + path, {
     ...init,
     headers: {
-      apikey: SERVICE,
-      Authorization: `Bearer ${SERVICE}`,
+      ...serviceAuth(),
       'Content-Type': 'application/json',
       ...(init.headers || {}),
     },

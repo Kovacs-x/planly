@@ -1,3 +1,5 @@
+// Deploy with verify_jwt = false: the platform's built-in check only understands the legacy JWT keys. This function checks
+// the user's sign-in itself (Authorization header → /auth/v1/user) before doing anything.
 // google-calendar-token: keeps Google Calendar connected without reconnecting every hour.
 // Called by the browser with the person's Supabase session. The user id always comes from that verified
 // session, never from the request body. The Google refresh token never leaves the server: the browser only
@@ -18,8 +20,19 @@ function json(body: unknown, status = 200) {
 }
 
 const SB = Deno.env.get('SUPABASE_URL')!
-const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
-const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+// API keys: the new publishable/secret keys (SUPABASE_PUBLISHABLE_KEYS / SUPABASE_SECRET_KEYS, the key named "default"),
+// falling back to the legacy anon/service_role keys while both exist. New keys go on the apikey header only.
+function namedKey(list: string, legacy: string) {
+  try {
+    const all = JSON.parse(Deno.env.get(list) || '{}')
+    if (typeof all?.default === 'string' && all.default) return all.default as string
+  } catch { /* not set */ }
+  return Deno.env.get(legacy) || ''
+}
+const ANON = namedKey('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY')
+const SERVICE = namedKey('SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY')
+const serviceAuth = (): Record<string, string> =>
+  SERVICE.startsWith('eyJ') ? { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } : { apikey: SERVICE }
 const CLIENT_ID = '171071129565-49nuqh2l2i83ftg8gnu8evsfq3qh48r8.apps.googleusercontent.com'
 const SCOPE = 'https://www.googleapis.com/auth/calendar.events.owned'
 const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token'
@@ -27,7 +40,7 @@ const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token'
 function rpc(name: string, args: Record<string, unknown>) {
   return fetch(`${SB}/rest/v1/rpc/${name}`, {
     method: 'POST',
-    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' },
+    headers: { ...serviceAuth(), 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
   })
 }

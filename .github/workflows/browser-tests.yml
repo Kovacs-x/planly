@@ -11,8 +11,8 @@ permissions:
   contents: read
 jobs:
   browser:
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    runs-on: ubuntu-24.04  # Playwright 1.56.1 cannot install Chromium on ubuntu-latest (26.04) as of 14 Nov 2026
+    timeout-minutes: 45
     env:
       PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS: '1'
     steps:
@@ -116,6 +116,14 @@ jobs:
         run: node tests/browser/budget-debts-savings.test.mjs
       - name: body-import function against a fake database (candidate)
         run: node --experimental-strip-types tests/edge/body-import.test.mjs
+      - name: Notifications settings (candidate)
+        run: node tests/browser/push-settings.test.mjs
+      - name: Project form layout (candidate)
+        run: node tests/browser/project-form-layout.test.mjs
+      - name: Budget months that start on payday (candidate)
+        run: node tests/browser/budget-payday.test.mjs
+      - name: Not syncing when the server refuses requests (candidate)
+        run: node tests/browser/sync-health.test.mjs
       - name: Same test against the base branch (for comparison only; not a gate)
         if: github.event_name == 'pull_request'
         run: |
