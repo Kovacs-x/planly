@@ -1,5 +1,8 @@
 import fs from 'node:fs';
-const read=p=>fs.readFileSync(p,'utf8');
+// index.html loads its boot code from boot-head.js and boot.js (no inline scripts, for the Content-Security-Policy);
+// checks that read index.html see those files in place, exactly as the old inline blocks were.
+const inlineBoot=t=>t.replace(/<script src="\.\/(boot(?:-head)?\.js)\?v=[a-z0-9]+"><\/script>/g,(m,f)=>'<script>\n'+fs.readFileSync('v2/'+f,'utf8')+'</script>');
+const read=p=>{const t=fs.readFileSync(p,'utf8');return p==='v2/index.html'?inlineBoot(t):t};
 const exists=p=>fs.existsSync(p);
 const fail=m=>{throw new Error(m)};
 for(const f of fs.readdirSync('.').filter(x=>/^loader-v\d/.test(x)))fail(`Dead legacy loader remains at repo root: ${f}`);
@@ -11,7 +14,7 @@ for(const marker of ['RUNTIME_MANIFEST_URL','runtimeModuleUrls(cache)',"cachedOr
 for(const marker of ['verifyPlanlyOfflineCache','probePlanlyServiceWorker','runtime-modules.json','planlyKeys','/^planly-v2-sw-'])if(!build.includes(marker))fail(`Offline/release probe missing: ${marker}`);
 for(const marker of ['Planly update ready','controllerchange','SKIP_WAITING','editing()','reg.update()'])if(!update.includes(marker))fail(`Safe in-app update invariant missing: ${marker}`);
 if(index.includes("reg.waiting.postMessage({type:'SKIP_WAITING'})"))fail('Boot path still bypasses explicit update coordinator');
-const sdk=index.match(/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@([^"<]+)\/??[^"<]*/)?.[1];
+const sdk=index.match(/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@([^"<\s;]+)\/??[^"<\s;]*/)?.[1];
 if(!sdk||!/^\d+\.\d+\.\d+$/.test(sdk))fail('Supabase JS browser dependency is not pinned to an exact version');
 const budget=read('v2/core-budget-v4.0b.js'),budgetMonthly=read('v2/core-budget-monthly-v4.0e.js'),monthState=read('v2/core-budget-month-state-v4.0f.js');
 for(const marker of ["scope_type:'personal'","scope_type:'household'",".eq('cloud_version',op.baseVersion)",'structureOwner()','membership.role!==\'owner\''])if(!budget.includes(marker))fail(`Budget authorization/concurrency invariant missing: ${marker}`);
