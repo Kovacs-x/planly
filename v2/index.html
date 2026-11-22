@@ -5,7 +5,7 @@
   <!-- Content-Security-Policy. GitHub Pages cannot send HTTP headers, so it is set here; frame-ancestors and report-only
        cannot be set from a meta tag. connect-src: Supabase (REST, auth, functions, realtime), Google Calendar API, Google
        sign-in (revoke, logging), Open Food Facts (food search fallback). No inline scripts: see boot-head.js and boot.js. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0 https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://dtniwcwjucepsjzoojuc.supabase.co wss://dtniwcwjucepsjzoojuc.supabase.co https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://world.openfoodfacts.org https://search.openfoodfacts.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://dtniwcwjucepsjzoojuc.supabase.co wss://dtniwcwjucepsjzoojuc.supabase.co https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://world.openfoodfacts.org https://search.openfoodfacts.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -1288,7 +1288,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 </form></div></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+<script src="./vendor/supabase-js-2.116.0.js"></script>
 <script src="./supabase-config.js"></script>
 <script src="./boot.js?v=721t59"></script>
 </body>

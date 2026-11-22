@@ -528,9 +528,17 @@ if(html.trimEnd().slice(-7)!=='</html>')fail('Nothing may follow </html>');
 if(html.indexOf('<style id="planlyDockedNav">')<0||html.indexOf('<style id="planlyDockedNav">')>html.indexOf('</head>'))fail('Docked nav styles must be in <head>');}
 // Instant open: the installed version opens from its saved copy (no network wait); updates come as a new service worker.
 {const sw=read('v2/sw.js'),html=read('v2/index.html');
-for(const needle of ["async function cachedOrFresh(cache,url){const hit=await cache.match(url);return hit||freshOrCached(cache,url)}","const cache=await caches.open(CACHE),saved=await cache.match('./index.html');if(saved)return saved;","await Promise.all([cachedOrFresh(cache,APP_URL),...CORE_URLS.map(url=>cachedOrFresh(cache,url)),...appendUrls.map(url=>cachedOrFresh(cache,url))]);","response=await cachedOrFresh(cache,RUNTIME_MANIFEST_URL)","if(event.request.url===SUPABASE_JS_URL){"])if(!sw.includes(needle))fail('Instant open invariant missing: '+needle);
+for(const needle of ["async function cachedOrFresh(cache,url){const hit=await cache.match(url);return hit||freshOrCached(cache,url)}","const cache=await caches.open(CACHE),saved=await cache.match('./index.html');if(saved)return saved;","await Promise.all([cachedOrFresh(cache,APP_URL),...CORE_URLS.map(url=>cachedOrFresh(cache,url)),...appendUrls.map(url=>cachedOrFresh(cache,url))]);","response=await cachedOrFresh(cache,RUNTIME_MANIFEST_URL)","const REQUIRED=['./index.html',BOOT_HEAD_URL,BOOT_URL,SUPABASE_JS_URL,"])if(!sw.includes(needle))fail('Instant open invariant missing: '+needle);
 const pinned=(sw.match(/const SUPABASE_JS_URL='([^']+)'/)||[])[1];if(!pinned||!html.includes('<script src="'+pinned+'"></script>'))fail('Service worker must cache exactly the supabase-js URL the page loads');
-if(!/@\d+\.\d+\.\d+$/.test(pinned))fail('Cached supabase-js URL must be an exact version');}
+if(!/^\.\/vendor\/supabase-js-\d+\.\d+\.\d+\.js$/.test(pinned))fail('supabase-js must be served from our own origin, pinned to an exact version: '+pinned);
+// supabase-js is an unmodified copy of the npm release (dist/umd/supabase.js). Upgrading means replacing the file,
+// renaming it to the new version and recording its sha384 here, deliberately.
+const SUPABASE_JS_SHA384={'2.116.0':'iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP'};
+{const crypto=await import('node:crypto'),fsm=await import('node:fs'),ver=pinned.match(/supabase-js-(.+)\.js$/)[1],file='v2/vendor/supabase-js-'+ver+'.js';
+ if(!SUPABASE_JS_SHA384[ver])fail('No recorded sha384 for self-hosted supabase-js '+ver);
+ const got=crypto.createHash('sha384').update(fsm.readFileSync(file)).digest('base64');
+ if(got!==SUPABASE_JS_SHA384[ver])fail('Self-hosted supabase-js '+ver+' is not the npm release (sha384 '+got+')');
+ if(!fsm.existsSync('v2/vendor/supabase-js-'+ver+'.LICENSE.txt'))fail('Self-hosted supabase-js needs its MIT licence next to it');}}
 // Settled first screen: drawn for the account already signed in on this phone (display only), with saved calendar and bills,
 // after every module has run; the sign-in is then confirmed in the background and a rejected one ends on the welcome screen.
 {const app=read('v2/app-v3.2.0.js'),budget=read('v2/core-budget-v4.0b.js'),a=app.indexOf('function planlyStoredSignedInUser('),stored=app.slice(a,app.indexOf('\n',app.indexOf('function planlyAdoptStoredUser(')));

@@ -17,8 +17,6 @@ Optional settings:
 
 - `PLANLY_ROOT=/path/to/other/checkout` serves a different copy of the app, for example the base branch, to compare.
 - `PLANLY_CHROMIUM=/path/to/chromium` uses an existing Chromium instead of Playwright's.
-- `PLANLY_SUPABASE_UMD=/path/to/supabase.js` serves a local copy of the pinned supabase-js bundle, for machines that
-  cannot reach cdn.jsdelivr.net.
 
 The tests use port 8765, so run one at a time.
 

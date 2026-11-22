@@ -196,6 +196,7 @@ function foodProblems(m54){
  // redirect address, an OAuth scope)
  const notFetched=new Set(['http://www.w3.org','https://kovacs-x.github.io']),allowed=new Set([...csp['connect-src'],...csp['script-src']].map(x=>x.replace(/^(https?:\/\/[^/]+).*$/,'$1')));
  for(const o of new Set(runtime.match(/(?:https?|wss?):\/\/[a-z0-9.-]+/gi)||[]))if(!notFetched.has(o)&&!allowed.has(o))fail('origin used by the app is not in the CSP: '+o);
- const sdk=html.match(/<script src="(https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@[^"]+)"/)?.[1];if(!sdk||!csp['script-src'].includes(sdk))fail('CSP must allow exactly the pinned supabase-js URL');
+ if(!/<script src="\.\/vendor\/supabase-js-\d+\.\d+\.\d+\.js"><\/script>/.test(html))fail('supabase-js must load from our own origin (./vendor/supabase-js-<version>.js)');
+ if(JSON.stringify(csp['script-src'])!==JSON.stringify(["'self'",'https://accounts.google.com/gsi/client']))fail("CSP script-src must be exactly 'self' https://accounts.google.com/gsi/client: "+(csp['script-src']||[]).join(' '));
  for(const o of ['https://dtniwcwjucepsjzoojuc.supabase.co','wss://dtniwcwjucepsjzoojuc.supabase.co'])if(!csp['connect-src'].includes(o))fail('CSP connect-src must allow '+o)}
 console.log('Planly security regression checks passed.');

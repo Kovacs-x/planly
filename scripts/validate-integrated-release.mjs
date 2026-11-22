@@ -14,7 +14,7 @@ for(const marker of ['RUNTIME_MANIFEST_URL','runtimeModuleUrls(cache)',"cachedOr
 for(const marker of ['verifyPlanlyOfflineCache','probePlanlyServiceWorker','runtime-modules.json','planlyKeys','/^planly-v2-sw-'])if(!build.includes(marker))fail(`Offline/release probe missing: ${marker}`);
 for(const marker of ['Planly update ready','controllerchange','SKIP_WAITING','editing()','reg.update()'])if(!update.includes(marker))fail(`Safe in-app update invariant missing: ${marker}`);
 if(index.includes("reg.waiting.postMessage({type:'SKIP_WAITING'})"))fail('Boot path still bypasses explicit update coordinator');
-const sdk=index.match(/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@([^"<\s;]+)\/??[^"<\s;]*/)?.[1];
+const sdk=index.match(/<script src="\.\/vendor\/supabase-js-([^"]+)\.js"><\/script>/)?.[1];
 if(!sdk||!/^\d+\.\d+\.\d+$/.test(sdk))fail('Supabase JS browser dependency is not pinned to an exact version');
 const budget=read('v2/core-budget-v4.0b.js'),budgetMonthly=read('v2/core-budget-monthly-v4.0e.js'),monthState=read('v2/core-budget-month-state-v4.0f.js');
 for(const marker of ["scope_type:'personal'","scope_type:'household'",".eq('cloud_version',op.baseVersion)",'structureOwner()','membership.role!==\'owner\''])if(!budget.includes(marker))fail(`Budget authorization/concurrency invariant missing: ${marker}`);

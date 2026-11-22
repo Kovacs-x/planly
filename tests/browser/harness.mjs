@@ -2,7 +2,6 @@
 // phone-sized Chromium. Nothing here talks to the real Planly database: every *.supabase.co request is answered locally.
 //   PLANLY_ROOT          app checkout to serve (default: this repository). Point it at another checkout to test a base.
 //   PLANLY_CHROMIUM      optional Chromium executable (default: Playwright's own).
-//   PLANLY_SUPABASE_UMD  optional local copy of the pinned supabase-js UMD bundle (default: fetched from the CDN).
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -74,7 +73,6 @@ function applyFilters(rows, params) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 export async function installMock(context, db, userId) {
-  if (process.env.PLANLY_SUPABASE_UMD) await context.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(process.env.PLANLY_SUPABASE_UMD) }));
   await context.route('https://accounts.google.com/**', r => r.fulfill({ contentType: 'text/javascript', body: '' }));
   await context.route(SB + '/**', async route => {
     const req = route.request(), url = new URL(req.url()), method = req.method();
