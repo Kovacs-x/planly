@@ -12,8 +12,8 @@
 -- rebuild ended up with both sets. This was not a rename that failed to apply.
 --
 -- Canonical: production's set, because it is what the app has run on. A fresh rebuild converges to it here.
--- On production every statement is a no-op: the 018 objects do not exist there, the function body below is
--- production's, and the trigger is only created when missing.
+-- Catalog-state preserving on production: the 018 objects do not exist there (drop if exists skips them), create or
+-- replace re-states production's function body character for character, and the trigger is only created when missing.
 
 drop trigger if exists planly_validate_task_project_scope on public.planly_tasks;
 drop function if exists public.planly_validate_task_project_scope();

@@ -19,4 +19,4 @@ for f in $(ls supabase/migrations/*.sql | sort); do
 done
 $PSQL -qAt -F $'\t' -d $DB < $G/snapshot.sql > $OUT/rebuild.tsv
 echo "replayed $(ls supabase/migrations/*.sql | wc -l) migrations onto PostgreSQL $v; comparing with $(basename $PROD)"
-python3 -I $G/diff.py "$PROD" $OUT/rebuild.tsv
+python3 -I $G/diff.py "$PROD" $OUT/rebuild.tsv --rebuild-major $((v / 10000))

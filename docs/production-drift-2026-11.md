@@ -10,6 +10,7 @@ against a fresh rebuild of every repo migration (`scripts/prod-drift/check.sh`).
 | Before (fresh rebuild of 001–064 vs production) | 77 objects |
 | After (fresh rebuild of 001–068 vs production) | **0**. A clean rebuild reproduces production. |
 | 065–068 applied a second time | no change (idempotent) |
+| 065–068 on production | catalog-state preserving: every object already matches, so the catalog is left as it is |
 | Production after 065–068 | no change: every object already matches; the three function bodies are byte-identical |
 
 Not a security issue. Every drifted object is either owned by `postgres` and not executable through the API, or is a
@@ -69,14 +70,18 @@ while the history holds versions with no matching file. The repair has to retire
 
 | File | On a fresh rebuild | On production |
 |---|---|---|
-| `065_rls_auto_enable.sql` | creates the function and `ensure_rls`, then revokes EXECUTE | same body, trigger skipped: no change |
-| `066_task_project_guard_production.sql` | drops 018's guard, helper and 2 policies; creates production's guard | nothing to drop, same body, trigger skipped: no change |
-| `067_household_project_broadcast.sql` | creates the function and trigger | same body, trigger skipped: no change |
-| `068_baseline_names_match_production.sql` | renames, swaps indexes, adds 2 columns, replaces 7 policies | every guard false: no change |
+| `065_rls_auto_enable.sql` | creates the function and `ensure_rls`, then revokes EXECUTE | re-states the same body, revoke matches, trigger skipped |
+| `066_task_project_guard_production.sql` | drops 018's guard, helper and 2 policies; creates production's guard | nothing to drop, re-states the same body, trigger skipped |
+| `067_household_project_broadcast.sql` | creates the function and trigger | re-states the same body, trigger skipped |
+| `068_baseline_names_match_production.sql` | renames, swaps indexes, adds 2 columns, replaces 7 policies | every guard false; only a PostgREST schema-reload notice |
 
 Each statement is guarded (`create or replace`, `if [not] exists`, catalog checks). 008's revoke is the only earlier
 reference to `rls_auto_enable()` and it is guarded, so nothing uses the function before 065 creates it. Numbering
 continues after 064; the gap at 021 stays.
+
+On production the migrations are **catalog-state preserving** rather than literally empty. 065–067 run
+`create or replace function` with production's exact bodies, which keeps owner, settings and grants (checked:
+`md5(prosrc)` identical). 068's guards are all false, and it ends with `notify pgrst, 'reload schema'`.
 
 Behaviour checked on the rebuild:
 
@@ -93,9 +98,16 @@ Prerequisite: merge #317 first. Its 008 guard and its 063/064 are the versions p
 **SQL Editor (no CLI needed):**
 
 1. Run `065_rls_auto_enable.sql`, `066_task_project_guard_production.sql`, `067_household_project_broadcast.sql` and
-   `068_baseline_names_match_production.sql`, in that order. Each changes nothing on production.
-2. Run `supabase/history/repair-migration-history-2026-11.sql`. It stops without changes unless the history holds
-   exactly the 51 archived rows, then records 001–068 in one transaction.
+   `068_baseline_names_match_production.sql`, in that order. They leave production's catalog as it is.
+2. Run `supabase/history/repair-migration-history-2026-11.sql`. In one transaction it:
+   - locks the history table;
+   - checks every row's version, name and stored-statement hash against production's 51-row manifest;
+   - stops with an error naming any missing, extra, renamed or edited row, before anything is deleted, so nothing
+     changes;
+   - only then records 001–068.
+
+   The manifest is the archive re-hashed (`test_gate.py`, in CI), and the refusals are tested on a copy of the table
+   (`test-repair-guard.sh`).
 3. A read-only check follows: history = 001–068 without 021, and the drift gate still shows 0 differences.
 
 **Or with the Supabase CLI** (needs `supabase init` and `supabase link --project-ref dtniwcwjucepsjzoojuc` once):
@@ -109,8 +121,14 @@ supabase db push
 
 ## Limits of this check
 
-- The rebuild ran on PostgreSQL 16 (production is 17.6). 16 has no `MAINTAIN` privilege, so `MAINTAIN` grants were
-  ignored on both sides. Everything else was compared. Run `check.sh` on 17 for those too.
+- The rebuild ran on PostgreSQL 16 (production is 17.6). 16 has no `MAINTAIN` privilege, so `diff.py` left `MAINTAIN`
+  grants out on both sides for that run, and said so. On a 17 rebuild it compares them, along with every other grant.
+- `MAINTAIN` was instead spot-checked read-only on production:
+  - 51 grants, each paired with TRUNCATE on the same table and role;
+  - held only by `postgres` and `service_role`, none by `anon` or `authenticated`.
+
+  The rebuild has the same 51 TRUNCATE grants with the same holders, so they match by proxy, not by a direct
+  automated comparison.
 - The comparison covers the `public` and `planly_private` schemas and the `realtime.messages` policies. Supabase's
   own schemas (`auth`, `storage`, `vault`, `cron`, `net`) and its platform event triggers are out of scope.
 - Production's default privileges for new objects (functions: no EXECUTE for `PUBLIC`/`anon`/`authenticated`; tables:

@@ -25,9 +25,22 @@ PSQL="psql -h localhost -p 5432 -U postgres" scripts/prod-drift/check.sh
 Use a scratch PostgreSQL where you are superuser; the script drops and re-creates `planly_drift_rebuild`. The stub
 extensions stand in for `supabase_vault`, `pg_net` and `pg_cron`, so the migrations run unchanged.
 
-**PostgreSQL version.** Production is 17.6. On 16, `MAINTAIN` does not exist: the script removes it from the
-migrations' privilege lists for the replay, and `diff.py` ignores `:MAINTAIN` grants on both sides. Use 17 for a full
-comparison of those grants.
+**PostgreSQL version.** Production is 17.6. `check.sh` passes the rebuild's major version to `diff.py`
+(`--rebuild-major`, required). On 17 every grant is compared, `MAINTAIN` included. On 16, which has no `MAINTAIN`,
+the script removes it from the migrations' privilege lists for the replay, `diff.py` leaves `MAINTAIN` grants out on
+both sides, and its output starts with a NOTE saying so.
+
+## Self-tests
+
+- `python3 -I scripts/prod-drift/test_gate.py` (no database; runs in CI):
+  - the verbatim history archive re-hashes to the manifest in the repair script and to production's whole-history
+    hash;
+  - the repair records every repo migration;
+  - its guard checks names and statements and locks the table before deleting;
+  - `diff.py` compares `MAINTAIN` on 17 and ignores it only on 16.
+- `PSQL="psql …" scripts/prod-drift/test-repair-guard.sh` (scratch PostgreSQL): rebuilds the history table from the
+  archive, then checks that the repair accepts the untouched history, and refuses, changing nothing, a second run, a
+  renamed row, an edited statement, a removed statement, a missing row and an extra row.
 
 ## Refresh production's snapshot
 

@@ -6,8 +6,9 @@
 -- auth.uid() without the (select ...) wrapper. Production's names and definitions are canonical. This renames, adds
 -- and replaces so a fresh rebuild matches production exactly.
 --
--- Every step is guarded. On production, which already has every target name and none of the source names, the whole
--- migration changes nothing. No data is touched: renames keep rows, and the indexes swapped below are on small tables.
+-- Every step is guarded. On production, which already has every target name and none of the source names, every guard
+-- is false and the catalog is left as it is (the closing notify only asks PostgREST to reload its schema cache). No data
+-- is touched: renames keep rows, and the indexes swapped below are on small tables.
 
 -- 1. Constraints: same rule, production's name. (Renaming a unique constraint renames its index too.)
 do $$

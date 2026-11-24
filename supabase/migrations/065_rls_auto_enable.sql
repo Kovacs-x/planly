@@ -9,8 +9,9 @@
 -- before 008) leaves nothing referencing it before it exists. Every Planly table also enables RLS explicitly in its
 -- own migration, so tables created before this point are unaffected.
 --
--- Idempotent and a no-op on production: the function body below is production's, character for character, and the
--- event trigger is only created when it is missing.
+-- Idempotent, and catalog-state preserving on production: create or replace re-states production's function body,
+-- character for character (owner, settings and grants are kept), the revoke matches production's grants, and the event
+-- trigger is only created when it is missing.
 
 create or replace function public.rls_auto_enable()
 returns event_trigger

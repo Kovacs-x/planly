@@ -26,6 +26,8 @@ jobs:
         run: node scripts/validate-safari-diagnostics.mjs
       - name: Validate Planly security invariants
         run: node scripts/validate-planly-security.mjs
+      - name: Self-test the production drift gate and history repair guard
+        run: python3 -I scripts/prod-drift/test_gate.py
       - name: Unit-test the food-search Edge Function
         run: node tests/functions/food-search.test.mjs
       - name: Validate Budget 4.0 release invariants

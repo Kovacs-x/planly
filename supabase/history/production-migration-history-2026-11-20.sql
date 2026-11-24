@@ -1,16 +1,19 @@
 -- ARCHIVE. DO NOT RUN.
 -- Production's migration history (supabase_migrations.schema_migrations, project dtniwcwjucepsjzoojuc), exported
--- read-only on 20 Nov 2026 before the history repair that replaces these timestamp versions with the repo's
--- 001-068 file versions (see docs/production-drift-2026-11.md). It is the only record of exactly what production ran,
--- including three migrations with no repo file (credential_rpc_explicit_grants, household_caller_bound_helpers,
--- shared_projects_broadcast) and production's own version of shared_projects_foundation. Checked before export: no
--- secrets, keys, user or household ids, UUID literals or email addresses. 001-007 and 056-062 were run in the SQL
--- Editor and were never recorded here.
+-- read-only on 20 Nov 2026 (re-verified unchanged on 23 Nov 2026) before the history repair that replaces these
+-- timestamp versions with the repo's 001-068 file versions (see docs/production-drift-2026-11.md). It is the only
+-- record of exactly what production ran, including three migrations with no repo file (credential_rpc_explicit_grants,
+-- household_caller_bound_helpers, shared_projects_broadcast) and production's own version of shared_projects_foundation.
+-- 001-007 and 056-062 were run in the SQL Editor and were never recorded.
+--
+-- Verbatim: each stored statement is reproduced exactly between its "@statement N begin" and "@statement N end" lines
+-- (nothing added, not even a semicolon), so scripts/prod-drift/test_gate.py can re-hash every row and check it against
+-- the manifest in repair-migration-history-2026-11.sql and production. Checked before export: no secrets, keys, user or
+-- household ids, UUID literals or email addresses; the created_by column (account emails) is not included.
 -- 51 migrations.
 
--- ====================================================================================================
--- version 20260924135632  name security_hardening
--- ====================================================================================================
+-- @migration version=20260924135632 name=security_hardening statements=1
+-- @statement 1 begin
 revoke execute on function public.handle_new_planly_user() from public, anon, authenticated;
 revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
 revoke execute on function public.bump_planly_cloud_version() from public, anon, authenticated;
@@ -20,18 +23,18 @@ revoke execute on function public.get_calendar_source_feed_url(uuid, uuid) from 
 revoke execute on function public.replace_external_calendar_events(uuid, uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.get_calendar_source_feed_url(uuid, uuid) to service_role;
 grant execute on function public.replace_external_calendar_events(uuid, uuid, jsonb) to service_role;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260924135713  name credential_rpc_explicit_grants
--- ====================================================================================================
+-- @migration version=20260924135713 name=credential_rpc_explicit_grants statements=1
+-- @statement 1 begin
 revoke execute on function public.set_calendar_source_credential(uuid, text) from public, anon;
 revoke execute on function public.delete_calendar_source_credential(uuid) from public, anon;
 grant execute on function public.set_calendar_source_credential(uuid, text) to authenticated;
 grant execute on function public.delete_calendar_source_credential(uuid) to authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260924143832  name household_foundation
--- ====================================================================================================
+-- @migration version=20260924143832 name=household_foundation statements=1
+-- @statement 1 begin
 -- Planly 3.3A Household foundation
 -- Household membership is authoritative. Existing Planly owner-only data remains private.
 
@@ -193,9 +196,10 @@ grant execute on function public.planly_create_household(text), public.planly_cr
 
 notify pgrst, 'reload schema';
 
--- ====================================================================================================
--- version 20260924150958  name household_caller_bound_helpers
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20260924150958 name=household_caller_bound_helpers statements=1
+-- @statement 1 begin
 create or replace function public.planly_is_household_member(p_household_id uuid, p_user_id uuid default auth.uid())
 returns boolean language sql stable security definer
 set search_path = pg_catalog, public
@@ -225,10 +229,10 @@ begin
  if v_h is null or not public.planly_is_household_owner(v_h) then raise exception 'Not authorized'; end if;
  update public.planly_household_invites set status='revoked' where id=p_invite_id and status='pending';
 end $$;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260924152249  name household_authorization_hardening
--- ====================================================================================================
+-- @migration version=20260924152249 name=household_authorization_hardening statements=1
+-- @statement 1 begin
 -- Planly 3.3A Household authorization hardening
 -- Enforce one household membership per account at the database layer and
 -- require a confirmed account email when accepting an invitation.
@@ -323,9 +327,10 @@ grant execute on function public.planly_create_household(text), public.planly_ac
 
 notify pgrst, 'reload schema';
 
--- ====================================================================================================
--- version 20260924160121  name household_lifecycle_controls
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20260924160121 name=household_lifecycle_controls statements=1
+-- @statement 1 begin
 -- Planly 3.3A Household lifecycle controls
 -- Owner-only ownership transfer and household deletion.
 -- All authorization is derived from auth.uid(); browser-supplied ownership is never trusted.
@@ -446,9 +451,10 @@ grant execute on function public.planly_delete_household(uuid) to authenticated;
 
 notify pgrst, 'reload schema';
 
--- ====================================================================================================
--- version 20260924202357  name shared_tasks_foundation
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20260924202357 name=shared_tasks_foundation statements=1
+-- @statement 1 begin
 alter table public.planly_tasks
   add column visibility text not null default 'private',
   add column household_id uuid null references public.planly_households(id) on delete set null;
@@ -473,15 +479,15 @@ end $function$;
 revoke all on function public.planly_private_tasks_on_household_delete() from public,anon,authenticated;
 drop trigger if exists planly_private_tasks_before_household_delete on public.planly_households;
 create trigger planly_private_tasks_before_household_delete before delete on public.planly_households for each row execute function public.planly_private_tasks_on_household_delete();
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260924224827  name shared_tasks_realtime
--- ====================================================================================================
+-- @migration version=20260924224827 name=shared_tasks_realtime statements=1
+-- @statement 1 begin
 alter publication supabase_realtime add table public.planly_tasks;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260924225009  name household_task_broadcast
--- ====================================================================================================
+-- @migration version=20260924225009 name=household_task_broadcast statements=1
+-- @statement 1 begin
 alter publication supabase_realtime drop table public.planly_tasks;
 
 drop policy if exists planly_household_task_broadcast_receive on realtime.messages;
@@ -521,10 +527,10 @@ $function$;
 revoke all on function public.planly_broadcast_household_task_change() from public,anon,authenticated;
 drop trigger if exists planly_household_task_broadcast on public.planly_tasks;
 create trigger planly_household_task_broadcast after insert or update or delete on public.planly_tasks for each row execute function public.planly_broadcast_household_task_change();
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260924233815  name household_task_assignment
--- ====================================================================================================
+-- @migration version=20260924233815 name=household_task_assignment statements=1
+-- @statement 1 begin
 alter table public.planly_tasks add column assignee_id uuid null references auth.users(id) on delete set null;
 
 create index planly_tasks_household_assignee_idx on public.planly_tasks(household_id,assignee_id,updated_at) where visibility='household' and deleted_at is null;
@@ -562,10 +568,10 @@ begin
  return old;
 end $function$;
 revoke all on function public.planly_private_tasks_on_household_delete() from public,anon,authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925021101  name assignee_task_completion
--- ====================================================================================================
+-- @migration version=20260925021101 name=assignee_task_completion statements=1
+-- @statement 1 begin
 create or replace function public.planly_set_assigned_task_completed(
   p_owner_id uuid,
   p_client_id text,
@@ -610,10 +616,10 @@ $function$;
 alter function public.planly_set_assigned_task_completed(uuid,text,boolean) owner to postgres;
 revoke all on function public.planly_set_assigned_task_completed(uuid,text,boolean) from public,anon;
 grant execute on function public.planly_set_assigned_task_completed(uuid,text,boolean) to authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925043432  name shared_projects_foundation
--- ====================================================================================================
+-- @migration version=20260925043432 name=shared_projects_foundation statements=1
+-- @statement 1 begin
 alter table public.planly_projects
   add column if not exists visibility text not null default 'private',
   add column if not exists household_id uuid references public.planly_households(id) on delete set null;
@@ -743,10 +749,10 @@ before insert or update of owner_id, project_client_id, visibility, household_id
 on public.planly_tasks
 for each row
 execute function public.planly_validate_task_project_visibility();
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925043929  name shared_projects_integrity
--- ====================================================================================================
+-- @migration version=20260925043929 name=shared_projects_integrity statements=1
+-- @statement 1 begin
 alter table public.planly_projects drop constraint if exists planly_projects_visibility_data_chk;
 alter table public.planly_projects add constraint planly_projects_visibility_data_chk check (coalesce(data->>'visibility','private')=visibility and ((visibility='private' and nullif(data->>'householdId','') is null) or (visibility='household' and data->>'householdId'=household_id::text)));
 
@@ -783,10 +789,10 @@ drop trigger if exists planly_private_departing_member_projects_before_delete on
 create trigger planly_private_departing_member_projects_before_delete before delete on public.planly_household_members for each row execute function public.planly_private_departing_member_projects();
 
 notify pgrst,'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925044112  name shared_projects_household_delete
--- ====================================================================================================
+-- @migration version=20260925044112 name=shared_projects_household_delete statements=1
+-- @statement 1 begin
 create or replace function public.planly_private_tasks_on_household_delete()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public as $function$
 declare v_now bigint := (extract(epoch from clock_timestamp())*1000)::bigint;
@@ -796,10 +802,10 @@ begin
   return old;
 end $function$;
 revoke all on function public.planly_private_tasks_on_household_delete() from public,anon,authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925044301  name shared_projects_broadcast
--- ====================================================================================================
+-- @migration version=20260925044301 name=shared_projects_broadcast statements=1
+-- @statement 1 begin
 -- Planly 3.3C — secure live invalidation for Household project changes.
 -- Broadcast contains only an invalidation event. Clients always re-read through project RLS.
 
@@ -840,9 +846,10 @@ create trigger planly_household_project_broadcast
 after insert or update or delete on public.planly_projects
 for each row execute function public.planly_broadcast_household_project_change();
 
--- ====================================================================================================
--- version 20260925064152  name household_release_gate_hardening
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20260925064152 name=household_release_gate_hardening statements=1
+-- @statement 1 begin
 -- Planly 3.3D — release-gate hardening without broadening authorization.
 create index if not exists planly_tasks_assignee_id_idx on public.planly_tasks (assignee_id) where assignee_id is not null;
 drop policy if exists planly_preferences_select_own on public.planly_preferences;
@@ -857,15 +864,15 @@ drop policy if exists planly_sync_state_insert_own on public.planly_sync_state;
 create policy planly_sync_state_insert_own on public.planly_sync_state for insert to authenticated with check ((select auth.uid()) = owner_id);
 drop policy if exists planly_sync_state_update_own on public.planly_sync_state;
 create policy planly_sync_state_update_own on public.planly_sync_state for update to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925064233  name assignee_completion_null_guard
--- ====================================================================================================
+-- @migration version=20260925064233 name=assignee_completion_null_guard statements=1
+-- @statement 1 begin
 create or replace function public.planly_set_assigned_task_completed(p_owner_id uuid,p_client_id text,p_completed boolean) returns public.planly_tasks language plpgsql security definer set search_path = pg_catalog, public as $$ declare v_task public.planly_tasks; v_now bigint := (extract(epoch from clock_timestamp())*1000)::bigint; begin if auth.uid() is null then raise exception 'Authentication required' using errcode='42501'; end if; select * into v_task from public.planly_tasks t where t.owner_id=p_owner_id and t.client_id=p_client_id and t.deleted_at is null for update; if not found then raise exception 'Task not found' using errcode='P0002'; end if; if v_task.visibility <> 'household' or v_task.household_id is null or v_task.assignee_id is distinct from auth.uid() or not exists (select 1 from public.planly_household_members m where m.household_id=v_task.household_id and m.user_id=auth.uid()) then raise exception 'Only the current assignee may complete this task' using errcode='42501'; end if; if v_task.completed is not distinct from p_completed then return v_task; end if; update public.planly_tasks t set completed=p_completed,data=jsonb_set(coalesce(t.data,'{}'::jsonb),'{completed}',to_jsonb(p_completed),true),client_updated_at=greatest(t.client_updated_at,v_now) where t.owner_id=p_owner_id and t.client_id=p_client_id returning * into v_task; return v_task; end $$; revoke all on function public.planly_set_assigned_task_completed(uuid,text,boolean) from public, anon; grant execute on function public.planly_set_assigned_task_completed(uuid,text,boolean) to authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925092503  name cloud_native_account_sync_readiness
--- ====================================================================================================
+-- @migration version=20260925092503 name=cloud_native_account_sync_readiness statements=1
+-- @statement 1 begin
 create or replace function public.handle_new_planly_user()
 returns trigger
 language plpgsql
@@ -928,26 +935,26 @@ where u.created_at >= timestamptz '2026-09-24 00:00:00+00'
   );
 
 revoke all on function public.handle_new_planly_user() from public, anon, authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925192350  name planly_post_33_fk_index_hardening
--- ====================================================================================================
+-- @migration version=20260925192350 name=planly_post_33_fk_index_hardening statements=1
+-- @statement 1 begin
 create index if not exists calendar_source_credentials_owner_id_idx on public.calendar_source_credentials(owner_id);
 create index if not exists planly_household_invites_accepted_by_idx on public.planly_household_invites(accepted_by) where accepted_by is not null;
 create index if not exists planly_household_invites_invited_by_idx on public.planly_household_invites(invited_by);
 create index if not exists planly_households_created_by_idx on public.planly_households(created_by);
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925192608  name planly_post_33_internal_helper_permissions
--- ====================================================================================================
+-- @migration version=20260925192608 name=planly_post_33_internal_helper_permissions statements=1
+-- @statement 1 begin
 revoke execute on function public.planly_is_household_member(uuid,uuid) from public, anon, authenticated;
 revoke execute on function public.planly_is_household_owner(uuid,uuid) from public, anon, authenticated;
 revoke execute on function public.planly_task_share_target_valid(text,uuid) from public, anon, authenticated;
 revoke execute on function public.planly_task_share_target_valid(text,uuid,uuid) from public, anon, authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925203318  name household_two_member_invariant
--- ====================================================================================================
+-- @migration version=20260925203318 name=household_two_member_invariant statements=1
+-- @statement 1 begin
 create or replace function public.planly_create_household_invite(p_household_id uuid, p_email text)
 returns text language plpgsql security definer
 set search_path = pg_catalog, public, extensions
@@ -993,10 +1000,10 @@ revoke all on function public.planly_create_household_invite(uuid,text) from pub
 revoke all on function public.planly_accept_household_invite(text) from public, anon;
 grant execute on function public.planly_create_household_invite(uuid,text), public.planly_accept_household_invite(text) to authenticated;
 notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925203335  name budget_foundation
--- ====================================================================================================
+-- @migration version=20260925203335 name=budget_foundation statements=1
+-- @statement 1 begin
 create table public.planly_budget_scopes (id uuid primary key default gen_random_uuid(),owner_id uuid not null references auth.users(id) on delete restrict,household_id uuid references public.planly_households(id) on delete restrict,scope_type text not null check (scope_type in ('personal','household')),name text not null default 'Budget' check (char_length(btrim(name)) between 1 and 80),currency text not null default 'GBP' check (currency ~ '^[A-Z]{3}$'),client_id text not null,client_created_at bigint,client_updated_at bigint not null,cloud_version bigint not null default 1 check (cloud_version >= 1),deleted_at timestamptz,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),constraint planly_budget_scope_target_check check ((scope_type='personal' and household_id is null) or (scope_type='household' and household_id is not null)),unique(owner_id,client_id));
 create unique index planly_budget_one_personal_scope_idx on public.planly_budget_scopes(owner_id) where scope_type='personal' and deleted_at is null;
 create unique index planly_budget_one_household_scope_idx on public.planly_budget_scopes(household_id) where scope_type='household' and deleted_at is null;
@@ -1027,20 +1034,20 @@ create policy planly_budget_entries_select_authorized on public.planly_budget_en
 create policy planly_budget_entries_insert_own on public.planly_budget_entries for insert to authenticated with check ((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and (s.owner_id=(select auth.uid()) or (s.scope_type='household' and public.planly_is_household_member(s.household_id)))));
 create policy planly_budget_entries_update_own on public.planly_budget_entries for update to authenticated using ((select auth.uid())=owner_id) with check ((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and (s.owner_id=(select auth.uid()) or (s.scope_type='household' and public.planly_is_household_member(s.household_id)))));
 revoke all on public.planly_budget_scopes,public.planly_budget_categories,public.planly_budget_targets,public.planly_budget_entries from anon; revoke all on public.planly_budget_scopes,public.planly_budget_categories,public.planly_budget_targets,public.planly_budget_entries from authenticated; grant select,insert,update on public.planly_budget_scopes,public.planly_budget_categories,public.planly_budget_targets,public.planly_budget_entries to authenticated; notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925203437  name restore_rls_helper_execution
--- ====================================================================================================
+-- @migration version=20260925203437 name=restore_rls_helper_execution statements=1
+-- @statement 1 begin
 revoke all on function public.planly_is_household_member(uuid,uuid) from public, anon; revoke all on function public.planly_is_household_owner(uuid,uuid) from public, anon; grant execute on function public.planly_is_household_member(uuid,uuid) to authenticated; grant execute on function public.planly_is_household_owner(uuid,uuid) to authenticated; revoke all on function public.planly_task_share_target_valid(text,uuid) from public, anon; revoke all on function public.planly_task_share_target_valid(text,uuid,uuid) from public, anon; grant execute on function public.planly_task_share_target_valid(text,uuid) to authenticated; grant execute on function public.planly_task_share_target_valid(text,uuid,uuid) to authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925203524  name budget_integrity_hardening
--- ====================================================================================================
+-- @migration version=20260925203524 name=budget_integrity_hardening statements=1
+-- @statement 1 begin
 alter table public.planly_budget_categories add constraint planly_budget_categories_scope_id_kind_key unique(scope_id,id,kind); alter table public.planly_budget_entries add constraint planly_budget_entries_category_kind_fkey foreign key (scope_id,category_id,kind) references public.planly_budget_categories(scope_id,id,kind) on delete restrict; create or replace function public.planly_budget_protect_identity() returns trigger language plpgsql set search_path=pg_catalog,public as $$ begin if tg_table_name='planly_budget_scopes' then if new.owner_id is distinct from old.owner_id or new.client_id is distinct from old.client_id or new.scope_type is distinct from old.scope_type or new.household_id is distinct from old.household_id then raise exception 'Budget scope identity is immutable'; end if; elsif tg_table_name='planly_budget_categories' then if new.owner_id is distinct from old.owner_id or new.client_id is distinct from old.client_id or new.scope_id is distinct from old.scope_id then raise exception 'Budget category identity is immutable'; end if; elsif tg_table_name='planly_budget_targets' then if new.owner_id is distinct from old.owner_id or new.client_id is distinct from old.client_id or new.scope_id is distinct from old.scope_id then raise exception 'Budget target identity is immutable'; end if; elsif tg_table_name='planly_budget_entries' then if new.owner_id is distinct from old.owner_id or new.client_id is distinct from old.client_id or new.scope_id is distinct from old.scope_id then raise exception 'Budget entry identity is immutable'; end if; end if; return new; end $$; revoke all on function public.planly_budget_protect_identity() from public,anon,authenticated; create trigger planly_budget_scopes_protect_identity before update on public.planly_budget_scopes for each row execute function public.planly_budget_protect_identity(); create trigger planly_budget_categories_protect_identity before update on public.planly_budget_categories for each row execute function public.planly_budget_protect_identity(); create trigger planly_budget_targets_protect_identity before update on public.planly_budget_targets for each row execute function public.planly_budget_protect_identity(); create trigger planly_budget_entries_protect_identity before update on public.planly_budget_entries for each row execute function public.planly_budget_protect_identity();
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925203649  name private_rls_authorization_helpers
--- ====================================================================================================
+-- @migration version=20260925203649 name=private_rls_authorization_helpers statements=1
+-- @statement 1 begin
 create schema if not exists planly_private; revoke all on schema planly_private from public,anon; grant usage on schema planly_private to authenticated; create or replace function planly_private.is_household_member(p_household_id uuid) returns boolean language sql stable security definer set search_path=pg_catalog,public as $$ select exists(select 1 from public.planly_household_members m where m.household_id=p_household_id and m.user_id=auth.uid()) $$; create or replace function planly_private.is_household_owner(p_household_id uuid) returns boolean language sql stable security definer set search_path=pg_catalog,public as $$ select exists(select 1 from public.planly_household_members m where m.household_id=p_household_id and m.user_id=auth.uid() and m.role='owner') $$; create or replace function planly_private.task_share_target_valid(p_visibility text,p_household_id uuid,p_assignee_id uuid) returns boolean language sql stable security definer set search_path=pg_catalog,public as $$ select case when p_visibility='private' then p_household_id is null and p_assignee_id is null when p_visibility='household' then p_household_id is not null and exists(select 1 from public.planly_household_members m where m.household_id=p_household_id and m.user_id=auth.uid()) and (p_assignee_id is null or exists(select 1 from public.planly_household_members a where a.household_id=p_household_id and a.user_id=p_assignee_id)) else false end $$; revoke all on function planly_private.is_household_member(uuid) from public,anon; revoke all on function planly_private.is_household_owner(uuid) from public,anon; revoke all on function planly_private.task_share_target_valid(text,uuid,uuid) from public,anon; grant execute on function planly_private.is_household_member(uuid),planly_private.is_household_owner(uuid),planly_private.task_share_target_valid(text,uuid,uuid) to authenticated;
 drop policy if exists planly_household_members_select_member on public.planly_household_members; create policy planly_household_members_select_member on public.planly_household_members for select to authenticated using(planly_private.is_household_member(household_id)); drop policy if exists planly_households_select_member on public.planly_households; create policy planly_households_select_member on public.planly_households for select to authenticated using(planly_private.is_household_member(id)); drop policy if exists planly_household_invites_select_owner on public.planly_household_invites; create policy planly_household_invites_select_owner on public.planly_household_invites for select to authenticated using(planly_private.is_household_owner(household_id));
 drop policy if exists planly_projects_select_authorized on public.planly_projects; create policy planly_projects_select_authorized on public.planly_projects for select to authenticated using((select auth.uid())=owner_id or (visibility='household' and household_id is not null and planly_private.is_household_member(household_id))); drop policy if exists planly_projects_insert_own on public.planly_projects; create policy planly_projects_insert_own on public.planly_projects for insert to authenticated with check((select auth.uid())=owner_id and ((visibility='private' and household_id is null) or (visibility='household' and household_id is not null and planly_private.is_household_member(household_id)))); drop policy if exists planly_projects_update_own on public.planly_projects; create policy planly_projects_update_own on public.planly_projects for update to authenticated using((select auth.uid())=owner_id) with check((select auth.uid())=owner_id and ((visibility='private' and household_id is null) or (visibility='household' and household_id is not null and planly_private.is_household_member(household_id))));
@@ -1049,15 +1056,15 @@ drop policy if exists planly_budget_scopes_select_authorized on public.planly_bu
 drop policy if exists planly_budget_categories_insert_admin on public.planly_budget_categories; create policy planly_budget_categories_insert_admin on public.planly_budget_categories for insert to authenticated with check((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.owner_id=(select auth.uid()) and (s.scope_type='personal' or planly_private.is_household_owner(s.household_id)))); drop policy if exists planly_budget_categories_update_admin on public.planly_budget_categories; create policy planly_budget_categories_update_admin on public.planly_budget_categories for update to authenticated using((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.owner_id=(select auth.uid()) and (s.scope_type='personal' or planly_private.is_household_owner(s.household_id)))) with check((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.owner_id=(select auth.uid()) and (s.scope_type='personal' or planly_private.is_household_owner(s.household_id)))); drop policy if exists planly_budget_targets_insert_admin on public.planly_budget_targets; create policy planly_budget_targets_insert_admin on public.planly_budget_targets for insert to authenticated with check((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.owner_id=(select auth.uid()) and (s.scope_type='personal' or planly_private.is_household_owner(s.household_id)))); drop policy if exists planly_budget_targets_update_admin on public.planly_budget_targets; create policy planly_budget_targets_update_admin on public.planly_budget_targets for update to authenticated using((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.owner_id=(select auth.uid()) and (s.scope_type='personal' or planly_private.is_household_owner(s.household_id)))) with check((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.owner_id=(select auth.uid()) and (s.scope_type='personal' or planly_private.is_household_owner(s.household_id))));
 drop policy if exists planly_budget_entries_select_authorized on public.planly_budget_entries; create policy planly_budget_entries_select_authorized on public.planly_budget_entries for select to authenticated using((select auth.uid())=owner_id or exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.scope_type='household' and planly_private.is_household_member(s.household_id))); drop policy if exists planly_budget_entries_insert_own on public.planly_budget_entries; create policy planly_budget_entries_insert_own on public.planly_budget_entries for insert to authenticated with check((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and (s.owner_id=(select auth.uid()) or (s.scope_type='household' and planly_private.is_household_member(s.household_id))))); drop policy if exists planly_budget_entries_update_own on public.planly_budget_entries; create policy planly_budget_entries_update_own on public.planly_budget_entries for update to authenticated using((select auth.uid())=owner_id) with check((select auth.uid())=owner_id and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and (s.owner_id=(select auth.uid()) or (s.scope_type='household' and planly_private.is_household_member(s.household_id)))));
 revoke execute on function public.planly_is_household_member(uuid,uuid) from public,anon,authenticated; revoke execute on function public.planly_is_household_owner(uuid,uuid) from public,anon,authenticated; revoke execute on function public.planly_task_share_target_valid(text,uuid) from public,anon,authenticated; revoke execute on function public.planly_task_share_target_valid(text,uuid,uuid) from public,anon,authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260925203713  name budget_fk_indexes
--- ====================================================================================================
+-- @migration version=20260925203713 name=budget_fk_indexes statements=1
+-- @statement 1 begin
 create index if not exists planly_budget_categories_owner_id_idx on public.planly_budget_categories(owner_id); create index if not exists planly_budget_targets_owner_id_idx on public.planly_budget_targets(owner_id); create index if not exists planly_budget_entries_scope_category_kind_idx on public.planly_budget_entries(scope_id,category_id,kind);
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260926051433  name planly_budget_allocation_model
--- ====================================================================================================
+-- @migration version=20260926051433 name=planly_budget_allocation_model statements=1
+-- @statement 1 begin
 alter table public.planly_budget_categories add column if not exists icon_key text not null default 'wallet', add column if not exists color_key text not null default 'violet';
 alter table public.planly_budget_entries add column if not exists allocation_status text not null default 'planned', add column if not exists due_day smallint, add column if not exists recurring_monthly boolean not null default true;
 alter table public.planly_budget_entries drop constraint if exists planly_budget_entries_allocation_status_check;
@@ -1066,10 +1073,10 @@ alter table public.planly_budget_entries drop constraint if exists planly_budget
 alter table public.planly_budget_entries add constraint planly_budget_entries_due_day_check check (due_day is null or due_day between 1 and 31);
 comment on column public.planly_budget_entries.description is 'Allocation/commitment name for manual budgeting, not an imported bank transaction merchant.';
 comment on column public.planly_budget_entries.allocation_status is 'Manual allocation state: planned or paid.';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260927041812  name household_budget_lifecycle_closeout
--- ====================================================================================================
+-- @migration version=20260927041812 name=household_budget_lifecycle_closeout statements=1
+-- @statement 1 begin
 -- Planly 4.0 release closeout — keep Household lifecycle compatible with Household Budget.
 create or replace function public.planly_budget_protect_identity()
 returns trigger
@@ -1221,10 +1228,10 @@ revoke all on function public.planly_delete_household(uuid) from public, anon;
 grant execute on function public.planly_transfer_household_ownership(uuid, uuid) to authenticated;
 grant execute on function public.planly_delete_household(uuid) to authenticated;
 notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260927042518  name departing_member_privacy_closeout
--- ====================================================================================================
+-- @migration version=20260927042518 name=departing_member_privacy_closeout statements=1
+-- @statement 1 begin
 create or replace function public.planly_private_departing_member_tasks()
 returns trigger
 language plpgsql
@@ -1272,10 +1279,10 @@ using (
 );
 
 notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260927044543  name collaborative_household_budget
--- ====================================================================================================
+-- @migration version=20260927044543 name=collaborative_household_budget statements=1
+-- @statement 1 begin
 create or replace function public.planly_budget_shared_structure_owner(p_scope_id uuid)
 returns uuid language sql stable security definer set search_path = pg_catalog, public as $$ select s.owner_id from public.planly_budget_scopes s where s.id=p_scope_id and s.scope_type='household' and s.household_id is not null and planly_private.is_household_member(s.household_id) limit 1 $$;
 revoke all on function public.planly_budget_shared_structure_owner(uuid) from public, anon;
@@ -1289,10 +1296,10 @@ create policy planly_budget_targets_insert_admin on public.planly_budget_targets
 drop policy if exists planly_budget_targets_update_admin on public.planly_budget_targets;
 create policy planly_budget_targets_update_admin on public.planly_budget_targets for update to authenticated using (((owner_id=(select auth.uid())) and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.scope_type='personal' and s.owner_id=(select auth.uid()))) or (owner_id=public.planly_budget_shared_structure_owner(scope_id) and owner_id is not null)) with check (((owner_id=(select auth.uid())) and exists(select 1 from public.planly_budget_scopes s where s.id=scope_id and s.scope_type='personal' and s.owner_id=(select auth.uid()))) or (owner_id=public.planly_budget_shared_structure_owner(scope_id) and owner_id is not null));
 notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260927045839  name shared_lists_4_1
--- ====================================================================================================
+-- @migration version=20260927045839 name=shared_lists_4_1 statements=1
+-- @statement 1 begin
 create table if not exists public.planly_lists (id uuid primary key,owner_id uuid not null references auth.users(id) on delete cascade,household_id uuid references public.planly_households(id) on delete cascade,client_id text not null,title text not null check (char_length(btrim(title)) between 1 and 120),visibility text not null default 'private' check (visibility in ('private','household')),sort_order integer not null default 0,client_created_at bigint not null,client_updated_at bigint not null,cloud_version bigint not null default 1,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),deleted_at timestamptz,unique(owner_id,client_id),constraint planly_lists_scope_ck check ((visibility='private' and household_id is null) or (visibility='household' and household_id is not null)));
 create table if not exists public.planly_list_items (id uuid primary key,list_id uuid not null references public.planly_lists(id) on delete cascade,owner_id uuid not null references auth.users(id) on delete cascade,client_id text not null,title text not null check (char_length(btrim(title)) between 1 and 240),notes text not null default '' check (char_length(notes)<=1000),completed boolean not null default false,sort_order integer not null default 0,client_created_at bigint not null,client_updated_at bigint not null,cloud_version bigint not null default 1,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),deleted_at timestamptz,unique(owner_id,client_id));
 create index if not exists planly_lists_owner_idx on public.planly_lists(owner_id) where deleted_at is null; create index if not exists planly_lists_household_idx on public.planly_lists(household_id) where visibility='household' and deleted_at is null; create index if not exists planly_list_items_list_idx on public.planly_list_items(list_id) where deleted_at is null;
@@ -1301,15 +1308,15 @@ create or replace function public.planly_protect_list_identity() returns trigger
 create trigger planly_lists_bump_version before update on public.planly_lists for each row execute function public.bump_planly_cloud_version(); create trigger planly_list_items_bump_version before update on public.planly_list_items for each row execute function public.bump_planly_cloud_version(); create trigger planly_lists_protect_identity before update on public.planly_lists for each row execute function public.planly_protect_list_identity(); create trigger planly_list_items_protect_identity before update on public.planly_list_items for each row execute function public.planly_protect_list_identity();
 create policy planly_lists_select_authorized on public.planly_lists for select to authenticated using (owner_id=(select auth.uid()) or (visibility='household' and household_id is not null and public.planly_is_household_member(household_id))); create policy planly_lists_insert_owner on public.planly_lists for insert to authenticated with check (owner_id=(select auth.uid()) and ((visibility='private' and household_id is null) or (visibility='household' and household_id is not null and public.planly_is_household_member(household_id)))); create policy planly_lists_update_authorized on public.planly_lists for update to authenticated using (owner_id=(select auth.uid()) or (visibility='household' and household_id is not null and public.planly_is_household_member(household_id))) with check (owner_id=(select auth.uid()) or (visibility='household' and household_id is not null and public.planly_is_household_member(household_id))); create policy planly_lists_delete_owner on public.planly_lists for delete to authenticated using (owner_id=(select auth.uid()));
 create policy planly_list_items_select_authorized on public.planly_list_items for select to authenticated using (exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and public.planly_is_household_member(l.household_id))))); create policy planly_list_items_insert_authorized on public.planly_list_items for insert to authenticated with check (owner_id=(select auth.uid()) and exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and public.planly_is_household_member(l.household_id))))); create policy planly_list_items_update_authorized on public.planly_list_items for update to authenticated using (exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and public.planly_is_household_member(l.household_id))))) with check (exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and public.planly_is_household_member(l.household_id))))); create policy planly_list_items_delete_authorized on public.planly_list_items for delete to authenticated using (exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and public.planly_is_household_member(l.household_id))))); notify pgrst,'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260927045922  name shared_lists_private_helper
--- ====================================================================================================
+-- @migration version=20260927045922 name=shared_lists_private_helper statements=1
+-- @statement 1 begin
 drop policy if exists planly_lists_select_authorized on public.planly_lists; drop policy if exists planly_lists_insert_owner on public.planly_lists; drop policy if exists planly_lists_update_authorized on public.planly_lists; drop policy if exists planly_list_items_select_authorized on public.planly_list_items; drop policy if exists planly_list_items_insert_authorized on public.planly_list_items; drop policy if exists planly_list_items_update_authorized on public.planly_list_items; drop policy if exists planly_list_items_delete_authorized on public.planly_list_items; create policy planly_lists_select_authorized on public.planly_lists for select to authenticated using (owner_id=(select auth.uid()) or (visibility='household' and household_id is not null and planly_private.is_household_member(household_id))); create policy planly_lists_insert_owner on public.planly_lists for insert to authenticated with check (owner_id=(select auth.uid()) and ((visibility='private' and household_id is null) or (visibility='household' and household_id is not null and planly_private.is_household_member(household_id)))); create policy planly_lists_update_authorized on public.planly_lists for update to authenticated using (owner_id=(select auth.uid()) or (visibility='household' and household_id is not null and planly_private.is_household_member(household_id))) with check (owner_id=(select auth.uid()) or (visibility='household' and household_id is not null and planly_private.is_household_member(household_id))); create policy planly_list_items_select_authorized on public.planly_list_items for select to authenticated using (exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and planly_private.is_household_member(l.household_id))))); create policy planly_list_items_insert_authorized on public.planly_list_items for insert to authenticated with check (owner_id=(select auth.uid()) and exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and planly_private.is_household_member(l.household_id))))); create policy planly_list_items_update_authorized on public.planly_list_items for update to authenticated using (exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and planly_private.is_household_member(l.household_id))))) with check (exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and planly_private.is_household_member(l.household_id))))); create policy planly_list_items_delete_authorized on public.planly_list_items for delete to authenticated using (exists(select 1 from public.planly_lists l where l.id=list_id and l.deleted_at is null and (l.owner_id=(select auth.uid()) or (l.visibility='household' and planly_private.is_household_member(l.household_id))))); notify pgrst,'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260927073429  name restore_authenticated_household_rpc_and_data_grants
--- ====================================================================================================
+-- @migration version=20260927073429 name=restore_authenticated_household_rpc_and_data_grants statements=1
+-- @statement 1 begin
 revoke all on function public.planly_accept_household_invite(text) from public, anon;
 grant execute on function public.planly_accept_household_invite(text) to authenticated;
 revoke all on function public.planly_create_household_invite(uuid,text) from public, anon;
@@ -1319,10 +1326,10 @@ grant select,insert,update,delete on public.planly_lists, public.planly_list_ite
 revoke all on public.planly_budget_scopes, public.planly_budget_categories, public.planly_budget_targets, public.planly_budget_entries from anon;
 grant select,insert,update on public.planly_budget_scopes, public.planly_budget_categories, public.planly_budget_targets, public.planly_budget_entries to authenticated;
 notify pgrst,'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260927075708  name realtime_household_helper_closeout
--- ====================================================================================================
+-- @migration version=20260927075708 name=realtime_household_helper_closeout statements=1
+-- @statement 1 begin
 drop policy if exists planly_household_task_broadcast_receive on realtime.messages;
 create policy planly_household_task_broadcast_receive
 on realtime.messages
@@ -1334,9 +1341,10 @@ using (
   and planly_private.is_household_member(split_part((select realtime.topic()), ':', 2)::uuid)
 );
 
--- ====================================================================================================
--- version 20260928044835  name collaborative_household_budget_entries
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20260928044835 name=collaborative_household_budget_entries statements=1
+-- @statement 1 begin
 create or replace function public.planly_budget_entry_immutable_guard()
 returns trigger
 language plpgsql
@@ -1362,10 +1370,10 @@ create policy planly_budget_entries_update_authorized on public.planly_budget_en
 using (exists (select 1 from public.planly_budget_scopes s where s.id=planly_budget_entries.scope_id and s.deleted_at is null and ((s.scope_type='personal' and s.owner_id=(select auth.uid()) and planly_budget_entries.owner_id=(select auth.uid())) or (s.scope_type='household' and s.household_id is not null and planly_private.is_household_member(s.household_id)))))
 with check (exists (select 1 from public.planly_budget_scopes s where s.id=planly_budget_entries.scope_id and s.deleted_at is null and ((s.scope_type='personal' and s.owner_id=(select auth.uid()) and planly_budget_entries.owner_id=(select auth.uid())) or (s.scope_type='household' and s.household_id is not null and planly_private.is_household_member(s.household_id)))));
 notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20260929110317  name household_task_completion
--- ====================================================================================================
+-- @migration version=20260929110317 name=household_task_completion statements=1
+-- @statement 1 begin
 -- Planly Phase 2 / B2 — collaborative household task completion.
 -- Review candidate only until independently approved and applied.
 
@@ -1579,9 +1587,10 @@ alter function public.planly_set_household_task_completed(uuid,text,boolean,bigi
 revoke all on function public.planly_set_household_task_completed(uuid,text,boolean,bigint,date) from public, anon;
 grant execute on function public.planly_set_household_task_completed(uuid,text,boolean,bigint,date) to authenticated;
 
--- ====================================================================================================
--- version 20260930053755  name r4_household_display_names
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20260930053755 name=r4_household_display_names statements=1
+-- @statement 1 begin
 -- R4: household member display names.
 -- SQL-review candidate only. Do not apply before independent approval.
 
@@ -1650,9 +1659,10 @@ revoke all on function public.planly_set_household_display_name(text) from publi
 revoke all on function public.planly_set_household_display_name(text) from anon;
 grant execute on function public.planly_set_household_display_name(text) to authenticated;
 
--- ====================================================================================================
--- version 20260930053756  name r4_budget_today_bills
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20260930053756 name=r4_budget_today_bills statements=1
+-- @statement 1 begin
 -- R4: optional Budget bills surfaced on Today.
 -- SQL-review candidate only. Do not apply before independent approval.
 
@@ -1667,9 +1677,10 @@ alter table public.planly_budget_entries
   add constraint planly_budget_entries_today_lead_days_check
   check (today_lead_days between 0 and 31);
 
--- ====================================================================================================
--- version 20261001204454  name 045_calendar_source_represents
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20261001204454 name=045_calendar_source_represents statements=1
+-- @statement 1 begin
 -- Stage 4a: say whose schedule a calendar source is, so a partner's rota never counts as the owner's busy time (D10).
 alter table public.calendar_sources
   add column if not exists represents text not null default 'self';
@@ -1685,10 +1696,10 @@ comment on column public.calendar_sources.represents is
   'Whose schedule this source is: self (the owner) or partner. Only self sources count as the owner''s busy time.';
 
 notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20261002005243  name 046_household_chore_rotation
--- ====================================================================================================
+-- @migration version=20261002005243 name=046_household_chore_rotation statements=1
+-- @statement 1 begin
 -- Stage 5: weekly chore rotation (the user's choice: weekly swap, only chores with Rotate on, Anyone chores unchanged).
 -- The rotation lives in the task's own data: data.rotation = {"enabled":true,"a":<uuid>,"b":<uuid>,"anchorWeek":"YYYY-MM-DD"}.
 -- Week 0 (the anchor week) belongs to "a", the next week to "b", and so on. Weeks start on Monday (date_trunc 'week').
@@ -1883,10 +1894,10 @@ revoke all on function planly_private.set_household_task_completed(uuid,text,boo
 grant execute on function planly_private.set_household_task_completed(uuid,text,boolean,bigint,date) to authenticated;
 
 notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20261004002348  name 047_household_budget_reset
--- ====================================================================================================
+-- @migration version=20261004002348 name=047_household_budget_reset statements=1
+-- @statement 1 begin
 -- Household Budget reset (owner only). The user's requirement: the household owner can clear the ENTIRE shared
 -- Household Budget, including entries a partner created, without weakening general RLS.
 -- Authority is established server-side from auth.uid() and planly_household_members.role = 'owner' of the scope's
@@ -1963,10 +1974,10 @@ grant execute on function public.planly_reset_household_budget(uuid, boolean) to
 
 comment on function public.planly_reset_household_budget(uuid, boolean) is
   'Household owner only: soft-deletes every entry and target (and optionally category) of one Household Budget scope.';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20261004193144  name 048_household_checklist_collaboration
--- ====================================================================================================
+-- @migration version=20261004193144 name=048_household_checklist_collaboration statements=1
+-- @statement 1 begin
 -- Household checklist collaboration (the user's choice: either household member can tick checklist items
 -- and complete any shared chore, including one assigned to the other member; "Done by" still records who did it).
 --
@@ -2195,10 +2206,10 @@ revoke all on function public.planly_set_household_subtask_done(uuid,text,text,b
 grant execute on function public.planly_set_household_subtask_done(uuid,text,text,boolean) to authenticated;
 comment on function public.planly_set_household_subtask_done(uuid,text,text,boolean) is
   'Household members: set one checklist item done/undone on a shared (household) task. Membership-checked server-side.';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20261004213932  name 049_budget_entry_insert_hardening
--- ====================================================================================================
+-- @migration version=20261004213932 name=049_budget_entry_insert_hardening statements=1
+-- @statement 1 begin
 -- Planly 4.0R — Budget entry insert hardening.
 -- The insert rule was wider than the update rule (041): anyone who created a scope could add
 -- entries to it, including a Household scope after leaving that Household, and to a deleted scope.
@@ -2227,10 +2238,10 @@ with check (
 );
 
 notify pgrst, 'reload schema';
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20261005111710  name 050_push_notifications
--- ====================================================================================================
+-- @migration version=20261005111710 name=050_push_notifications statements=1
+-- @statement 1 begin
 -- Push notifications (Musti's choice, 5 Oct 2026):
 --   * a reminder for each of your own timed tasks today (at its Reminder setting, or at its start time);
 --   * a short morning summary of today's own tasks (not chores), at a time each person picks;
@@ -2619,10 +2630,10 @@ select cron.schedule('planly-push', '*/5 * * * *', $cron$
     body := '{}'::jsonb,
     timeout_milliseconds := 20000)
 $cron$);
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20261006215701  name 051_google_calendar_tokens
--- ====================================================================================================
+-- @migration version=20261006215701 name=051_google_calendar_tokens statements=1
+-- @statement 1 begin
 -- Google Calendar stays connected (6 Oct 2026).
 --
 -- Before: the browser held a one-hour Google access token and nothing could renew it, so calendar sync
@@ -2689,9 +2700,10 @@ grant execute on function public.planly_google_token_save(uuid,text,text) to ser
 grant execute on function public.planly_google_token_get(uuid) to service_role;
 grant execute on function public.planly_google_token_delete(uuid) to service_role;
 
--- ====================================================================================================
--- version 20261011161716  name 052_undated_repeats
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20261011161716 name=052_undated_repeats statements=1
+-- @statement 1 begin
 -- Repeating tasks with no date come back (11 Oct 2026).
 --
 -- Bug: a repeating household task with no date (Laki's weekly chores, e.g. Kitchen "Every week · Sat") never got a
@@ -2854,9 +2866,10 @@ alter function planly_private.set_household_task_completed(uuid,text,boolean,big
 revoke all on function planly_private.set_household_task_completed(uuid,text,boolean,bigint,date) from public, anon, authenticated;
 grant execute on function planly_private.set_household_task_completed(uuid,text,boolean,bigint,date) to authenticated;
 
--- ====================================================================================================
--- version 20261011173125  name 053_morning_summary_shared
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20261011173125 name=053_morning_summary_shared statements=1
+-- @statement 1 begin
 -- Morning summary covers shared tasks and overdue tasks (11 Oct 2026).
 --
 -- Before: the morning summary counted only the person's own private tasks dated today, and was silent when there were
@@ -2986,9 +2999,10 @@ $$;
 revoke all on function public.planly_push_worklist(timestamptz) from public, anon, authenticated;
 grant execute on function public.planly_push_worklist(timestamptz) to service_role;
 
--- ====================================================================================================
--- version 20261011225943  name 054_fitness_food_foundation
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20261011225943 name=054_fitness_food_foundation statements=1
+-- @statement 1 begin
 -- Fitness › Food foundation (11 Oct 2026).
 --
 -- A private calorie and macro tracker. Every row belongs to one person and is visible and editable only by that person.
@@ -3119,9 +3133,10 @@ create policy planly_food_favourites_insert_owner on public.planly_food_favourit
 create policy planly_food_favourites_update_owner on public.planly_food_favourites for update to authenticated using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
 create policy planly_food_favourites_delete_owner on public.planly_food_favourites for delete to authenticated using (owner_id = (select auth.uid()));
 
--- ====================================================================================================
--- version 20261012001347  name 055_revoke_extra_table_rights
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20261012001347 name=055_revoke_extra_table_rights statements=1
+-- @statement 1 begin
 -- Remove table rights the app never uses from signed-in users (12 Oct 2026).
 --
 -- Supabase's default privileges give the authenticated role TRUNCATE, TRIGGER, REFERENCES and MAINTAIN on new tables.
@@ -3136,15 +3151,16 @@ revoke truncate, trigger, references, maintain
      public.planly_lists, public.planly_list_items
   from authenticated;
 
--- ====================================================================================================
--- version 20261116164642  name 063_revoke_guard_execute
--- ====================================================================================================
+-- @statement 1 end
+
+-- @migration version=20261116164642 name=063_revoke_guard_execute statements=1
+-- @statement 1 begin
 revoke execute on function public.planly_budget_entry_immutable_guard() from public, anon, authenticated;
 revoke execute on function public.planly_protect_list_identity() from public, anon, authenticated;
+-- @statement 1 end
 
--- ====================================================================================================
--- version 20261116164704  name 064_budget_entries_select_explicit_predicate
--- ====================================================================================================
+-- @migration version=20261116164704 name=064_budget_entries_select_explicit_predicate statements=1
+-- @statement 1 begin
 drop policy if exists planly_budget_entries_select_authorized on public.planly_budget_entries;
 
 create policy planly_budget_entries_select_authorized
@@ -3163,3 +3179,4 @@ using (
 );
 
 notify pgrst, 'reload schema';
+-- @statement 1 end

@@ -6,8 +6,8 @@
 -- event on the private household:<id> channel; clients always re-read through project RLS, and only household members
 -- can receive it (realtime.messages policy, migration 040).
 --
--- Idempotent and a no-op on production: the function body is production's, and the trigger is only created when
--- missing (production's original migration dropped and re-created it; this does not).
+-- Idempotent, and catalog-state preserving on production: create or replace re-states production's function body, and
+-- the trigger is only created when missing (production's original migration dropped and re-created it; this does not).
 
 create or replace function public.planly_broadcast_household_project_change()
 returns trigger
