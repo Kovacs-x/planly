@@ -1,0 +1,1021 @@
+column	planly_private.body_import_keys.created_at	timestamp with time zone notnull=true default=now()
+column	planly_private.body_import_keys.key_hash	text notnull=true default=
+column	planly_private.body_import_keys.last_used_at	timestamp with time zone notnull=false default=
+column	planly_private.body_import_keys.user_id	uuid notnull=true default=
+column	planly_private.google_calendar_tokens.created_at	timestamp with time zone notnull=true default=now()
+column	planly_private.google_calendar_tokens.refresh_token	text notnull=true default=
+column	planly_private.google_calendar_tokens.scope	text notnull=true default=
+column	planly_private.google_calendar_tokens.updated_at	timestamp with time zone notnull=true default=now()
+column	planly_private.google_calendar_tokens.user_id	uuid notnull=true default=
+column	planly_private.push_outbox.body	text notnull=true default=
+column	planly_private.push_outbox.created_at	timestamp with time zone notnull=true default=now()
+column	planly_private.push_outbox.id	bigint notnull=true default=
+column	planly_private.push_outbox.kind	text notnull=true default=
+column	planly_private.push_outbox.recipient_id	uuid notnull=true default=
+column	planly_private.push_outbox.title	text notnull=true default=
+column	planly_private.push_sent.kind	text notnull=true default=
+column	planly_private.push_sent.ref	text notnull=true default=
+column	planly_private.push_sent.sent_at	timestamp with time zone notnull=true default=now()
+column	planly_private.push_sent.subscription_id	uuid notnull=true default=
+column	planly_private.push_subscriptions.auth_secret	text notnull=true default=
+column	planly_private.push_subscriptions.created_at	timestamp with time zone notnull=true default=now()
+column	planly_private.push_subscriptions.endpoint	text notnull=true default=
+column	planly_private.push_subscriptions.failures	integer notnull=true default=0
+column	planly_private.push_subscriptions.id	uuid notnull=true default=gen_random_uuid()
+column	planly_private.push_subscriptions.last_sent_at	timestamp with time zone notnull=false default=
+column	planly_private.push_subscriptions.notify_chores	boolean notnull=true default=true
+column	planly_private.push_subscriptions.notify_deals	boolean notnull=true default=true
+column	planly_private.push_subscriptions.notify_summary	boolean notnull=true default=true
+column	planly_private.push_subscriptions.notify_tasks	boolean notnull=true default=true
+column	planly_private.push_subscriptions.p256dh	text notnull=true default=
+column	planly_private.push_subscriptions.quiet_end	time without time zone notnull=true default='07:00:00'::time without time zone
+column	planly_private.push_subscriptions.quiet_on	boolean notnull=true default=true
+column	planly_private.push_subscriptions.quiet_start	time without time zone notnull=true default='22:00:00'::time without time zone
+column	planly_private.push_subscriptions.revoked_at	timestamp with time zone notnull=false default=
+column	planly_private.push_subscriptions.summary_time	time without time zone notnull=true default='07:30:00'::time without time zone
+column	planly_private.push_subscriptions.time_zone	text notnull=true default='Europe/London'::text
+column	planly_private.push_subscriptions.updated_at	timestamp with time zone notnull=true default=now()
+column	planly_private.push_subscriptions.user_id	uuid notnull=true default=
+column	public.calendar_source_credentials.created_at	timestamp with time zone notnull=true default=now()
+column	public.calendar_source_credentials.owner_id	uuid notnull=true default=
+column	public.calendar_source_credentials.source_id	uuid notnull=true default=
+column	public.calendar_source_credentials.updated_at	timestamp with time zone notnull=true default=now()
+column	public.calendar_source_credentials.vault_secret_id	uuid notnull=true default=
+column	public.calendar_sources.colour	text notnull=true default='#E78AA7'::text
+column	public.calendar_sources.created_at	timestamp with time zone notnull=true default=now()
+column	public.calendar_sources.enabled	boolean notnull=true default=true
+column	public.calendar_sources.error	text notnull=false default=
+column	public.calendar_sources.id	uuid notnull=true default=gen_random_uuid()
+column	public.calendar_sources.is_read_only	boolean notnull=true default=true
+column	public.calendar_sources.last_sync_error	text notnull=false default=
+column	public.calendar_sources.last_sync_status	text notnull=false default=
+column	public.calendar_sources.last_synced_at	timestamp with time zone notnull=false default=
+column	public.calendar_sources.name	text notnull=true default=
+column	public.calendar_sources.owner_id	uuid notnull=true default=
+column	public.calendar_sources.represents	text notnull=true default='self'::text
+column	public.calendar_sources.show_month	boolean notnull=true default=true
+column	public.calendar_sources.show_timeline	boolean notnull=true default=true
+column	public.calendar_sources.show_today	boolean notnull=true default=true
+column	public.calendar_sources.source_type	text notnull=true default=
+column	public.calendar_sources.status	text notnull=true default='connected'::text
+column	public.calendar_sources.updated_at	timestamp with time zone notnull=true default=now()
+column	public.external_calendar_events.created_at	timestamp with time zone notnull=true default=now()
+column	public.external_calendar_events.description	text notnull=false default=
+column	public.external_calendar_events.end_date	date notnull=false default=
+column	public.external_calendar_events.ends_at	timestamp with time zone notnull=false default=
+column	public.external_calendar_events.external_uid	text notnull=true default=
+column	public.external_calendar_events.id	uuid notnull=true default=gen_random_uuid()
+column	public.external_calendar_events.is_all_day	boolean notnull=true default=false
+column	public.external_calendar_events.location	text notnull=false default=
+column	public.external_calendar_events.owner_id	uuid notnull=true default=
+column	public.external_calendar_events.source_id	uuid notnull=true default=
+column	public.external_calendar_events.source_updated_at	timestamp with time zone notnull=false default=
+column	public.external_calendar_events.start_date	date notnull=false default=
+column	public.external_calendar_events.starts_at	timestamp with time zone notnull=false default=
+column	public.external_calendar_events.title	text notnull=true default=
+column	public.external_calendar_events.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_body_weights.bmr_kcal	integer notnull=false default=
+column	public.planly_body_weights.bone_mass_kg	numeric(4,2) notnull=false default=
+column	public.planly_body_weights.client_created_at	bigint notnull=true default=
+column	public.planly_body_weights.client_id	text notnull=true default=
+column	public.planly_body_weights.client_updated_at	bigint notnull=true default=
+column	public.planly_body_weights.cloud_version	bigint notnull=true default=1
+column	public.planly_body_weights.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_body_weights.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_body_weights.external_id	text notnull=false default=
+column	public.planly_body_weights.extra	jsonb notnull=true default='{}'::jsonb
+column	public.planly_body_weights.fat_free_mass_kg	numeric(5,2) notnull=false default=
+column	public.planly_body_weights.fat_mass_kg	numeric(5,2) notnull=false default=
+column	public.planly_body_weights.fat_ratio_pct	numeric(4,1) notnull=false default=
+column	public.planly_body_weights.heart_rate_bpm	integer notnull=false default=
+column	public.planly_body_weights.hydration_kg	numeric(5,2) notnull=false default=
+column	public.planly_body_weights.id	uuid notnull=true default=
+column	public.planly_body_weights.measured_at	timestamp with time zone notnull=true default=
+column	public.planly_body_weights.metabolic_age	integer notnull=false default=
+column	public.planly_body_weights.muscle_mass_kg	numeric(5,2) notnull=false default=
+column	public.planly_body_weights.owner_id	uuid notnull=true default=
+column	public.planly_body_weights.source	text notnull=true default='manual'::text
+column	public.planly_body_weights.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_body_weights.visceral_fat	numeric(4,1) notnull=false default=
+column	public.planly_body_weights.weight_kg	numeric(5,2) notnull=true default=
+column	public.planly_budget_categories.archived	boolean notnull=true default=false
+column	public.planly_budget_categories.client_created_at	bigint notnull=false default=
+column	public.planly_budget_categories.client_id	text notnull=true default=
+column	public.planly_budget_categories.client_updated_at	bigint notnull=true default=
+column	public.planly_budget_categories.cloud_version	bigint notnull=true default=1
+column	public.planly_budget_categories.color_key	text notnull=true default='violet'::text
+column	public.planly_budget_categories.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_categories.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_budget_categories.icon_key	text notnull=true default='wallet'::text
+column	public.planly_budget_categories.id	uuid notnull=true default=gen_random_uuid()
+column	public.planly_budget_categories.kind	text notnull=true default=
+column	public.planly_budget_categories.name	text notnull=true default=
+column	public.planly_budget_categories.owner_id	uuid notnull=true default=
+column	public.planly_budget_categories.scope_id	uuid notnull=true default=
+column	public.planly_budget_categories.sort_order	integer notnull=true default=0
+column	public.planly_budget_categories.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_debts.apr_bp	integer notnull=false default=
+column	public.planly_budget_debts.balance_minor	bigint notnull=true default=
+column	public.planly_budget_debts.balance_on	date notnull=true default=
+column	public.planly_budget_debts.client_created_at	bigint notnull=true default=
+column	public.planly_budget_debts.client_id	text notnull=true default=
+column	public.planly_budget_debts.client_updated_at	bigint notnull=true default=
+column	public.planly_budget_debts.closed_on	date notnull=false default=
+column	public.planly_budget_debts.cloud_version	bigint notnull=true default=1
+column	public.planly_budget_debts.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_debts.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_budget_debts.id	uuid notnull=true default=
+column	public.planly_budget_debts.minimum_minor	bigint notnull=false default=
+column	public.planly_budget_debts.name	text notnull=true default=
+column	public.planly_budget_debts.notes	text notnull=true default=''::text
+column	public.planly_budget_debts.owner_id	uuid notnull=true default=
+column	public.planly_budget_debts.person_id	uuid notnull=false default=
+column	public.planly_budget_debts.priority	smallint notnull=true default=50
+column	public.planly_budget_debts.scope_id	uuid notnull=true default=
+column	public.planly_budget_debts.start_minor	bigint notnull=true default=
+column	public.planly_budget_debts.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_debts.zero_until	date notnull=false default=
+column	public.planly_budget_entries.allocation_status	text notnull=true default='planned'::text
+column	public.planly_budget_entries.amount_minor	bigint notnull=true default=
+column	public.planly_budget_entries.category_id	uuid notnull=true default=
+column	public.planly_budget_entries.client_created_at	bigint notnull=false default=
+column	public.planly_budget_entries.client_id	text notnull=true default=
+column	public.planly_budget_entries.client_updated_at	bigint notnull=true default=
+column	public.planly_budget_entries.cloud_version	bigint notnull=true default=1
+column	public.planly_budget_entries.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_entries.debt_id	uuid notnull=false default=
+column	public.planly_budget_entries.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_budget_entries.description	text notnull=true default=''::text
+column	public.planly_budget_entries.due_day	smallint notnull=false default=
+column	public.planly_budget_entries.entry_date	date notnull=true default=
+column	public.planly_budget_entries.id	uuid notnull=true default=gen_random_uuid()
+column	public.planly_budget_entries.kind	text notnull=true default=
+column	public.planly_budget_entries.notes	text notnull=true default=''::text
+column	public.planly_budget_entries.owner_id	uuid notnull=true default=
+column	public.planly_budget_entries.recurring_monthly	boolean notnull=true default=true
+column	public.planly_budget_entries.saving_id	uuid notnull=false default=
+column	public.planly_budget_entries.scope_id	uuid notnull=true default=
+column	public.planly_budget_entries.show_on_today	boolean notnull=true default=false
+column	public.planly_budget_entries.today_lead_days	smallint notnull=true default=2
+column	public.planly_budget_entries.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_savings.balance_minor	bigint notnull=true default=
+column	public.planly_budget_savings.balance_on	date notnull=true default=
+column	public.planly_budget_savings.client_created_at	bigint notnull=true default=
+column	public.planly_budget_savings.client_id	text notnull=true default=
+column	public.planly_budget_savings.client_updated_at	bigint notnull=true default=
+column	public.planly_budget_savings.cloud_version	bigint notnull=true default=1
+column	public.planly_budget_savings.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_savings.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_budget_savings.goal_minor	bigint notnull=false default=
+column	public.planly_budget_savings.id	uuid notnull=true default=
+column	public.planly_budget_savings.kind	text notnull=true default='savings'::text
+column	public.planly_budget_savings.name	text notnull=true default=
+column	public.planly_budget_savings.notes	text notnull=true default=''::text
+column	public.planly_budget_savings.owner_id	uuid notnull=true default=
+column	public.planly_budget_savings.paused	boolean notnull=true default=false
+column	public.planly_budget_savings.person_id	uuid notnull=false default=
+column	public.planly_budget_savings.scope_id	uuid notnull=true default=
+column	public.planly_budget_savings.sort_order	smallint notnull=true default=50
+column	public.planly_budget_savings.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_scopes.client_created_at	bigint notnull=false default=
+column	public.planly_budget_scopes.client_id	text notnull=true default=
+column	public.planly_budget_scopes.client_updated_at	bigint notnull=true default=
+column	public.planly_budget_scopes.cloud_version	bigint notnull=true default=1
+column	public.planly_budget_scopes.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_scopes.currency	text notnull=true default='GBP'::text
+column	public.planly_budget_scopes.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_budget_scopes.household_id	uuid notnull=false default=
+column	public.planly_budget_scopes.id	uuid notnull=true default=gen_random_uuid()
+column	public.planly_budget_scopes.month_start_day	smallint notnull=true default=1
+column	public.planly_budget_scopes.name	text notnull=true default='Budget'::text
+column	public.planly_budget_scopes.owner_id	uuid notnull=true default=
+column	public.planly_budget_scopes.scope_type	text notnull=true default=
+column	public.planly_budget_scopes.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_targets.amount_minor	bigint notnull=true default=
+column	public.planly_budget_targets.budget_month	date notnull=true default=
+column	public.planly_budget_targets.category_id	uuid notnull=true default=
+column	public.planly_budget_targets.client_created_at	bigint notnull=false default=
+column	public.planly_budget_targets.client_id	text notnull=true default=
+column	public.planly_budget_targets.client_updated_at	bigint notnull=true default=
+column	public.planly_budget_targets.cloud_version	bigint notnull=true default=1
+column	public.planly_budget_targets.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_budget_targets.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_budget_targets.id	uuid notnull=true default=gen_random_uuid()
+column	public.planly_budget_targets.owner_id	uuid notnull=true default=
+column	public.planly_budget_targets.scope_id	uuid notnull=true default=
+column	public.planly_budget_targets.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_food_entries.amount	numeric(8,2) notnull=true default=1
+column	public.planly_food_entries.barcode	text notnull=false default=
+column	public.planly_food_entries.brand	text notnull=true default=''::text
+column	public.planly_food_entries.carbs_g	numeric(6,1) notnull=true default=0
+column	public.planly_food_entries.client_created_at	bigint notnull=true default=
+column	public.planly_food_entries.client_id	text notnull=true default=
+column	public.planly_food_entries.client_updated_at	bigint notnull=true default=
+column	public.planly_food_entries.cloud_version	bigint notnull=true default=1
+column	public.planly_food_entries.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_food_entries.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_food_entries.entry_date	date notnull=true default=
+column	public.planly_food_entries.fat_g	numeric(6,1) notnull=true default=0
+column	public.planly_food_entries.id	uuid notnull=true default=
+column	public.planly_food_entries.kcal	numeric(7,1) notnull=true default=
+column	public.planly_food_entries.meal	text notnull=true default=
+column	public.planly_food_entries.name	text notnull=true default=
+column	public.planly_food_entries.owner_id	uuid notnull=true default=
+column	public.planly_food_entries.protein_g	numeric(6,1) notnull=true default=0
+column	public.planly_food_entries.source	text notnull=true default='manual'::text
+column	public.planly_food_entries.unit	text notnull=true default='serving'::text
+column	public.planly_food_entries.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_food_favourites.barcode	text notnull=false default=
+column	public.planly_food_favourites.brand	text notnull=true default=''::text
+column	public.planly_food_favourites.carbs_100	numeric(6,1) notnull=true default=0
+column	public.planly_food_favourites.client_created_at	bigint notnull=true default=
+column	public.planly_food_favourites.client_id	text notnull=true default=
+column	public.planly_food_favourites.client_updated_at	bigint notnull=true default=
+column	public.planly_food_favourites.cloud_version	bigint notnull=true default=1
+column	public.planly_food_favourites.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_food_favourites.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_food_favourites.fat_100	numeric(6,1) notnull=true default=0
+column	public.planly_food_favourites.id	uuid notnull=true default=
+column	public.planly_food_favourites.kcal_100	numeric(7,1) notnull=true default=
+column	public.planly_food_favourites.last_used_at	timestamp with time zone notnull=false default=
+column	public.planly_food_favourites.name	text notnull=true default=
+column	public.planly_food_favourites.owner_id	uuid notnull=true default=
+column	public.planly_food_favourites.protein_100	numeric(6,1) notnull=true default=0
+column	public.planly_food_favourites.serving_g	numeric(7,1) notnull=false default=
+column	public.planly_food_favourites.serving_label	text notnull=true default=''::text
+column	public.planly_food_favourites.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_food_favourites.use_count	integer notnull=true default=0
+column	public.planly_food_profile.activity	text notnull=true default='light'::text
+column	public.planly_food_profile.birth_year	integer notnull=false default=
+column	public.planly_food_profile.carbs_g	integer notnull=true default=220
+column	public.planly_food_profile.client_updated_at	bigint notnull=true default=
+column	public.planly_food_profile.cloud_version	bigint notnull=true default=1
+column	public.planly_food_profile.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_food_profile.fat_g	integer notnull=true default=70
+column	public.planly_food_profile.goal	text notnull=true default='maintain'::text
+column	public.planly_food_profile.goal_weight_kg	numeric(5,1) notnull=false default=
+column	public.planly_food_profile.height_cm	numeric(5,1) notnull=false default=
+column	public.planly_food_profile.kcal_target	integer notnull=true default=2000
+column	public.planly_food_profile.owner_id	uuid notnull=true default=
+column	public.planly_food_profile.pace_kg_week	numeric(3,2) notnull=true default=0
+column	public.planly_food_profile.protein_g	integer notnull=true default=120
+column	public.planly_food_profile.sex	text notnull=false default=
+column	public.planly_food_profile.targets_custom	boolean notnull=true default=false
+column	public.planly_food_profile.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_food_profile.weight_kg	numeric(5,1) notnull=false default=
+column	public.planly_household_invites.accepted_at	timestamp with time zone notnull=false default=
+column	public.planly_household_invites.accepted_by	uuid notnull=false default=
+column	public.planly_household_invites.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_household_invites.expires_at	timestamp with time zone notnull=true default=(now() + '7 days'::interval)
+column	public.planly_household_invites.household_id	uuid notnull=true default=
+column	public.planly_household_invites.id	uuid notnull=true default=gen_random_uuid()
+column	public.planly_household_invites.invited_by	uuid notnull=true default=
+column	public.planly_household_invites.invited_email	text notnull=true default=
+column	public.planly_household_invites.status	text notnull=true default='pending'::text
+column	public.planly_household_invites.token_hash	text notnull=true default=
+column	public.planly_household_members.display_name	text notnull=false default=
+column	public.planly_household_members.household_id	uuid notnull=true default=
+column	public.planly_household_members.joined_at	timestamp with time zone notnull=true default=now()
+column	public.planly_household_members.role	text notnull=true default=
+column	public.planly_household_members.user_id	uuid notnull=true default=
+column	public.planly_households.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_households.created_by	uuid notnull=true default=
+column	public.planly_households.id	uuid notnull=true default=gen_random_uuid()
+column	public.planly_households.name	text notnull=true default=
+column	public.planly_households.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_list_items.client_created_at	bigint notnull=true default=
+column	public.planly_list_items.client_id	text notnull=true default=
+column	public.planly_list_items.client_updated_at	bigint notnull=true default=
+column	public.planly_list_items.cloud_version	bigint notnull=true default=1
+column	public.planly_list_items.completed	boolean notnull=true default=false
+column	public.planly_list_items.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_list_items.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_list_items.id	uuid notnull=true default=
+column	public.planly_list_items.list_id	uuid notnull=true default=
+column	public.planly_list_items.notes	text notnull=true default=''::text
+column	public.planly_list_items.owner_id	uuid notnull=true default=
+column	public.planly_list_items.sort_order	integer notnull=true default=0
+column	public.planly_list_items.title	text notnull=true default=
+column	public.planly_list_items.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_lists.client_created_at	bigint notnull=true default=
+column	public.planly_lists.client_id	text notnull=true default=
+column	public.planly_lists.client_updated_at	bigint notnull=true default=
+column	public.planly_lists.cloud_version	bigint notnull=true default=1
+column	public.planly_lists.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_lists.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_lists.household_id	uuid notnull=false default=
+column	public.planly_lists.id	uuid notnull=true default=
+column	public.planly_lists.owner_id	uuid notnull=true default=
+column	public.planly_lists.sort_order	integer notnull=true default=0
+column	public.planly_lists.title	text notnull=true default=
+column	public.planly_lists.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_lists.visibility	text notnull=true default='private'::text
+column	public.planly_preferences.auto_complete_parent_subtasks	boolean notnull=true default=false
+column	public.planly_preferences.client_updated_at	bigint notnull=true default=
+column	public.planly_preferences.cloud_version	bigint notnull=true default=1
+column	public.planly_preferences.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_preferences.default_category	text notnull=true default='Personal'::text
+column	public.planly_preferences.default_duration	integer notnull=true default=30
+column	public.planly_preferences.owner_id	uuid notnull=true default=
+column	public.planly_preferences.planning_end	time without time zone notnull=true default='23:00:00'::time without time zone
+column	public.planly_preferences.planning_start	time without time zone notnull=true default='08:00:00'::time without time zone
+column	public.planly_preferences.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_projects.archived	boolean notnull=true default=false
+column	public.planly_projects.client_created_at	bigint notnull=false default=
+column	public.planly_projects.client_id	text notnull=true default=
+column	public.planly_projects.client_updated_at	bigint notnull=true default=
+column	public.planly_projects.cloud_id	uuid notnull=true default=gen_random_uuid()
+column	public.planly_projects.cloud_version	bigint notnull=true default=1
+column	public.planly_projects.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_projects.data	jsonb notnull=true default='{}'::jsonb
+column	public.planly_projects.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_projects.due_date	date notnull=false default=
+column	public.planly_projects.household_id	uuid notnull=false default=
+column	public.planly_projects.name	text notnull=true default=
+column	public.planly_projects.notes	text notnull=true default=''::text
+column	public.planly_projects.owner_id	uuid notnull=true default=
+column	public.planly_projects.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_projects.visibility	text notnull=true default='private'::text
+column	public.planly_sync_state.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_sync_state.initial_migration_completed_at	timestamp with time zone notnull=false default=
+column	public.planly_sync_state.last_successful_sync_at	timestamp with time zone notnull=false default=
+column	public.planly_sync_state.migration_digest	text notnull=false default=
+column	public.planly_sync_state.migration_project_count	integer notnull=false default=
+column	public.planly_sync_state.migration_task_count	integer notnull=false default=
+column	public.planly_sync_state.owner_id	uuid notnull=true default=
+column	public.planly_sync_state.schema_version	integer notnull=true default=1
+column	public.planly_sync_state.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_tasks.add_to_calendar	boolean notnull=true default=false
+column	public.planly_tasks.assignee_id	uuid notnull=false default=
+column	public.planly_tasks.calendar_sync	text notnull=true default=''::text
+column	public.planly_tasks.calendar_synced_at	bigint notnull=false default=
+column	public.planly_tasks.category	text notnull=true default='Personal'::text
+column	public.planly_tasks.client_created_at	bigint notnull=false default=
+column	public.planly_tasks.client_id	text notnull=true default=
+column	public.planly_tasks.client_updated_at	bigint notnull=true default=
+column	public.planly_tasks.cloud_id	uuid notnull=true default=gen_random_uuid()
+column	public.planly_tasks.cloud_version	bigint notnull=true default=1
+column	public.planly_tasks.completed	boolean notnull=true default=false
+column	public.planly_tasks.completed_at	timestamp with time zone notnull=false default=
+column	public.planly_tasks.completed_by	uuid notnull=false default=
+column	public.planly_tasks.created_at	timestamp with time zone notnull=true default=now()
+column	public.planly_tasks.data	jsonb notnull=true default='{}'::jsonb
+column	public.planly_tasks.deleted_at	timestamp with time zone notnull=false default=
+column	public.planly_tasks.duration_minutes	integer notnull=true default=30
+column	public.planly_tasks.google_event_id	text notnull=false default=
+column	public.planly_tasks.google_recurrence_start_date	date notnull=false default=
+column	public.planly_tasks.google_recurrence_version	integer notnull=false default=
+column	public.planly_tasks.household_id	uuid notnull=false default=
+column	public.planly_tasks.notes	text notnull=true default=''::text
+column	public.planly_tasks.occurrence_number	integer notnull=false default=
+column	public.planly_tasks.owner_id	uuid notnull=true default=
+column	public.planly_tasks.pinned	boolean notnull=true default=false
+column	public.planly_tasks.priority	text notnull=true default='normal'::text
+column	public.planly_tasks.project_client_id	text notnull=false default=
+column	public.planly_tasks.recurrence	text notnull=true default='none'::text
+column	public.planly_tasks.recurrence_config	jsonb notnull=false default=
+column	public.planly_tasks.reminder	text notnull=true default='none'::text
+column	public.planly_tasks.series_client_id	text notnull=false default=
+column	public.planly_tasks.subtasks	jsonb notnull=true default='[]'::jsonb
+column	public.planly_tasks.task_date	date notnull=false default=
+column	public.planly_tasks.task_time	time without time zone notnull=false default=
+column	public.planly_tasks.title	text notnull=true default=
+column	public.planly_tasks.top3_order	integer notnull=false default=
+column	public.planly_tasks.updated_at	timestamp with time zone notnull=true default=now()
+column	public.planly_tasks.visibility	text notnull=true default='private'::text
+column	public.profiles.created_at	timestamp with time zone notnull=true default=now()
+column	public.profiles.display_name	text notnull=false default=
+column	public.profiles.id	uuid notnull=true default=
+column	public.profiles.updated_at	timestamp with time zone notnull=true default=now()
+constraint	planly_private.body_import_keys.body_import_keys_key_hash_check	CHECK ((key_hash ~ '^[0-9a-f]{64}$'::text))
+constraint	planly_private.body_import_keys.body_import_keys_key_hash_key	UNIQUE (key_hash)
+constraint	planly_private.body_import_keys.body_import_keys_pkey	PRIMARY KEY (user_id)
+constraint	planly_private.body_import_keys.body_import_keys_user_id_fkey	FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	planly_private.google_calendar_tokens.google_calendar_tokens_pkey	PRIMARY KEY (user_id)
+constraint	planly_private.google_calendar_tokens.google_calendar_tokens_refresh_token_check	CHECK (((length(refresh_token) >= 20) AND (length(refresh_token) <= 2048)))
+constraint	planly_private.google_calendar_tokens.google_calendar_tokens_scope_check	CHECK ((length(scope) <= 1024))
+constraint	planly_private.google_calendar_tokens.google_calendar_tokens_user_id_fkey	FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	planly_private.push_outbox.push_outbox_body_check	CHECK ((length(body) <= 240))
+constraint	planly_private.push_outbox.push_outbox_kind_check	CHECK ((kind = ANY (ARRAY['chore_assigned'::text, 'test'::text])))
+constraint	planly_private.push_outbox.push_outbox_pkey	PRIMARY KEY (id)
+constraint	planly_private.push_outbox.push_outbox_recipient_id_fkey	FOREIGN KEY (recipient_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	planly_private.push_outbox.push_outbox_title_check	CHECK ((length(title) <= 120))
+constraint	planly_private.push_sent.push_sent_pkey	PRIMARY KEY (subscription_id, kind, ref)
+constraint	planly_private.push_sent.push_sent_subscription_id_fkey	FOREIGN KEY (subscription_id) REFERENCES planly_private.push_subscriptions(id) ON DELETE CASCADE
+constraint	planly_private.push_subscriptions.push_endpoint_service	CHECK (((length(endpoint) <= 1024) AND (endpoint ~ '^https://(web\.push\.apple\.com|fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9-]+\.notify\.windows\.com)/'::text)))
+constraint	planly_private.push_subscriptions.push_keys_shape	CHECK (((p256dh ~ '^[A-Za-z0-9_-]{80,100}$'::text) AND (auth_secret ~ '^[A-Za-z0-9_-]{16,30}$'::text)))
+constraint	planly_private.push_subscriptions.push_quiet_window	CHECK ((quiet_start <> quiet_end))
+constraint	planly_private.push_subscriptions.push_subscriptions_endpoint_key	UNIQUE (endpoint)
+constraint	planly_private.push_subscriptions.push_subscriptions_pkey	PRIMARY KEY (id)
+constraint	planly_private.push_subscriptions.push_subscriptions_user_id_fkey	FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	planly_private.push_subscriptions.push_time_zone_shape	CHECK (((time_zone ~ '^[A-Za-z_]+(/[A-Za-z0-9_+-]+){0,2}$'::text) AND (length(time_zone) <= 64)))
+constraint	public.calendar_source_credentials.calendar_source_credentials_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.calendar_source_credentials.calendar_source_credentials_pkey	PRIMARY KEY (source_id)
+constraint	public.calendar_source_credentials.calendar_source_credentials_source_id_fkey	FOREIGN KEY (source_id) REFERENCES calendar_sources(id) ON DELETE CASCADE
+constraint	public.calendar_sources.calendar_source_type_check	CHECK ((source_type = ANY (ARRAY['ical'::text, 'google'::text, 'planly'::text, 'shared'::text])))
+constraint	public.calendar_sources.calendar_sources_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.calendar_sources.calendar_sources_pkey	PRIMARY KEY (id)
+constraint	public.calendar_sources.calendar_sources_represents_check	CHECK ((represents = ANY (ARRAY['self'::text, 'partner'::text])))
+constraint	public.external_calendar_events.external_calendar_events_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.external_calendar_events.external_calendar_events_pkey	PRIMARY KEY (id)
+constraint	public.external_calendar_events.external_calendar_events_source_id_fkey	FOREIGN KEY (source_id) REFERENCES calendar_sources(id) ON DELETE CASCADE
+constraint	public.external_calendar_events.external_event_unique	UNIQUE (source_id, external_uid)
+constraint	public.planly_body_weights.planly_body_weights_bmr_kcal_check	CHECK (((bmr_kcal >= 500) AND (bmr_kcal <= 6000)))
+constraint	public.planly_body_weights.planly_body_weights_bone_mass_kg_check	CHECK (((bone_mass_kg >= (0)::numeric) AND (bone_mass_kg <= (30)::numeric)))
+constraint	public.planly_body_weights.planly_body_weights_client_id_check	CHECK (((char_length(client_id) >= 1) AND (char_length(client_id) <= 80)))
+constraint	public.planly_body_weights.planly_body_weights_external_id_check	CHECK (((char_length(external_id) >= 1) AND (char_length(external_id) <= 80)))
+constraint	public.planly_body_weights.planly_body_weights_extra_check	CHECK (((jsonb_typeof(extra) = 'object'::text) AND (pg_column_size(extra) <= 2000)))
+constraint	public.planly_body_weights.planly_body_weights_fat_free_mass_kg_check	CHECK (((fat_free_mass_kg >= (0)::numeric) AND (fat_free_mass_kg <= (400)::numeric)))
+constraint	public.planly_body_weights.planly_body_weights_fat_mass_kg_check	CHECK (((fat_mass_kg >= (0)::numeric) AND (fat_mass_kg <= (300)::numeric)))
+constraint	public.planly_body_weights.planly_body_weights_fat_ratio_pct_check	CHECK (((fat_ratio_pct >= (1)::numeric) AND (fat_ratio_pct <= (75)::numeric)))
+constraint	public.planly_body_weights.planly_body_weights_heart_rate_bpm_check	CHECK (((heart_rate_bpm >= 25) AND (heart_rate_bpm <= 250)))
+constraint	public.planly_body_weights.planly_body_weights_hydration_kg_check	CHECK (((hydration_kg >= (0)::numeric) AND (hydration_kg <= (300)::numeric)))
+constraint	public.planly_body_weights.planly_body_weights_metabolic_age_check	CHECK (((metabolic_age >= 10) AND (metabolic_age <= 120)))
+constraint	public.planly_body_weights.planly_body_weights_muscle_mass_kg_check	CHECK (((muscle_mass_kg >= (0)::numeric) AND (muscle_mass_kg <= (300)::numeric)))
+constraint	public.planly_body_weights.planly_body_weights_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_body_weights.planly_body_weights_owner_id_external_id_key	UNIQUE (owner_id, external_id)
+constraint	public.planly_body_weights.planly_body_weights_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_body_weights.planly_body_weights_pkey	PRIMARY KEY (id)
+constraint	public.planly_body_weights.planly_body_weights_source_check	CHECK ((source = ANY (ARRAY['manual'::text, 'withings'::text, 'apple_health'::text])))
+constraint	public.planly_body_weights.planly_body_weights_visceral_fat_check	CHECK (((visceral_fat >= (0)::numeric) AND (visceral_fat <= (60)::numeric)))
+constraint	public.planly_body_weights.planly_body_weights_weight_kg_check	CHECK (((weight_kg >= (25)::numeric) AND (weight_kg <= (400)::numeric)))
+constraint	public.planly_budget_categories.planly_budget_categories_cloud_version_check	CHECK ((cloud_version >= 1))
+constraint	public.planly_budget_categories.planly_budget_categories_kind_check	CHECK ((kind = ANY (ARRAY['income'::text, 'expense'::text])))
+constraint	public.planly_budget_categories.planly_budget_categories_name_check	CHECK (((char_length(btrim(name)) >= 1) AND (char_length(btrim(name)) <= 80)))
+constraint	public.planly_budget_categories.planly_budget_categories_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE RESTRICT
+constraint	public.planly_budget_categories.planly_budget_categories_pkey	PRIMARY KEY (id)
+constraint	public.planly_budget_categories.planly_budget_categories_scope_id_client_id_key	UNIQUE (scope_id, client_id)
+constraint	public.planly_budget_categories.planly_budget_categories_scope_id_fkey	FOREIGN KEY (scope_id) REFERENCES planly_budget_scopes(id) ON DELETE RESTRICT
+constraint	public.planly_budget_categories.planly_budget_categories_scope_id_id_key	UNIQUE (scope_id, id)
+constraint	public.planly_budget_categories.planly_budget_categories_scope_id_kind_key	UNIQUE (scope_id, id, kind)
+constraint	public.planly_budget_debts.planly_budget_debts_apr_bp_check	CHECK (((apr_bp >= 0) AND (apr_bp <= 10000)))
+constraint	public.planly_budget_debts.planly_budget_debts_balance_minor_check	CHECK (((balance_minor >= 0) AND (balance_minor <= 100000000)))
+constraint	public.planly_budget_debts.planly_budget_debts_client_id_check	CHECK (((char_length(client_id) >= 1) AND (char_length(client_id) <= 80)))
+constraint	public.planly_budget_debts.planly_budget_debts_cloud_version_check	CHECK ((cloud_version >= 1))
+constraint	public.planly_budget_debts.planly_budget_debts_minimum_minor_check	CHECK (((minimum_minor >= 0) AND (minimum_minor <= 10000000)))
+constraint	public.planly_budget_debts.planly_budget_debts_name_check	CHECK (((char_length(btrim(name)) >= 1) AND (char_length(btrim(name)) <= 60)))
+constraint	public.planly_budget_debts.planly_budget_debts_notes_check	CHECK ((char_length(notes) <= 500))
+constraint	public.planly_budget_debts.planly_budget_debts_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_budget_debts.planly_budget_debts_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE RESTRICT
+constraint	public.planly_budget_debts.planly_budget_debts_person_id_fkey	FOREIGN KEY (person_id) REFERENCES auth.users(id) ON DELETE SET NULL
+constraint	public.planly_budget_debts.planly_budget_debts_pkey	PRIMARY KEY (id)
+constraint	public.planly_budget_debts.planly_budget_debts_priority_check	CHECK (((priority >= 0) AND (priority <= 1000)))
+constraint	public.planly_budget_debts.planly_budget_debts_scope_id_fkey	FOREIGN KEY (scope_id) REFERENCES planly_budget_scopes(id) ON DELETE CASCADE
+constraint	public.planly_budget_debts.planly_budget_debts_start_minor_check	CHECK (((start_minor >= 0) AND (start_minor <= 100000000)))
+constraint	public.planly_budget_entries.planly_budget_entries_allocation_status_check	CHECK ((allocation_status = ANY (ARRAY['planned'::text, 'paid'::text])))
+constraint	public.planly_budget_entries.planly_budget_entries_amount_minor_check	CHECK ((amount_minor > 0))
+constraint	public.planly_budget_entries.planly_budget_entries_category_kind_fkey	FOREIGN KEY (scope_id, category_id, kind) REFERENCES planly_budget_categories(scope_id, id, kind) ON DELETE RESTRICT
+constraint	public.planly_budget_entries.planly_budget_entries_cloud_version_check	CHECK ((cloud_version >= 1))
+constraint	public.planly_budget_entries.planly_budget_entries_debt_id_fkey	FOREIGN KEY (debt_id) REFERENCES planly_budget_debts(id) ON DELETE SET NULL
+constraint	public.planly_budget_entries.planly_budget_entries_description_check	CHECK ((char_length(description) <= 200))
+constraint	public.planly_budget_entries.planly_budget_entries_due_day_check	CHECK (((due_day IS NULL) OR ((due_day >= 1) AND (due_day <= 31))))
+constraint	public.planly_budget_entries.planly_budget_entries_kind_check	CHECK ((kind = ANY (ARRAY['income'::text, 'expense'::text])))
+constraint	public.planly_budget_entries.planly_budget_entries_notes_check	CHECK ((char_length(notes) <= 2000))
+constraint	public.planly_budget_entries.planly_budget_entries_one_link_check	CHECK (((debt_id IS NULL) OR (saving_id IS NULL)))
+constraint	public.planly_budget_entries.planly_budget_entries_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_budget_entries.planly_budget_entries_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE RESTRICT
+constraint	public.planly_budget_entries.planly_budget_entries_pkey	PRIMARY KEY (id)
+constraint	public.planly_budget_entries.planly_budget_entries_saving_id_fkey	FOREIGN KEY (saving_id) REFERENCES planly_budget_savings(id) ON DELETE SET NULL
+constraint	public.planly_budget_entries.planly_budget_entries_scope_id_category_id_fkey	FOREIGN KEY (scope_id, category_id) REFERENCES planly_budget_categories(scope_id, id) ON DELETE RESTRICT
+constraint	public.planly_budget_entries.planly_budget_entries_scope_id_fkey	FOREIGN KEY (scope_id) REFERENCES planly_budget_scopes(id) ON DELETE RESTRICT
+constraint	public.planly_budget_entries.planly_budget_entries_today_lead_days_check	CHECK (((today_lead_days >= 0) AND (today_lead_days <= 31)))
+constraint	public.planly_budget_savings.planly_budget_savings_balance_minor_check	CHECK (((balance_minor >= 0) AND (balance_minor <= 100000000)))
+constraint	public.planly_budget_savings.planly_budget_savings_client_id_check	CHECK (((char_length(client_id) >= 1) AND (char_length(client_id) <= 80)))
+constraint	public.planly_budget_savings.planly_budget_savings_cloud_version_check	CHECK ((cloud_version >= 1))
+constraint	public.planly_budget_savings.planly_budget_savings_goal_minor_check	CHECK (((goal_minor >= 1) AND (goal_minor <= 100000000)))
+constraint	public.planly_budget_savings.planly_budget_savings_kind_check	CHECK ((kind = ANY (ARRAY['savings'::text, 'investment'::text, 'circle'::text])))
+constraint	public.planly_budget_savings.planly_budget_savings_name_check	CHECK (((char_length(btrim(name)) >= 1) AND (char_length(btrim(name)) <= 60)))
+constraint	public.planly_budget_savings.planly_budget_savings_notes_check	CHECK ((char_length(notes) <= 500))
+constraint	public.planly_budget_savings.planly_budget_savings_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_budget_savings.planly_budget_savings_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE RESTRICT
+constraint	public.planly_budget_savings.planly_budget_savings_person_id_fkey	FOREIGN KEY (person_id) REFERENCES auth.users(id) ON DELETE SET NULL
+constraint	public.planly_budget_savings.planly_budget_savings_pkey	PRIMARY KEY (id)
+constraint	public.planly_budget_savings.planly_budget_savings_scope_id_fkey	FOREIGN KEY (scope_id) REFERENCES planly_budget_scopes(id) ON DELETE CASCADE
+constraint	public.planly_budget_savings.planly_budget_savings_sort_order_check	CHECK (((sort_order >= 0) AND (sort_order <= 1000)))
+constraint	public.planly_budget_scopes.planly_budget_scope_target_check	CHECK ((((scope_type = 'personal'::text) AND (household_id IS NULL)) OR ((scope_type = 'household'::text) AND (household_id IS NOT NULL))))
+constraint	public.planly_budget_scopes.planly_budget_scopes_cloud_version_check	CHECK ((cloud_version >= 1))
+constraint	public.planly_budget_scopes.planly_budget_scopes_currency_check	CHECK ((currency ~ '^[A-Z]{3}$'::text))
+constraint	public.planly_budget_scopes.planly_budget_scopes_household_id_fkey	FOREIGN KEY (household_id) REFERENCES planly_households(id) ON DELETE RESTRICT
+constraint	public.planly_budget_scopes.planly_budget_scopes_month_start_day_check	CHECK (((month_start_day >= 1) AND (month_start_day <= 28)))
+constraint	public.planly_budget_scopes.planly_budget_scopes_name_check	CHECK (((char_length(btrim(name)) >= 1) AND (char_length(btrim(name)) <= 80)))
+constraint	public.planly_budget_scopes.planly_budget_scopes_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_budget_scopes.planly_budget_scopes_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE RESTRICT
+constraint	public.planly_budget_scopes.planly_budget_scopes_pkey	PRIMARY KEY (id)
+constraint	public.planly_budget_scopes.planly_budget_scopes_scope_type_check	CHECK ((scope_type = ANY (ARRAY['personal'::text, 'household'::text])))
+constraint	public.planly_budget_targets.planly_budget_targets_amount_minor_check	CHECK ((amount_minor >= 0))
+constraint	public.planly_budget_targets.planly_budget_targets_budget_month_check	CHECK ((budget_month = (date_trunc('month'::text, (budget_month)::timestamp with time zone))::date))
+constraint	public.planly_budget_targets.planly_budget_targets_cloud_version_check	CHECK ((cloud_version >= 1))
+constraint	public.planly_budget_targets.planly_budget_targets_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE RESTRICT
+constraint	public.planly_budget_targets.planly_budget_targets_pkey	PRIMARY KEY (id)
+constraint	public.planly_budget_targets.planly_budget_targets_scope_id_category_id_fkey	FOREIGN KEY (scope_id, category_id) REFERENCES planly_budget_categories(scope_id, id) ON DELETE RESTRICT
+constraint	public.planly_budget_targets.planly_budget_targets_scope_id_client_id_key	UNIQUE (scope_id, client_id)
+constraint	public.planly_budget_targets.planly_budget_targets_scope_id_fkey	FOREIGN KEY (scope_id) REFERENCES planly_budget_scopes(id) ON DELETE RESTRICT
+constraint	public.planly_food_entries.planly_food_entries_amount_check	CHECK (((amount > (0)::numeric) AND (amount <= (10000)::numeric)))
+constraint	public.planly_food_entries.planly_food_entries_barcode_check	CHECK ((barcode ~ '^[0-9]{6,14}$'::text))
+constraint	public.planly_food_entries.planly_food_entries_brand_check	CHECK ((char_length(brand) <= 120))
+constraint	public.planly_food_entries.planly_food_entries_carbs_g_check	CHECK (((carbs_g >= (0)::numeric) AND (carbs_g <= (1000)::numeric)))
+constraint	public.planly_food_entries.planly_food_entries_client_id_check	CHECK (((char_length(client_id) >= 1) AND (char_length(client_id) <= 80)))
+constraint	public.planly_food_entries.planly_food_entries_fat_g_check	CHECK (((fat_g >= (0)::numeric) AND (fat_g <= (1000)::numeric)))
+constraint	public.planly_food_entries.planly_food_entries_kcal_check	CHECK (((kcal >= (0)::numeric) AND (kcal <= (10000)::numeric)))
+constraint	public.planly_food_entries.planly_food_entries_meal_check	CHECK ((meal = ANY (ARRAY['breakfast'::text, 'lunch'::text, 'dinner'::text, 'snack'::text])))
+constraint	public.planly_food_entries.planly_food_entries_name_check	CHECK (((char_length(btrim(name)) >= 1) AND (char_length(btrim(name)) <= 160)))
+constraint	public.planly_food_entries.planly_food_entries_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_food_entries.planly_food_entries_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_food_entries.planly_food_entries_pkey	PRIMARY KEY (id)
+constraint	public.planly_food_entries.planly_food_entries_protein_g_check	CHECK (((protein_g >= (0)::numeric) AND (protein_g <= (1000)::numeric)))
+constraint	public.planly_food_entries.planly_food_entries_source_check	CHECK ((source = ANY (ARRAY['manual'::text, 'search'::text, 'barcode'::text, 'favourite'::text, 'quick'::text])))
+constraint	public.planly_food_entries.planly_food_entries_unit_check	CHECK ((unit = ANY (ARRAY['g'::text, 'ml'::text, 'serving'::text])))
+constraint	public.planly_food_favourites.planly_food_favourites_barcode_check	CHECK ((barcode ~ '^[0-9]{6,14}$'::text))
+constraint	public.planly_food_favourites.planly_food_favourites_brand_check	CHECK ((char_length(brand) <= 120))
+constraint	public.planly_food_favourites.planly_food_favourites_carbs_100_check	CHECK (((carbs_100 >= (0)::numeric) AND (carbs_100 <= (100)::numeric)))
+constraint	public.planly_food_favourites.planly_food_favourites_client_id_check	CHECK (((char_length(client_id) >= 1) AND (char_length(client_id) <= 80)))
+constraint	public.planly_food_favourites.planly_food_favourites_fat_100_check	CHECK (((fat_100 >= (0)::numeric) AND (fat_100 <= (100)::numeric)))
+constraint	public.planly_food_favourites.planly_food_favourites_kcal_100_check	CHECK (((kcal_100 >= (0)::numeric) AND (kcal_100 <= (2000)::numeric)))
+constraint	public.planly_food_favourites.planly_food_favourites_name_check	CHECK (((char_length(btrim(name)) >= 1) AND (char_length(btrim(name)) <= 160)))
+constraint	public.planly_food_favourites.planly_food_favourites_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_food_favourites.planly_food_favourites_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_food_favourites.planly_food_favourites_pkey	PRIMARY KEY (id)
+constraint	public.planly_food_favourites.planly_food_favourites_protein_100_check	CHECK (((protein_100 >= (0)::numeric) AND (protein_100 <= (100)::numeric)))
+constraint	public.planly_food_favourites.planly_food_favourites_serving_g_check	CHECK (((serving_g > (0)::numeric) AND (serving_g <= (5000)::numeric)))
+constraint	public.planly_food_favourites.planly_food_favourites_serving_label_check	CHECK ((char_length(serving_label) <= 60))
+constraint	public.planly_food_favourites.planly_food_favourites_use_count_check	CHECK ((use_count >= 0))
+constraint	public.planly_food_profile.planly_food_profile_activity_check	CHECK ((activity = ANY (ARRAY['sedentary'::text, 'light'::text, 'moderate'::text, 'active'::text, 'very_active'::text])))
+constraint	public.planly_food_profile.planly_food_profile_birth_year_check	CHECK (((birth_year >= 1900) AND (birth_year <= 2100)))
+constraint	public.planly_food_profile.planly_food_profile_carbs_g_check	CHECK (((carbs_g >= 0) AND (carbs_g <= 1000)))
+constraint	public.planly_food_profile.planly_food_profile_fat_g_check	CHECK (((fat_g >= 0) AND (fat_g <= 400)))
+constraint	public.planly_food_profile.planly_food_profile_goal_check	CHECK ((goal = ANY (ARRAY['lose'::text, 'maintain'::text, 'gain'::text])))
+constraint	public.planly_food_profile.planly_food_profile_goal_weight_kg_check	CHECK (((goal_weight_kg >= (25)::numeric) AND (goal_weight_kg <= (400)::numeric)))
+constraint	public.planly_food_profile.planly_food_profile_height_cm_check	CHECK (((height_cm >= (80)::numeric) AND (height_cm <= (250)::numeric)))
+constraint	public.planly_food_profile.planly_food_profile_kcal_target_check	CHECK (((kcal_target >= 800) AND (kcal_target <= 6000)))
+constraint	public.planly_food_profile.planly_food_profile_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_food_profile.planly_food_profile_pace_kg_week_check	CHECK (((pace_kg_week >= (0)::numeric) AND (pace_kg_week <= (1)::numeric)))
+constraint	public.planly_food_profile.planly_food_profile_pkey	PRIMARY KEY (owner_id)
+constraint	public.planly_food_profile.planly_food_profile_protein_g_check	CHECK (((protein_g >= 0) AND (protein_g <= 500)))
+constraint	public.planly_food_profile.planly_food_profile_sex_check	CHECK ((sex = ANY (ARRAY['male'::text, 'female'::text])))
+constraint	public.planly_food_profile.planly_food_profile_weight_kg_check	CHECK (((weight_kg >= (25)::numeric) AND (weight_kg <= (400)::numeric)))
+constraint	public.planly_household_invites.planly_household_invites_accepted_by_fkey	FOREIGN KEY (accepted_by) REFERENCES auth.users(id) ON DELETE SET NULL
+constraint	public.planly_household_invites.planly_household_invites_check	CHECK ((expires_at > created_at))
+constraint	public.planly_household_invites.planly_household_invites_household_id_fkey	FOREIGN KEY (household_id) REFERENCES planly_households(id) ON DELETE CASCADE
+constraint	public.planly_household_invites.planly_household_invites_invited_by_fkey	FOREIGN KEY (invited_by) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_household_invites.planly_household_invites_invited_email_check	CHECK (((char_length(btrim(invited_email)) >= 3) AND (char_length(btrim(invited_email)) <= 320)))
+constraint	public.planly_household_invites.planly_household_invites_pkey	PRIMARY KEY (id)
+constraint	public.planly_household_invites.planly_household_invites_status_check	CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'revoked'::text, 'expired'::text])))
+constraint	public.planly_household_invites.planly_household_invites_token_hash_key	UNIQUE (token_hash)
+constraint	public.planly_household_members.planly_household_members_display_name_check	CHECK (((display_name IS NULL) OR ((display_name = btrim(display_name)) AND ((char_length(display_name) >= 1) AND (char_length(display_name) <= 20)) AND (display_name !~ '[[:cntrl:]]'::text) AND (display_name !~ '[​-‏‪-‮⁠-⁩﻿]'::text))))
+constraint	public.planly_household_members.planly_household_members_household_id_fkey	FOREIGN KEY (household_id) REFERENCES planly_households(id) ON DELETE CASCADE
+constraint	public.planly_household_members.planly_household_members_pkey	PRIMARY KEY (household_id, user_id)
+constraint	public.planly_household_members.planly_household_members_role_check	CHECK ((role = ANY (ARRAY['owner'::text, 'member'::text])))
+constraint	public.planly_household_members.planly_household_members_user_id_fkey	FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_households.planly_households_created_by_fkey	FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE RESTRICT
+constraint	public.planly_households.planly_households_name_check	CHECK (((char_length(btrim(name)) >= 1) AND (char_length(btrim(name)) <= 80)))
+constraint	public.planly_households.planly_households_pkey	PRIMARY KEY (id)
+constraint	public.planly_list_items.planly_list_items_list_id_fkey	FOREIGN KEY (list_id) REFERENCES planly_lists(id) ON DELETE CASCADE
+constraint	public.planly_list_items.planly_list_items_notes_check	CHECK ((char_length(notes) <= 1000))
+constraint	public.planly_list_items.planly_list_items_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_list_items.planly_list_items_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_list_items.planly_list_items_pkey	PRIMARY KEY (id)
+constraint	public.planly_list_items.planly_list_items_title_check	CHECK (((char_length(btrim(title)) >= 1) AND (char_length(btrim(title)) <= 240)))
+constraint	public.planly_lists.planly_lists_household_id_fkey	FOREIGN KEY (household_id) REFERENCES planly_households(id) ON DELETE CASCADE
+constraint	public.planly_lists.planly_lists_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_lists.planly_lists_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_lists.planly_lists_pkey	PRIMARY KEY (id)
+constraint	public.planly_lists.planly_lists_scope_ck	CHECK ((((visibility = 'private'::text) AND (household_id IS NULL)) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL))))
+constraint	public.planly_lists.planly_lists_title_check	CHECK (((char_length(btrim(title)) >= 1) AND (char_length(btrim(title)) <= 120)))
+constraint	public.planly_lists.planly_lists_visibility_check	CHECK ((visibility = ANY (ARRAY['private'::text, 'household'::text])))
+constraint	public.planly_preferences.planly_preferences_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_preferences.planly_preferences_pkey	PRIMARY KEY (owner_id)
+constraint	public.planly_projects.planly_projects_data_object_chk	CHECK ((jsonb_typeof(data) = 'object'::text))
+constraint	public.planly_projects.planly_projects_household_id_fkey	FOREIGN KEY (household_id) REFERENCES planly_households(id) ON DELETE SET NULL
+constraint	public.planly_projects.planly_projects_household_visibility_check	CHECK ((((visibility = 'private'::text) AND (household_id IS NULL)) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL))))
+constraint	public.planly_projects.planly_projects_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_projects.planly_projects_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_projects.planly_projects_pkey	PRIMARY KEY (cloud_id)
+constraint	public.planly_projects.planly_projects_visibility_check	CHECK ((visibility = ANY (ARRAY['private'::text, 'household'::text])))
+constraint	public.planly_projects.planly_projects_visibility_data_chk	CHECK (((COALESCE((data ->> 'visibility'::text), 'private'::text) = visibility) AND (((visibility = 'private'::text) AND (NULLIF((data ->> 'householdId'::text), ''::text) IS NULL)) OR ((visibility = 'household'::text) AND ((data ->> 'householdId'::text) = (household_id)::text)))))
+constraint	public.planly_sync_state.planly_sync_state_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_sync_state.planly_sync_state_pkey	PRIMARY KEY (owner_id)
+constraint	public.planly_sync_state.planly_sync_state_project_count_chk	CHECK (((migration_project_count IS NULL) OR (migration_project_count >= 0)))
+constraint	public.planly_sync_state.planly_sync_state_task_count_chk	CHECK (((migration_task_count IS NULL) OR (migration_task_count >= 0)))
+constraint	public.planly_tasks.planly_tasks_assignee_id_fkey	FOREIGN KEY (assignee_id) REFERENCES auth.users(id) ON DELETE SET NULL
+constraint	public.planly_tasks.planly_tasks_assignment_scope_chk	CHECK ((((visibility = 'household'::text) AND (household_id IS NOT NULL)) OR (assignee_id IS NULL)))
+constraint	public.planly_tasks.planly_tasks_completed_by_fkey	FOREIGN KEY (completed_by) REFERENCES auth.users(id) ON DELETE SET NULL
+constraint	public.planly_tasks.planly_tasks_data_object_chk	CHECK ((jsonb_typeof(data) = 'object'::text))
+constraint	public.planly_tasks.planly_tasks_household_id_fkey	FOREIGN KEY (household_id) REFERENCES planly_households(id) ON DELETE SET NULL
+constraint	public.planly_tasks.planly_tasks_owner_id_client_id_key	UNIQUE (owner_id, client_id)
+constraint	public.planly_tasks.planly_tasks_owner_id_fkey	FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.planly_tasks.planly_tasks_pkey	PRIMARY KEY (cloud_id)
+constraint	public.planly_tasks.planly_tasks_project_reference_consistency_chk	CHECK ((NOT (NULLIF(btrim(project_client_id), ''::text) IS DISTINCT FROM NULLIF(btrim((data ->> 'projectId'::text)), ''::text))))
+constraint	public.planly_tasks.planly_tasks_recurrence_config_object_chk	CHECK (((recurrence_config IS NULL) OR (jsonb_typeof(recurrence_config) = 'object'::text)))
+constraint	public.planly_tasks.planly_tasks_subtasks_array_chk	CHECK ((jsonb_typeof(subtasks) = 'array'::text))
+constraint	public.planly_tasks.planly_tasks_visibility_chk	CHECK ((visibility = ANY (ARRAY['private'::text, 'household'::text])))
+constraint	public.profiles.profiles_id_fkey	FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+constraint	public.profiles.profiles_pkey	PRIMARY KEY (id)
+event_trigger	ensure_rls	ddl_command_end fn=rls_auto_enable() enabled=O tags=CREATE TABLE,CREATE TABLE AS,SELECT INTO owner=postgres
+event_trigger	issue_graphql_placeholder	sql_drop fn=set_graphql_placeholder() enabled=O tags=DROP EXTENSION owner=supabase_admin
+event_trigger	issue_pg_cron_access	ddl_command_end fn=grant_pg_cron_access() enabled=O tags=CREATE EXTENSION owner=supabase_admin
+event_trigger	issue_pg_graphql_access	ddl_command_end fn=grant_pg_graphql_access() enabled=O tags=CREATE EXTENSION owner=supabase_admin
+event_trigger	issue_pg_net_access	ddl_command_end fn=grant_pg_net_access() enabled=O tags=CREATE EXTENSION owner=supabase_admin
+event_trigger	pgrst_ddl_watch	ddl_command_end fn=pgrst_ddl_watch() enabled=O tags= owner=supabase_admin
+event_trigger	pgrst_drop_watch	sql_drop fn=pgrst_drop_watch() enabled=O tags= owner=supabase_admin
+function	planly_private.get_push_subscription(p_endpoint text)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=0ac91309e53114601fb9c6cf38c4d141
+function	planly_private.household_rotation_assignee(p_household_id uuid, p_rotation jsonb, p_date date, p_fallback uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=b110dbacb7d11169c0366c15244e7689
+function	planly_private.is_household_member(p_household_id uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=a46519916318f7eec47e6e569c983fe9
+function	planly_private.is_household_owner(p_household_id uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=815b227fd0e73bae992c65e4a06855e0
+function	planly_private.push_is_quiet(p_on boolean, p_start time without time zone, p_end time without time zone, p_at time without time zone)	secdef=false | vol=i | cfg=search_path=pg_catalog | owner=postgres | md5=256278bb6bed93090cca1aa803e25377
+function	planly_private.push_kick()	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=a4a81967273898948acbc4079f28edba
+function	planly_private.push_prefs(s planly_private.push_subscriptions)	secdef=false | vol=s | cfg=search_path=pg_catalog | owner=postgres | md5=74f819a864c6c91a7f967d30e31189a2
+function	planly_private.push_reminder_offset(p_reminder text)	secdef=false | vol=i | cfg=search_path=pg_catalog | owner=postgres | md5=8bedc9087f3d4b98c3ec193fe3190b02
+function	planly_private.queue_chore_assigned_push()	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=c011bd57cc3bec6597f7b5c2b7bdde3a
+function	planly_private.queue_test_push()	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=20e1c9f77c0dff26983f699405ce2076
+function	planly_private.revoke_push_subscription(p_endpoint text)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=b35a36039af4129873abbf318d8ba77c
+function	planly_private.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text, p_time_zone text, p_notify_tasks boolean, p_notify_chores boolean, p_notify_summary boolean, p_summary_time time without time zone, p_notify_deals boolean, p_quiet_on boolean, p_quiet_start time without time zone, p_quiet_end time without time zone)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=2eceb7c06607fa2719b1b7508f23f1a3
+function	planly_private.set_household_subtask_done(p_owner_id uuid, p_client_id text, p_subtask_id text, p_done boolean)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=2d0d880bae40be1937820ca6f1dda6fe
+function	planly_private.set_household_task_completed(p_owner_id uuid, p_client_id text, p_completed boolean, p_expected_cloud_version bigint, p_next_date date)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=18aa774e7a75832af55406a6fb124646
+function	planly_private.task_share_target_valid(p_visibility text, p_household_id uuid, p_assignee_id uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=2ebc1875b359cfb37ee42ec954933ada
+function	public.bump_planly_cloud_version()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=6c4346e09d15ad1c1f6e3391c4c724ca
+function	public.delete_calendar_source_credential(p_source_id uuid)	secdef=true | vol=v | cfg=search_path="" | owner=postgres | md5=66b6def5e80e24556954282f0a5b4d3c
+function	public.get_calendar_source_feed_url(p_source_id uuid, p_owner_id uuid)	secdef=true | vol=v | cfg=search_path="" | owner=postgres | md5=cdca290530290362773ec82eb85c38a6
+function	public.handle_new_planly_user()	secdef=true | vol=v | cfg=search_path="" | owner=postgres | md5=3a502224d543e5355a737b9be2eeb7cf
+function	public.planly_accept_household_invite(p_token text)	secdef=true | vol=v | cfg=search_path=pg_catalog, public, extensions | owner=postgres | md5=b8eac1509a25e4a9e468d706c4e26a17
+function	public.planly_body_import_key_delete(p_user uuid)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=d1baf269a11f92cce26b128c45d779c4
+function	public.planly_body_import_key_set(p_user uuid, p_key_hash text)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=c2c93a5b4c9a4a9e2f4102d9922cbab7
+function	public.planly_body_import_key_status(p_user uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=27c09f052456f1698399c2807bbe1b87
+function	public.planly_body_import_key_use(p_key_hash text)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=cf7521563dcd9f571ec3b0250dbb7f96
+function	public.planly_broadcast_household_project_change()	secdef=true | vol=v | cfg=search_path="" | owner=postgres | md5=b66388ce7c811106408e089180b45654
+function	public.planly_broadcast_household_task_change()	secdef=true | vol=v | cfg=search_path="" | owner=postgres | md5=bb57a2aaa0cd11b238e4ef6aabe4b489
+function	public.planly_budget_entry_immutable_guard()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=1db3e436cc16d58972138a1852239a9e
+function	public.planly_budget_entry_link_guard()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=7d85217a56353a2fdc3c37d61ebdb460
+function	public.planly_budget_money_guard()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=e71ecbc614790ac20be7590eeed4ff5a
+function	public.planly_budget_protect_identity()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=67b983dcad4d9e61f71007b58d29d48f
+function	public.planly_budget_shared_structure_owner(p_scope_id uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=b1c31233049867cf2718016586cab4a7
+function	public.planly_clear_household_task_assignee()	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=e5afd3973beb61f17f77974adb75113c
+function	public.planly_create_household(p_name text)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=27dfc1d4c5ba5726e06802f89f8779a4
+function	public.planly_create_household_invite(p_household_id uuid, p_email text)	secdef=true | vol=v | cfg=search_path=pg_catalog, public, extensions | owner=postgres | md5=c4e26645114c8e034017a322e58769d5
+function	public.planly_delete_household(p_household_id uuid)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=803d4b3990f7477e29c46944700fa8d7
+function	public.planly_detach_tasks_before_project_restrict()	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=606ed830686732e275597120908abbca
+function	public.planly_get_push_subscription(p_endpoint text)	secdef=false | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=3da77f49b81dfdf1c41675bac16388ac
+function	public.planly_google_token_delete(p_user uuid)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=4588873ecc9e9e2a23db036abab44d90
+function	public.planly_google_token_get(p_user uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=fd3dde10f3f9848761413217ed27c1aa
+function	public.planly_google_token_save(p_user uuid, p_refresh_token text, p_scope text)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=6710358ef4ba5d4a1cb5d82a6fa0b4d4
+function	public.planly_is_household_member(p_household_id uuid, p_user_id uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=e08f95719484ac7fde80ff38244ffa4a
+function	public.planly_is_household_owner(p_household_id uuid, p_user_id uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=141aad2d5d11934cca0aeb424a946235
+function	public.planly_leave_household(p_household_id uuid)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=ccce2eceeab74332c734ed78e5f503f6
+function	public.planly_private_departing_member_projects()	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=46ce00e1e86d192a4c986f101c33e577
+function	public.planly_private_departing_member_tasks()	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=6e55a720897ce2ad69e555466257f878
+function	public.planly_private_tasks_on_household_delete()	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=e7190d17c64a5f8e2892c7395b7c0577
+function	public.planly_protect_body_identity()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=b827a22172d872fc27a306302849068e
+function	public.planly_protect_food_identity()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=0be3e597168f75c49a47ab74e6c69f0a
+function	public.planly_protect_list_identity()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=ab85d2d0a9e4a653f020110fbe946368
+function	public.planly_push_config()	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=cde9717ae5588f9ce675feecd35e58e2
+function	public.planly_push_report(p_subscription_id uuid, p_ok boolean, p_gone boolean)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=18fac4156379809177b28a4fa6d6e98e
+function	public.planly_push_worklist(p_now timestamp with time zone)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=b48c2de45fef166c8dce98c734cf69c4
+function	public.planly_queue_test_push()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=bc57e3d47cf1dbeb1e080fdcaf59c250
+function	public.planly_reset_household_budget(p_scope_id uuid, p_include_categories boolean)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=ad757342355b26db4ad92786c22b4a24
+function	public.planly_revoke_household_invite(p_invite_id uuid)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=30edb4a0e3c490cc9ef955be72648ff4
+function	public.planly_revoke_push_subscription(p_endpoint text)	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=94bf9d798f7f7ffa53bf5b895e08ca87
+function	public.planly_save_push_subscription(p_endpoint text, p_p256dh text, p_auth text, p_time_zone text, p_notify_tasks boolean, p_notify_chores boolean, p_notify_summary boolean, p_summary_time time without time zone, p_notify_deals boolean, p_quiet_on boolean, p_quiet_start time without time zone, p_quiet_end time without time zone)	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=e180557b849003a83bb6080993a26c14
+function	public.planly_set_assigned_task_completed(p_owner_id uuid, p_client_id text, p_completed boolean)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=e110312fbd6e8b711e55e8e84ae37298
+function	public.planly_set_household_display_name(p_display_name text)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=597d63b7032e57375255226bd0c44588
+function	public.planly_set_household_subtask_done(p_owner_id uuid, p_client_id text, p_subtask_id text, p_done boolean)	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=ba5d32b79b484213d4d8cb10fc5c9c4a
+function	public.planly_set_household_task_completed(p_owner_id uuid, p_client_id text, p_completed boolean, p_expected_cloud_version bigint, p_next_date date)	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=595083757643882e8925776e126213e3
+function	public.planly_stamp_task_completion_actor()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=7e624557ee62ad0fc7bd489aa3270378
+function	public.planly_task_share_target_valid(p_visibility text, p_household_id uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=c1fdbc3f13fd2598b19fb6ce3f7553c7
+function	public.planly_task_share_target_valid(p_visibility text, p_household_id uuid, p_assignee_id uuid)	secdef=true | vol=s | cfg=search_path=pg_catalog, public | owner=postgres | md5=8c02b87a591dbb6dff8022a94f84459b
+function	public.planly_transfer_household_ownership(p_household_id uuid, p_new_owner uuid)	secdef=true | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=b335317e1c12e1be2013555c4e32b169
+function	public.planly_validate_task_project_visibility()	secdef=false | vol=v | cfg=search_path=public, pg_temp | owner=postgres | md5=66ce3310cd6e59cf1de5dd2efa3544ce
+function	public.replace_external_calendar_events(p_source_id uuid, p_owner_id uuid, p_events jsonb)	secdef=true | vol=v | cfg=search_path="" | owner=postgres | md5=9b955ad42cc45d19e5aaa6d196d64498
+function	public.rls_auto_enable()	secdef=true | vol=v | cfg=search_path=pg_catalog | owner=postgres | md5=007acfd26c4ea9f4f6d1baf208f66166
+function	public.set_calendar_source_credential(p_source_id uuid, p_feed_url text)	secdef=true | vol=v | cfg=search_path="" | owner=postgres | md5=0ac2987d6e00fcad8cae24534605db38
+function	public.touch_planly_updated_at()	secdef=false | vol=v | cfg=search_path=pg_catalog, public | owner=postgres | md5=26ab7d992ac5df23172738de09f3c3d8
+function_grant	planly_private.get_push_subscription(p_endpoint text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	planly_private.household_rotation_assignee(p_household_id uuid, p_rotation jsonb, p_date date, p_fallback uuid)	postgres:EXECUTE
+function_grant	planly_private.is_household_member(p_household_id uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	planly_private.is_household_owner(p_household_id uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	planly_private.push_is_quiet(p_on boolean, p_start time without time zone, p_end time without time zone, p_at time without time zone)	postgres:EXECUTE
+function_grant	planly_private.push_kick()	postgres:EXECUTE
+function_grant	planly_private.push_prefs(s planly_private.push_subscriptions)	postgres:EXECUTE
+function_grant	planly_private.push_reminder_offset(p_reminder text)	postgres:EXECUTE
+function_grant	planly_private.queue_chore_assigned_push()	postgres:EXECUTE
+function_grant	planly_private.queue_test_push()	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	planly_private.revoke_push_subscription(p_endpoint text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	planly_private.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text, p_time_zone text, p_notify_tasks boolean, p_notify_chores boolean, p_notify_summary boolean, p_summary_time time without time zone, p_notify_deals boolean, p_quiet_on boolean, p_quiet_start time without time zone, p_quiet_end time without time zone)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	planly_private.set_household_subtask_done(p_owner_id uuid, p_client_id text, p_subtask_id text, p_done boolean)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	planly_private.set_household_task_completed(p_owner_id uuid, p_client_id text, p_completed boolean, p_expected_cloud_version bigint, p_next_date date)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	planly_private.task_share_target_valid(p_visibility text, p_household_id uuid, p_assignee_id uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.bump_planly_cloud_version()	postgres:EXECUTE
+function_grant	public.delete_calendar_source_credential(p_source_id uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.get_calendar_source_feed_url(p_source_id uuid, p_owner_id uuid)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.handle_new_planly_user()	postgres:EXECUTE
+function_grant	public.planly_accept_household_invite(p_token text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_body_import_key_delete(p_user uuid)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_body_import_key_set(p_user uuid, p_key_hash text)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_body_import_key_status(p_user uuid)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_body_import_key_use(p_key_hash text)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_broadcast_household_project_change()	postgres:EXECUTE
+function_grant	public.planly_broadcast_household_task_change()	postgres:EXECUTE
+function_grant	public.planly_budget_entry_immutable_guard()	postgres:EXECUTE
+function_grant	public.planly_budget_entry_link_guard()	postgres:EXECUTE
+function_grant	public.planly_budget_money_guard()	postgres:EXECUTE
+function_grant	public.planly_budget_protect_identity()	postgres:EXECUTE
+function_grant	public.planly_budget_shared_structure_owner(p_scope_id uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_clear_household_task_assignee()	postgres:EXECUTE
+function_grant	public.planly_create_household(p_name text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_create_household_invite(p_household_id uuid, p_email text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_delete_household(p_household_id uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_detach_tasks_before_project_restrict()	postgres:EXECUTE
+function_grant	public.planly_get_push_subscription(p_endpoint text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_google_token_delete(p_user uuid)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_google_token_get(p_user uuid)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_google_token_save(p_user uuid, p_refresh_token text, p_scope text)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_is_household_member(p_household_id uuid, p_user_id uuid)	postgres:EXECUTE
+function_grant	public.planly_is_household_owner(p_household_id uuid, p_user_id uuid)	postgres:EXECUTE
+function_grant	public.planly_leave_household(p_household_id uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_private_departing_member_projects()	postgres:EXECUTE
+function_grant	public.planly_private_departing_member_tasks()	postgres:EXECUTE
+function_grant	public.planly_private_tasks_on_household_delete()	postgres:EXECUTE
+function_grant	public.planly_protect_body_identity()	postgres:EXECUTE
+function_grant	public.planly_protect_food_identity()	postgres:EXECUTE
+function_grant	public.planly_protect_list_identity()	postgres:EXECUTE
+function_grant	public.planly_push_config()	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_push_report(p_subscription_id uuid, p_ok boolean, p_gone boolean)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_push_worklist(p_now timestamp with time zone)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.planly_queue_test_push()	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_reset_household_budget(p_scope_id uuid, p_include_categories boolean)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_revoke_household_invite(p_invite_id uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_revoke_push_subscription(p_endpoint text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_save_push_subscription(p_endpoint text, p_p256dh text, p_auth text, p_time_zone text, p_notify_tasks boolean, p_notify_chores boolean, p_notify_summary boolean, p_summary_time time without time zone, p_notify_deals boolean, p_quiet_on boolean, p_quiet_start time without time zone, p_quiet_end time without time zone)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_set_assigned_task_completed(p_owner_id uuid, p_client_id text, p_completed boolean)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_set_household_display_name(p_display_name text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_set_household_subtask_done(p_owner_id uuid, p_client_id text, p_subtask_id text, p_done boolean)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_set_household_task_completed(p_owner_id uuid, p_client_id text, p_completed boolean, p_expected_cloud_version bigint, p_next_date date)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_stamp_task_completion_actor()	postgres:EXECUTE
+function_grant	public.planly_task_share_target_valid(p_visibility text, p_household_id uuid)	postgres:EXECUTE
+function_grant	public.planly_task_share_target_valid(p_visibility text, p_household_id uuid, p_assignee_id uuid)	postgres:EXECUTE
+function_grant	public.planly_transfer_household_ownership(p_household_id uuid, p_new_owner uuid)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.planly_validate_task_project_visibility()	postgres:EXECUTE
+function_grant	public.replace_external_calendar_events(p_source_id uuid, p_owner_id uuid, p_events jsonb)	postgres:EXECUTE,service_role:EXECUTE
+function_grant	public.rls_auto_enable()	postgres:EXECUTE
+function_grant	public.set_calendar_source_credential(p_source_id uuid, p_feed_url text)	authenticated:EXECUTE,postgres:EXECUTE
+function_grant	public.touch_planly_updated_at()	postgres:EXECUTE
+index	planly_private.body_import_keys_key_hash_key	CREATE UNIQUE INDEX body_import_keys_key_hash_key ON planly_private.body_import_keys USING btree (key_hash)
+index	planly_private.body_import_keys_pkey	CREATE UNIQUE INDEX body_import_keys_pkey ON planly_private.body_import_keys USING btree (user_id)
+index	planly_private.google_calendar_tokens_pkey	CREATE UNIQUE INDEX google_calendar_tokens_pkey ON planly_private.google_calendar_tokens USING btree (user_id)
+index	planly_private.push_outbox_pkey	CREATE UNIQUE INDEX push_outbox_pkey ON planly_private.push_outbox USING btree (id)
+index	planly_private.push_outbox_recipient_idx	CREATE INDEX push_outbox_recipient_idx ON planly_private.push_outbox USING btree (recipient_id, created_at)
+index	planly_private.push_sent_pkey	CREATE UNIQUE INDEX push_sent_pkey ON planly_private.push_sent USING btree (subscription_id, kind, ref)
+index	planly_private.push_subscriptions_endpoint_key	CREATE UNIQUE INDEX push_subscriptions_endpoint_key ON planly_private.push_subscriptions USING btree (endpoint)
+index	planly_private.push_subscriptions_pkey	CREATE UNIQUE INDEX push_subscriptions_pkey ON planly_private.push_subscriptions USING btree (id)
+index	planly_private.push_subscriptions_user_idx	CREATE INDEX push_subscriptions_user_idx ON planly_private.push_subscriptions USING btree (user_id)
+index	public.calendar_source_credentials_owner_id_idx	CREATE INDEX calendar_source_credentials_owner_id_idx ON public.calendar_source_credentials USING btree (owner_id)
+index	public.calendar_source_credentials_pkey	CREATE UNIQUE INDEX calendar_source_credentials_pkey ON public.calendar_source_credentials USING btree (source_id)
+index	public.calendar_sources_owner_idx	CREATE INDEX calendar_sources_owner_idx ON public.calendar_sources USING btree (owner_id)
+index	public.calendar_sources_pkey	CREATE UNIQUE INDEX calendar_sources_pkey ON public.calendar_sources USING btree (id)
+index	public.external_calendar_events_pkey	CREATE UNIQUE INDEX external_calendar_events_pkey ON public.external_calendar_events USING btree (id)
+index	public.external_event_unique	CREATE UNIQUE INDEX external_event_unique ON public.external_calendar_events USING btree (source_id, external_uid)
+index	public.external_events_owner_idx	CREATE INDEX external_events_owner_idx ON public.external_calendar_events USING btree (owner_id)
+index	public.external_events_source_idx	CREATE INDEX external_events_source_idx ON public.external_calendar_events USING btree (source_id)
+index	public.external_events_start_idx	CREATE INDEX external_events_start_idx ON public.external_calendar_events USING btree (starts_at)
+index	public.planly_body_weights_owner_id_client_id_key	CREATE UNIQUE INDEX planly_body_weights_owner_id_client_id_key ON public.planly_body_weights USING btree (owner_id, client_id)
+index	public.planly_body_weights_owner_id_external_id_key	CREATE UNIQUE INDEX planly_body_weights_owner_id_external_id_key ON public.planly_body_weights USING btree (owner_id, external_id)
+index	public.planly_body_weights_owner_time_idx	CREATE INDEX planly_body_weights_owner_time_idx ON public.planly_body_weights USING btree (owner_id, measured_at DESC) WHERE (deleted_at IS NULL)
+index	public.planly_body_weights_pkey	CREATE UNIQUE INDEX planly_body_weights_pkey ON public.planly_body_weights USING btree (id)
+index	public.planly_budget_categories_owner_id_idx	CREATE INDEX planly_budget_categories_owner_id_idx ON public.planly_budget_categories USING btree (owner_id)
+index	public.planly_budget_categories_pkey	CREATE UNIQUE INDEX planly_budget_categories_pkey ON public.planly_budget_categories USING btree (id)
+index	public.planly_budget_categories_scope_id_client_id_key	CREATE UNIQUE INDEX planly_budget_categories_scope_id_client_id_key ON public.planly_budget_categories USING btree (scope_id, client_id)
+index	public.planly_budget_categories_scope_id_id_key	CREATE UNIQUE INDEX planly_budget_categories_scope_id_id_key ON public.planly_budget_categories USING btree (scope_id, id)
+index	public.planly_budget_categories_scope_id_kind_key	CREATE UNIQUE INDEX planly_budget_categories_scope_id_kind_key ON public.planly_budget_categories USING btree (scope_id, id, kind)
+index	public.planly_budget_categories_scope_idx	CREATE INDEX planly_budget_categories_scope_idx ON public.planly_budget_categories USING btree (scope_id) WHERE (deleted_at IS NULL)
+index	public.planly_budget_debts_owner_id_client_id_key	CREATE UNIQUE INDEX planly_budget_debts_owner_id_client_id_key ON public.planly_budget_debts USING btree (owner_id, client_id)
+index	public.planly_budget_debts_owner_idx	CREATE INDEX planly_budget_debts_owner_idx ON public.planly_budget_debts USING btree (owner_id)
+index	public.planly_budget_debts_person_idx	CREATE INDEX planly_budget_debts_person_idx ON public.planly_budget_debts USING btree (person_id)
+index	public.planly_budget_debts_pkey	CREATE UNIQUE INDEX planly_budget_debts_pkey ON public.planly_budget_debts USING btree (id)
+index	public.planly_budget_debts_scope_idx	CREATE INDEX planly_budget_debts_scope_idx ON public.planly_budget_debts USING btree (scope_id) WHERE (deleted_at IS NULL)
+index	public.planly_budget_entries_debt_idx	CREATE INDEX planly_budget_entries_debt_idx ON public.planly_budget_entries USING btree (debt_id) WHERE (debt_id IS NOT NULL)
+index	public.planly_budget_entries_owner_id_client_id_key	CREATE UNIQUE INDEX planly_budget_entries_owner_id_client_id_key ON public.planly_budget_entries USING btree (owner_id, client_id)
+index	public.planly_budget_entries_owner_updated_idx	CREATE INDEX planly_budget_entries_owner_updated_idx ON public.planly_budget_entries USING btree (owner_id, updated_at)
+index	public.planly_budget_entries_pkey	CREATE UNIQUE INDEX planly_budget_entries_pkey ON public.planly_budget_entries USING btree (id)
+index	public.planly_budget_entries_saving_idx	CREATE INDEX planly_budget_entries_saving_idx ON public.planly_budget_entries USING btree (saving_id) WHERE (saving_id IS NOT NULL)
+index	public.planly_budget_entries_scope_category_kind_idx	CREATE INDEX planly_budget_entries_scope_category_kind_idx ON public.planly_budget_entries USING btree (scope_id, category_id, kind)
+index	public.planly_budget_entries_scope_date_idx	CREATE INDEX planly_budget_entries_scope_date_idx ON public.planly_budget_entries USING btree (scope_id, entry_date) WHERE (deleted_at IS NULL)
+index	public.planly_budget_one_household_scope_idx	CREATE UNIQUE INDEX planly_budget_one_household_scope_idx ON public.planly_budget_scopes USING btree (household_id) WHERE ((scope_type = 'household'::text) AND (deleted_at IS NULL))
+index	public.planly_budget_one_personal_scope_idx	CREATE UNIQUE INDEX planly_budget_one_personal_scope_idx ON public.planly_budget_scopes USING btree (owner_id) WHERE ((scope_type = 'personal'::text) AND (deleted_at IS NULL))
+index	public.planly_budget_savings_owner_id_client_id_key	CREATE UNIQUE INDEX planly_budget_savings_owner_id_client_id_key ON public.planly_budget_savings USING btree (owner_id, client_id)
+index	public.planly_budget_savings_owner_idx	CREATE INDEX planly_budget_savings_owner_idx ON public.planly_budget_savings USING btree (owner_id)
+index	public.planly_budget_savings_person_idx	CREATE INDEX planly_budget_savings_person_idx ON public.planly_budget_savings USING btree (person_id)
+index	public.planly_budget_savings_pkey	CREATE UNIQUE INDEX planly_budget_savings_pkey ON public.planly_budget_savings USING btree (id)
+index	public.planly_budget_savings_scope_idx	CREATE INDEX planly_budget_savings_scope_idx ON public.planly_budget_savings USING btree (scope_id) WHERE (deleted_at IS NULL)
+index	public.planly_budget_scopes_household_idx	CREATE INDEX planly_budget_scopes_household_idx ON public.planly_budget_scopes USING btree (household_id) WHERE (household_id IS NOT NULL)
+index	public.planly_budget_scopes_owner_id_client_id_key	CREATE UNIQUE INDEX planly_budget_scopes_owner_id_client_id_key ON public.planly_budget_scopes USING btree (owner_id, client_id)
+index	public.planly_budget_scopes_pkey	CREATE UNIQUE INDEX planly_budget_scopes_pkey ON public.planly_budget_scopes USING btree (id)
+index	public.planly_budget_targets_active_month_category_idx	CREATE UNIQUE INDEX planly_budget_targets_active_month_category_idx ON public.planly_budget_targets USING btree (scope_id, category_id, budget_month) WHERE (deleted_at IS NULL)
+index	public.planly_budget_targets_owner_id_idx	CREATE INDEX planly_budget_targets_owner_id_idx ON public.planly_budget_targets USING btree (owner_id)
+index	public.planly_budget_targets_pkey	CREATE UNIQUE INDEX planly_budget_targets_pkey ON public.planly_budget_targets USING btree (id)
+index	public.planly_budget_targets_scope_id_client_id_key	CREATE UNIQUE INDEX planly_budget_targets_scope_id_client_id_key ON public.planly_budget_targets USING btree (scope_id, client_id)
+index	public.planly_budget_targets_scope_month_idx	CREATE INDEX planly_budget_targets_scope_month_idx ON public.planly_budget_targets USING btree (scope_id, budget_month) WHERE (deleted_at IS NULL)
+index	public.planly_food_entries_owner_date_idx	CREATE INDEX planly_food_entries_owner_date_idx ON public.planly_food_entries USING btree (owner_id, entry_date) WHERE (deleted_at IS NULL)
+index	public.planly_food_entries_owner_id_client_id_key	CREATE UNIQUE INDEX planly_food_entries_owner_id_client_id_key ON public.planly_food_entries USING btree (owner_id, client_id)
+index	public.planly_food_entries_pkey	CREATE UNIQUE INDEX planly_food_entries_pkey ON public.planly_food_entries USING btree (id)
+index	public.planly_food_favourites_barcode_idx	CREATE INDEX planly_food_favourites_barcode_idx ON public.planly_food_favourites USING btree (owner_id, barcode) WHERE ((deleted_at IS NULL) AND (barcode IS NOT NULL))
+index	public.planly_food_favourites_owner_id_client_id_key	CREATE UNIQUE INDEX planly_food_favourites_owner_id_client_id_key ON public.planly_food_favourites USING btree (owner_id, client_id)
+index	public.planly_food_favourites_owner_idx	CREATE INDEX planly_food_favourites_owner_idx ON public.planly_food_favourites USING btree (owner_id) WHERE (deleted_at IS NULL)
+index	public.planly_food_favourites_pkey	CREATE UNIQUE INDEX planly_food_favourites_pkey ON public.planly_food_favourites USING btree (id)
+index	public.planly_food_profile_pkey	CREATE UNIQUE INDEX planly_food_profile_pkey ON public.planly_food_profile USING btree (owner_id)
+index	public.planly_household_invites_accepted_by_idx	CREATE INDEX planly_household_invites_accepted_by_idx ON public.planly_household_invites USING btree (accepted_by) WHERE (accepted_by IS NOT NULL)
+index	public.planly_household_invites_email_idx	CREATE INDEX planly_household_invites_email_idx ON public.planly_household_invites USING btree (lower(invited_email), status, expires_at)
+index	public.planly_household_invites_invited_by_idx	CREATE INDEX planly_household_invites_invited_by_idx ON public.planly_household_invites USING btree (invited_by)
+index	public.planly_household_invites_pkey	CREATE UNIQUE INDEX planly_household_invites_pkey ON public.planly_household_invites USING btree (id)
+index	public.planly_household_invites_token_hash_key	CREATE UNIQUE INDEX planly_household_invites_token_hash_key ON public.planly_household_invites USING btree (token_hash)
+index	public.planly_household_members_one_household_per_user_idx	CREATE UNIQUE INDEX planly_household_members_one_household_per_user_idx ON public.planly_household_members USING btree (user_id)
+index	public.planly_household_members_pkey	CREATE UNIQUE INDEX planly_household_members_pkey ON public.planly_household_members USING btree (household_id, user_id)
+index	public.planly_household_one_owner_idx	CREATE UNIQUE INDEX planly_household_one_owner_idx ON public.planly_household_members USING btree (household_id) WHERE (role = 'owner'::text)
+index	public.planly_household_pending_email_idx	CREATE UNIQUE INDEX planly_household_pending_email_idx ON public.planly_household_invites USING btree (household_id, lower(invited_email)) WHERE (status = 'pending'::text)
+index	public.planly_households_created_by_idx	CREATE INDEX planly_households_created_by_idx ON public.planly_households USING btree (created_by)
+index	public.planly_households_pkey	CREATE UNIQUE INDEX planly_households_pkey ON public.planly_households USING btree (id)
+index	public.planly_list_items_list_idx	CREATE INDEX planly_list_items_list_idx ON public.planly_list_items USING btree (list_id) WHERE (deleted_at IS NULL)
+index	public.planly_list_items_owner_id_client_id_key	CREATE UNIQUE INDEX planly_list_items_owner_id_client_id_key ON public.planly_list_items USING btree (owner_id, client_id)
+index	public.planly_list_items_pkey	CREATE UNIQUE INDEX planly_list_items_pkey ON public.planly_list_items USING btree (id)
+index	public.planly_lists_household_idx	CREATE INDEX planly_lists_household_idx ON public.planly_lists USING btree (household_id) WHERE ((visibility = 'household'::text) AND (deleted_at IS NULL))
+index	public.planly_lists_owner_id_client_id_key	CREATE UNIQUE INDEX planly_lists_owner_id_client_id_key ON public.planly_lists USING btree (owner_id, client_id)
+index	public.planly_lists_owner_idx	CREATE INDEX planly_lists_owner_idx ON public.planly_lists USING btree (owner_id) WHERE (deleted_at IS NULL)
+index	public.planly_lists_pkey	CREATE UNIQUE INDEX planly_lists_pkey ON public.planly_lists USING btree (id)
+index	public.planly_preferences_pkey	CREATE UNIQUE INDEX planly_preferences_pkey ON public.planly_preferences USING btree (owner_id)
+index	public.planly_projects_household_active_idx	CREATE INDEX planly_projects_household_active_idx ON public.planly_projects USING btree (household_id, deleted_at) WHERE (visibility = 'household'::text)
+index	public.planly_projects_owner_id_client_id_key	CREATE UNIQUE INDEX planly_projects_owner_id_client_id_key ON public.planly_projects USING btree (owner_id, client_id)
+index	public.planly_projects_owner_updated_idx	CREATE INDEX planly_projects_owner_updated_idx ON public.planly_projects USING btree (owner_id, updated_at)
+index	public.planly_projects_pkey	CREATE UNIQUE INDEX planly_projects_pkey ON public.planly_projects USING btree (cloud_id)
+index	public.planly_sync_state_pkey	CREATE UNIQUE INDEX planly_sync_state_pkey ON public.planly_sync_state USING btree (owner_id)
+index	public.planly_tasks_assignee_id_idx	CREATE INDEX planly_tasks_assignee_id_idx ON public.planly_tasks USING btree (assignee_id) WHERE (assignee_id IS NOT NULL)
+index	public.planly_tasks_household_assignee_idx	CREATE INDEX planly_tasks_household_assignee_idx ON public.planly_tasks USING btree (household_id, assignee_id, updated_at) WHERE ((visibility = 'household'::text) AND (deleted_at IS NULL))
+index	public.planly_tasks_household_updated_idx	CREATE INDEX planly_tasks_household_updated_idx ON public.planly_tasks USING btree (household_id, updated_at) WHERE ((visibility = 'household'::text) AND (deleted_at IS NULL))
+index	public.planly_tasks_live_series_occurrence_key	CREATE UNIQUE INDEX planly_tasks_live_series_occurrence_key ON public.planly_tasks USING btree (owner_id, series_client_id, task_date) WHERE ((deleted_at IS NULL) AND (series_client_id IS NOT NULL))
+index	public.planly_tasks_owner_date_idx	CREATE INDEX planly_tasks_owner_date_idx ON public.planly_tasks USING btree (owner_id, task_date) WHERE (deleted_at IS NULL)
+index	public.planly_tasks_owner_id_client_id_key	CREATE UNIQUE INDEX planly_tasks_owner_id_client_id_key ON public.planly_tasks USING btree (owner_id, client_id)
+index	public.planly_tasks_owner_project_idx	CREATE INDEX planly_tasks_owner_project_idx ON public.planly_tasks USING btree (owner_id, project_client_id) WHERE (deleted_at IS NULL)
+index	public.planly_tasks_owner_series_idx	CREATE INDEX planly_tasks_owner_series_idx ON public.planly_tasks USING btree (owner_id, series_client_id) WHERE (deleted_at IS NULL)
+index	public.planly_tasks_owner_updated_idx	CREATE INDEX planly_tasks_owner_updated_idx ON public.planly_tasks USING btree (owner_id, updated_at)
+index	public.planly_tasks_pkey	CREATE UNIQUE INDEX planly_tasks_pkey ON public.planly_tasks USING btree (cloud_id)
+index	public.profiles_pkey	CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)
+policy	public.calendar_sources.Users can create own calendar sources	PERMISSIVE | INSERT | authenticated | using= | check=(( SELECT auth.uid() AS uid) = owner_id)
+policy	public.calendar_sources.Users can delete own calendar sources	PERMISSIVE | DELETE | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=
+policy	public.calendar_sources.Users can update own calendar sources	PERMISSIVE | UPDATE | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=(( SELECT auth.uid() AS uid) = owner_id)
+policy	public.calendar_sources.Users can view own calendar sources	PERMISSIVE | SELECT | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=
+policy	public.external_calendar_events.Users can view own external calendar events	PERMISSIVE | SELECT | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=
+policy	public.planly_body_weights.planly_body_weights_delete_owner	PERMISSIVE | DELETE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_body_weights.planly_body_weights_insert_owner	PERMISSIVE | INSERT | authenticated | using= | check=(owner_id = ( SELECT auth.uid() AS uid))
+policy	public.planly_body_weights.planly_body_weights_select_owner	PERMISSIVE | SELECT | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_body_weights.planly_body_weights_update_owner	PERMISSIVE | UPDATE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=(owner_id = ( SELECT auth.uid() AS uid))
+policy	public.planly_budget_categories.planly_budget_categories_insert_admin	PERMISSIVE | INSERT | authenticated | using= | check=(((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_categories.scope_id) AND (s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)))))) OR ((owner_id = planly_budget_shared_structure_owner(scope_id)) AND (owner_id IS NOT NULL)))
+policy	public.planly_budget_categories.planly_budget_categories_select_authorized	PERMISSIVE | SELECT | authenticated | using=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE (s.id = planly_budget_categories.scope_id))) | check=
+policy	public.planly_budget_categories.planly_budget_categories_update_admin	PERMISSIVE | UPDATE | authenticated | using=(((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_categories.scope_id) AND (s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)))))) OR ((owner_id = planly_budget_shared_structure_owner(scope_id)) AND (owner_id IS NOT NULL))) | check=(((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_categories.scope_id) AND (s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)))))) OR ((owner_id = planly_budget_shared_structure_owner(scope_id)) AND (owner_id IS NOT NULL)))
+policy	public.planly_budget_debts.planly_budget_debts_insert_authorized	PERMISSIVE | INSERT | authenticated | using= | check=((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_debts.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id)))))))
+policy	public.planly_budget_debts.planly_budget_debts_select_authorized	PERMISSIVE | SELECT | authenticated | using=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_debts.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id)))))) | check=
+policy	public.planly_budget_debts.planly_budget_debts_update_authorized	PERMISSIVE | UPDATE | authenticated | using=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_debts.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)) AND (planly_budget_debts.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id)))))) | check=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_debts.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)) AND (planly_budget_debts.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id))))))
+policy	public.planly_budget_entries.planly_budget_entries_insert_authorized	PERMISSIVE | INSERT | authenticated | using= | check=((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_entries.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id)))))))
+policy	public.planly_budget_entries.planly_budget_entries_select_authorized	PERMISSIVE | SELECT | authenticated | using=((( SELECT auth.uid() AS uid) = owner_id) OR (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_entries.scope_id) AND (s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id))))) | check=
+policy	public.planly_budget_entries.planly_budget_entries_update_authorized	PERMISSIVE | UPDATE | authenticated | using=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_entries.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)) AND (planly_budget_entries.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id)))))) | check=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_entries.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)) AND (planly_budget_entries.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id))))))
+policy	public.planly_budget_savings.planly_budget_savings_insert_authorized	PERMISSIVE | INSERT | authenticated | using= | check=((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_savings.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id)))))))
+policy	public.planly_budget_savings.planly_budget_savings_select_authorized	PERMISSIVE | SELECT | authenticated | using=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_savings.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id)))))) | check=
+policy	public.planly_budget_savings.planly_budget_savings_update_authorized	PERMISSIVE | UPDATE | authenticated | using=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_savings.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)) AND (planly_budget_savings.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id)))))) | check=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_savings.scope_id) AND (s.deleted_at IS NULL) AND (((s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)) AND (planly_budget_savings.owner_id = ( SELECT auth.uid() AS uid))) OR ((s.scope_type = 'household'::text) AND (s.household_id IS NOT NULL) AND planly_private.is_household_member(s.household_id))))))
+policy	public.planly_budget_scopes.planly_budget_scopes_insert_authorized	PERMISSIVE | INSERT | authenticated | using= | check=((( SELECT auth.uid() AS uid) = owner_id) AND (((scope_type = 'personal'::text) AND (household_id IS NULL)) OR ((scope_type = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_owner(household_id))))
+policy	public.planly_budget_scopes.planly_budget_scopes_select_authorized	PERMISSIVE | SELECT | authenticated | using=((( SELECT auth.uid() AS uid) = owner_id) OR ((scope_type = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id))) | check=
+policy	public.planly_budget_scopes.planly_budget_scopes_update_authorized	PERMISSIVE | UPDATE | authenticated | using=((( SELECT auth.uid() AS uid) = owner_id) AND ((scope_type = 'personal'::text) OR ((scope_type = 'household'::text) AND planly_private.is_household_owner(household_id)))) | check=((( SELECT auth.uid() AS uid) = owner_id) AND (((scope_type = 'personal'::text) AND (household_id IS NULL)) OR ((scope_type = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_owner(household_id))))
+policy	public.planly_budget_targets.planly_budget_targets_insert_admin	PERMISSIVE | INSERT | authenticated | using= | check=(((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_targets.scope_id) AND (s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)))))) OR ((owner_id = planly_budget_shared_structure_owner(scope_id)) AND (owner_id IS NOT NULL)))
+policy	public.planly_budget_targets.planly_budget_targets_select_authorized	PERMISSIVE | SELECT | authenticated | using=(EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE (s.id = planly_budget_targets.scope_id))) | check=
+policy	public.planly_budget_targets.planly_budget_targets_update_admin	PERMISSIVE | UPDATE | authenticated | using=(((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_targets.scope_id) AND (s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)))))) OR ((owner_id = planly_budget_shared_structure_owner(scope_id)) AND (owner_id IS NOT NULL))) | check=(((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_budget_scopes s WHERE ((s.id = planly_budget_targets.scope_id) AND (s.scope_type = 'personal'::text) AND (s.owner_id = ( SELECT auth.uid() AS uid)))))) OR ((owner_id = planly_budget_shared_structure_owner(scope_id)) AND (owner_id IS NOT NULL)))
+policy	public.planly_food_entries.planly_food_entries_delete_owner	PERMISSIVE | DELETE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_food_entries.planly_food_entries_insert_owner	PERMISSIVE | INSERT | authenticated | using= | check=(owner_id = ( SELECT auth.uid() AS uid))
+policy	public.planly_food_entries.planly_food_entries_select_owner	PERMISSIVE | SELECT | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_food_entries.planly_food_entries_update_owner	PERMISSIVE | UPDATE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=(owner_id = ( SELECT auth.uid() AS uid))
+policy	public.planly_food_favourites.planly_food_favourites_delete_owner	PERMISSIVE | DELETE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_food_favourites.planly_food_favourites_insert_owner	PERMISSIVE | INSERT | authenticated | using= | check=(owner_id = ( SELECT auth.uid() AS uid))
+policy	public.planly_food_favourites.planly_food_favourites_select_owner	PERMISSIVE | SELECT | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_food_favourites.planly_food_favourites_update_owner	PERMISSIVE | UPDATE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=(owner_id = ( SELECT auth.uid() AS uid))
+policy	public.planly_food_profile.planly_food_profile_delete_owner	PERMISSIVE | DELETE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_food_profile.planly_food_profile_insert_owner	PERMISSIVE | INSERT | authenticated | using= | check=(owner_id = ( SELECT auth.uid() AS uid))
+policy	public.planly_food_profile.planly_food_profile_select_owner	PERMISSIVE | SELECT | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_food_profile.planly_food_profile_update_owner	PERMISSIVE | UPDATE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=(owner_id = ( SELECT auth.uid() AS uid))
+policy	public.planly_household_invites.planly_household_invites_select_owner	PERMISSIVE | SELECT | authenticated | using=planly_private.is_household_owner(household_id) | check=
+policy	public.planly_household_members.planly_household_members_select_member	PERMISSIVE | SELECT | authenticated | using=planly_private.is_household_member(household_id) | check=
+policy	public.planly_households.planly_households_select_member	PERMISSIVE | SELECT | authenticated | using=planly_private.is_household_member(id) | check=
+policy	public.planly_list_items.planly_list_items_delete_authorized	PERMISSIVE | DELETE | authenticated | using=(EXISTS ( SELECT 1 FROM planly_lists l WHERE ((l.id = planly_list_items.list_id) AND (l.deleted_at IS NULL) AND ((l.owner_id = ( SELECT auth.uid() AS uid)) OR ((l.visibility = 'household'::text) AND planly_private.is_household_member(l.household_id)))))) | check=
+policy	public.planly_list_items.planly_list_items_insert_authorized	PERMISSIVE | INSERT | authenticated | using= | check=((owner_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1 FROM planly_lists l WHERE ((l.id = planly_list_items.list_id) AND (l.deleted_at IS NULL) AND ((l.owner_id = ( SELECT auth.uid() AS uid)) OR ((l.visibility = 'household'::text) AND planly_private.is_household_member(l.household_id)))))))
+policy	public.planly_list_items.planly_list_items_select_authorized	PERMISSIVE | SELECT | authenticated | using=(EXISTS ( SELECT 1 FROM planly_lists l WHERE ((l.id = planly_list_items.list_id) AND (l.deleted_at IS NULL) AND ((l.owner_id = ( SELECT auth.uid() AS uid)) OR ((l.visibility = 'household'::text) AND planly_private.is_household_member(l.household_id)))))) | check=
+policy	public.planly_list_items.planly_list_items_update_authorized	PERMISSIVE | UPDATE | authenticated | using=(EXISTS ( SELECT 1 FROM planly_lists l WHERE ((l.id = planly_list_items.list_id) AND (l.deleted_at IS NULL) AND ((l.owner_id = ( SELECT auth.uid() AS uid)) OR ((l.visibility = 'household'::text) AND planly_private.is_household_member(l.household_id)))))) | check=(EXISTS ( SELECT 1 FROM planly_lists l WHERE ((l.id = planly_list_items.list_id) AND (l.deleted_at IS NULL) AND ((l.owner_id = ( SELECT auth.uid() AS uid)) OR ((l.visibility = 'household'::text) AND planly_private.is_household_member(l.household_id))))))
+policy	public.planly_lists.planly_lists_delete_owner	PERMISSIVE | DELETE | authenticated | using=(owner_id = ( SELECT auth.uid() AS uid)) | check=
+policy	public.planly_lists.planly_lists_insert_owner	PERMISSIVE | INSERT | authenticated | using= | check=((owner_id = ( SELECT auth.uid() AS uid)) AND (((visibility = 'private'::text) AND (household_id IS NULL)) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id))))
+policy	public.planly_lists.planly_lists_select_authorized	PERMISSIVE | SELECT | authenticated | using=((owner_id = ( SELECT auth.uid() AS uid)) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id))) | check=
+policy	public.planly_lists.planly_lists_update_authorized	PERMISSIVE | UPDATE | authenticated | using=((owner_id = ( SELECT auth.uid() AS uid)) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id))) | check=((owner_id = ( SELECT auth.uid() AS uid)) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id)))
+policy	public.planly_preferences.planly_preferences_insert_own	PERMISSIVE | INSERT | authenticated | using= | check=(( SELECT auth.uid() AS uid) = owner_id)
+policy	public.planly_preferences.planly_preferences_select_own	PERMISSIVE | SELECT | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=
+policy	public.planly_preferences.planly_preferences_update_own	PERMISSIVE | UPDATE | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=(( SELECT auth.uid() AS uid) = owner_id)
+policy	public.planly_projects.planly_projects_insert_own	PERMISSIVE | INSERT | authenticated | using= | check=((( SELECT auth.uid() AS uid) = owner_id) AND (((visibility = 'private'::text) AND (household_id IS NULL)) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id))))
+policy	public.planly_projects.planly_projects_select_authorized	PERMISSIVE | SELECT | authenticated | using=((( SELECT auth.uid() AS uid) = owner_id) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id))) | check=
+policy	public.planly_projects.planly_projects_update_own	PERMISSIVE | UPDATE | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=((( SELECT auth.uid() AS uid) = owner_id) AND (((visibility = 'private'::text) AND (household_id IS NULL)) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id))))
+policy	public.planly_sync_state.planly_sync_state_insert_own	PERMISSIVE | INSERT | authenticated | using= | check=(( SELECT auth.uid() AS uid) = owner_id)
+policy	public.planly_sync_state.planly_sync_state_select_own	PERMISSIVE | SELECT | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=
+policy	public.planly_sync_state.planly_sync_state_update_own	PERMISSIVE | UPDATE | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=(( SELECT auth.uid() AS uid) = owner_id)
+policy	public.planly_tasks.planly_tasks_insert_own	PERMISSIVE | INSERT | authenticated | using= | check=((( SELECT auth.uid() AS uid) = owner_id) AND planly_private.task_share_target_valid(visibility, household_id, assignee_id))
+policy	public.planly_tasks.planly_tasks_select_visible	PERMISSIVE | SELECT | authenticated | using=((( SELECT auth.uid() AS uid) = owner_id) OR ((visibility = 'household'::text) AND (household_id IS NOT NULL) AND planly_private.is_household_member(household_id))) | check=
+policy	public.planly_tasks.planly_tasks_update_owner	PERMISSIVE | UPDATE | authenticated | using=(( SELECT auth.uid() AS uid) = owner_id) | check=((( SELECT auth.uid() AS uid) = owner_id) AND planly_private.task_share_target_valid(visibility, household_id, assignee_id))
+policy	public.profiles.Users can update own profile	PERMISSIVE | UPDATE | authenticated | using=(( SELECT auth.uid() AS uid) = id) | check=(( SELECT auth.uid() AS uid) = id)
+policy	public.profiles.Users can view own profile	PERMISSIVE | SELECT | authenticated | using=(( SELECT auth.uid() AS uid) = id) | check=
+policy	realtime.messages.planly_household_task_broadcast_receive	PERMISSIVE | SELECT | authenticated | using=((extension = 'broadcast'::text) AND (( SELECT realtime.topic() AS topic) ~ '^household:[0-9a-fA-F-]{36}$'::text) AND planly_private.is_household_member((split_part(( SELECT realtime.topic() AS topic), ':'::text, 2))::uuid)) | check=
+schema_grant	planly_private	authenticated:USAGE,postgres:CREATE,postgres:USAGE
+schema_grant	public	PUBLIC:USAGE,anon:USAGE,authenticated:USAGE,pg_database_owner:CREATE,pg_database_owner:USAGE,postgres:USAGE,service_role:USAGE
+table	planly_private.body_import_keys	kind=r rls=true force=false owner=postgres
+table	planly_private.google_calendar_tokens	kind=r rls=true force=false owner=postgres
+table	planly_private.push_outbox	kind=r rls=true force=false owner=postgres
+table	planly_private.push_sent	kind=r rls=true force=false owner=postgres
+table	planly_private.push_subscriptions	kind=r rls=true force=false owner=postgres
+table	public.calendar_source_credentials	kind=r rls=true force=false owner=postgres
+table	public.calendar_sources	kind=r rls=true force=false owner=postgres
+table	public.external_calendar_events	kind=r rls=true force=false owner=postgres
+table	public.planly_body_weights	kind=r rls=true force=false owner=postgres
+table	public.planly_budget_categories	kind=r rls=true force=false owner=postgres
+table	public.planly_budget_debts	kind=r rls=true force=false owner=postgres
+table	public.planly_budget_entries	kind=r rls=true force=false owner=postgres
+table	public.planly_budget_savings	kind=r rls=true force=false owner=postgres
+table	public.planly_budget_scopes	kind=r rls=true force=false owner=postgres
+table	public.planly_budget_targets	kind=r rls=true force=false owner=postgres
+table	public.planly_food_entries	kind=r rls=true force=false owner=postgres
+table	public.planly_food_favourites	kind=r rls=true force=false owner=postgres
+table	public.planly_food_profile	kind=r rls=true force=false owner=postgres
+table	public.planly_household_invites	kind=r rls=true force=false owner=postgres
+table	public.planly_household_members	kind=r rls=true force=false owner=postgres
+table	public.planly_households	kind=r rls=true force=false owner=postgres
+table	public.planly_list_items	kind=r rls=true force=false owner=postgres
+table	public.planly_lists	kind=r rls=true force=false owner=postgres
+table	public.planly_preferences	kind=r rls=true force=false owner=postgres
+table	public.planly_projects	kind=r rls=true force=false owner=postgres
+table	public.planly_sync_state	kind=r rls=true force=false owner=postgres
+table	public.planly_tasks	kind=r rls=true force=false owner=postgres
+table	public.profiles	kind=r rls=true force=false owner=postgres
+table_grant	planly_private.body_import_keys	postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE
+table_grant	planly_private.google_calendar_tokens	postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE
+table_grant	planly_private.push_outbox	postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE
+table_grant	planly_private.push_sent	postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE
+table_grant	planly_private.push_subscriptions	postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE
+table_grant	public.calendar_source_credentials	postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.calendar_sources	authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:SELECT,service_role:TRIGGER,service_role:TRUNCATE,service_role:UPDATE
+table_grant	public.external_calendar_events	authenticated:SELECT,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:DELETE,service_role:INSERT,service_role:MAINTAIN,service_role:REFERENCES,service_role:SELECT,service_role:TRIGGER,service_role:TRUNCATE,service_role:UPDATE
+table_grant	public.planly_body_weights	authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:INSERT,service_role:MAINTAIN,service_role:REFERENCES,service_role:SELECT,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_budget_categories	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_budget_debts	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_budget_entries	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_budget_savings	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_budget_scopes	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_budget_targets	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_food_entries	authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_food_favourites	authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_food_profile	authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_household_invites	authenticated:SELECT,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_household_members	authenticated:SELECT,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_households	authenticated:SELECT,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_list_items	authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_lists	authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_preferences	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_projects	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_sync_state	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.planly_tasks	authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+table_grant	public.profiles	authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:MAINTAIN,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:MAINTAIN,service_role:REFERENCES,service_role:TRIGGER,service_role:TRUNCATE
+trigger	planly_private.push_outbox.push_outbox_kick	CREATE TRIGGER push_outbox_kick AFTER INSERT ON planly_private.push_outbox FOR EACH STATEMENT EXECUTE FUNCTION planly_private.push_kick() enabled=O
+trigger	public.planly_body_weights.planly_body_weights_bump_version	CREATE TRIGGER planly_body_weights_bump_version BEFORE UPDATE ON public.planly_body_weights FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_body_weights.planly_body_weights_protect_identity	CREATE TRIGGER planly_body_weights_protect_identity BEFORE UPDATE ON public.planly_body_weights FOR EACH ROW EXECUTE FUNCTION planly_protect_body_identity() enabled=O
+trigger	public.planly_budget_categories.planly_budget_categories_bump_version	CREATE TRIGGER planly_budget_categories_bump_version BEFORE UPDATE ON public.planly_budget_categories FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_budget_categories.planly_budget_categories_protect_identity	CREATE TRIGGER planly_budget_categories_protect_identity BEFORE UPDATE ON public.planly_budget_categories FOR EACH ROW EXECUTE FUNCTION planly_budget_protect_identity() enabled=O
+trigger	public.planly_budget_debts.planly_budget_debts_bump_version	CREATE TRIGGER planly_budget_debts_bump_version BEFORE UPDATE ON public.planly_budget_debts FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_budget_debts.planly_budget_debts_guard	CREATE TRIGGER planly_budget_debts_guard BEFORE INSERT OR UPDATE ON public.planly_budget_debts FOR EACH ROW EXECUTE FUNCTION planly_budget_money_guard() enabled=O
+trigger	public.planly_budget_entries.planly_budget_entries_bump_version	CREATE TRIGGER planly_budget_entries_bump_version BEFORE UPDATE ON public.planly_budget_entries FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_budget_entries.planly_budget_entries_link_guard	CREATE TRIGGER planly_budget_entries_link_guard BEFORE INSERT OR UPDATE OF debt_id, saving_id ON public.planly_budget_entries FOR EACH ROW EXECUTE FUNCTION planly_budget_entry_link_guard() enabled=O
+trigger	public.planly_budget_entries.planly_budget_entries_protect_identity	CREATE TRIGGER planly_budget_entries_protect_identity BEFORE UPDATE ON public.planly_budget_entries FOR EACH ROW EXECUTE FUNCTION planly_budget_protect_identity() enabled=O
+trigger	public.planly_budget_entries.planly_budget_entry_immutable_guard	CREATE TRIGGER planly_budget_entry_immutable_guard BEFORE UPDATE ON public.planly_budget_entries FOR EACH ROW EXECUTE FUNCTION planly_budget_entry_immutable_guard() enabled=O
+trigger	public.planly_budget_savings.planly_budget_savings_bump_version	CREATE TRIGGER planly_budget_savings_bump_version BEFORE UPDATE ON public.planly_budget_savings FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_budget_savings.planly_budget_savings_guard	CREATE TRIGGER planly_budget_savings_guard BEFORE INSERT OR UPDATE ON public.planly_budget_savings FOR EACH ROW EXECUTE FUNCTION planly_budget_money_guard() enabled=O
+trigger	public.planly_budget_scopes.planly_budget_scopes_bump_version	CREATE TRIGGER planly_budget_scopes_bump_version BEFORE UPDATE ON public.planly_budget_scopes FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_budget_scopes.planly_budget_scopes_protect_identity	CREATE TRIGGER planly_budget_scopes_protect_identity BEFORE UPDATE ON public.planly_budget_scopes FOR EACH ROW EXECUTE FUNCTION planly_budget_protect_identity() enabled=O
+trigger	public.planly_budget_targets.planly_budget_targets_bump_version	CREATE TRIGGER planly_budget_targets_bump_version BEFORE UPDATE ON public.planly_budget_targets FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_budget_targets.planly_budget_targets_protect_identity	CREATE TRIGGER planly_budget_targets_protect_identity BEFORE UPDATE ON public.planly_budget_targets FOR EACH ROW EXECUTE FUNCTION planly_budget_protect_identity() enabled=O
+trigger	public.planly_food_entries.planly_food_entries_bump_version	CREATE TRIGGER planly_food_entries_bump_version BEFORE UPDATE ON public.planly_food_entries FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_food_entries.planly_food_entries_protect_identity	CREATE TRIGGER planly_food_entries_protect_identity BEFORE UPDATE ON public.planly_food_entries FOR EACH ROW EXECUTE FUNCTION planly_protect_food_identity() enabled=O
+trigger	public.planly_food_favourites.planly_food_favourites_bump_version	CREATE TRIGGER planly_food_favourites_bump_version BEFORE UPDATE ON public.planly_food_favourites FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_food_favourites.planly_food_favourites_protect_identity	CREATE TRIGGER planly_food_favourites_protect_identity BEFORE UPDATE ON public.planly_food_favourites FOR EACH ROW EXECUTE FUNCTION planly_protect_food_identity() enabled=O
+trigger	public.planly_food_profile.planly_food_profile_bump_version	CREATE TRIGGER planly_food_profile_bump_version BEFORE UPDATE ON public.planly_food_profile FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_food_profile.planly_food_profile_protect_identity	CREATE TRIGGER planly_food_profile_protect_identity BEFORE UPDATE ON public.planly_food_profile FOR EACH ROW EXECUTE FUNCTION planly_protect_food_identity() enabled=O
+trigger	public.planly_household_members.planly_clear_task_assignee_before_member_delete	CREATE TRIGGER planly_clear_task_assignee_before_member_delete BEFORE DELETE ON public.planly_household_members FOR EACH ROW EXECUTE FUNCTION planly_clear_household_task_assignee() enabled=O
+trigger	public.planly_household_members.planly_private_departing_member_projects_before_delete	CREATE TRIGGER planly_private_departing_member_projects_before_delete BEFORE DELETE ON public.planly_household_members FOR EACH ROW EXECUTE FUNCTION planly_private_departing_member_projects() enabled=O
+trigger	public.planly_household_members.planly_private_departing_member_tasks_before_delete	CREATE TRIGGER planly_private_departing_member_tasks_before_delete BEFORE DELETE ON public.planly_household_members FOR EACH ROW EXECUTE FUNCTION planly_private_departing_member_tasks() enabled=O
+trigger	public.planly_households.planly_private_tasks_before_household_delete	CREATE TRIGGER planly_private_tasks_before_household_delete BEFORE DELETE ON public.planly_households FOR EACH ROW EXECUTE FUNCTION planly_private_tasks_on_household_delete() enabled=O
+trigger	public.planly_list_items.planly_list_items_bump_version	CREATE TRIGGER planly_list_items_bump_version BEFORE UPDATE ON public.planly_list_items FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_list_items.planly_list_items_protect_identity	CREATE TRIGGER planly_list_items_protect_identity BEFORE UPDATE ON public.planly_list_items FOR EACH ROW EXECUTE FUNCTION planly_protect_list_identity() enabled=O
+trigger	public.planly_lists.planly_lists_bump_version	CREATE TRIGGER planly_lists_bump_version BEFORE UPDATE ON public.planly_lists FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_lists.planly_lists_protect_identity	CREATE TRIGGER planly_lists_protect_identity BEFORE UPDATE ON public.planly_lists FOR EACH ROW EXECUTE FUNCTION planly_protect_list_identity() enabled=O
+trigger	public.planly_preferences.planly_preferences_bump_version	CREATE TRIGGER planly_preferences_bump_version BEFORE UPDATE ON public.planly_preferences FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_projects.planly_detach_tasks_before_project_restrict	CREATE TRIGGER planly_detach_tasks_before_project_restrict BEFORE UPDATE OF visibility, household_id, deleted_at ON public.planly_projects FOR EACH ROW EXECUTE FUNCTION planly_detach_tasks_before_project_restrict() enabled=O
+trigger	public.planly_projects.planly_household_project_broadcast	CREATE TRIGGER planly_household_project_broadcast AFTER INSERT OR DELETE OR UPDATE ON public.planly_projects FOR EACH ROW EXECUTE FUNCTION planly_broadcast_household_project_change() enabled=O
+trigger	public.planly_projects.planly_projects_bump_version	CREATE TRIGGER planly_projects_bump_version BEFORE UPDATE ON public.planly_projects FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_sync_state.planly_sync_state_touch_updated_at	CREATE TRIGGER planly_sync_state_touch_updated_at BEFORE UPDATE ON public.planly_sync_state FOR EACH ROW EXECUTE FUNCTION touch_planly_updated_at() enabled=O
+trigger	public.planly_tasks.planly_household_task_broadcast	CREATE TRIGGER planly_household_task_broadcast AFTER INSERT OR DELETE OR UPDATE ON public.planly_tasks FOR EACH ROW EXECUTE FUNCTION planly_broadcast_household_task_change() enabled=O
+trigger	public.planly_tasks.planly_tasks_bump_version	CREATE TRIGGER planly_tasks_bump_version BEFORE UPDATE ON public.planly_tasks FOR EACH ROW EXECUTE FUNCTION bump_planly_cloud_version() enabled=O
+trigger	public.planly_tasks.planly_tasks_chore_assigned_push	CREATE TRIGGER planly_tasks_chore_assigned_push AFTER INSERT OR UPDATE OF assignee_id ON public.planly_tasks FOR EACH ROW EXECUTE FUNCTION planly_private.queue_chore_assigned_push() enabled=O
+trigger	public.planly_tasks.planly_tasks_stamp_completion_actor	CREATE TRIGGER planly_tasks_stamp_completion_actor BEFORE INSERT OR UPDATE ON public.planly_tasks FOR EACH ROW EXECUTE FUNCTION planly_stamp_task_completion_actor() enabled=O
+trigger	public.planly_tasks.planly_tasks_validate_project_visibility	CREATE TRIGGER planly_tasks_validate_project_visibility BEFORE INSERT OR UPDATE OF owner_id, project_client_id, visibility, household_id ON public.planly_tasks FOR EACH ROW EXECUTE FUNCTION planly_validate_task_project_visibility() enabled=O
