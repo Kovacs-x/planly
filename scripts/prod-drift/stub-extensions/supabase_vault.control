@@ -1,0 +1,4 @@
+comment = 'local stub of Supabase Vault (planly drift gate)'
+default_version = '0.0.1'
+relocatable = false
+superuser = true

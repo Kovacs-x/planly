@@ -1,0 +1,4 @@
+comment = 'local stub of pg_net (planly drift gate)'
+default_version = '0.0.1'
+relocatable = false
+superuser = true
