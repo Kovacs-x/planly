@@ -63,7 +63,14 @@ function serviceFetch(path: string, init: RequestInit = {}) {
 
 const MAX_FEED_BYTES = 2_000_000
 const MAX_REDIRECTS = 3
-const FEED_TIMEOUT_MS = 12_000
+const FEED_TIMEOUT_MS = 12_000 // one connection attempt (connect, TLS, send, read)
+const FEED_TOTAL_MS = 20_000 // the whole feed request: every DNS lookup, redirect hop and address tried
+// Deno 2.1.4 (Supabase Edge Runtime 1.79.1) has no way to cancel a pending Deno.connect: the op takes no signal, and
+// node:net's destroy() leaves it pending too. The only real cancel, terminating a Worker, is not available on Supabase
+// Edge Functions. So a connect that gets no answer stays pending until the kernel gives up (~2 min with the default 6 SYN
+// retries) or the worker is stopped (wall-clock limit: 150 s on the Free plan), whichever comes first. To keep that
+// bounded, at most this many connects per feed request may be left unanswered; then no further address is tried.
+const MAX_UNANSWERED_CONNECTS = 2
 
 function blockedIpv4(host: string) {
   const p = host.split('.').map(Number)
@@ -74,6 +81,7 @@ function blockedIpv4(host: string) {
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 0) ||
+    (a === 192 && b === 88 && d === 99) ||
     (a === 192 && b === 168) ||
     (a === 192 && b === 0 && d === 2) ||
     (a === 198 && (b === 18 || b === 19)) ||
@@ -81,201 +89,244 @@ function blockedIpv4(host: string) {
     (a === 203 && b === 0 && d === 113)
 }
 
+// IPv6 written as its eight 16-bit groups, so mapped/compatible IPv4 in hex form (::ffff:7f00:1) is caught too.
+function ipv6Groups(h: string): number[] | null {
+  let x = h
+  const v4 = x.match(/(\d+\.\d+\.\d+\.\d+)$/)
+  if (v4) {
+    const p = v4[1].split('.').map(Number)
+    if (p.length !== 4 || p.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null
+    x = x.slice(0, -v4[1].length) + ((p[0] << 8) | p[1]).toString(16) + ':' + ((p[2] << 8) | p[3]).toString(16)
+  }
+  const halves = x.split('::')
+  if (halves.length > 2) return null
+  const head = halves[0] ? halves[0].split(':') : [], tail = halves.length === 2 && halves[1] ? halves[1].split(':') : []
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0
+  if (halves.length === 2 ? fill < 1 : head.length !== 8) return null // a '::' stands for at least one group
+  const groups = [...head, ...Array(fill).fill('0'), ...tail].map((g) => /^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN)
+  return groups.length === 8 && groups.every((g) => !Number.isNaN(g)) ? groups : null
+}
+
+// IPv6 is public only inside global unicast 2000::/3 and outside its special-purpose and transition ranges. Everything
+// else (loopback, IPv4-mapped/compatible, NAT64, unique/link local, multicast, discard, SRv6, unassigned) is refused, as
+// is anything that does not parse as exactly eight groups.
 function blockedIp(host: string) {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '')
   if (blockedIpv4(h)) return true
   if (!h.includes(':')) return false
-  if (h === '::' || h === '::1') return true
-  if (h.startsWith('fc') || h.startsWith('fd')) return true
-  if (/^fe[89ab]/.test(h)) return true
-  const mapped = h.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
-  return mapped ? blockedIpv4(mapped[1]) : false
+  const g = ipv6Groups(h)
+  if (!g) return true // not a valid address: refuse rather than guess
+  if ((g[0] & 0xe000) !== 0x2000) return true // outside 2000::/3 global unicast
+  if (g[0] === 0x2001 && g[1] < 0x0200) return true // 2001::/23 IETF assignments: Teredo, benchmarking, ORCHID, ...
+  if (g[0] === 0x2001 && g[1] === 0x0db8) return true // 2001:db8::/32 documentation
+  if (g[0] === 0x2002) return true // 2002::/16 6to4
+  if (g[0] === 0x3fff && g[1] < 0x1000) return true // 3fff::/20 documentation
+  return false
 }
 
-// Resolve the host once, validate every address it returns, and hand back a single validated public IP to pin the
-// request to. fetch() would resolve the hostname again, independently, when it opened the connection: an attacker who
-// controls the host's DNS could answer the validation lookup with a public IP and the connection lookup with a private
-// one (DNS rebinding / TOCTOU). Pinning the TCP connection to an address we validated here closes that window.
-async function resolvePinnedIp(url: URL): Promise<{ host: string; ip: string }> {
+// DNS-rebinding safe: the host is resolved ONCE here, every address is checked, and the request is then made to one of
+// these exact addresses (pinnedGet), so a second lookup can never swap in a private address.
+export async function publicAddresses(url: URL, signal?: AbortSignal): Promise<string[]> {
   if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Unsafe calendar URL')
   if (url.port && url.port !== '443') throw new Error('Unsafe calendar port')
-  const host = url.hostname.toLowerCase().replace(/\.$/, '')
+  const host = url.hostname.toLowerCase().replace(/\.$/, '').replace(/^\[|\]$/g, '')
   if (!host || host === 'localhost' || host.endsWith('.localhost') ||
       host.endsWith('.local') || host.endsWith('.internal') ||
       host.endsWith('.lan') || blockedIp(host)) {
     throw new Error('Private calendar destination')
   }
-  // A literal-IP host is already the connection target; validate it and pin to it.
-  const literal = host.replace(/^\[|\]$/g, '')
-  if (/^[\d.]+$/.test(host) || host.includes(':')) {
-    if (blockedIp(literal)) throw new Error('Private calendar destination')
-    return { host, ip: literal }
-  }
+  if (/^[\d.]+$/.test(host) || host.includes(':')) return [host]
   const results = await Promise.allSettled([
-    Deno.resolveDns(host, 'A'),
-    Deno.resolveDns(host, 'AAAA'),
+    Deno.resolveDns(host, 'A', { signal }),
+    Deno.resolveDns(host, 'AAAA', { signal }),
   ])
-  const v4 = results[0].status === 'fulfilled' ? results[0].value : []
-  const v6 = results[1].status === 'fulfilled' ? results[1].value : []
-  const addresses = [...v4, ...v6]
-  // Reject if ANY resolved address is private, so a mixed public/private answer can never be exploited by picking the
-  // private one. Then pin the connection to a specific validated address (IPv4 preferred, both families are public).
+  if (signal?.aborted) throw new Error('Calendar feed timed out')
+  const addresses = results.flatMap((r) => r.status === 'fulfilled' ? r.value : [])
   if (!addresses.length || addresses.some((ip) => blockedIp(ip))) {
     throw new Error('Calendar destination is not public')
   }
-  return { host, ip: v4[0] ?? v6[0] }
+  return addresses
 }
 
-function indexOfHeaderEnd(bytes: Uint8Array) {
-  for (let i = 0; i + 3 < bytes.length; i += 1) {
-    if (bytes[i] === 13 && bytes[i + 1] === 10 && bytes[i + 2] === 13 && bytes[i + 3] === 10) return i
-  }
+const HEADER_MAX = 32_768
+const encoder = new TextEncoder()
+
+function indexOfCrlfCrlf(b: Uint8Array) {
+  for (let i = 0; i + 3 < b.length; i += 1) if (b[i] === 13 && b[i + 1] === 10 && b[i + 2] === 13 && b[i + 3] === 10) return i
   return -1
 }
 
-function containsSequence(haystack: Uint8Array, needle: number[]) {
-  outer: for (let i = 0; i + needle.length <= haystack.length; i += 1) {
-    for (let j = 0; j < needle.length; j += 1) if (haystack[i + j] !== needle[j]) continue outer
-    return true
+// Reads the line that starts at i (up to CRLF). Returns the text and where the next line starts, or null if no CRLF.
+function lineAt(b: Uint8Array, i: number): { text: string; next: number } | null {
+  for (let j = i; j + 1 < b.length; j += 1) {
+    if (b[j] === 13 && b[j + 1] === 10) return { text: new TextDecoder().decode(b.subarray(i, j)), next: j + 2 }
   }
-  return false
+  return null
 }
 
-function parseResponseHead(raw: Uint8Array) {
-  const sep = indexOfHeaderEnd(raw)
-  if (sep < 0) return null
-  const head = new TextDecoder('latin1').decode(raw.subarray(0, sep)).split('\r\n')
-  const status = Number((head[0].match(/^HTTP\/\d(?:\.\d)?\s+(\d{3})/) || [])[1] || 0)
-  if (!status) throw new Error('Malformed calendar response')
-  const headers = new Headers()
-  for (const line of head.slice(1)) {
-    const i = line.indexOf(':')
-    if (i > 0) { try { headers.append(line.slice(0, i).trim(), line.slice(i + 1).trim()) } catch { /* ignore */ } }
-  }
-  return { status, headers, body: raw.subarray(sep + 4) }
-}
-
-// A response is complete once we can see its whole body: a chunked stream whose zero-size terminator has arrived, or a
-// Content-Length that the body has reached. Checking this lets us stop reading promptly instead of waiting for the
-// connection to close (and the request timeout to fire) on a server that ignores "Connection: close".
-function responseComplete(raw: Uint8Array) {
-  const parsed = parseResponseHead(raw)
-  if (!parsed) return false
-  if (/^chunked$/i.test(parsed.headers.get('transfer-encoding') || '')) {
-    // "\r\n0\r\n\r\n" (or a leading "0\r\n\r\n" for an empty body) marks the end of the chunks.
-    return containsSequence(parsed.body, [13, 10, 48, 13, 10, 13, 10]) ||
-      (parsed.body.length >= 5 && parsed.body[0] === 48 && parsed.body[1] === 13 && parsed.body[2] === 10 &&
-        parsed.body[3] === 13 && parsed.body[4] === 10)
-  }
-  const declared = Number(parsed.headers.get('content-length') ?? '')
-  if (Number.isFinite(declared)) return parsed.body.length >= declared
-  return false
-}
-
-function decodeChunked(bytes: Uint8Array) {
+// A chunked body read strictly: hex size (optionally ;extensions), exactly that many bytes, CRLF; a 0 chunk, optional
+// trailer header lines, a final CRLF, and nothing after it. Anything else is refused rather than half-read.
+function dechunk(b: Uint8Array, maxBytes: number) {
   const out: Uint8Array[] = []
-  let i = 0
-  let total = 0
-  while (i < bytes.length) {
-    let j = i
-    while (j + 1 < bytes.length && !(bytes[j] === 13 && bytes[j + 1] === 10)) j += 1
-    const size = parseInt(new TextDecoder('latin1').decode(bytes.subarray(i, j)).split(';')[0].trim(), 16)
-    if (!Number.isFinite(size) || size < 0) throw new Error('Malformed calendar response')
+  let i = 0, total = 0
+  while (true) {
+    const line = lineAt(b, i)
+    if (!line) throw new Error('Calendar feed was cut short')
+    const m = line.text.match(/^([0-9a-fA-F]{1,8})[ \t]*(?:;[^\r\n]*)?$/)
+    if (!m) throw new Error('Calendar feed is malformed')
+    const size = parseInt(m[1], 16)
+    i = line.next
     if (size === 0) break
-    const start = j + 2
-    const end = start + size
-    if (end > bytes.length) throw new Error('Malformed calendar response')
-    out.push(bytes.subarray(start, end))
+    if (i + size + 2 > b.length) throw new Error('Calendar feed was cut short')
+    if (b[i + size] !== 13 || b[i + size + 1] !== 10) throw new Error('Calendar feed is malformed')
     total += size
-    if (total > MAX_FEED_BYTES) throw new Error('Calendar feed is too large')
-    i = end + 2
+    if (total > maxBytes) throw new Error('Calendar feed is too large')
+    out.push(b.subarray(i, i + size))
+    i += size + 2
   }
-  const joined = new Uint8Array(total)
-  let offset = 0
-  for (const part of out) { joined.set(part, offset); offset += part.byteLength }
-  return joined
+  while (true) { // trailer section, then the final empty line
+    const line = lineAt(b, i)
+    if (!line) throw new Error('Calendar feed was cut short')
+    i = line.next
+    if (line.text === '') break
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+:/.test(line.text)) throw new Error('Calendar feed is malformed')
+  }
+  if (i !== b.length) throw new Error('Calendar feed is malformed')
+  const all = new Uint8Array(total)
+  let o = 0
+  for (const c of out) { all.set(c, o); o += c.byteLength }
+  return all
 }
 
-function decodeResponseBody(parsed: { status: number; headers: Headers; body: Uint8Array }) {
-  let body: Uint8Array
-  if (/^chunked$/i.test(parsed.headers.get('transfer-encoding') || '')) {
-    body = decodeChunked(parsed.body)
-  } else {
-    const declared = Number(parsed.headers.get('content-length') ?? '')
-    if (Number.isFinite(declared) && declared > MAX_FEED_BYTES) throw new Error('Calendar feed is too large')
-    body = Number.isFinite(declared) && declared >= 0 ? parsed.body.subarray(0, declared) : parsed.body
-  }
-  if (body.byteLength > MAX_FEED_BYTES) throw new Error('Calendar feed is too large')
-  return new TextDecoder().decode(body)
-}
-
-// HTTPS GET pinned to a validated IP. The TCP connection targets that IP directly (no second name resolution), while
-// TLS SNI and certificate verification use the original hostname via Deno.startTls({ hostname }), so a valid
-// certificate is still required and the host can never be rebound to a private address between check and connect.
-async function pinnedHttpsGet(url: URL, pin: { host: string; ip: string }, timeoutMs: number) {
-  const tcp = await Deno.connect({ hostname: pin.ip, port: Number(url.port || '443') })
-  let conn: Deno.TlsConn
+// One GET over a TCP connection to the validated address, with TLS for the original host name (so the certificate is
+// still checked against it) and the original Host header. HTTP/1.1, Connection: close, identity encoding, bounded size.
+export async function pinnedGet(
+  url: URL,
+  ip: string,
+  opts: { port?: number; caCerts?: string[]; timeoutMs?: number; maxBytes?: number } = {},
+): Promise<{ status: number; headers: Headers; body: Uint8Array }> {
+  const maxBytes = opts.maxBytes ?? MAX_FEED_BYTES
+  // One deadline for the whole request: TCP connect, TLS handshake, sending and reading. On expiry the socket is closed;
+  // a connection that only opens after the deadline is closed as soon as it does.
+  // A timeout while the connect is still pending is marked connectPending: that connect cannot be cancelled (see
+  // MAX_UNANSWERED_CONNECTS) and is closed as soon as it opens.
+  let conn: Deno.Conn | null = null
+  let expired = false
+  let connected = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expiry = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      expired = true
+      try { conn?.close() } catch { /* closed */ }
+      reject(Object.assign(new Error('Calendar feed timed out'), { connectPending: !connected }))
+    }, opts.timeoutMs ?? FEED_TIMEOUT_MS)
+  })
+  const work = (async () => {
+    const tcp = await Deno.connect({ hostname: ip, port: opts.port ?? 443 })
+    connected = true
+    if (expired) { try { tcp.close() } catch { /* closed */ } throw new Error('Calendar feed timed out') }
+    conn = tcp
+    const tls = await Deno.startTls(tcp, { hostname: url.hostname.replace(/^\[|\]$/g, ''), caCerts: opts.caCerts })
+    if (expired) { try { tls.close() } catch { /* closed */ } throw new Error('Calendar feed timed out') }
+    conn = tls
+    return await exchange(tls, url, maxBytes)
+  })()
   try {
-    conn = await Deno.startTls(tcp, { hostname: pin.host, alpnProtocols: ['http/1.1'] })
-  } catch (err) {
-    try { tcp.close() } catch { /* already closed */ }
-    throw err
-  }
-  let timedOut = false
-  const timer = setTimeout(() => { timedOut = true; try { conn.close() } catch { /* already closed */ } }, timeoutMs)
-  try {
-    const path = (url.pathname || '/') + (url.search || '')
-    const request =
-      `GET ${path} HTTP/1.1\r\n` +
-      `Host: ${url.host}\r\n` +
-      `User-Agent: Planly-Calendar/1.1\r\n` +
-      `Accept: text/calendar,text/plain;q=0.9,*/*;q=0.1\r\n` +
-      `Accept-Encoding: identity\r\n` +
-      `Connection: close\r\n\r\n`
-    const toSend = new TextEncoder().encode(request)
-    for (let sent = 0; sent < toSend.length;) sent += await conn.write(toSend.subarray(sent))
-    const RAW_CAP = MAX_FEED_BYTES + 65_536
-    let raw = new Uint8Array(0)
-    const buf = new Uint8Array(16_384)
-    while (true) {
-      const n = await conn.read(buf)
-      if (n === null) break
-      if (n > 0) {
-        const next = new Uint8Array(raw.length + n)
-        next.set(raw)
-        next.set(buf.subarray(0, n), raw.length)
-        raw = next
-        if (raw.length > RAW_CAP) throw new Error('Calendar feed is too large')
-        if (responseComplete(raw)) break
-      }
-    }
-    const parsed = parseResponseHead(raw)
-    if (!parsed) throw new Error('Malformed calendar response')
-    return { status: parsed.status, ok: parsed.status >= 200 && parsed.status < 300, headers: parsed.headers, parsed }
-  } catch (err) {
-    if (timedOut) throw new Error('Calendar feed timed out')
-    throw err
+    return await Promise.race([work, expiry])
   } finally {
     clearTimeout(timer)
-    try { conn.close() } catch { /* already closed */ }
+    work.catch(() => { /* already reported, or cut off by the deadline */ })
+    try { (conn as Deno.Conn | null)?.close() } catch { /* closed */ }
   }
 }
 
-async function fetchCalendarFeed(input: string | URL) {
-  let url = input instanceof URL ? new URL(input.toString()) : new URL(String(input))
-  for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
-    // Re-validate and re-pin on every hop, so a redirect cannot aim the next request at a private address.
-    const pin = await resolvePinnedIp(url)
-    const res = await pinnedHttpsGet(url, pin, FEED_TIMEOUT_MS)
-    if ([301, 302, 303, 307, 308].includes(res.status)) {
-      const location = res.headers.get('location')
-      if (!location || redirect === MAX_REDIRECTS) throw new Error('Unsafe calendar redirect')
-      url = new URL(location, url)
-      continue
-    }
-    return { response: { ok: res.ok, status: res.status }, text: decodeResponseBody(res.parsed), finalUrl: url }
+async function exchange(conn: Deno.Conn, url: URL, maxBytes: number): Promise<{ status: number; headers: Headers; body: Uint8Array }> {
+  const request = encoder.encode(
+    `GET ${url.pathname || '/'}${url.search} HTTP/1.1\r\nHost: ${url.host}\r\n` +
+    'Accept: text/calendar,text/plain;q=0.9,*/*;q=0.1\r\nAccept-Encoding: identity\r\n' +
+    'User-Agent: Planly-Calendar/1.2\r\nConnection: close\r\n\r\n',
+  )
+  for (let sent = 0; sent < request.length;) sent += await conn.write(request.subarray(sent))
+  const cap = HEADER_MAX + maxBytes + 65_536
+  const chunks: Uint8Array[] = []
+  let total = 0
+  const buf = new Uint8Array(32_768)
+  while (true) {
+    const n = await conn.read(buf)
+    if (n === null) break
+    total += n
+    if (total > cap) throw new Error('Calendar feed is too large')
+    chunks.push(buf.slice(0, n))
   }
-  throw new Error('Too many calendar redirects')
+  const raw = new Uint8Array(total)
+  let o = 0
+  for (const c of chunks) { raw.set(c, o); o += c.byteLength }
+  const end = indexOfCrlfCrlf(raw)
+  if (end < 0 || end > HEADER_MAX) throw new Error('Calendar server sent no valid response')
+  const lines = new TextDecoder().decode(raw.subarray(0, end)).split('\r\n')
+  const statusMatch = lines[0].match(/^HTTP\/1\.[01] (\d{3})/)
+  if (!statusMatch) throw new Error('Calendar server sent no valid response')
+  const headers = new Headers()
+  for (const line of lines.slice(1)) {
+    const k = line.indexOf(':')
+    if (k > 0) headers.append(line.slice(0, k).trim(), line.slice(k + 1).trim())
+  }
+  let body = raw.subarray(end + 4)
+  const te = headers.get('transfer-encoding')
+  if (te !== null) {
+    if (te.trim().toLowerCase() !== 'chunked') throw new Error('Calendar feed is malformed') // identity was asked for
+    body = dechunk(body, maxBytes)
+  } else if (headers.has('content-length')) {
+    const cl = (headers.get('content-length') || '').trim()
+    if (!/^\d{1,10}$/.test(cl)) throw new Error('Calendar feed is malformed')
+    const len = Number(cl)
+    if (len > maxBytes) throw new Error('Calendar feed is too large')
+    if (body.length < len) throw new Error('Calendar feed was cut short')
+    body = body.subarray(0, len)
+  }
+  if (body.length > maxBytes) throw new Error('Calendar feed is too large')
+  return { status: Number(statusMatch[1]), headers, body }
+}
+
+export async function fetchCalendarFeed(
+  input: string | URL,
+  opts: { attemptMs?: number; totalMs?: number } = {},
+) {
+  let url = input instanceof URL ? new URL(input.toString()) : new URL(String(input))
+  const deadline = Date.now() + (opts.totalMs ?? FEED_TOTAL_MS)
+  const dnsAbort = new AbortController()
+  const dnsTimer = setTimeout(() => dnsAbort.abort(), opts.totalMs ?? FEED_TOTAL_MS)
+  let unanswered = 0
+  try {
+    for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
+      const addresses = await publicAddresses(url, dnsAbort.signal)
+      let result: { status: number; headers: Headers; body: Uint8Array } | null = null
+      let lastError: unknown = null
+      for (const ip of addresses) {
+        const left = deadline - Date.now()
+        if (left <= 0 || unanswered >= MAX_UNANSWERED_CONNECTS) { lastError = new Error('Calendar feed timed out'); break }
+        try {
+          result = await pinnedGet(url, ip, { timeoutMs: Math.min(opts.attemptMs ?? FEED_TIMEOUT_MS, left) })
+          break
+        } catch (err) {
+          lastError = err
+          if ((err as { connectPending?: boolean })?.connectPending) unanswered += 1
+        }
+      }
+      if (!result) throw lastError instanceof Error ? lastError : new Error('Calendar feed could not be reached')
+      if ([301, 302, 303, 307, 308].includes(result.status)) {
+        const location = result.headers.get('location')
+        if (!location || redirect === MAX_REDIRECTS) throw new Error('Unsafe calendar redirect')
+        url = new URL(location, url)
+        continue
+      }
+      const response = new Response(null, { status: result.status, headers: result.headers })
+      return { response, text: new TextDecoder().decode(result.body), finalUrl: url }
+    }
+    throw new Error('Too many calendar redirects')
+  } finally {
+    clearTimeout(dnsTimer)
+  }
 }
 
 function unfold(value: string) {

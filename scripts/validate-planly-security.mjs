@@ -156,4 +156,47 @@ function foodProblems(m54){
  // redirects are never followed (each fetch call, up to its closing bracket, says redirect: 'manual'), and the body is only read through the byte-counting reader
  for(const m of fn.matchAll(/\bfetch\(/g)){const call=fn.slice(m.index,fn.indexOf('\n',m.index));if(!call.includes("redirect: 'manual'"))fail('food-search fetch must not follow redirects: '+call.slice(0,80))}
  if(/req\.(text|json|arrayBuffer|formData|blob)\(/.test(fn))fail('food-search must read the body only through readLimited');}
+// calendar-source-create: feeds are fetched DNS-rebinding safe. The only fetch() calls go to Supabase (SB + ...); the feed
+// itself goes through publicAddresses() (one lookup, every address checked) and pinnedGet() (TCP to that IP, TLS for the
+// original host name), and redirects are checked again hop by hop.
+{const fn=read('supabase/functions/calendar-source-create/index.ts');
+ for(const m of fn.matchAll(/\bfetch\(([^,)]*)/g))if(!/^\s*SB\s*\+/.test(m[1]))fail('calendar-source-create may only fetch() Supabase; feeds go through pinnedGet: fetch('+m[1].trim()+')');
+ for(const needle of ['export async function publicAddresses(url: URL, signal?: AbortSignal)','Deno.resolveDns(host, \'A\', { signal })','Deno.connect({ hostname: ip, port: opts.port ?? 443 })','Deno.startTls(tcp, { hostname: url.hostname','const addresses = await publicAddresses(url, dnsAbort.signal)','result = await pinnedGet(url, ip, { timeoutMs: Math.min(opts.attemptMs ?? FEED_TIMEOUT_MS, left) })','if (!addresses.length || addresses.some((ip) => blockedIp(ip)))','redirect === MAX_REDIRECTS'])
+  if(!fn.includes(needle))fail('calendar-source-create DNS-rebinding guard missing: '+needle);
+ if((fn.match(/Deno\.resolveDns\(/g)||[]).length!==2)fail('calendar-source-create must resolve DNS only in publicAddresses (A and AAAA)')
+ // review of #316: IPv6 is public only inside global unicast 2000::/3 (allow-list, not block-list); one deadline covers the
+ // TCP connect and TLS as well as reading; chunked framing is checked exactly.
+ for(const needle of ["if ((g[0] & 0xe000) !== 0x2000) return true","if (g[0] === 0x2001 && g[1] < 0x0200) return true","if (g[0] === 0x2001 && g[1] === 0x0db8) return true","if (g[0] === 0x2002) return true","if (g[0] === 0x3fff && g[1] < 0x1000) return true","if (halves.length === 2 ? fill < 1 : head.length !== 8) return null","return await Promise.race([work, expiry])","if (b[i + size] !== 13 || b[i + size + 1] !== 10) throw new Error('Calendar feed is malformed')","if (i !== b.length) throw new Error('Calendar feed is malformed')"])
+  if(!fn.includes(needle))fail('calendar-source-create hardening missing: '+needle);
+ // review 2 of #316: a pending Deno.connect cannot be cancelled on Deno 2.1.4, so unanswered connects are capped per
+ // request, one deadline covers the whole request, and DNS lookups are aborted at that deadline.
+ for(const needle of ["const MAX_UNANSWERED_CONNECTS = 2","if (left <= 0 || unanswered >= MAX_UNANSWERED_CONNECTS)","if ((err as { connectPending?: boolean })?.connectPending) unanswered += 1","Deno.resolveDns(host, 'A', { signal })","Deno.resolveDns(host, 'AAAA', { signal })","connectPending: !connected"])
+  if(!fn.includes(needle))fail('calendar-source-create connect bound missing: '+needle);
+ {const work=fn.slice(fn.indexOf('const expiry = new Promise<never>'),fn.indexOf('return await Promise.race([work, expiry])'));
+  if(!work.includes('Deno.connect(')||!work.includes('Deno.startTls('))fail('calendar-source-create: Deno.connect and Deno.startTls must run inside the request deadline')}
+ if(/parseInt\([^)]*decode/.test(fn))fail('calendar-source-create: chunk sizes must be matched as hex digits, not parseInt of raw text')}
+// Content-Security-Policy (v2/index.html; GitHub Pages cannot send headers, so it is a meta tag): first thing after the
+// charset, strict scripts (no inline, no eval, exact external script URLs), and every origin the app fetches allowed.
+{const html=read('v2/index.html'),m=html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/);
+ if(!m)fail('index.html must set a Content-Security-Policy meta tag');
+ if(html.indexOf(m[0])>html.search(/<script|<link|<style/))fail('the CSP meta tag must come before any script, link or style');
+ const csp=Object.fromEntries(m[1].split(';').map(x=>x.trim().split(/\s+/)).filter(x=>x[0]).map(([k,...v])=>[k,v]));
+ const need={'default-src':["'self'"],'object-src':["'none'"],'base-uri':["'self'"],'form-action':["'self'"],'img-src':["'self'",'data:'],'font-src':["'self'"],'style-src':["'self'","'unsafe-inline'"]};
+ for(const [k,v] of Object.entries(need))if(JSON.stringify(csp[k])!==JSON.stringify(v))fail(`CSP ${k} must be exactly ${v.join(' ')}: ${(csp[k]||[]).join(' ')}`);
+ for(const [k,v] of Object.entries(csp))for(const src of v)if(src==='*'||src.includes('*')||(k!=='img-src'&&/^(data|blob|http):/.test(src))||/'unsafe-eval'|'unsafe-hashes'|'wasm-unsafe-eval'/.test(src)||(k==='script-src'&&src==="'unsafe-inline'"))fail(`CSP ${k} must not allow ${src}`);
+ const scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+ for(const [,attrs,body] of scripts){if(!/\ssrc="/.test(attrs)||body.trim())fail('index.html must not contain inline <script> blocks (CSP)');const src=attrs.match(/src="([^"]+)"/)[1];
+  if(/^https?:/.test(src)&&!csp['script-src'].includes(src))fail('CSP script-src must list the exact external script '+src)}
+ if(/\son[a-z]+\s*=\s*["']/i.test(html.replace(/<style[\s\S]*?<\/style>/g,'')))fail('index.html must not use inline event handlers (CSP)');
+ if(/href\s*=\s*["']javascript:/i.test(html))fail('index.html must not use javascript: links (CSP)');
+ const runtime=fs.readdirSync(path.join(root,'v2')).filter(f=>/\.js$/.test(f)&&f!=='sw.js').map(f=>read('v2/'+f)).join('\n');
+ if(/\bnew Function\s*\(|\beval\s*\(|setTimeout\(\s*['"`]|setInterval\(\s*['"`]/.test(runtime))fail('app code must not evaluate strings (CSP has no unsafe-eval)');
+ if(/\son(click|load|error|change|input|submit|key\w+|focus|blur|touch\w+|mouse\w+)\s*=\s*\\?["']/i.test(runtime))fail('app code must not render inline event handlers (CSP)');
+ // every https/wss origin named in the app code is reachable under the CSP, unless it is only a name (an XML namespace, a
+ // redirect address, an OAuth scope)
+ const notFetched=new Set(['http://www.w3.org','https://kovacs-x.github.io']),allowed=new Set([...csp['connect-src'],...csp['script-src']].map(x=>x.replace(/^(https?:\/\/[^/]+).*$/,'$1')));
+ for(const o of new Set(runtime.match(/(?:https?|wss?):\/\/[a-z0-9.-]+/gi)||[]))if(!notFetched.has(o)&&!allowed.has(o))fail('origin used by the app is not in the CSP: '+o);
+ if(!/<script src="\.\/vendor\/supabase-js-\d+\.\d+\.\d+\.js"><\/script>/.test(html))fail('supabase-js must load from our own origin (./vendor/supabase-js-<version>.js)');
+ if(JSON.stringify(csp['script-src'])!==JSON.stringify(["'self'",'https://accounts.google.com/gsi/client']))fail("CSP script-src must be exactly 'self' https://accounts.google.com/gsi/client: "+(csp['script-src']||[]).join(' '));
+ for(const o of ['https://dtniwcwjucepsjzoojuc.supabase.co','wss://dtniwcwjucepsjzoojuc.supabase.co'])if(!csp['connect-src'].includes(o))fail('CSP connect-src must allow '+o)}
 console.log('Planly security regression checks passed.');

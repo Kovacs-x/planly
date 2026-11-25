@@ -35,7 +35,7 @@ await page.reload();await W(4000);
 c=await chip(page);
 check('server refusing every request: Not syncing, in red',c.text.startsWith('Not syncing')&&c.trouble,JSON.stringify(c));
 await page.evaluate(()=>document.getElementById('planlySyncChip')?.click());await W(400);
-check('…tapping it says why in one line',/can’t reach its server/.test(await toast(page)),await toast(page));
+check('…tapping it says why in one line',/can’t sync with its server right now/.test(await toast(page)),await toast(page));
 
 // the server works again: Planly asks again by itself every 20 seconds, so the chip clears without doing anything
 db.fail=null;await W(22000);

@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net https://accounts.google.com 'sha256-yKTUSLiKoZvUVQN4gD8CnqTgeZHE2SPNqfapicSABOs=' 'sha256-ykXcnDLSIKmatGlpT05Yrk4mgpr+bmIfX9ikpW+zfJY='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://dtniwcwjucepsjzoojuc.supabase.co wss://dtniwcwjucepsjzoojuc.supabase.co https://www.googleapis.com https://world.openfoodfacts.org https://search.openfoodfacts.org https://accounts.google.com" />
+  <!-- Content-Security-Policy. GitHub Pages cannot send HTTP headers, so it is set here; frame-ancestors and report-only
+       cannot be set from a meta tag. connect-src: Supabase (REST, auth, functions, realtime), Google Calendar API, Google
+       sign-in (revoke, logging), Open Food Facts (food search fallback). No inline scripts: see boot-head.js and boot.js. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://dtniwcwjucepsjzoojuc.supabase.co wss://dtniwcwjucepsjzoojuc.supabase.co https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://world.openfoodfacts.org https://search.openfoodfacts.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -16,13 +19,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" sizes="180x180" href="../icon-180.png" />
   <title>Planly</title>
-  <script>
-    (()=>{try{const saved=JSON.parse(localStorage.getItem('planly-device-settings-v1')||'null');let theme=saved?.theme||'light';if(theme==='system')theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=theme==='dark'?'dark':'light'}catch{document.documentElement.dataset.theme='light'}})();
-    if(!('serviceWorker' in navigator)||!navigator.serviceWorker.controller)document.documentElement.classList.add('planlyBootPending');else document.documentElement.classList.add('planlyWarmStart');
-    window.__planlySwBoot={status:'starting'};
-    // Planly behaves like an app: no pinch zoom. iOS Safari ignores user-scalable=no, so cancel its pinch gestures too.
-    for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>e.preventDefault(),{passive:false});
-  </script>
+  <script src="./boot-head.js?v=721t59"></script>
   <style>
     :root{--cardSoft:#fafafa;--accent:#20242c;--accentText:#fff;--selected:#20242c;--selectedText:#fff;--danger:#b42318;--success:#16824b;--warning:#b65d08;--shadow:0 8px 28px rgba(17,24,39,.055);--shadowLift:0 14px 40px rgba(17,24,39,.10);--radiusCard:20px;--radiusControl:13px}
     :root[data-theme="dark"]{--cardSoft:#14171c;--accent:#f3f4f6;--accentText:#111215;--selected:#292e37;--selectedText:#f9fafb;--danger:#ff8178;--success:#54d38b;--warning:#f6b85d;--shadow:none;--shadowLift:0 16px 42px rgba(0,0,0,.28)}
@@ -1291,53 +1288,8 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--
 </form></div></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+<script src="./vendor/supabase-js-2.116.0.js"></script>
 <script src="./supabase-config.js"></script>
-<script>
-(()=>{
-  'use strict';
-  const RELOAD_KEY='planly-sw-first-reload',TIMEOUT_MS=6000,RUNTIME_URL='./app-v3.2.0.js?v=721t58';
-  const splash=document.getElementById('planlyBootSplash'),message=document.getElementById('planlyBootMessage'),retry=document.getElementById('planlyBootRetry');
-  const setBoot=(status,detail={})=>{window.__planlySwBoot={status,...detail}};
-  const fail=(text,status='error')=>{setBoot(status);document.documentElement.classList.remove('planlyWarmStart');document.documentElement.classList.add('planlyBootPending');if(splash)splash.hidden=false;if(message)message.textContent=text;if(retry)retry.hidden=false};
-  const ready=()=>{sessionStorage.removeItem(RELOAD_KEY);document.documentElement.classList.remove('planlyBootPending','planlyWarmStart');if(splash)splash.hidden=true;setBoot('ready')};
-  const loadRuntime=()=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=RUNTIME_URL;script.async=false;script.onload=()=>{ready();resolve()};script.onerror=()=>reject(new Error('runtime-load-failed'));document.body.appendChild(script)});
-  const waitForController=()=>new Promise((resolve,reject)=>{
-    let settled=false;
-    const done=fn=>{if(settled)return;settled=true;clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',onController);fn()};
-    const onController=()=>done(resolve);
-    const timer=setTimeout(()=>done(()=>reject(new Error('controller-timeout'))),TIMEOUT_MS);
-    navigator.serviceWorker.addEventListener('controllerchange',onController);
-    if(navigator.serviceWorker.controller)done(resolve);
-  });
-  retry?.addEventListener('click',()=>{sessionStorage.removeItem(RELOAD_KEY);location.reload()});
-  const maintainRegistration=async()=>{try{const regs=await navigator.serviceWorker.getRegistrations();for(const reg of regs){const path=new URL(reg.scope).pathname;if(path.endsWith('/planly/'))await reg.unregister();if(path.endsWith('/planly/v2-preview/')&&!reg.installing&&!reg.waiting&&!reg.active)await reg.unregister()}return await navigator.serviceWorker.register('./sw.js',{scope:'./'})}catch{return null}};
-  (async()=>{
-    if(!('serviceWorker' in navigator)){fail('Planly needs service-worker support to start safely in this browser.','unsupported');return}
-    if(navigator.serviceWorker.controller){
-      document.documentElement.classList.remove('planlyBootPending');if(splash)splash.hidden=true;setBoot('warm-start',{controlled:true});
-      maintainRegistration();
-      try{await loadRuntime()}catch{fail('Planly could not finish loading. Tap Retry to try again.','runtime-error')}
-      return
-    }
-    try{
-      const reg=await maintainRegistration();
-      if(!reg)throw new Error('service-worker-registration-failed');
-      setBoot('registered',{scope:reg.scope,controlled:!!navigator.serviceWorker.controller});
-      if(navigator.serviceWorker.controller){await loadRuntime();return}
-      if(sessionStorage.getItem(RELOAD_KEY)==='1'){
-        try{await waitForController();await loadRuntime();return}
-        catch{fail(navigator.onLine?'Planly could not finish setting up. Tap Retry to try again.':'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.','setup-incomplete');return}
-      }
-      await waitForController();
-      sessionStorage.setItem(RELOAD_KEY,'1');
-      location.reload();
-    }catch(err){
-      const offline=!navigator.onLine;
-      fail(offline?'Planly is offline and has not been prepared on this device yet. Connect once to finish setup.':'Planly could not finish setting up. Tap Retry to try again.',offline?'offline-first-visit':'setup-error');
-    }
-  })();
-})();
-</script>
+<script src="./boot.js?v=721t59"></script>
 </body>
 </html>
